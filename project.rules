@@ -1,0 +1,12 @@
+# WilberVargas Project Rules
+
+-   Comment and document functions, commands, errors, and important modules.
+-   Follow SOLID principles in software design and development.
+-   Prioritize code modularity and reusability.
+-   Use English for variable and function names.
+-   All words or text displayed in the application must be obtained from localization files (locales). Variables for text in localization files must be created in Spanish, regardless of the content language.
+-   Do not include passwords or secrets in the code or configuration files; use .env files.
+-   Sensitive configuration files must not be uploaded to the repository; keep the .gitignore file updated and avoid uploading unnecessary files.
+-   Create unit tests for new features.
+-   Follow PEP8 standard for Python and best practices for other languages.
+
