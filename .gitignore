@@ -1,0 +1,5 @@
+ApprendeVr/front-multip/node_modules
+ApprendeVr/front-multip/dist
+ApprendeVr/front-multip/build
+ApprendeVr/front-multip/public/models
+!ApprendeVr/front-multip/public/models/.gitkeep
