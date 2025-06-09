@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text } from '@react-three/drei';
+import { Color } from 'three';
 
 const Box = ({ size, position }) => {
   // Función para crear el texto en las caras de la caja
@@ -11,10 +12,12 @@ const Box = ({ size, position }) => {
     );
   };
 
+  const whiteColor = new Color(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--white').slice(1), 16));
+
   return (
     <mesh position={position}>
       <boxGeometry args={size} />
-      <meshStandardMaterial color="white" />
+      <meshStandardMaterial color={whiteColor} />
       {/* Llamar a la función para crear el texto en cada cara */}
       {createText([0, 0, size[2] / 2], [0, 0, 0], "1")} // Cara frontal
       {createText([0, 0, -size[2] / 2], [0, Math.PI, 0], "3")} // Cara trasera
