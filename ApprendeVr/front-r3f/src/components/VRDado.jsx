@@ -1,8 +1,7 @@
 import React from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Text } from '@react-three/drei';
+import { Text } from '@react-three/drei';
 
-const Box = ({ size }) => {
+const Box = ({ size, position }) => {
   // Función para crear el texto en las caras de la caja
   const createText = (position, rotation, number) => {
     return (
@@ -13,7 +12,7 @@ const Box = ({ size }) => {
   };
 
   return (
-    <mesh>
+    <mesh position={position}>
       <boxGeometry args={size} />
       <meshStandardMaterial color="white" />
       {/* Llamar a la función para crear el texto en cada cara */}
@@ -27,17 +26,10 @@ const Box = ({ size }) => {
   );
 };
 
-const VRScene = () => {
-  const boxSize = [3, 3, 3]; // Tamaño de la caja (ancho, alto, profundidad)
-
+const VRDado = ({ size, position }) => {
   return (
-    <Canvas>
-      <ambientLight />
-      <pointLight position={[10, 10, 10]} />
-      <Box size={boxSize} />
-      <OrbitControls />
-    </Canvas>
+    <Box size={size} position={position} />
   );
 };
 
-export default VRScene;
+export default VRDado;
