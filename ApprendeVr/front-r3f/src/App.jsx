@@ -4,7 +4,6 @@ import VRWorld from './components/VRWorld'
 import VRUser from './components/VRUser'; // Import VRUser
 import './App.css'
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
 
 const App = () => {
   const boxSize1 = [1, 1, 1];
@@ -21,8 +20,7 @@ const App = () => {
         <VRDado size={boxSize1} position={boxPosition1} />
         <VRDado size={boxSize2} position={boxPosition2} />
         <VRWorld diameter={90} position={[0, 0, 0]} />
-        <VRUser initialPosition={[0, 3, 6]}/> {/* Add VRUser component */}
-        <OrbitControls />
+        <VRUser initialPosition={[0, 1, 0]}/> {/* Add VRUser component */}
       </Canvas>
     </div>
   )

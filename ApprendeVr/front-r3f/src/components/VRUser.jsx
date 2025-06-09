@@ -1,9 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, Raycaster, SphereGeometry, MeshBasicMaterial, Mesh, CylinderGeometry } from 'three';
-import VRCamera from './VRCamera';
 
-const VRUser = ({ initialPosition = [0, 1, 5] }) => {
+const VRUser = ({ initialPosition = [0, 1, 0] }) => {
   const { scene, gl, camera } = useThree();
   const moveSpeed = 0.1;
   const userPosition = useRef(new Vector3(...initialPosition));
@@ -30,16 +29,16 @@ const VRUser = ({ initialPosition = [0, 1, 5] }) => {
     const handleKeyDown = (event) => {
       switch (event.key) {
         case 'ArrowUp':
-          userPosition.current.z -= moveSpeed;
-          break;
-        case 'ArrowDown':
           userPosition.current.z += moveSpeed;
           break;
+        case 'ArrowDown':
+          userPosition.current.z -= moveSpeed;
+          break;
         case 'ArrowLeft':
-          userPosition.current.x -= moveSpeed;
+          userPosition.current.x += moveSpeed;
           break;
         case 'ArrowRight':
-          userPosition.current.x += moveSpeed;
+          userPosition.current.x -= moveSpeed;
           break;
         default:
           break;
@@ -78,13 +77,17 @@ const VRUser = ({ initialPosition = [0, 1, 5] }) => {
   useFrame(() => {
     cylinderRef.current.position.copy(userPosition.current);
     pointer.current.material.color.set(pointerColor);
+
+    // Set camera position to follow the user
+    camera.position.set(
+      userPosition.current.x,
+      userPosition.current.y + 1, // Camera slightly above the user
+      userPosition.current.z - 3  // Camera a bit behind the user
+    );
+    camera.lookAt(userPosition.current);
   });
 
-  return (
-    <>
-      <VRCamera positionOffset={[0, 3, -5]} />
-    </>
-  );
+  return null;
 };
 
 export default VRUser;
