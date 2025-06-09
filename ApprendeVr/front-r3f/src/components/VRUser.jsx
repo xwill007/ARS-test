@@ -1,17 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, Raycaster, SphereGeometry, MeshBasicMaterial, Mesh, CylinderGeometry } from 'three';
+import { Color } from 'three';
 
-const VRUser = ({ initialPosition = [0, 1, 0] }) => {
+const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) => {
   const { scene, gl, camera } = useThree();
   const moveSpeed = 0.1;
   const userPosition = useRef(new Vector3(...initialPosition));
   const raycaster = useRef(new Raycaster());
   const pointer = useRef(null);
-  const [pointerColor, setPointerColor] = useState(0xff0000); // Initial color: red
-  const cylinderRef = useRef();
-  const [rotation, setRotation] = useState({ x: 0, y: 0 }); // Track rotation
+  const [rotation, setRotation] = useState({ x: initialRotation[0], y: initialRotation[1] });
   const [isDragging, setIsDragging] = useState(false);
+  const [pointerColor, setPointerColor] = useState(new Color(getComputedStyle(document.documentElement).getPropertyValue('--white'))); // Initial color: white
+  const cylinderRef = useRef();
 
   useEffect(() => {
     // Create pointer sphere
@@ -51,21 +52,20 @@ const VRUser = ({ initialPosition = [0, 1, 0] }) => {
     };
 
     const handleClick = () => {
-      raycaster.current.setFromCamera(new Vector3(0, 0, 0), camera);
+      raycaster.current.setFromCamera(new Vector3(), camera);
       const intersects = raycaster.current.intersectObjects(scene.children);
 
       if (intersects.length > 0) {
-        // Change color if clicked on an object
-        setPointerColor(0x00ff00); // Green
-      } else {
-        // Revert to initial color if clicked on nothing
-        setPointerColor(0xff0000); // Red
+        // Check if the intersected object is a VRDado
+        if (intersects[0].object.userData.isVRDado) {
+          // Change color if clicked on a VRDado
+          setPointerColor(new Color(getComputedStyle(document.documentElement).getPropertyValue('--red'))); // Red
+          // Revert to initial color after a short delay
+          setTimeout(() => {
+            setPointerColor(new Color(getComputedStyle(document.documentElement).getPropertyValue('--white'))); // White
+          }, 250);
+        }
       }
-
-      // Change back to the original color after a short delay
-      setTimeout(() => {
-        setPointerColor(0xff0000);
-      }, 250);
     };
 
     const handleMouseMove = (event) => {
@@ -91,23 +91,22 @@ const VRUser = ({ initialPosition = [0, 1, 0] }) => {
 
     gl.domElement.addEventListener('click', handleClick);
     document.addEventListener('keydown', handleKeyDown);
-    gl.domElement.addEventListener('mousemove', handleMouseMove); // Mouse move
+    gl.domElement.addEventListener('mousemove', handleMouseMove);
     gl.domElement.addEventListener('mousedown', handleMouseDown);
     gl.domElement.addEventListener('mouseup', handleMouseUp);
 
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       document.removeEventListener('keydown', handleKeyDown);
-      gl.domElement.removeEventListener('mousemove', handleMouseMove); // Remove
+      gl.domElement.removeEventListener('mousemove', handleMouseMove);
       gl.domElement.removeEventListener('mousedown', handleMouseDown);
       gl.domElement.removeEventListener('mouseup', handleMouseUp);
-      scene.remove(pointer.current); // Remove the pointer when the component unmounts
+      scene.remove(pointer.current);
       scene.remove(cylinderRef.current);
     };
-  }, [scene, gl, pointerColor, camera, rotation, isDragging]);
+  }, [scene, gl, camera, rotation, isDragging]);
 
   useFrame(() => {
-    cylinderRef.current.position.copy(userPosition.current);
     pointer.current.material.color.set(pointerColor);
 
     // Set camera position to follow the user
@@ -118,20 +117,27 @@ const VRUser = ({ initialPosition = [0, 1, 0] }) => {
     );
 
     camera.rotation.set(rotation.x, rotation.y, 0); // Apply rotation
+    cylinderRef.current.position.copy(userPosition.current);
 
-    // Update raycaster and pointer position
-    raycaster.current.setFromCamera(new Vector3(), camera);
-    const intersects = raycaster.current.intersectObjects(scene.children);
+        // Update raycaster and pointer position
+        raycaster.current.setFromCamera(new Vector3(), camera);
+        const intersects = raycaster.current.intersectObjects(scene.children);
 
-    if (intersects.length > 0) {
-      pointer.current.position.copy(intersects[0].point);
-    } else {
-      // If no intersection, position the pointer a fixed distance in front of the camera
-      const pointerDistance = 5;
-      const vector = new Vector3(0, 0, -pointerDistance);
-      vector.applyQuaternion(camera.quaternion);
-      pointer.current.position.copy(camera.position).add(vector);
-    }
+        if (intersects.length > 0) {
+            pointer.current.position.copy(intersects[0].point);
+            if (intersects[0].object.userData.isVRDado) {
+                setPointerColor(new Color(getComputedStyle(document.documentElement).getPropertyValue('--red'))); // Red
+            } else {
+                setPointerColor(new Color(getComputedStyle(document.documentElement).getPropertyValue('--white'))); // White
+            }
+        } else {
+            setPointerColor(new Color(getComputedStyle(document.documentElement).getPropertyValue('--white'))); // White
+            // If no intersection, position the pointer a fixed distance in front of the camera
+            const pointerDistance = 5;
+            const vector = new Vector3(0, 0, -pointerDistance);
+            vector.applyQuaternion(camera.quaternion);
+            pointer.current.position.copy(camera.position).add(vector);
+        }
   });
 
   return null;
