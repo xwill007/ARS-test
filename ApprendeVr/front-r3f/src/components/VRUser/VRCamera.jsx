@@ -7,8 +7,8 @@ const VRCamera = ({ userPosition, rotation }) => {
     // Set camera position to follow the user
     camera.position.set(
       userPosition.current.x,
-      userPosition.current.y + 1, // Camera slightly above the user
-      userPosition.current.z - 3  // Camera a bit behind the user
+      userPosition.current.y + 1.3, // Camera slightly above the user
+      userPosition.current.z - 1  // Camera a bit behind the user
     );
 
     camera.rotation.set(rotation.x, rotation.y, 0); // Apply rotation
