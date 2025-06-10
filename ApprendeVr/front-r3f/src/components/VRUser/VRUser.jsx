@@ -28,7 +28,7 @@ const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) =>
     scene.add(pointer.current);
 
     // Crear cilindro
-    const cylinderGeometry = new CylinderGeometry(0.5, 0.5, 2, 32);
+    const cylinderGeometry = new CylinderGeometry(0.5, 0.5, 1.0, 32);
     const cylinderMaterial = new MeshBasicMaterial({ color: 0x00ffff }); // Color cyan
     cylinderRef.current = new Mesh(cylinderGeometry, cylinderMaterial);
     scene.add(cylinderRef.current);
