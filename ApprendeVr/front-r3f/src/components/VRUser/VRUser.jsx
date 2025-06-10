@@ -1,31 +1,35 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Vector3, Raycaster, SphereGeometry, MeshBasicMaterial, Mesh, CylinderGeometry } from 'three';
-import { Color } from 'three';
+import { Vector3, SphereGeometry, MeshBasicMaterial, Mesh, CylinderGeometry, Raycaster, Color } from 'three';
 import VRMoveControls from './VRMoveControls';
 import VRCamera from './VRCamera';
+//import VRCursor from './VRCursor';
+import { TorusGeometry } from 'three';
 
 const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) => {
   const { scene, gl, camera } = useThree();
-  const moveSpeed = 0.1;
+  const moveSpeed = 0.01;
   const userPosition = useRef(new Vector3(...initialPosition));
-  const raycaster = useRef(new Raycaster());
-  const pointer = useRef(null);
   const [rotation, setRotation] = useState({ x: initialRotation[0], y: initialRotation[1] });
   const [isDragging, setIsDragging] = useState(false);
-  const [pointerColor, setPointerColor] = useState(new Color(getComputedStyle(document.documentElement).getPropertyValue('--white'))); // Initial color: white
+  const [pointerColor, setPointerColor] = useState(new Color(getComputedStyle(document.documentElement).getPropertyValue('--blue')));
   const cylinderRef = useRef();
+  const raycaster = useRef(new Raycaster());
+  const initialPointerScale = 0.003; // Initial pointer size
+
+  const pointer = useRef(null);
 
   useEffect(() => {
-    // Create pointer sphere
-    const geometry = new SphereGeometry(0.05, 32, 32);
+    // Crear esfera del cursor
+    //const geometry = new TorusGeometry(initialPointerScale, Math.max(initialPointerScale / 5, 0.001), 32, 100);
+    const geometry = new SphereGeometry(initialPointerScale, 30, 30);
     const material = new MeshBasicMaterial({ color: pointerColor });
     pointer.current = new Mesh(geometry, material);
     scene.add(pointer.current);
 
-    // Create cylinder
+    // Crear cilindro
     const cylinderGeometry = new CylinderGeometry(0.5, 0.5, 2, 32);
-    const cylinderMaterial = new MeshBasicMaterial({ color: 0x00ffff }); // Cyan color
+    const cylinderMaterial = new MeshBasicMaterial({ color: 0x00ffff }); // Color cyan
     cylinderRef.current = new Mesh(cylinderGeometry, cylinderMaterial);
     scene.add(cylinderRef.current);
     cylinderRef.current.position.copy(userPosition.current);
@@ -78,34 +82,28 @@ const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) =>
       gl.domElement.removeEventListener('mousemove', handleMouseMove);
       gl.domElement.removeEventListener('mousedown', handleMouseDown);
       gl.domElement.removeEventListener('mouseup', handleMouseUp);
-      scene.remove(pointer.current);
       scene.remove(cylinderRef.current);
+      scene.remove(pointer.current);
     };
-  }, [scene, gl, rotation, isDragging]);
+  }, [scene, gl, rotation, isDragging, pointerColor, camera]);
 
   useFrame(() => {
-    pointer.current.material.color.set(pointerColor);
-
     cylinderRef.current.position.copy(userPosition.current);
 
     // Update raycaster and pointer position
     raycaster.current.setFromCamera(new Vector3(), camera);
     const intersects = raycaster.current.intersectObjects(scene.children);
 
-    if (intersects.length > 0) {
-      pointer.current.position.copy(intersects[0].point);
-      if (intersects[0].object.userData.isVRDado) {
-        setPointerColor(new Color(getComputedStyle(document.documentElement).getPropertyValue('--red'))); // Red
-      } else {
-        setPointerColor(new Color(getComputedStyle(document.documentElement).getPropertyValue('--white'))); // White
-      }
-    } else {
-      setPointerColor(new Color(getComputedStyle(document.documentElement).getPropertyValue('--white'))); // White
-      // If no intersection, position the pointer a fixed distance in front of the camera
-      const pointerDistance = 5;
-      const vector = new Vector3(0, 0, -pointerDistance);
-      vector.applyQuaternion(camera.quaternion);
-      pointer.current.position.copy(camera.position).add(vector);
+    if (pointer.current) {
+        if (intersects.length > 0) {
+            pointer.current.position.copy(intersects[0].point);
+        } else {
+            // Si no hay intersección, posicionar el cursor a una distancia fija frente a la cámara
+            const pointerDistance = 5;
+            const vector = new Vector3(0, 0, -pointerDistance);
+            vector.applyQuaternion(camera.quaternion);
+            pointer.current.position.copy(camera.position).add(vector);
+        }
     }
   });
 
@@ -117,6 +115,7 @@ const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) =>
         userPosition={userPosition}
         camera={camera}
       />
+      
     </>
   );
 };
