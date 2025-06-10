@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, Raycaster, SphereGeometry, MeshBasicMaterial, Mesh, CylinderGeometry } from 'three';
 import { Color } from 'three';
+import VRMoveControls from './VRMoveControls';
+import VRCamera from './VRCamera';
 
 const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) => {
   const { scene, gl, camera } = useThree();
@@ -13,7 +15,6 @@ const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) =>
   const [isDragging, setIsDragging] = useState(false);
   const [pointerColor, setPointerColor] = useState(new Color(getComputedStyle(document.documentElement).getPropertyValue('--white'))); // Initial color: white
   const cylinderRef = useRef();
-  const moveDirection = useRef(new Vector3());
 
   useEffect(() => {
     // Create pointer sphere
@@ -28,30 +29,6 @@ const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) =>
     cylinderRef.current = new Mesh(cylinderGeometry, cylinderMaterial);
     scene.add(cylinderRef.current);
     cylinderRef.current.position.copy(userPosition.current);
-
-    const handleKeyDown = (event) => {
-      switch (event.key) {
-        case 'ArrowUp':
-          moveDirection.current.set(0, 0, 1); // Move forward relative to camera
-          break;
-        case 'ArrowDown':
-          moveDirection.current.set(0, 0, -1); // Move backward relative to camera
-          break;
-        case 'ArrowLeft':
-          moveDirection.current.set(-1, 0, 0); // Strafe left relative to camera
-          break;
-        case 'ArrowRight':
-          moveDirection.current.set(1, 0, 0); // Strafe right relative to camera
-          break;
-        default:
-          moveDirection.current.set(0,0,0);
-          break;
-      }
-    };
-
-    const handleKeyUp = () => {
-      moveDirection.current.set(0, 0, 0);
-    };
 
     const handleClick = () => {
       raycaster.current.setFromCamera(new Vector3(), camera);
@@ -92,35 +69,23 @@ const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) =>
     };
 
     gl.domElement.addEventListener('click', handleClick);
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('keyup', handleKeyUp);
     gl.domElement.addEventListener('mousemove', handleMouseMove);
     gl.domElement.addEventListener('mousedown', handleMouseDown);
     gl.domElement.addEventListener('mouseup', handleMouseUp);
 
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('keyup', handleKeyUp);
       gl.domElement.removeEventListener('mousemove', handleMouseMove);
       gl.domElement.removeEventListener('mousedown', handleMouseDown);
       gl.domElement.removeEventListener('mouseup', handleMouseUp);
       scene.remove(pointer.current);
       scene.remove(cylinderRef.current);
     };
-  }, [scene, gl, camera, rotation, isDragging]);
+  }, [scene, gl, rotation, isDragging]);
 
   useFrame(() => {
     pointer.current.material.color.set(pointerColor);
 
-    // Set camera position 
-    camera.position.set(
-      userPosition.current.x,
-      userPosition.current.y + 1, // Camera slightly above the user
-      userPosition.current.z - 3  // Camera a bit behind the user
-    );
-
-    camera.rotation.set(rotation.x, rotation.y, 0); // Apply rotation
     cylinderRef.current.position.copy(userPosition.current);
 
     // Update raycaster and pointer position
@@ -142,28 +107,18 @@ const VRUser = ({ initialPosition = [0, 1, 0], initialRotation = [0, 0, 0] }) =>
       vector.applyQuaternion(camera.quaternion);
       pointer.current.position.copy(camera.position).add(vector);
     }
-
-    // Move the user based on raycaster direction
-    if (moveDirection.current.z !== 0) {
-      const direction = new Vector3();
-      camera.getWorldDirection(direction);
-      direction.y = 0; // Keep movement horizontal
-      direction.normalize();
-
-      userPosition.current.addScaledVector(direction, moveSpeed * moveDirection.current.z);
-    }
-    if (moveDirection.current.x !== 0) {
-      const direction = new Vector3();
-      camera.getWorldDirection(direction);
-      direction.y = 0; // Keep movement horizontal
-      direction.normalize();
-      const strafeDirection = new Vector3(-direction.z, 0, direction.x);
-      strafeDirection.normalize();
-      userPosition.current.addScaledVector(strafeDirection, moveSpeed * moveDirection.current.x);
-    }
   });
 
-  return null;
+  return (
+    <>
+      <VRCamera userPosition={userPosition} rotation={rotation} />
+      <VRMoveControls
+        moveSpeed={moveSpeed}
+        userPosition={userPosition}
+        camera={camera}
+      />
+    </>
+  );
 };
 
 export default VRUser;

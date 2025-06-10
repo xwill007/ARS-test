@@ -1,7 +1,7 @@
 import React from 'react'
 import VRDado from './components/VRDado'
 import VRWorld from './components/VRWorld'
-import VRUser from './components/VRUser'; // Import VRUser
+import VRUser from './components/VRUser/VRUser'; // Import VRUser
 import './App.css'
 import './theme.css';
 import { Canvas } from '@react-three/fiber';
