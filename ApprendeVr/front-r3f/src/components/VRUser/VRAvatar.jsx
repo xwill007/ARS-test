@@ -36,7 +36,7 @@ const VRAvatarComponent = ({ position = new Vector3(0, 0, 0), scale = 1.0 }) => 
   }, [scene, position, scale]);
 
   useFrame(() => {
-    if (showLogs) console.log('VRAvatar: useFrame - Updating position');
+    //if (showLogs) console.log('VRAvatar: useFrame - Updating position');
     if (avatarRef.current) {
       avatarRef.current.position.copy(position);
     }
