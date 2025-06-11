@@ -4,6 +4,7 @@ import { Vector3, SphereGeometry, MeshBasicMaterial, Mesh, Raycaster, Color } fr
 import VRMoveControls from './VRMoveControls';
 import VRCamera from './VRCamera';
 import VRAvatar from './VRAvatar'; // Import VRAvatar
+import { showLogs } from '../../config/config'; // Import showLogs
 
 const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) => {
   const { scene, gl, camera } = useThree();
@@ -16,8 +17,14 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
   const initialPointerScale = 0.003;
 
   const pointer = useRef(null);
+  const frameCounter = useRef(0); // Counter to control logging frequency
+  const logInterval = 60; // Log every 60 frames (adjust as needed)
+  const mouseMoveFrameCounter = useRef(0); // Counter for mousemove logging
+  const mouseMoveLogInterval = 30; // Log mousemove every 30 frames
 
   useEffect(() => {
+    if (showLogs) console.log('VRUser: useEffect - Mounting');
+
     // Crear esfera del cursor
     const geometry = new SphereGeometry(initialPointerScale, 30, 30);
     const material = new MeshBasicMaterial({ color: pointerColor });
@@ -25,6 +32,7 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
     scene.add(pointer.current);
 
     const handleClick = () => {
+      if (showLogs) console.log('VRUser: handleClick');
       raycaster.current.setFromCamera(new Vector3(), camera);
       const intersects = raycaster.current.intersectObjects(scene.children);
 
@@ -42,6 +50,11 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
     };
 
     const handleMouseMove = (event) => {
+      mouseMoveFrameCounter.current++;
+      if (mouseMoveFrameCounter.current % mouseMoveLogInterval === 0) {
+        if (showLogs) console.log('VRUser: handleMouseMove');
+        mouseMoveFrameCounter.current = 0; // Reset the counter
+      }
       if (isDragging) {
         const deltaX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
         const deltaY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
@@ -55,10 +68,12 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
     };
 
     const handleMouseDown = () => {
+      if (showLogs) console.log('VRUser: handleMouseDown');
       setIsDragging(true);
     };
 
     const handleMouseUp = () => {
+      if (showLogs) console.log('VRUser: handleMouseUp');
       setIsDragging(false);
     };
 
@@ -68,6 +83,7 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
     gl.domElement.addEventListener('mouseup', handleMouseUp);
 
     return () => {
+      if (showLogs) console.log('VRUser: useEffect - Unmounting');
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('mousemove', handleMouseMove);
       gl.domElement.removeEventListener('mousedown', handleMouseDown);
@@ -77,6 +93,12 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
   }, [scene, gl, rotation, isDragging, pointerColor, camera]);
 
   useFrame(() => {
+    frameCounter.current++;
+
+    if (frameCounter.current % logInterval === 0) {
+      if (showLogs) console.log('VRUser: useFrame - Updating');
+      frameCounter.current = 0; // Reset the counter
+    }
     // Update raycaster and pointer position
     raycaster.current.setFromCamera(new Vector3(), camera);
     const intersects = raycaster.current.intersectObjects(scene.children);
