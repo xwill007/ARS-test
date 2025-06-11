@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useThree, useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { Vector3 } from 'three';
 
@@ -23,11 +23,11 @@ const VRAvatar = ({ position = new Vector3(0, 0, 0), scale = 1.0 }) => {
     };
   }, [scene, position, scale]);
 
-  useEffect(() => {
+  useFrame(() => {
     if (avatarRef.current) {
       avatarRef.current.position.copy(position);
     }
-  }, [position]);
+  });
 
   return null; // This component doesn't render anything directly
 };
