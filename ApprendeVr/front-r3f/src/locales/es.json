@@ -1,0 +1,8 @@
+{
+    "appName": "Apprende VR es",
+    "appDescription": "Una plataforma de aprendizaje en realidad virtual",
+    "greeting": "¡Hola, mundo!",
+    "welcomeMessage": "¡Bienvenido a ApprendeVr!",
+    "button.submit": "Enviar",
+    "error.notFound": "Recurso no encontrado"
+}

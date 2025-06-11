@@ -5,7 +5,7 @@ import * as THREE from 'three'  // Importación necesaria
 
 export default function Girl({ position = [0, 0, 0], scale = 0.01 }) {
   const group = useRef()
-  const { scene, animations } = useGLTF('/models/WarriorGirl.glb')
+  const { scene: gltfScene, animations } = useGLTF('/models/WarriorGirl.glb')
   const { actions, names } = useAnimations(animations, group)
   const [hovered, setHovered] = useState(false)
   
@@ -71,6 +71,22 @@ export default function Girl({ position = [0, 0, 0], scale = 0.01 }) {
       }
     }
   }, [hovered, actions, names])
+
+  // Function to handle raycast intersection
+  const handleIntersection = () => {
+    console.log('VRGirl was intersected by raycast!');
+  };
+  
+  useEffect(() => {
+    // Add the handleIntersection function to the user data of the VRGirl model
+    if (gltfScene) {
+      gltfScene.traverse((child) => {
+        if (child.isMesh) {
+          child.userData.onIntersect = handleIntersection;
+        }
+      });
+    }
+  }, [gltfScene]);
   
   return (
     <RigidBody 
@@ -102,7 +118,7 @@ export default function Girl({ position = [0, 0, 0], scale = 0.01 }) {
         }}
       >
         <primitive 
-          object={scene.clone()} 
+          object={gltfScene.clone()} 
           scale={scale} // Ajustar según el tamaño del modelo
           rotation={[0, Math.PI, 0]} // Girar para que mire hacia el frente
         />
