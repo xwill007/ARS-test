@@ -3,6 +3,8 @@
     "appName": "Apprende VR EN",
     "greeting": "Hola mundo!",
     "welcomeMessage": "Bienvenido a ApprendeVr!",
+    "vrButtonText": "Enter VR",
+    
     "button": {
       "submit": "enviar"
     },

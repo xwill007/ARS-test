@@ -5,17 +5,19 @@ function VRButton({
   position = [0, 1.5, -2],
   rotation = [0, 0, 0],
   scale = 0.5,
-  text = "VR",
-  onClick
+  text = "VR"
 }) {
   const [hovered, setHovered] = useState(false)
 
   const handleClick = () => {
-    if (onClick) {
-      onClick()
-    } else {
-      console.log('VR Button clicked')
-    }
+    // Using environment variables for the URL construction
+    const protocol = import.meta.env.VITE_HTTPS === 'true' ? 'https' : 'http'
+    const host = import.meta.env.VITE_FRONT_IP
+    const port = import.meta.env.VITE_PORT
+    const url = `${protocol}://${host}:${port}/mobile.html`
+    
+    console.log('Navigating to:', url)
+    window.location.href = url
   }
 
   return (
