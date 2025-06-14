@@ -2,35 +2,40 @@ version: '3.8'
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: app
-    # Cambiamos el puerto de 3000 a 3001
-    ports:
-      - "3001:3000"
-    volumes:
-      - ./src:/app/src
-      - ./public:/app/public
+    expose:
+      - "3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - HOST=0.0.0.0
       - PORT=3000
     networks:
       - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
     container_name: nginx
     ports:
       - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./dist:/usr/share/nginx/html
+      - "443:443"
+    environment:
+      - FRONT_IP=${FRONT_IP}
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     networks:
       - app-network
+    restart: unless-stopped
 
 networks:
   app-network:

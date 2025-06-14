@@ -1,18 +1,23 @@
 # Etapa de construcción
-FROM node:18-alpine as builder
-
+FROM node:18-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-# Construir la aplicación
 RUN npm run build
 
 # Etapa de producción
-FROM nginx:alpine
-# Copiar los archivos construidos
-COPY --from=builder /app/dist /usr/share/nginx/html
-# Copiar la configuración de Nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-# Exponer el puerto 80
-EXPOSE 80
+FROM node:18-alpine
+WORKDIR /app
+
+# Instalar Vite globalmente
+RUN npm install -g vite
+
+# Copiar solo lo necesario
+COPY --from=builder /app/package*.json ./
+RUN npm install --only=production
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
+
+# Usar el comando de Vite directamente
+CMD ["vite", "preview", "--host", "0.0.0.0", "--port", "3000"]
