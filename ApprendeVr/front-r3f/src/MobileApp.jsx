@@ -3,6 +3,7 @@ import { XR, VRButton, Controllers, Hands } from '@react-three/xr'
 import { Environment, OrbitControls, Sky } from '@react-three/drei'
 import { Suspense } from 'react'
 import './mobile.css'
+import VRTextTranslation from './components/VRTextTranslation'
 
 function Box({ position = [0, 0.5, -5] }) {
   return (
@@ -40,6 +41,15 @@ function MobileScene() {
       {/* Luces */}
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 10, 5]} intensity={1} />
+
+      {/* Text Translation Card */}
+      <VRTextTranslation 
+        textKey="welcomeMessage"
+        language1="en"
+        language2="es"
+        position={[0, 1.5, -3]}
+        scale={1}
+      />
 
       {/* Elementos de la escena */}
       <Box />
