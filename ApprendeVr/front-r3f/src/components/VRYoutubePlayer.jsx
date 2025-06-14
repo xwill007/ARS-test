@@ -6,7 +6,7 @@ import * as THREE from 'three'
 
 function VRYoutubePlayer({
   position = [2.5, 3, -3.0],
-  width = 8,
+  width = 6, // Increased width
   aspectRatio = 16/9,
   videoId = 'uVFw1Et8NFM'
 }) {
@@ -95,8 +95,10 @@ function VRYoutubePlayer({
           distanceFactor={1}
           position={[0, 0, 0.001]}
           style={{
-            width: `${width * 100}px`,
-            height: `${height * 100}px`
+            width: `${width * 150}px`, // Increased size
+            height: `${height * 150}px`, // Increased size
+            transform: 'scale(1.2)', // Added scale
+            transformOrigin: 'center'
           }}
         >
           <div
@@ -110,19 +112,20 @@ function VRYoutubePlayer({
         </Html>
       </mesh>
 
-      <Html position={[0, -height/2 - 0.5, 0]}>
+      <Html position={[0, -height/2 - 0.3, 0]}>
         <button
           onClick={handlePlayPause}
           disabled={!isReady}
           style={{
-            padding: '10px 20px',
-            fontSize: '16px',
+            padding: '15px 30px', // Larger button
+            fontSize: '20px', // Larger text
             backgroundColor: isPlaying ? '#ff4444' : '#44ff44',
             color: 'white',
             border: 'none',
-            borderRadius: '5px',
+            borderRadius: '8px',
             cursor: isReady ? 'pointer' : 'default',
-            opacity: isReady ? 1 : 0.5
+            opacity: isReady ? 1 : 0.5,
+            transform: 'scale(1.2)' // Larger button scale
           }}
         >
           {!isReady ? 'Loading...' : isPlaying ? 'Pause' : 'Play'}
