@@ -4,27 +4,37 @@ setlocal enabledelayedexpansion
 echo Navegando al directorio del proyecto...
 cd /d "%~dp0ApprendeVr\front-r3f"
 
-if not exist package.json (
-    echo Error: No se encontr├│ el directorio del proyecto front-r3f
-    pause
-    exit /b 1
-)
-
-:: Detener procesos de Node.js si est├ín en ejecuci├│n
-echo Deteniendo procesos de Node.js si est├ín en ejecuci├│n...
+@echo off
+echo Deteniendo procesos de Node.js si están en ejecución...
 taskkill /F /IM node.exe >nul 2>&1
 
-:: Limpiar completamente node_modules y package-lock.json
-echo Limpiando archivos de dependencias anteriores...
+echo Limpiando caché de npm...
+cd /d %~dp0
+call npm cache clean --force
+
 if exist node_modules (
     echo Eliminando node_modules...
-    rmdir /s /q node_modules 2>nul
-)
-if exist package-lock.json (
-    echo Eliminando package-lock.json...
-    del /f /q package-lock.json 2>nul
+    rmdir /s /q node_modules
 )
 
+echo Eliminando certificados SSL existentes...
+if exist ssl (
+    rmdir /s /q ssl
+    mkdir ssl
+)
+
+echo Generando nuevos certificados SSL...
+call generate-ssl.bat
+
+echo Instalando dependencias...
+call npm install
+
+echo Iniciando la aplicación con HTTPS...
+start "" "%ProgramFiles%\Mozilla Firefox\firefox.exe" -new-tab "https://%FRONT_IP%:3000"
+call npm run dev -- --host %FRONT_IP% --port 3000 --https
+
+echo Proceso completado. La aplicación debería estar disponible en https://%FRONT_IP%:3000
+pause
 :: Configurar variables de entorno
 echo Configurando variables de entorno...
 set "VITE_FRONT_IP=192.168.1.11"

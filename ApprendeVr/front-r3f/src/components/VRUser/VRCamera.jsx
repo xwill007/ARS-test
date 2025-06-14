@@ -1,22 +1,68 @@
 import { useFrame, useThree } from '@react-three/fiber';
+import { useXR } from '@react-three/xr';
+import { useState, useEffect } from 'react';
+import * as THREE from 'three';
 
-const VRCamera = ({ userPosition, rotation }) => {
-  const { camera, gl } = useThree();
+const VRCamera = () => {
+  const { camera } = useThree();
+  const { isPresenting } = useXR();
+  const [deviceOrientation, setDeviceOrientation] = useState(null);
+  const [hasPermission, setHasPermission] = useState(false);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+  // Solicitar permisos para iOS
+  useEffect(() => {
+    if (!isMobile || isPresenting) return;
+
+    const requestPermission = async () => {
+      if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          setHasPermission(permission === 'granted');
+        } catch (error) {
+          console.error('Permission error:', error);
+        }
+      } else {
+        setHasPermission(true);
+      }
+    };
+
+    requestPermission();
+  }, [isMobile, isPresenting]);
+
+  // Manejar eventos de orientación del dispositivo
+  useEffect(() => {
+    if (!isMobile || !hasPermission || isPresenting) return;
+
+    const handleOrientation = (event) => {
+      setDeviceOrientation({
+        alpha: event.alpha,
+        beta: event.beta,
+        gamma: event.gamma,
+      });
+    };
+
+    window.addEventListener('deviceorientation', handleOrientation);
+    return () => window.removeEventListener('deviceorientation', handleOrientation);
+  }, [isMobile, hasPermission, isPresenting]);
+
+  // Actualizar la rotación de la cámara en cada frame
   useFrame(() => {
-    // Set camera position to follow the user
-    camera.position.set(
-      userPosition.current.x,
-      userPosition.current.y + 1.6, // Camera slightly above the user
-      userPosition.current.z - 0.0// Camera a bit behind the user
-    );
+    if (isPresenting || !deviceOrientation || !hasPermission) return;
 
-    camera.rotation.set(rotation.x, rotation.y, 0); // Apply rotation
+    const { alpha, beta, gamma } = deviceOrientation;
+    if (alpha !== null && beta !== null && gamma !== null) {
+      const euler = new THREE.Euler(
+        THREE.MathUtils.degToRad(beta),
+        THREE.MathUtils.degToRad(alpha),
+        THREE.MathUtils.degToRad(-gamma),
+        'YXZ'
+      );
+      camera.quaternion.setFromEuler(euler);
+    }
   });
 
-  return (
-      <perspectiveCamera fov={75} aspect={gl.domElement.clientWidth / gl.domElement.clientHeight} near={0.1} far={1000} />
-  );
+  return null;
 };
 
 export default VRCamera;

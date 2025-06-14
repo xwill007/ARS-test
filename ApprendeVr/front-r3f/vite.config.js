@@ -1,30 +1,24 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { fileURLToPath, URL } from 'url'
+import fs from 'fs'
+import path from 'path'
 
-// Configuración base
-const config = {
+export default defineConfig({
   plugins: [react()],
   server: {
-    host: '0.0.0.0',
+    host: '192.168.1.11',
     port: 3000,
-    strictPort: true,
-    hmr: {
-      protocol: 'ws',
-      host: '0.0.0.0',
-      port: 3000
-    },
     https: {
-      key: fileURLToPath(new URL('./ssl/key.pem', import.meta.url)),
-      cert: fileURLToPath(new URL('./ssl/cert.pem', import.meta.url))
+      key: fs.readFileSync(path.resolve(__dirname, 'ssl/key.pem')),
+      cert: fs.readFileSync(path.resolve(__dirname, 'ssl/cert.pem')),
     }
   },
-  base: './',
   build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
-    sourcemap: true
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        mobile: path.resolve(__dirname, 'mobile.html')
+      }
+    }
   }
-}
-
-export default defineConfig(config)
+})

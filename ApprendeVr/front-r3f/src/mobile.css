@@ -1,0 +1,30 @@
+.vr-button {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 20px;
+  padding: 12px 24px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.vr-button:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

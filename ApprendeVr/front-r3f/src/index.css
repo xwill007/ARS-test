@@ -54,6 +54,32 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+.vr-button {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 20px;
+  padding: 12px 24px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.vr-button:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
+/* Hide button when not supported */
+.vr-button[data-vr-supported="false"] {
+  display: none;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
