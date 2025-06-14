@@ -1,7 +1,13 @@
 {
-    "appName": "Apprende VR en",
-    "greeting": "Hello, world!",
-    "welcomeMessage": "Welcome to ApprendeVr!",
-    "button.submit": "Submit",
-    "error.notFound": "Resource not found"
+  "translation": {
+    "appName": "Apprende VR EN",
+    "greeting": "Hola mundo!",
+    "welcomeMessage": "Bienvenido a ApprendeVr!",
+    "button": {
+      "submit": "enviar"
+    },
+    "error": {
+      "notFound": "no encontrado"
+    }
+  }
 }
