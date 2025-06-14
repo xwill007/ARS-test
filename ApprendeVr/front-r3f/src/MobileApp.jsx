@@ -4,20 +4,13 @@ import { Environment, Sky } from '@react-three/drei'
 import { Suspense } from 'react'
 import VRTextTranslation from './components/VRTextTranslation'
 import VRUser from './components/VRUser'
+import VideoBox from './components/VideoBox'
 import './mobile.css'
 
 let pantalla_x = 12.80;
 let pantalla_y = 10.24;
 let pantalla_z = 0.3;
 
-function Box({ position = [0, (pantalla_y / 2)+1, -5] }) {
-  return (
-    <mesh position={position}>
-      <boxGeometry args={[pantalla_x, pantalla_y, pantalla_z]} />
-      <meshStandardMaterial color="black" />
-    </mesh>
-  )
-}
 
 function Floor() {
   return (
@@ -50,11 +43,16 @@ function MobileScene() {
         scale={1}
       />
 
-      <Box />
+      <VideoBox 
+        position={[0, 1.5, 0]}
+        width={6}
+        scale={3.5}
+      />
+
       <Floor />
       
       {/* VRUser manages camera and controls */}
-      <VRUser initialPosition={[0, 0, 0]} />
+      <VRUser initialPosition={[0, 0, 3]} />
     </>
   )
 }
