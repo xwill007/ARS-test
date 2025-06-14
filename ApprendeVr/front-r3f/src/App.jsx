@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { OrbitControls, Sky } from '@react-three/drei'
 import { useState, useEffect } from 'react'
 import VRLanguages from './components/VRLanguages'
 
@@ -8,6 +8,19 @@ function Box() {
     <mesh>
       <boxGeometry args={[1, 1, 1]} />
       <meshStandardMaterial color="orange" />
+    </mesh>
+  )
+}
+
+function Floor() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+      <planeGeometry args={[100, 100]} />
+      <meshStandardMaterial 
+        color="#53a852"
+        roughness={1}
+        metalness={0}
+      />
     </mesh>
   )
 }
@@ -51,6 +64,7 @@ function App() {
 
   return (
     <div className="canvas-container">
+
       <h1 style={{
         position: 'absolute',
         top: '20px',
@@ -61,13 +75,24 @@ function App() {
       }}>
         {isLoading ? 'Loading...' : translations[currentLang]?.appName}
       </h1>
+
       <VRLanguages onLanguageChange={handleLanguageChange} />
+
       <Canvas camera={{ position: [0, 2, 5] }}>
+        <Sky 
+          sunPosition={[100, 10, 100]}
+          turbidity={0.1}
+          rayleigh={0.5}
+          mieCoefficient={0.003}
+          mieDirectionalG={0.7}
+        />
+        <Floor />
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         <Box />
         <OrbitControls />
       </Canvas>
+
     </div>
   );
 }
