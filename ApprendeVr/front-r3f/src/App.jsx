@@ -2,15 +2,10 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Sky } from '@react-three/drei'
 import { useState, useEffect } from 'react'
 import VRLanguages from './components/VRLanguages'
+import VRWorld from './components/VRWorld/VRWorld'
+import VRButton from './components/VRButton'
 
-function Box() {
-  return (
-    <mesh>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="orange" />
-    </mesh>
-  )
-}
+
 
 function Floor() {
   return (
@@ -89,7 +84,12 @@ function App() {
         <Floor />
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
-        <Box />
+        <VRButton
+          position={[0, 1, 0]}
+          scale={1}
+          text={translations[currentLang]?.vrButtonText || 'VR'}
+          action={() => console.log('VR Button Clicked')}
+        />
         <OrbitControls />
       </Canvas>
 
