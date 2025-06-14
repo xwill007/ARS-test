@@ -5,6 +5,8 @@ import { Suspense } from 'react'
 import VRTextTranslation from './components/VRTextTranslation'
 import VRUser from './components/VRUser'
 import VideoBox from './components/VideoBox'
+import VRVideoLocal from './components/VRVideoLocal'
+import VRYoutubePlayer from './components/VRYoutubePlayer'
 import './mobile.css'
 
 let pantalla_x = 12.80;
@@ -39,15 +41,29 @@ function MobileScene() {
         textKey="welcomeMessage"
         language1="en"
         language2="es"
-        position={[0, 1.5, -3]}
+        position={[-5, 0.5, -3]}
         scale={1}
       />
 
       <VideoBox 
-        position={[0, 1.5, 0]}
+        position={[-4, 3, -3.0]}
         width={6}
         scale={3.5}
       />
+
+      <VRVideoLocal 
+        position={[9, 3, -3.0]}
+        width={6}
+        videoSource="/videos/sample.mp4"
+      />
+
+      <Suspense fallback={null}>
+        <VRYoutubePlayer 
+          position={[2.5, 3, -3.0]}
+          width={6}
+          videoId="uVFw1Et8NFM"
+        />
+      </Suspense>
 
       <Floor />
       
