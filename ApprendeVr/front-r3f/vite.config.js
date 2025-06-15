@@ -17,8 +17,14 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        mobile: path.resolve(__dirname, 'mobile.html')
+        mobile: path.resolve(__dirname, 'mobile.html'),
+        aframe: path.resolve(__dirname, 'A-frame/index.html') // Updated path
       }
+    }
+  },
+  resolve: {
+    alias: {
+      '@aframe': path.resolve(__dirname, 'A-frame') // Updated alias
     }
   }
 })

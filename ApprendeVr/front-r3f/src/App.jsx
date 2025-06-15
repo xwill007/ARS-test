@@ -20,7 +20,7 @@ function Floor() {
   )
 }
 
-function App() {
+function App({ aframeLink = 'A-frame/index.html' }) { // Add default parameter
   const [translations, setTranslations] = useState({});
   const [currentLang, setCurrentLang] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
@@ -57,9 +57,17 @@ function App() {
     setCurrentLang(lang);
   };
 
+  const handleAFrameClick = () => {
+    window.location.href = aframeLink;
+  };
+
+  const protocol = import.meta.env.VITE_HTTPS === 'true' ? 'https' : 'http'
+  const host = import.meta.env.VITE_FRONT_IP
+  const port = import.meta.env.VITE_PORT
+  const mobileUrl = `${protocol}://${host}:${port}/mobile.html`
+
   return (
     <div className="canvas-container">
-
       <h1 style={{
         position: 'absolute',
         top: '20px',
@@ -85,14 +93,19 @@ function App() {
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         <VRButton
-          position={[0, 1, 0]}
+          position={[-1, 1, 0]}
           scale={1}
-          text={translations[currentLang]?.vrButtonText || 'VR'}
-          action={() => console.log('VR Button Clicked')}
+          text="VR"
+          navigateTo={mobileUrl}
+        />
+        <VRButton
+          position={[2, 1, 0]}
+          scale={1}
+          text="A-FRAME"
+          navigateTo={aframeLink}
         />
         <OrbitControls />
       </Canvas>
-
     </div>
   );
 }
