@@ -1,18 +1,34 @@
 import { useState } from 'react'
 import { Text } from '@react-three/drei'
+import { RoundedBox } from '@react-three/drei'
+
+const TextLabel = ({ text, rotationY = 0 }) => (
+  <Text
+    fontSize={0.25}
+    color="white"
+    anchorX="center"
+    anchorY="middle"
+    rotation-y={rotationY}
+    outlineWidth={0.004}
+    outlineColor="#000000"
+    outlineBlur={0.001}
+  >
+    {text}
+  </Text>
+)
 
 function VRButton({ 
   position = [0, 1.5, -2],
   rotation = [0, 0, 0],
   scale = 0.5,
   text = "VR",
-  navigateTo = null // New parameter for navigation URL
+  navigateTo = null
 }) {
   const [hovered, setHovered] = useState(false)
 
   const handleClick = () => {
     if (navigateTo) {
-      window.location.href = navigateTo;
+      window.location.href = navigateTo
     }
   }
 
@@ -25,23 +41,21 @@ function VRButton({
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
-      <mesh>
-        <boxGeometry args={[2, 0.7, 0.1]} />
-        <meshStandardMaterial 
-          color={hovered ? '#2196f3' : '#1976d2'} 
-          metalness={0.5}
-          roughness={0.5}
-        />
-      </mesh>
-      <Text
-        position={[0, 0, 0.06]}
-        fontSize={0.3}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
+      <RoundedBox
+        args={[2, 0.7, 0.1]}
+        radius={0.05}
+        smoothness={4}
       >
-        {text}
-      </Text>
+        <meshStandardMaterial
+          color={hovered ? '#2196f3' : '#1976d2'}
+          metalness={0.1}
+          roughness={0.2}
+          emissive={hovered ? '#1976d2' : '#000000'}
+          emissiveIntensity={0.2}
+        />
+      </RoundedBox>
+      <group position={[0, 0, 0.051]}><TextLabel text={text} /></group>
+      <group position={[0, 0, -0.051]}><TextLabel text={text} rotationY={Math.PI} /></group>
     </group>
   )
 }

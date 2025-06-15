@@ -20,7 +20,7 @@ function Floor() {
   )
 }
 
-function App({ aframeLink = 'A-frame/index.html' }) { // Add default parameter
+function App() {
   const [translations, setTranslations] = useState({});
   const [currentLang, setCurrentLang] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
@@ -57,14 +57,12 @@ function App({ aframeLink = 'A-frame/index.html' }) { // Add default parameter
     setCurrentLang(lang);
   };
 
-  const handleAFrameClick = () => {
-    window.location.href = aframeLink;
-  };
-
   const protocol = import.meta.env.VITE_HTTPS === 'true' ? 'https' : 'http'
   const host = import.meta.env.VITE_FRONT_IP
   const port = import.meta.env.VITE_PORT
-  const mobileUrl = `${protocol}://${host}:${port}/mobile.html`
+  const baseUrl = `${protocol}://${host}:${port}`
+  const mobileUrl = `${baseUrl}/mobile.html`
+  const aframeUrl = `${baseUrl}/A-frame/index.html`  // Corregido para usar la ruta real del archivo
 
   return (
     <div className="canvas-container">
@@ -94,15 +92,15 @@ function App({ aframeLink = 'A-frame/index.html' }) { // Add default parameter
         <pointLight position={[10, 10, 10]} />
         <VRButton
           position={[-1, 1, 0]}
-          scale={1}
-          text="VR"
+          scale={0.9}
+          text="VR-R3F"
           navigateTo={mobileUrl}
         />
         <VRButton
-          position={[2, 1, 0]}
-          scale={1}
+          position={[1, 1, 0]}
+          scale={0.9}
           text="A-FRAME"
-          navigateTo={aframeLink}
+          navigateTo={aframeUrl}
         />
         <OrbitControls />
       </Canvas>
