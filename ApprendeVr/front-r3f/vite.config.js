@@ -17,20 +17,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        mobile: path.resolve(__dirname, 'mobile.html'),
-        aframe: path.resolve(__dirname, 'A-frame/index.html')
+        mobile: path.resolve(__dirname, 'mobile.html')
       }
     }
-  },
-  resolve: {
-    alias: {
-      '@aframe': path.resolve(__dirname, 'A-frame')
-    }
-  },
-  publicDir: 'public',
-  assetsInclude: ['**/*.html'],
-  static: {
-    directory: path.resolve(__dirname, 'A-frame'),
-    publicPath: '/A-frame'
   }
 })

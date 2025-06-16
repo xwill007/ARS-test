@@ -4,21 +4,9 @@ import { useState, useEffect } from 'react'
 import VRLanguages from './components/VRLanguages'
 import VRWorld from './components/VRWorld/VRWorld'
 import VRButton from './components/VRButton'
+import VRFloor from './components/VRFloor'
 
 
-
-function Floor() {
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-      <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial 
-        color="#53a852"
-        roughness={1}
-        metalness={0}
-      />
-    </mesh>
-  )
-}
 
 function App() {
   const [translations, setTranslations] = useState({});
@@ -66,6 +54,7 @@ function App() {
 
   return (
     <div className="canvas-container">
+
       <h1 style={{
         position: 'absolute',
         top: '20px',
@@ -80,6 +69,7 @@ function App() {
       <VRLanguages onLanguageChange={handleLanguageChange} />
 
       <Canvas camera={{ position: [0, 2, 5] }}>
+        
         <Sky 
           sunPosition={[100, 10, 100]}
           turbidity={0.1}
@@ -87,7 +77,12 @@ function App() {
           mieCoefficient={0.003}
           mieDirectionalG={0.7}
         />
-        <Floor />
+        <VRFloor 
+          size={[200, 200]} // Piso más grande
+          textureRepeat={[100, 100]} // Más repeticiones de textura
+          roughness={0.6} // Diferente acabado
+          metalness={0.3} // Diferente acabado
+        />
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         <VRButton
