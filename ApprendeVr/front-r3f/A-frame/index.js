@@ -1,14 +1,3 @@
-// Importar componentes base
-import './components/VRVideoAf/VRYoutubeVideo/VideoControls.js';
-import './components/VRVideoAf/VRYoutubeVideo/VRYoutubeBase.js';
-
-// Importar componentes experimentales de YouTube
-import './components/VRVideoAf/VRYoutubeVideo/VRYoutubeTest/VRYoutubeIframe.js';
-import './components/VRVideoAf/VRYoutubeVideo/VRYoutubeTest/VRYoutubeCanvas.js';
-import './components/VRVideoAf/VRYoutubeVideo/VRYoutubeTest/VRYoutubeVideo.js';
-import './components/VRVideoAf/VRYoutubeVideo/VRYoutubeTest/VRYoutubeStream.js';
-import './components/VRVideoAf/VRYoutubeVideo/VRYoutubeTest/VRYoutubeSimple.js';
-
 // Importar componentes principales
 import './components/VRWorld/VRFloorAf.js';
 import './components/VRUserAf/VRUserAf.js';

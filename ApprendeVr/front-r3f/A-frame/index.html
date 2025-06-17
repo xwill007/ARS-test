@@ -2,17 +2,20 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <title>A-Frame VR Scene</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="components/VRVideoAf/VRLocalVideo/VRLocalVideo.js"></script>
     <script type="module" src="index.js"></script>
     <style>
-      .a-enter-vr-button { display: none; }
+      .a-enter-vr-button { display: true; }
+      .clickable { cursor: pointer; }
     </style>
   </head>
   <body>
     <a-scene>
       <!-- Cielo -->
-      <a-sky color="#ECECEC"></a-sky>
+      <a-sky color="black"></a-sky>
 
       <!-- Piso -->
       <a-entity
@@ -38,57 +41,15 @@
         </a-camera>
       </a-entity>
 
-      <!-- Videos de YouTube usando diferentes métodos -->
-      
-      <!-- Método 1: Simple -->
+      <!-- Video Local -->
       <a-entity
-        vr-youtube-simple="videoId: M7lc1UVf-VE;
-                         width: 4;
-                         height: 2.25;
-                         autoplay: false"
-        position="-8 2 -5"
-        rotation="0 30 0">
-      </a-entity>
-
-      <!-- Método 2: Iframe -->
-      <a-entity
-        vr-youtube-iframe="videoId: M7lc1UVf-VE;
-                          width: 4;
-                          height: 2.25;
-                          autoplay: false"
-        position="-4 2 -5"
-        rotation="0 15 0">
-      </a-entity>
-
-      <!-- Método 3: Canvas -->
-      <a-entity
-        vr-youtube-canvas="videoId: M7lc1UVf-VE;
-                          width: 4;
-                          height: 2.25;
-                          autoplay: false"
-        position="0 2 -5">
-      </a-entity>
-
-      <!-- Método 4: Video -->
-      <a-entity
-        vr-youtube-video="videoId: M7lc1UVf-VE;
-                         width: 4;
-                         height: 2.25;
-                         autoplay: false"
-        position="4 2 -5"
-        rotation="0 -15 0">
-      </a-entity>
-
-      <!-- Método 5: Stream -->
-      <a-entity
-        vr-youtube-stream="videoId: M7lc1UVf-VE;
-                          width: 4;
-                          height: 2.25;
-                          autoplay: false"
-        position="8 2 -5"
-        rotation="0 -30 0">
-      </a-entity>
-
+        vr-local-video="
+          width: 16;
+          height: 9;
+          position: 0 6 -5;
+          rotation: 0 0 0;
+          src: /videos/sample.mp4"
+      ></a-entity>
     </a-scene>
   </body>
 </html>
