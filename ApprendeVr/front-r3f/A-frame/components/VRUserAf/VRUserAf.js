@@ -28,7 +28,11 @@ AFRAME.registerComponent('vr-user', {
     bodyModel: { type: 'string', default: '' },
     bodyModelScale: { type: 'vec3', default: {x: 1, y: 1, z: 1} },
     showBody: { type: 'boolean', default: true },
-    showBodyInFirstPerson: { type: 'boolean', default: true }
+    showBodyInFirstPerson: { type: 'boolean', default: true },
+    // Nuevo: tipo de movimiento
+    moveType: { type: 'string', default: 'cursor', oneOf: ['cardinal', 'cursor'] },
+    fastTurnAngle: { type: 'number', default: 30 },
+    fastSpeed: { type: 'number', default: 0.3 }
   },
 
   init: function () {    // Configurar la posición del usuario
@@ -62,12 +66,15 @@ AFRAME.registerComponent('vr-user', {
     setTimeout(() => {
       this.el.setAttribute('vr-move-controls', {
         speed: this.data.moveSpeed,
-        enabled: this.data.moveEnabled && this.data.enableWASD, // Respetar la opción enableWASD
+        enabled: this.data.moveEnabled && this.data.enableWASD,
         cameraSelector: cameraSelector,
         rotateWithCamera: this.data.rotateWithCamera,
         rotationSmoothness: this.data.rotationSmoothness,
         floorRestricted: this.data.floorRestricted,
-        sprintFactor: this.data.sprintFactor
+        sprintFactor: this.data.sprintFactor,
+        moveType: this.data.moveType,
+        fastTurnAngle: this.data.fastTurnAngle,
+        fastSpeed: this.data.fastSpeed
       });
       console.log('VRUserAf: Controles de movimiento configurados');
     }, 0);
@@ -134,15 +141,20 @@ AFRAME.registerComponent('vr-user', {
          oldData.rotateWithCamera !== this.data.rotateWithCamera ||
          oldData.rotationSmoothness !== this.data.rotationSmoothness ||
          oldData.floorRestricted !== this.data.floorRestricted ||
-         oldData.sprintFactor !== this.data.sprintFactor)) {
-      
+         oldData.sprintFactor !== this.data.sprintFactor ||
+         oldData.moveType !== this.data.moveType ||
+         oldData.fastTurnAngle !== this.data.fastTurnAngle ||
+         oldData.fastSpeed !== this.data.fastSpeed)) {
       this.el.setAttribute('vr-move-controls', {
         speed: this.data.moveSpeed,
         enabled: this.data.moveEnabled && this.data.enableWASD,
         rotateWithCamera: this.data.rotateWithCamera,
         rotationSmoothness: this.data.rotationSmoothness,
         floorRestricted: this.data.floorRestricted,
-        sprintFactor: this.data.sprintFactor
+        sprintFactor: this.data.sprintFactor,
+        moveType: this.data.moveType,
+        fastTurnAngle: this.data.fastTurnAngle,
+        fastSpeed: this.data.fastSpeed
       });
     }
     
