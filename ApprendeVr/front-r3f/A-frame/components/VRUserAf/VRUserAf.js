@@ -1,10 +1,10 @@
 // Importar componentes necesarios para VRUser
 import './VRBodyAf.js';
 import './VRCameraAf.js';
+import './VRMoveControlsAf.js';
 
 AFRAME.registerComponent('vr-user', {
-  schema: {
-    position: { type: 'vec3', default: {x: 0, y: 1.6, z: 0} },
+  schema: {    position: { type: 'vec3', default: {x: 0, y: 1.6, z: 0} },
     // Propiedades para la cámara
     cameraHeight: { type: 'number', default: 1.6 },
     cameraMode: { type: 'string', default: 'first-person', oneOf: ['first-person', 'third-person'] },
@@ -14,7 +14,14 @@ AFRAME.registerComponent('vr-user', {
     enableWASD: { type: 'boolean', default: true },
     enableLook: { type: 'boolean', default: true },
     reverseMouseDrag: { type: 'boolean', default: false },
-    pointerLockEnabled: { type: 'boolean', default: true },    // Propiedades para el cuerpo del avatar
+    pointerLockEnabled: { type: 'boolean', default: true },
+    // Propiedades para los controles de movimiento
+    moveSpeed: { type: 'number', default: 0.1 },
+    moveEnabled: { type: 'boolean', default: true },
+    rotateWithCamera: { type: 'boolean', default: true },
+    rotationSmoothness: { type: 'number', default: 10 },
+    floorRestricted: { type: 'boolean', default: true },
+    sprintFactor: { type: 'number', default: 2.0 },// Propiedades para el cuerpo del avatar
     bodyHeight: { type: 'number', default: 1.5 },
     bodyRadius: { type: 'number', default: 0.3 },
     bodyColor: { type: 'color', default: '#4CC3D9' },
@@ -36,13 +43,35 @@ AFRAME.registerComponent('vr-user', {
       thirdPersonHeight: this.data.thirdPersonHeight,
       thirdPersonAngle: this.data.thirdPersonAngle,
       lookControls: this.data.enableLook,
-      wasdControls: this.data.enableWASD,
+      wasdControls: false, // Desactivar los controles WASD nativos de la cámara para usar nuestro vr-move-controls
       reverseMouseDrag: this.data.reverseMouseDrag,
       pointerLockEnabled: this.data.pointerLockEnabled
     });
+      this.cameraEntity = cameraRig;
+    this.el.appendChild(cameraRig);    
+    // Asignar un ID a la cámara si no tiene uno o si está vacío
+    const cameraId = 'user-camera-rig-' + Math.floor(Math.random() * 10000);
+    cameraRig.id = cameraId;
+    console.log('VRUserAf: ID de cámara asignado:', cameraRig.id);
     
-    this.cameraEntity = cameraRig;
-    this.el.appendChild(cameraRig);
+    // Añadir los controles de movimiento personalizados - Asegurar que el selector es válido
+    const cameraSelector = '#' + cameraId;
+    console.log('VRUserAf: Configurando controles de movimiento con selector:', cameraSelector);
+    
+    // Esperar a que termine el frame actual para asegurar que el ID ya está en el DOM
+    setTimeout(() => {
+      this.el.setAttribute('vr-move-controls', {
+        speed: this.data.moveSpeed,
+        enabled: this.data.moveEnabled && this.data.enableWASD, // Respetar la opción enableWASD
+        cameraSelector: cameraSelector,
+        rotateWithCamera: this.data.rotateWithCamera,
+        rotationSmoothness: this.data.rotationSmoothness,
+        floorRestricted: this.data.floorRestricted,
+        sprintFactor: this.data.sprintFactor
+      });
+      console.log('VRUserAf: Controles de movimiento configurados');
+    }, 0);
+    this.moveControlsAdded = true;
     
     // Agregar el cuerpo del avatar si está habilitado
     if (this.data.showBody) {
@@ -68,9 +97,7 @@ AFRAME.registerComponent('vr-user', {
     // Actualizar la posición del usuario si cambió
     if (oldData.position !== this.data.position) {
       this.el.setAttribute('position', this.data.position);
-    }
-
-    // Actualizar la configuración de la cámara si cambió algún parámetro relevante
+    }    // Actualizar la configuración de la cámara si cambió algún parámetro relevante
     if (this.cameraEntity &&
         (oldData.cameraMode !== this.data.cameraMode ||
          oldData.cameraHeight !== this.data.cameraHeight ||
@@ -78,7 +105,6 @@ AFRAME.registerComponent('vr-user', {
          oldData.thirdPersonHeight !== this.data.thirdPersonHeight ||
          oldData.thirdPersonAngle !== this.data.thirdPersonAngle ||
          oldData.enableLook !== this.data.enableLook ||
-         oldData.enableWASD !== this.data.enableWASD ||
          oldData.reverseMouseDrag !== this.data.reverseMouseDrag ||
          oldData.pointerLockEnabled !== this.data.pointerLockEnabled)) {
       
@@ -89,7 +115,7 @@ AFRAME.registerComponent('vr-user', {
         thirdPersonHeight: this.data.thirdPersonHeight,
         thirdPersonAngle: this.data.thirdPersonAngle,
         lookControls: this.data.enableLook,
-        wasdControls: this.data.enableWASD,
+        wasdControls: false, // Siempre false para usar nuestros propios controles
         reverseMouseDrag: this.data.reverseMouseDrag,
         pointerLockEnabled: this.data.pointerLockEnabled
       });
@@ -98,6 +124,26 @@ AFRAME.registerComponent('vr-user', {
       if (oldData.cameraMode !== this.data.cameraMode) {
         this._updateBodyVisibility();
       }
+    }
+    
+    // Actualizar los controles de movimiento si cambiaron los parámetros relevantes
+    if (this.moveControlsAdded &&
+        (oldData.moveSpeed !== this.data.moveSpeed ||
+         oldData.moveEnabled !== this.data.moveEnabled ||
+         oldData.enableWASD !== this.data.enableWASD ||
+         oldData.rotateWithCamera !== this.data.rotateWithCamera ||
+         oldData.rotationSmoothness !== this.data.rotationSmoothness ||
+         oldData.floorRestricted !== this.data.floorRestricted ||
+         oldData.sprintFactor !== this.data.sprintFactor)) {
+      
+      this.el.setAttribute('vr-move-controls', {
+        speed: this.data.moveSpeed,
+        enabled: this.data.moveEnabled && this.data.enableWASD,
+        rotateWithCamera: this.data.rotateWithCamera,
+        rotationSmoothness: this.data.rotationSmoothness,
+        floorRestricted: this.data.floorRestricted,
+        sprintFactor: this.data.sprintFactor
+      });
     }
     
     // Actualizar visibilidad del cuerpo si cambió la configuración de mostrar en primera persona

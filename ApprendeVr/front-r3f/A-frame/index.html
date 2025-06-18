@@ -27,8 +27,7 @@
                   floorSrc: /images/piso_ajedrez.jpg">
       </a-entity>      <!-- Usuario con componente vr-user (incluye cámara y cuerpo) -->
       <a-entity 
-        id="user"
-        vr-user="position: 0 1 -2; 
+        id="user"        vr-user="position: 0 1 -2; 
                 cameraMode: third-person;
                 cameraHeight: 1.6; 
                 thirdPersonDistance: 3;
@@ -38,6 +37,12 @@
                 enableLook: true;                
                 reverseMouseDrag: false;
                 pointerLockEnabled: true;
+                moveSpeed: 0.1;
+                moveEnabled: true;
+                rotateWithCamera: true;
+                rotationSmoothness: 5;
+                floorRestricted: true;
+                sprintFactor: 2.0;
                 bodyHeight: 1.8;
                 bodyRadius: 0.3;
                 bodyColor: #4CC3D9;
