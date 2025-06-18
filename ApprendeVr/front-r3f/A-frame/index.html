@@ -3,41 +3,49 @@
     <meta charset="utf-8">
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <title>A-Frame VR Scene</title>
+
     <script src="libs/aframe.min.js"></script>
     <script type="module" src="index.js"></script>
+
     <style>
       .a-enter-vr-button { display: true; }
       .clickable { cursor: pointer; }
     </style>
-  </head>
-  <body>
-    <a-scene>
-      <!-- Cielo -->
-      <a-sky color="black"></a-sky>
 
-      <!-- Piso -->
+  </head>
+  <body>    
+    <a-scene>
+      <!-- Mundo VR (contiene cielo y piso) -->
       <a-entity
-        vr-floor="width: 100; 
-                  height: 100; 
-                  textureRepeatX: 50; 
-                  textureRepeatY: 50; 
-                  roughness: 0.8; 
-                  metalness: 0.2; 
-                  src: /images/piso_ajedrez.jpg">
-      </a-entity>      <!-- Usuario con raycaster para interacción -->
-      <a-entity position="0 1.6 0">
-        <a-camera id="user-camera" look-controls wasd-controls>
-          <a-entity
-            id="cursor"
-            cursor="rayOrigin: mouse; fuse: false"
-            raycaster="objects: .clickable; far: 30"
-            position="0 0 -1"
-            geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
-            material="color: white; shader: flat"
-            animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 150; from: 0.1 0.1 0.1; to: 1 1 1">
-          </a-entity>
-        </a-camera>
-      </a-entity>      <!-- Video con componente vr-local-video -->
+        vr-world="skyColor: black;
+                  floorWidth: 100; 
+                  floorHeight: 100; 
+                  floorTextureRepeatX: 50; 
+                  floorTextureRepeatY: 50; 
+                  floorRoughness: 0.8; 
+                  floorMetalness: 0.2; 
+                  floorSrc: /images/piso_ajedrez.jpg">
+      </a-entity>      <!-- Usuario con componente vr-user (incluye cámara y cuerpo) -->
+      <a-entity 
+        id="user"
+        vr-user="position: 0 1 -2; 
+                cameraMode: third-person;
+                cameraHeight: 1.6; 
+                thirdPersonDistance: 3;
+                thirdPersonHeight: 1.2;
+                thirdPersonAngle: 0;
+                enableWASD: true; 
+                enableLook: true;                
+                reverseMouseDrag: false;
+                pointerLockEnabled: true;
+                bodyHeight: 1.8;
+                bodyRadius: 0.3;
+                bodyColor: #4CC3D9;
+                showBody: true;
+                showBodyInFirstPerson: true">
+      </a-entity>
+      
+      <!-- Video con componente vr-local-video -->
       <a-entity 
         id="video-container" 
         position="0 6 -5" 
@@ -50,6 +58,5 @@
       </a-entity> 
 
     </a-scene>
-
   </body>
 </html>
