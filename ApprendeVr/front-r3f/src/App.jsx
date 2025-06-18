@@ -1,89 +1,106 @@
-import React, { useEffect, useState } from 'react';
-import VRDado from './components/VRWorld/VRDado';
-import VRWorld from './components/VRWorld/VRWorld';
-import VRUser from './components/VRUser/VRUser';
-import './App.css';
-import './config/theme.css';
-import { Canvas } from '@react-three/fiber';
-import Girl from './components/VRGirl/VRGirl';
-import Men from './components/VRUser/VRAvatar';
-import { Physics } from '@react-three/rapier';
-import { showLogs } from './config/config';
+import { Canvas } from '@react-three/fiber'
+import { OrbitControls, Sky } from '@react-three/drei'
+import { useState, useEffect } from 'react'
+import VRLanguages from './components/VRLanguages'
+import VRWorld from './components/VRWorld/VRWorld'
+import VRButton from './components/VRButton'
+import VRFloor from './components/VRFloor'
 
-const App = () => {
-  const boxSize1 = [0.5, 0.5, 0.5];
-  const boxPosition1 = [1, 2, -1];
-  const [availableLanguages, setAvailableLanguages] = useState(['en', 'es']);
-  const [language, setLanguage] = useState('en');
-  const [translations, setTranslations] = useState({}); // Initialize as an empty object
+
+
+function App() {
+  const [translations, setTranslations] = useState({});
+  const [currentLang, setCurrentLang] = useState('en');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchLanguages = async () => {
+    const loadTranslations = async (lang) => {
+      setIsLoading(true);
       try {
-        const languageFiles = import.meta.glob('./locales/*.json');
-        const languages = [];
-
-        for (const path in languageFiles) {
-          const languageCode = path.replace('./locales/', '').replace('.json', '');
-          languages.push(languageCode);
+        // Using Vite's import.meta.glob for dynamic imports
+        const files = import.meta.glob('./locales/*.json', { eager: true });
+        const filePath = `./locales/${lang}.json`;
+        
+        if (files[filePath]) {
+          const translation = files[filePath].default.translation;
+          setTranslations(prev => ({
+            ...prev,
+            [lang]: translation
+          }));
+        } else {
+          console.error(`Translation file not found for language: ${lang}`);
         }
-
-        setAvailableLanguages(languages);
-        if (showLogs) console.log("languages", languages);
       } catch (error) {
-        console.error("Error fetching languages:", error);
+        console.error(`Error loading translations for ${lang}:`, error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchLanguages();
-    loadLanguage('en'); // Load default language on mount
-  }, []);
+    loadTranslations(currentLang);
+  }, [currentLang]);
 
-  const loadLanguage = async (lng) => {
-    try {
-      const module = await import(`./locales/${lng}.json`);
-      setTranslations(module.default);
-      setLanguage(lng);
-      console.log(`Loaded ${lng} translations:`, module.default);
-    } catch (error) {
-      console.error(`Error loading ${lng} translations:`, error);
-    }
+  const handleLanguageChange = (lang) => {
+    console.log('Changing language to:', lang);
+    setCurrentLang(lang);
   };
 
-  const changeLanguage = (lng) => {
-    console.log(`changeLanguage called with ${lng}`);
-    loadLanguage(lng);
-  };
-
-  useEffect(() => {
-    console.log("Current language:", language);
-    console.log("Translations:", translations);
-  }, [language, translations]);
+  const protocol = import.meta.env.VITE_HTTPS === 'true' ? 'https' : 'http'
+  const host = import.meta.env.VITE_FRONT_IP
+  const port = import.meta.env.VITE_PORT
+  const baseUrl = `${protocol}://${host}:${port}`
+  const mobileUrl = `${baseUrl}/mobile.html`
+  const aframeUrl = `${baseUrl}/A-frame/index.html`  // Corregido para usar la ruta real del archivo
 
   return (
-    <div style={{ height: '100vh' }}>
-      <h1>{translations.appName || 'NO Name'}</h1>
-      <div>
-        <ul>
-          {availableLanguages.map((lang) => (
-            <li key={lang}>
-              <button onClick={() => changeLanguage(lang)}>{lang}</button>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <Canvas>
-        <ambientLight />
+    <div className="canvas-container">
+
+      <h1 style={{
+        position: 'absolute',
+        top: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        color: 'white',
+        zIndex: 1000
+      }}>
+        {isLoading ? 'Loading...' : translations[currentLang]?.appName}
+      </h1>
+
+      <VRLanguages onLanguageChange={handleLanguageChange} />
+
+      <Canvas camera={{ position: [0, 2, 5] }}>
+        
+        <Sky 
+          sunPosition={[100, 10, 100]}
+          turbidity={0.1}
+          rayleigh={0.5}
+          mieCoefficient={0.003}
+          mieDirectionalG={0.7}
+        />
+        <VRFloor 
+          size={[200, 200]} // Piso más grande
+          textureRepeat={[100, 100]} // Más repeticiones de textura
+          roughness={0.6} // Diferente acabado
+          metalness={0.3} // Diferente acabado
+        />
+        <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
-        <Physics>
-          <VRDado size={boxSize1} position={boxPosition1} />
-          <VRWorld diameter={90} position={[0, 0, 0]} />
-          <VRUser initialPosition={[0, 0, -1]} initialRotation={[0, Math.PI / 1, 0]} />
-          <Girl position={[2, 0, 5]} scale={1.0} />
-        </Physics>
+        <VRButton
+          position={[-1, 1, 0]}
+          scale={0.9}
+          text="VR-R3F"
+          navigateTo={mobileUrl}
+        />
+        <VRButton
+          position={[1, 1, 0]}
+          scale={0.9}
+          text="A-FRAME"
+          navigateTo={aframeUrl}
+        />
+        <OrbitControls />
       </Canvas>
     </div>
   );
-};
+}
 
 export default App;

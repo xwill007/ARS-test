@@ -1,0 +1,20 @@
+FROM nginx:alpine
+
+# Instalar dependencias necesarias
+RUN apk add --no-cache openssl gettext
+
+# Crear directorio para certificados SSL
+RUN mkdir -p /etc/nginx/ssl
+
+# Copiar configuración de Nginx
+COPY nginx.conf /etc/nginx/templates/default.conf.template
+
+# Script para generar certificados auto-firmados
+COPY init-ssl.sh /docker-entrypoint.d/
+RUN chmod +x /docker-entrypoint.d/init-ssl.sh
+
+# Puerto expuesto
+EXPOSE 80 443
+
+# Usar el entrypoint por defecto de nginx
+CMD ["nginx", "-g", "daemon off;"]

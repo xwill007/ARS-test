@@ -1,8 +1,16 @@
 {
+  "translation": {
     "appName": "Apprende VR es",
-    "appDescription": "Una plataforma de aprendizaje en realidad virtual",
-    "greeting": "¡Hola, mundo!",
-    "welcomeMessage": "¡Bienvenido a ApprendeVr!",
-    "button.submit": "Enviar",
-    "error.notFound": "Recurso no encontrado"
+    "greeting": "Hola mundo!",
+    "welcomeMessage": "Bienvenido a ApprendeVr!",
+    "vrButtonText": "Entrar en VR",
+    
+    
+    "button": {
+      "submit": "enviar"
+    },
+    "error": {
+      "notFound": "no encontrado"
+    }
+  }
 }
