@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo Navegando al directorio del proyecto...
-cd /d "%~dp0ApprendeVr\front-r3f"
+cd /d "%~dp0ApprendeVr\frontend"
 
 :: Set environment variables
 set "VITE_FRONT_IP=192.168.1.11"

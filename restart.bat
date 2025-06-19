@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo Navegando al directorio del proyecto...
-cd /d "%~dp0ApprendeVr\front-r3f"
+cd /d "%~dp0ApprendeVr\frontend"
 
 @echo off
 echo Deteniendo procesos de Node.js si están en ejecución...
