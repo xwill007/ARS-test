@@ -110,13 +110,13 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
           <ambientLight intensity={0.5} />
           <pointLight position={[10, 10, 10]} />
           <VRButton
-            position={[-1, 1, 0]}
+            position={[-1, 2, 0]}
             scale={0.9}
             text="VR-R3F"
             navigateTo={mobileUrl}
           />
           <VRButton
-            position={[1, 1, 0]}
+            position={[1, 2, 0]}
             scale={0.9}
             text="A-FRAME"
             navigateTo={aframeUrl}
