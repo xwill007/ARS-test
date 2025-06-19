@@ -117,17 +117,17 @@ function App() {
       {(showDomo || showBoth) && (
         <div id="aframe-container"
           style={showBoth ? {
-            width: '400px',
-            height: '400px',
+            width: '100vw',
+            height: '45vh',
             position: 'absolute',
-            bottom: 20,
-            right: 20,
+            left: 0,
+            bottom: 0,
             zIndex: 2000,
             background: 'rgba(0,0,0,0.85)',
-            borderRadius: '12px',
+            borderRadius: '0',
             overflow: 'hidden',
-            boxShadow: '0 4px 16px #0008',
-            border: '2px solid #333',
+            boxShadow: '0 -4px 16px #0008',
+            borderTop: '2px solid #333',
             pointerEvents: 'auto'
           } : {
             width: '100vw',
@@ -139,6 +139,25 @@ function App() {
             pointerEvents: 'auto'
           }}
         >
+          <button
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 24,
+              zIndex: 2100,
+              background: '#222',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              padding: '8px 18px',
+              fontSize: 16,
+              cursor: 'pointer',
+              opacity: 0.85
+            }}
+            onClick={() => { setShowDomo(false); setShowBoth(false); }}
+          >
+            Volver
+          </button>
           <a-scene embedded vr-mode-ui="enabled: true">
             <VRDomo />
           </a-scene>
