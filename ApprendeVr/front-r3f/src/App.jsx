@@ -14,6 +14,7 @@ function App() {
   const [currentLang, setCurrentLang] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
   const [showDomo, setShowDomo] = useState(false);
+  const [showBoth, setShowBoth] = useState(false);
 
   useEffect(() => {
     const loadTranslations = async (lang) => {
@@ -71,11 +72,17 @@ function App() {
       <VRLanguages onLanguageChange={handleLanguageChange} />
       <button
         style={{ position: 'absolute', top: 70, right: 20, zIndex: 1001 }}
-        onClick={() => setShowDomo((v) => !v)}
+        onClick={() => { setShowDomo((v) => !v); setShowBoth(false); }}
       >
         {showDomo ? 'Cerrar Domo VR' : 'Mostrar Domo VR'}
       </button>
-      {!showDomo && (
+      <button
+        style={{ position: 'absolute', top: 110, right: 20, zIndex: 1001 }}
+        onClick={() => { setShowBoth((v) => !v); setShowDomo(false); }}
+      >
+        {showBoth ? 'Cerrar Ambas Vistas' : 'Mostrar Ambas Vistas'}
+      </button>
+      {(!showDomo || showBoth) && (
         <Canvas camera={{ position: [0, 2, 5] }}>
           <Sky 
             sunPosition={[100, 10, 100]}
@@ -107,8 +114,31 @@ function App() {
           <OrbitControls />
         </Canvas>
       )}
-      {showDomo && (
-        <div id="aframe-container" style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0, zIndex: 2000, background: 'black' }}>
+      {(showDomo || showBoth) && (
+        <div id="aframe-container"
+          style={showBoth ? {
+            width: '400px',
+            height: '400px',
+            position: 'absolute',
+            bottom: 20,
+            right: 20,
+            zIndex: 2000,
+            background: 'rgba(0,0,0,0.85)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 4px 16px #0008',
+            border: '2px solid #333',
+            pointerEvents: 'auto'
+          } : {
+            width: '100vw',
+            height: '100vh',
+            position: 'fixed',
+            top: 0, left: 0,
+            zIndex: 2000,
+            background: 'black',
+            pointerEvents: 'auto'
+          }}
+        >
           <a-scene embedded vr-mode-ui="enabled: true">
             <VRDomo />
           </a-scene>
