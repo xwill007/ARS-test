@@ -4,8 +4,8 @@ import { useFrame } from '@react-three/fiber'
 
 function VRTextTranslation({ 
   textKey = 'greeting',
-  language1 = 'en',
-  language2 = 'es',
+  language1 = 'L1',
+  language2 = 'L2',
   position = [0, 1.5, -3],
   scale = 1
 }) {
