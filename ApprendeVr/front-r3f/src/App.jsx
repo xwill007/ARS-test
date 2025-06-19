@@ -5,6 +5,7 @@ import VRLanguages from './components/VRLanguages'
 import VRWorld from './components/VRWorld/VRWorld'
 import VRButton from './components/VRButton'
 import VRFloor from './components/VRFloor'
+import VRDomo from './components/VRDomo'
 
 
 
@@ -12,6 +13,7 @@ function App() {
   const [translations, setTranslations] = useState({});
   const [currentLang, setCurrentLang] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
+  const [showDomo, setShowDomo] = useState(false);
 
   useEffect(() => {
     const loadTranslations = async (lang) => {
@@ -54,7 +56,7 @@ function App() {
 
   return (
     <div className="canvas-container">
-
+      {/* UI y R3F */}
       <h1 style={{
         position: 'absolute',
         top: '20px',
@@ -67,38 +69,51 @@ function App() {
       </h1>
 
       <VRLanguages onLanguageChange={handleLanguageChange} />
-
-      <Canvas camera={{ position: [0, 2, 5] }}>
-        
-        <Sky 
-          sunPosition={[100, 10, 100]}
-          turbidity={0.1}
-          rayleigh={0.5}
-          mieCoefficient={0.003}
-          mieDirectionalG={0.7}
-        />
-        <VRFloor 
-          size={[200, 200]} // Piso más grande
-          textureRepeat={[100, 100]} // Más repeticiones de textura
-          roughness={0.6} // Diferente acabado
-          metalness={0.3} // Diferente acabado
-        />
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} />
-        <VRButton
-          position={[-1, 1, 0]}
-          scale={0.9}
-          text="VR-R3F"
-          navigateTo={mobileUrl}
-        />
-        <VRButton
-          position={[1, 1, 0]}
-          scale={0.9}
-          text="A-FRAME"
-          navigateTo={aframeUrl}
-        />
-        <OrbitControls />
-      </Canvas>
+      <button
+        style={{ position: 'absolute', top: 70, right: 20, zIndex: 1001 }}
+        onClick={() => setShowDomo((v) => !v)}
+      >
+        {showDomo ? 'Cerrar Domo VR' : 'Mostrar Domo VR'}
+      </button>
+      {!showDomo && (
+        <Canvas camera={{ position: [0, 2, 5] }}>
+          <Sky 
+            sunPosition={[100, 10, 100]}
+            turbidity={0.1}
+            rayleigh={0.5}
+            mieCoefficient={0.003}
+            mieDirectionalG={0.7}
+          />
+          <VRFloor 
+            size={[200, 200]} // Piso más grande
+            textureRepeat={[100, 100]} // Más repeticiones de textura
+            roughness={0.6} // Diferente acabado
+            metalness={0.3} // Diferente acabado
+          />
+          <ambientLight intensity={0.5} />
+          <pointLight position={[10, 10, 10]} />
+          <VRButton
+            position={[-1, 1, 0]}
+            scale={0.9}
+            text="VR-R3F"
+            navigateTo={mobileUrl}
+          />
+          <VRButton
+            position={[1, 1, 0]}
+            scale={0.9}
+            text="A-FRAME"
+            navigateTo={aframeUrl}
+          />
+          <OrbitControls />
+        </Canvas>
+      )}
+      {showDomo && (
+        <div id="aframe-container" style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0, zIndex: 2000, background: 'black' }}>
+          <a-scene embedded vr-mode-ui="enabled: true">
+            <VRDomo />
+          </a-scene>
+        </div>
+      )}
     </div>
   );
 }
