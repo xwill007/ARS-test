@@ -38,8 +38,8 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const host = import.meta.env.VITE_FRONT_IP
   const port = import.meta.env.VITE_PORT
   const baseUrl = `${protocol}://${host}:${port}`
-  const mobileUrl = `${baseUrl}/mobile.html`
-  const aframeUrl = `${baseUrl}/A-frame/index.html`  // Corregido para usar la ruta real del archivo
+  const mobileUrl = `${baseUrl}/src/views/mobile/mobile.html`
+  const aframeUrl = `${baseUrl}/src/views/A-frame/index.html`  // Corregido para usar la ruta real del archivo
 
   // Acceso a la cámara para AR
   useEffect(() => {
