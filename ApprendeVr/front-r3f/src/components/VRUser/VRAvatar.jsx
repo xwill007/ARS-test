@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { Vector3 } from 'three';
 import { showLogs } from '../../config/config'; // Import showLogs
 
-const VRAvatarComponent = ({ position = new Vector3(0, 0, 0), scale = 1.0 }) => {
+const VRAvatarComponent = ({ position = new Vector3(0, 0, 0), scale = 1.0, rotation = [0, 0, 0] }) => {
   const { scene } = useThree();
   const avatarRef = useRef(null);
   const [avatar, setAvatar] = useState(null);
@@ -21,6 +21,7 @@ const VRAvatarComponent = ({ position = new Vector3(0, 0, 0), scale = 1.0 }) => 
       scene.add(loadedAvatar);
       loadedAvatar.scale.set(scale, scale, scale); // Set scale
       loadedAvatar.position.copy(position); // Set initial position
+      loadedAvatar.rotation.set(...rotation); // Set initial rotation
     }, undefined, function (error) {
       console.error(error);
     });
@@ -33,12 +34,13 @@ const VRAvatarComponent = ({ position = new Vector3(0, 0, 0), scale = 1.0 }) => 
         avatarRef.current = null;
       }
     };
-  }, [scene, position, scale]);
+  }, [scene, position, scale, rotation]);
 
   useFrame(() => {
     //if (showLogs) console.log('VRAvatar: useFrame - Updating position');
     if (avatarRef.current) {
       avatarRef.current.position.copy(position);
+      avatarRef.current.rotation.set(...rotation);
     }
   });
 
@@ -48,7 +50,10 @@ const VRAvatarComponent = ({ position = new Vector3(0, 0, 0), scale = 1.0 }) => 
 const areEqual = (prevProps, nextProps) => {
   // Compare the position vectors
   if (showLogs) console.log('VRAvatar: areEqual - Comparing props', prevProps, nextProps);
-  const isEqual = prevProps.position.equals(nextProps.position) && prevProps.scale === nextProps.scale;
+  const isEqual = prevProps.position.equals(nextProps.position) && prevProps.scale === nextProps.scale &&
+    prevProps.rotation[0] === nextProps.rotation[0] &&
+    prevProps.rotation[1] === nextProps.rotation[1] &&
+    prevProps.rotation[2] === nextProps.rotation[2];
   if (showLogs) console.log('VRAvatar: areEqual - Result', isEqual);
   return isEqual;
 };
