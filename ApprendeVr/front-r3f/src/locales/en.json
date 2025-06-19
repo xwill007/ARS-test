@@ -10,6 +10,11 @@
     },
     "error": {
       "notFound": "no encontrado"
+    },
+    "menu": {
+      "title": "Configuration Menu",
+      "language": "Language",
+      "view_Mode": "view Mode"
     }
   }
 }

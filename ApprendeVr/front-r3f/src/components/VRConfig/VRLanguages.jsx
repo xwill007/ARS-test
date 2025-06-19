@@ -1,69 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useVRLanguage } from './VRLanguageContext';
 
-const VRLanguages = ({ onLanguageChange }) => {
-  const [availableLanguages, setAvailableLanguages] = useState(['en', 'es']);
-  const [currentLanguage, setCurrentLanguage] = useState('en');
-
-  useEffect(() => {
-    const fetchLanguages = async () => {
-      try {
-        // Corregimos el path para que apunte a la carpeta locales
-        const languageFiles = import.meta.glob('../locales/*.json');
-        const languages = [];
-
-        for (const path in languageFiles) {
-          // Extraemos el código de idioma del path
-          const languageCode = path.match(/\/([^/]+)\.json$/)[1];
-          languages.push(languageCode);
-        }
-
-        console.log('Available languages:', languages);
-        setAvailableLanguages(languages);
-      } catch (error) {
-        console.error("Error fetching languages:", error);
-      }
-    };
-
-    fetchLanguages();
-  }, []);
-
-  const changeLanguage = (lng) => {
-    setCurrentLanguage(lng);
-    onLanguageChange(lng);
-  };
+const VRLanguages = () => {
+  const { availableLanguages, currentLang, setCurrentLang } = useVRLanguage();
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: '60px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      zIndex: 1000
-    }}>
-      <ul style={{ 
-        listStyle: 'none', 
-        display: 'flex', 
-        gap: '10px',
-        padding: 0 
-      }}>
+    <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+      <select
+        value={currentLang}
+        onChange={e => setCurrentLang(e.target.value)}
+        style={{
+          background: '#000',
+          color: '#fff',
+          border: '2px solid #fff',
+          borderRadius: 5,
+          padding: '6px 16px',
+          fontSize: 16,
+          minWidth: 100,
+          textAlign: 'center',
+          outline: 'none',
+          cursor: 'pointer',
+        }}
+      >
         {availableLanguages.map((lang) => (
-          <li key={lang}>
-            <button 
-              onClick={() => changeLanguage(lang)}
-              style={{
-                background: currentLanguage === lang ? '#ffffff' : '#000000',
-                color: currentLanguage === lang ? '#000000' : '#ffffff',
-                border: '2px solid #ffffff',
-                padding: '5px 10px',
-                cursor: 'pointer',
-                borderRadius: '5px'
-              }}
-            >
-              {lang.toUpperCase()}
-            </button>
-          </li>
+          <option key={lang} value={lang} style={{ color: '#000', background: '#fff' }}>
+            {lang.toUpperCase()}
+          </option>
         ))}
-      </ul>
+      </select>
     </div>
   );
 };

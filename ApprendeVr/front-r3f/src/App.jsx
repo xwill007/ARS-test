@@ -1,19 +1,28 @@
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Sky } from '@react-three/drei'
-import { useState, useEffect, useRef } from 'react'
-import VRLanguages from './components/VRConfig/VRLanguages'
-import VRWorld from './components/VRWorld/VRWorld'
-import VRButton from './components/VRViews/VRButton'
-import VRFloor from './components/VRWorld/VRFloor'
-import VRDomo from './components/VRViews/VRDomo'
-import StereoARView from './components/VRViews/VRViewARS/StereoARView'
-
-
+import React from 'react';
+import VRConfig from './components/VRConfig/VRConfig';
+import VRWorld from './components/VRWorld/VRWorld';
+import VRButton from './components/VRViews/VRButton';
+import VRFloor from './components/VRWorld/VRFloor';
+import VRDomo from './components/VRViews/VRDomo';
+import StereoARView from './components/VRViews/VRViewARS/StereoARView';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Sky } from '@react-three/drei';
+import { VRLanguageProvider, useVRLanguage } from './components/VRConfig/VRLanguageContext';
+import { useRef, useState, useEffect } from 'react';
 
 function App() {
-  const [translations, setTranslations] = useState({});
-  const [currentLang, setCurrentLang] = useState('en');
-  const [isLoading, setIsLoading] = useState(true);
+  return (
+    <VRLanguageProvider>
+      <div className="canvas-container">
+        {/* UI y R3F */}
+        <AppContent />
+      </div>
+    </VRLanguageProvider>
+  );
+}
+
+function AppContent() {
+  const { t, currentLang, setCurrentLang, isLoading } = useVRLanguage();
   const [showDomo, setShowDomo] = useState(false);
   const [showBoth, setShowBoth] = useState(false);
   const [showStereoAR, setShowStereoAR] = useState(false);
@@ -22,38 +31,6 @@ function App() {
   const [arHeight, setArHeight] = useState(480); // px alto de cada vista
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
-
-  useEffect(() => {
-    const loadTranslations = async (lang) => {
-      setIsLoading(true);
-      try {
-        // Using Vite's import.meta.glob for dynamic imports
-        const files = import.meta.glob('./locales/*.json', { eager: true });
-        const filePath = `./locales/${lang}.json`;
-        
-        if (files[filePath]) {
-          const translation = files[filePath].default.translation;
-          setTranslations(prev => ({
-            ...prev,
-            [lang]: translation
-          }));
-        } else {
-          console.error(`Translation file not found for language: ${lang}`);
-        }
-      } catch (error) {
-        console.error(`Error loading translations for ${lang}:`, error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadTranslations(currentLang);
-  }, [currentLang]);
-
-  const handleLanguageChange = (lang) => {
-    console.log('Changing language to:', lang);
-    setCurrentLang(lang);
-  };
 
   const protocol = import.meta.env.VITE_HTTPS === 'true' ? 'https' : 'http'
   const host = import.meta.env.VITE_FRONT_IP
@@ -110,10 +87,10 @@ function App() {
         color: 'white',
         zIndex: 1000
       }}>
-        {isLoading ? 'Loading...' : translations[currentLang]?.appName}
+        {isLoading ? 'Loading...' : t('appName')}
       </h1>
 
-      <VRLanguages onLanguageChange={handleLanguageChange} />
+      <VRConfig />
       <button
         style={{ position: 'absolute', top: 70, right: 20, zIndex: 1001 }}
         onClick={() => { setShowDomo((v) => !v); setShowBoth(false); }}

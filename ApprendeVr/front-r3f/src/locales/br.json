@@ -10,6 +10,11 @@
     },
     "error": {
       "notFound": "no encontradiño"
+    },
+    "menu": {
+      "title": "Menu Configuracionciña",
+      "language": "Idiomiño",
+      "viewMode": "Modo de Vistiña"
     }
   }
 }
