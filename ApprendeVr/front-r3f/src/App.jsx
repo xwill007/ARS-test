@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Sky } from '@react-three/drei'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import VRLanguages from './components/VRLanguages'
 import VRWorld from './components/VRWorld/VRWorld'
 import VRButton from './components/VRButton'
@@ -15,6 +15,12 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDomo, setShowDomo] = useState(false);
   const [showBoth, setShowBoth] = useState(false);
+  const [showStereoAR, setShowStereoAR] = useState(false);
+  const [arSeparation, setArSeparation] = useState(24); // px separación
+  const [arWidth, setArWidth] = useState(380); // px ancho de cada vista
+  const [arHeight, setArHeight] = useState(480); // px alto de cada vista
+  const videoRefL = useRef(null);
+  const videoRefR = useRef(null);
 
   useEffect(() => {
     const loadTranslations = async (lang) => {
@@ -55,6 +61,43 @@ function App() {
   const mobileUrl = `${baseUrl}/mobile.html`
   const aframeUrl = `${baseUrl}/A-frame/index.html`  // Corregido para usar la ruta real del archivo
 
+  // Acceso a la cámara para AR
+  useEffect(() => {
+    if (!showStereoAR) return;
+    let stream;
+    // Pantalla completa al entrar en modo AR estéreo
+    const enterFullscreen = () => {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    };
+    enterFullscreen();
+    const getCamera = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        if (videoRefL.current) videoRefL.current.srcObject = stream;
+        if (videoRefR.current) videoRefR.current.srcObject = stream;
+      } catch (e) {
+        console.error('No se pudo acceder a la cámara', e);
+      }
+    };
+    getCamera();
+    return () => {
+      // Salir de pantalla completa al salir del modo AR estéreo
+      if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
+      }
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [showStereoAR]);
+
   return (
     <div className="canvas-container">
       {/* UI y R3F */}
@@ -81,6 +124,12 @@ function App() {
         onClick={() => { setShowBoth((v) => !v); setShowDomo(false); }}
       >
         {showBoth ? 'Cerrar Ambas Vistas' : 'Mostrar Ambas Vistas'}
+      </button>
+      <button
+        style={{ position: 'absolute', top: 150, right: 20, zIndex: 1001 }}
+        onClick={() => { setShowStereoAR((v) => !v); setShowDomo(false); setShowBoth(false); }}
+      >
+        {showStereoAR ? 'Cerrar Modo AR Estéreo' : 'Modo AR Estéreo'}
       </button>
       {(!showDomo || showBoth) && (
         <Canvas camera={{ position: [0, 2, 5] }}>
@@ -161,6 +210,68 @@ function App() {
           <a-scene embedded vr-mode-ui="enabled: true">
             <VRDomo />
           </a-scene>
+        </div>
+      )}
+      {showStereoAR && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'black',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'row',
+        }}>
+          {/* Botón para volver a la vista inicial */}
+          <button
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 24,
+              zIndex: 3101,
+              background: '#222',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              padding: '8px 18px',
+              fontSize: 16,
+              cursor: 'pointer',
+              opacity: 0.85
+            }}
+            onClick={() => setShowStereoAR(false)}
+          >
+            Volver
+          </button>
+          {/* Controles de separación y tamaño */}
+          <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 3100, color: 'white', background: '#222b', padding: 12, borderRadius: 8 }}>
+            <label>Separación: <input type="range" min={0} max={100} value={arSeparation} onChange={e => setArSeparation(Number(e.target.value))} /></label> {arSeparation}px<br/>
+            <label>Ancho: <input type="range" min={200} max={700} value={arWidth} onChange={e => setArWidth(Number(e.target.value))} /></label> {arWidth}px<br/>
+            <label>Alto: <input type="range" min={200} max={900} value={arHeight} onChange={e => setArHeight(Number(e.target.value))} /></label> {arHeight}px<br/>
+          </div>
+          {/* Vista izquierda */}
+          <div style={{ width: arWidth, height: arHeight, marginRight: arSeparation/2, background: '#111', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+            <video ref={videoRefL} autoPlay playsInline muted style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
+            <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
+              <a-scene embedded vr-mode-ui="enabled: false" style={{ width: '100%', height: '100%', background: 'transparent' }}>
+                <a-entity camera look-controls position="0 1.6 0"></a-entity>
+                <VRDomo />
+              </a-scene>
+            </div>
+          </div>
+          {/* Vista derecha */}
+          <div style={{ width: arWidth, height: arHeight, marginLeft: arSeparation/2, background: '#111', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+            <video ref={videoRefR} autoPlay playsInline muted style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
+            <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
+              <a-scene embedded vr-mode-ui="enabled: false" style={{ width: '100%', height: '100%', background: 'transparent' }}>
+                <a-entity camera look-controls position="0 1.6 0"></a-entity>
+                <VRDomo />
+              </a-scene>
+            </div>
+          </div>
         </div>
       )}
     </div>
