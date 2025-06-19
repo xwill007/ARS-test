@@ -17,7 +17,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        mobile: path.resolve(__dirname, 'mobile.html')
+        mobile: path.resolve(__dirname, 'src/views/mobile/mobile.html'),
+        aframe: path.resolve(__dirname, 'src/views/A-frame/index.html')
       }
     }
   }

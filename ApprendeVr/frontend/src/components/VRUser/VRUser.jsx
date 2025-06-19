@@ -22,6 +22,9 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
   const mouseMoveFrameCounter = useRef(0); // Counter for mousemove logging
   const mouseMoveLogInterval = 30; // Log mousemove every 30 frames
 
+  // Rotación inicial para que el avatar mire hacia atrás (de espaldas)
+  const initialAvatarRotation = [0, Math.PI, 0];
+
   useEffect(() => {
     if (showLogs) console.log('VRUser: useEffect - Mounting');
 
@@ -99,6 +102,15 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
       if (showLogs) console.log('VRUser: useFrame - Updating');
       frameCounter.current = 0; // Reset the counter
     }
+    // Sincronizar la cámara con el avatar (first person, altura de ojos)
+    const eyeHeight = 1.60;
+    camera.position.set(
+      userPosition.current.x,
+      userPosition.current.y + eyeHeight,
+      userPosition.current.z +(-0.2)
+    );
+    camera.rotation.x = rotation.x;
+    camera.rotation.y = rotation.y;
     // Update raycaster and pointer position
     raycaster.current.setFromCamera(new Vector3(), camera);
     const intersects = raycaster.current.intersectObjects(scene.children);
@@ -124,7 +136,7 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
         userPosition={userPosition}
         camera={camera}
       />
-      <VRAvatar position={userPosition.current} scale={1.0} />
+      <VRAvatar position={userPosition.current} scale={1.0} rotation={initialAvatarRotation} />
     </>
   );
 };

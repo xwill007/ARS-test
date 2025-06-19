@@ -25,14 +25,17 @@
                   floorRoughness: 0.8; 
                   floorMetalness: 0.2; 
                   floorSrc: /images/piso_ajedrez.jpg">
-      </a-entity>      <!-- Usuario con componente vr-user (incluye cámara y cuerpo) -->
+      </a-entity>      
+      
+      <!-- Usuario con componente vr-user (incluye cámara y cuerpo) -->
       <a-entity 
-        id="user"        vr-user="position: 0 1 -2; 
+                id="user"        
+                vr-user="position: 0 0 0; 
                 cameraMode: third-person;
                 cameraHeight: 1.6; 
                 thirdPersonDistance: 3;
                 thirdPersonHeight: 1.2;
-                thirdPersonAngle: 0;
+                thirdPersonAngle: 180;
                 enableWASD: true; 
                 enableLook: true;                
                 reverseMouseDrag: false;
@@ -47,19 +50,22 @@
                 bodyRadius: 0.3;
                 bodyColor: #4CC3D9;
                 showBody: true;
-                showBodyInFirstPerson: true">
-      </a-entity>
-      
-      <!-- Video con componente vr-local-video -->
+                showBodyInFirstPerson: true;
+                moveType: cursor;
+                fastTurnAngle: 0;
+                fastSpeed: 0.5">
+      </a-entity>        <!-- Video con componente vr-local-video -->
       <a-entity 
         id="video-container" 
-        position="0 6 -5" 
+        position="0 6 -9" 
         rotation="0 0 0"
         vr-local-video="
           src: /videos/gangstas.mp4;
           width: 16;
           height: 9;
-          autoplay: false">
+          autoplay: false;
+          doubleSided: true;
+          invertBackSide: false">
       </a-entity> 
 
     </a-scene>

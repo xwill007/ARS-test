@@ -1,6 +1,6 @@
 {
   "translation": {
-    "appName": "Apprende VR es",
+    "appName": "Apprende Español",
     "greeting": "Hola mundo!",
     "welcomeMessage": "Bienvenido a ApprendeVr!",
     "vrButtonText": "Entrar en VR",
@@ -11,6 +11,11 @@
     },
     "error": {
       "notFound": "no encontrado"
+    },
+    "menu": {
+      "title": "Menu Configuraciones",
+      "language": "Idioma",
+      "viewMode": "Modo de Vista"
     }
   }
 }

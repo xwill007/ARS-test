@@ -1,6 +1,6 @@
 {
   "translation": {
-    "appName": "Apprende VR-BR",
+    "appName": "Apprende Brasileño",
     "greeting": "Hola mundiño!",
     "welcomeMessage": "Bienvenidiño to ApprendeVr!",
     "vrButtonText": "Ver VRsiño",
@@ -10,6 +10,11 @@
     },
     "error": {
       "notFound": "no encontradiño"
+    },
+    "menu": {
+      "title": "Menu Configuracionciña",
+      "language": "Idiomiño",
+      "viewMode": "Modo de Vistiña"
     }
   }
 }
