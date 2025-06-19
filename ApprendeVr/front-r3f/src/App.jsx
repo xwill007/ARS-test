@@ -1,27 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import VRConfig from './components/VRConfig/VRConfig';
 import VRWorld from './components/VRWorld/VRWorld';
 import VRButton from './components/VRViews/VRButton';
 import VRFloor from './components/VRWorld/VRFloor';
 import VRDomo from './components/VRViews/VRDomo';
 import StereoARView from './components/VRViews/VRViewARS/StereoARView';
+import VRDisplay from './components/VRDisplay';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Sky } from '@react-three/drei';
 import { VRLanguageProvider, useVRLanguage } from './components/VRConfig/VRLanguageContext';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState as useStateReact, useEffect } from 'react';
 
 function App() {
+  const [showVRDisplay, setShowVRDisplay] = useStateReact(true);
   return (
     <VRLanguageProvider>
       <div className="canvas-container">
         {/* UI y R3F */}
-        <AppContent />
+        <AppContent showVRDisplay={showVRDisplay} setShowVRDisplay={setShowVRDisplay} />
       </div>
     </VRLanguageProvider>
   );
 }
 
-function AppContent() {
+function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const { t, currentLang, setCurrentLang, isLoading } = useVRLanguage();
   const [showDomo, setShowDomo] = useState(false);
   const [showBoth, setShowBoth] = useState(false);
@@ -78,37 +80,18 @@ function AppContent() {
 
   return (
     <div className="canvas-container">
-      {/* UI y R3F */}
-      <h1 style={{
-        position: 'absolute',
-        top: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        color: 'white',
-        zIndex: 1000
-      }}>
-        {isLoading ? 'Loading...' : t('appName')}
-      </h1>
 
-      <VRConfig />
-      <button
-        style={{ position: 'absolute', top: 70, right: 20, zIndex: 1001 }}
-        onClick={() => { setShowDomo((v) => !v); setShowBoth(false); }}
-      >
-        {showDomo ? 'Cerrar Domo VR' : 'Mostrar Domo VR'}
-      </button>
-      <button
-        style={{ position: 'absolute', top: 110, right: 20, zIndex: 1001 }}
-        onClick={() => { setShowBoth((v) => !v); setShowDomo(false); }}
-      >
-        {showBoth ? 'Cerrar Ambas Vistas' : 'Mostrar Ambas Vistas'}
-      </button>
-      <button
-        style={{ position: 'absolute', top: 150, right: 20, zIndex: 1001 }}
-        onClick={() => { setShowStereoAR((v) => !v); setShowDomo(false); setShowBoth(false); }}
-      >
-        {showStereoAR ? 'Cerrar Modo AR Estéreo' : 'Modo AR Estéreo'}
-      </button>
+      {showVRDisplay && (
+        <VRDisplay
+          onShowDomo={() => { setShowDomo((v) => !v); setShowBoth(false); }}
+          onShowBothViews={() => { setShowBoth((v) => !v); setShowDomo(false); }}
+          onShowARStereo={() => { setShowStereoAR((v) => !v); setShowDomo(false); setShowBoth(false); }}
+        />
+      )}
+      <VRConfig 
+        showVRDisplay={showVRDisplay} 
+        setShowVRDisplay={setShowVRDisplay} 
+      />
       {(!showDomo || showBoth) && (
         <Canvas camera={{ position: [0, 2, 5] }}>
           <Sky 
