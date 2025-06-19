@@ -1,11 +1,12 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Sky } from '@react-three/drei'
 import { useState, useEffect, useRef } from 'react'
-import VRLanguages from './components/VRLanguages'
+import VRLanguages from './components/VRConfig/VRLanguages'
 import VRWorld from './components/VRWorld/VRWorld'
-import VRButton from './components/VRButton'
-import VRFloor from './components/VRFloor'
-import VRDomo from './components/VRDomo'
+import VRButton from './components/VRViews/VRButton'
+import VRFloor from './components/VRWorld/VRFloor'
+import VRDomo from './components/VRViews/VRDomo'
+import StereoARView from './components/VRViews/VRViewARS/StereoARView'
 
 
 
@@ -213,66 +214,13 @@ function App() {
         </div>
       )}
       {showStereoAR && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'black',
-          zIndex: 3000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'row',
-        }}>
-          {/* Botón para volver a la vista inicial */}
-          <button
-            style={{
-              position: 'absolute',
-              top: 16,
-              right: 24,
-              zIndex: 3101,
-              background: '#222',
-              color: 'white',
-              border: 'none',
-              borderRadius: 6,
-              padding: '8px 18px',
-              fontSize: 16,
-              cursor: 'pointer',
-              opacity: 0.85
-            }}
-            onClick={() => setShowStereoAR(false)}
-          >
-            Volver
-          </button>
-          {/* Controles de separación y tamaño */}
-          <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 3100, color: 'white', background: '#222b', padding: 12, borderRadius: 8 }}>
-            <label>Separación: <input type="range" min={0} max={100} value={arSeparation} onChange={e => setArSeparation(Number(e.target.value))} /></label> {arSeparation}px<br/>
-            <label>Ancho: <input type="range" min={200} max={700} value={arWidth} onChange={e => setArWidth(Number(e.target.value))} /></label> {arWidth}px<br/>
-            <label>Alto: <input type="range" min={200} max={900} value={arHeight} onChange={e => setArHeight(Number(e.target.value))} /></label> {arHeight}px<br/>
-          </div>
-          {/* Vista izquierda */}
-          <div style={{ width: arWidth, height: arHeight, marginRight: arSeparation/2, background: '#111', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
-            <video ref={videoRefL} autoPlay playsInline muted style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
-            <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
-              <a-scene embedded vr-mode-ui="enabled: false" style={{ width: '100%', height: '100%', background: 'transparent' }}>
-                <a-entity camera look-controls position="0 1.6 0"></a-entity>
-                <VRDomo />
-              </a-scene>
-            </div>
-          </div>
-          {/* Vista derecha */}
-          <div style={{ width: arWidth, height: arHeight, marginLeft: arSeparation/2, background: '#111', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
-            <video ref={videoRefR} autoPlay playsInline muted style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
-            <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
-              <a-scene embedded vr-mode-ui="enabled: false" style={{ width: '100%', height: '100%', background: 'transparent' }}>
-                <a-entity camera look-controls position="0 1.6 0"></a-entity>
-                <VRDomo />
-              </a-scene>
-            </div>
-          </div>
-        </div>
+        <StereoARView
+          onClose={() => setShowStereoAR(false)}
+          defaultSeparation={arSeparation}
+          defaultWidth={arWidth}
+          defaultHeight={arHeight}
+          overlay={<VRDomo />}
+        />
       )}
     </div>
   );

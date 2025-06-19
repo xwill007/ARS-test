@@ -99,6 +99,15 @@ const VRUser = ({ initialPosition = [0, 0, 0], initialRotation = [0, 0, 0] }) =>
       if (showLogs) console.log('VRUser: useFrame - Updating');
       frameCounter.current = 0; // Reset the counter
     }
+    // Sincronizar la cámara con el avatar (first person, altura de ojos)
+    const eyeHeight = 1.6;
+    camera.position.set(
+      userPosition.current.x,
+      userPosition.current.y + eyeHeight,
+      userPosition.current.z + 1
+    );
+    camera.rotation.x = rotation.x;
+    camera.rotation.y = rotation.y;
     // Update raycaster and pointer position
     raycaster.current.setFromCamera(new Vector3(), camera);
     const intersects = raycaster.current.intersectObjects(scene.children);
