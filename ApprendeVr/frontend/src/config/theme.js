@@ -1,95 +1,44 @@
-// Utilidad para convertir color CSS (#rrggbb) a número (0xrrggbb)
-function cssVarToHexNumber(cssVar) {
-  if (!cssVar) return undefined;
-  const hex = cssVar.trim().replace('#', '');
-  return parseInt(hex, 16);
-}
+// Definición de colores y fuentes directamente en JS
+const COLORS_LIGHT = {
+  primary: { main: '#547a54', contrast: '#ffffff' },
+  secondary: { main: '#00ffff', contrast: '#000000' },
+  accent: { main: '#ff0000', contrast: '#ffffff' },
+  background: { main: '#ffffff', contrast: '#000000' },
+  surface: { main: '#f0f0f0', contrast: '#000000' },
+};
+const COLORS_DARK = {
+  primary: { main: '#2e4a2e', contrast: '#ffffff' },
+  secondary: { main: '#00cccc', contrast: '#000000' },
+  accent: { main: '#ff5555', contrast: '#000000' },
+  background: { main: '#222222', contrast: '#ffffff' },
+  surface: { main: '#333333', contrast: '#ffffff' },
+};
+// Cambia los valores a rutas de archivos de fuente reales para Drei
+const FONT_PRIMARY_LIGHT = '/fonts/RockSalt.ttf';
+const FONT_SECONDARY_LIGHT = '/fonts/Roboto.ttf'; // Si tienes otra fuente secundaria
+const FONT_PRIMARY_DARK = '/fonts/Aclonica.ttf';
+const FONT_SECONDARY_DARK = '/fonts/Ultra.ttf';
 
-// Gestión de fuentes: fontPrimary y fontSecondary desde CSS
-function cssVarFont(styles, varName, fallback) {
-  const val = styles.getPropertyValue(varName).trim();
-  return val || fallback;
-}
-
-// Gestión de variantes: para cada color principal, define variantes (main, contrast, etc.)
-export function getThemeFromCSS() {
-  const styles = getComputedStyle(document.documentElement);
-  return {
-    colors: {
-      primary: {
-        main: cssVarToHexNumber(styles.getPropertyValue('--primary')),
-        contrast: cssVarToHexNumber(styles.getPropertyValue('--on-primary')),
-      },
-      secondary: {
-        main: cssVarToHexNumber(styles.getPropertyValue('--secondary')),
-        contrast: cssVarToHexNumber(styles.getPropertyValue('--on-secondary')),
-      },
-      accent: {
-        main: cssVarToHexNumber(styles.getPropertyValue('--accent')),
-        contrast: cssVarToHexNumber(styles.getPropertyValue('--on-accent')),
-      },
-      background: {
-        main: cssVarToHexNumber(styles.getPropertyValue('--background')),
-        contrast: cssVarToHexNumber(styles.getPropertyValue('--on-background')),
-      },
-      surface: {
-        main: cssVarToHexNumber(styles.getPropertyValue('--surface')),
-        contrast: cssVarToHexNumber(styles.getPropertyValue('--on-surface')),
-      },
-      // Colores legacy
-      white: cssVarToHexNumber(styles.getPropertyValue('--white')),
-      red: cssVarToHexNumber(styles.getPropertyValue('--red')),
-      cyan: cssVarToHexNumber(styles.getPropertyValue('--cyan')),
-      green: cssVarToHexNumber(styles.getPropertyValue('--green')),
-      black: cssVarToHexNumber(styles.getPropertyValue('--black')),
-      blue: cssVarToHexNumber(styles.getPropertyValue('--blue')),
-    },
-    fonts: {
-      primary: cssVarFont(styles, '--font-primary', 'sans-serif'),
-      secondary: cssVarFont(styles, '--font-secondary', 'serif'),
-    },
-  };
-}
-
-// Temas predefinidos: light y dark
 export const themeLight = {
-  colors: {
-    primary: { main: 0x547a54, contrast: 0xffffff },
-    secondary: { main: 0x00ffff, contrast: 0x000000 },
-    accent: { main: 0xff0000, contrast: 0xffffff },
-    background: { main: 0xffffff, contrast: 0x000000 },
-    surface: { main: 0xf0f0f0, contrast: 0x000000 },
-    // Colores legacy
-    white: 0xffffff,
-    red: 0xff0000,
-    cyan: 0x00ffff,
-    green: 0x547a54,
-    black: 0x000000,
-    blue: 0x0000ff,
-  },
+  colors: COLORS_LIGHT,
   fonts: {
-    primary: 'Roboto, Arial, sans-serif',
-    secondary: 'Georgia, serif',
+    primary: FONT_PRIMARY_LIGHT,
+    secondary: FONT_SECONDARY_LIGHT,
   },
 };
 
 export const themeDark = {
-  colors: {
-    primary: { main: 0x2e4a2e, contrast: 0xffffff },
-    secondary: { main: 0x00cccc, contrast: 0x000000 },
-    accent: { main: 0xff5555, contrast: 0x000000 },
-    background: { main: 0x222222, contrast: 0xffffff },
-    surface: { main: 0x333333, contrast: 0xffffff },
-    // Colores legacy
-    white: 0x222222,
-    red: 0xff5555,
-    cyan: 0x00cccc,
-    green: 0x2e4a2e,
-    black: 0x000000,
-    blue: 0x2222aa,
-  },
+  colors: COLORS_DARK,
   fonts: {
-    primary: 'Roboto, Arial, sans-serif',
-    secondary: 'Georgia, serif',
+    primary: FONT_PRIMARY_DARK,
+    secondary: FONT_SECONDARY_DARK,
   },
 };
+
+// Aplica la clase global al body para el tema
+export function applyThemeClass(themeKey) {
+  const body = document.body;
+  body.classList.remove('theme-light', 'theme-dark');
+  if (themeKey === 'themeLight') body.classList.add('theme-light');
+  if (themeKey === 'themeDark') body.classList.add('theme-dark');
+}

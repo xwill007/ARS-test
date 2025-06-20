@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import VRLanguages from './VRLanguages';
 import { useVRLanguage } from './VRLanguageContext';
+import { useVRTheme } from './VRThemeContext';
 
 const VRConfig = ({ showVRDisplay, setShowVRDisplay }) => {
   const [open, setOpen] = useState(false);
   const { t } = useVRLanguage();
+  const { themeName, setThemeName, themeList } = useVRTheme();
 
   return (
     <>
@@ -98,6 +100,29 @@ const VRConfig = ({ showVRDisplay, setShowVRDisplay }) => {
               {t('menu.language')}
             </div>
             <VRLanguages />
+          </div>
+          <div style={{height: 12}} />
+          {/* Submenú de Theme dinámico */}
+          <div style={{borderTop: '1px solid #444', margin: '12px -32px 0 -32px'}} />
+          <div style={{marginTop: 18, textAlign: 'center'}}>
+            <label style={{ color: '#90caf9', fontWeight: 'bold', fontSize: 14 }}>
+              {t('menu.theme')}
+              <select
+                value={themeName}
+                onChange={e => setThemeName(e.target.value)}
+                style={{ marginLeft: 8, fontSize: 14, borderRadius: 4, padding: '2px 8px' }}
+              >
+                {themeList.map(key => {
+                  // Intenta traducir, si no existe, muestra nombre legible
+                  let label = t(`menu.${key}`);
+                  if (!label || label === `menu.${key}`) {
+                    label = key.replace(/^theme/, '').replace(/([A-Z])/g, ' $1').trim();
+                    label = label.charAt(0).toUpperCase() + label.slice(1);
+                  }
+                  return <option key={key} value={key}>{label}</option>;
+                })}
+              </select>
+            </label>
           </div>
           <div style={{height: 12}} />
           <div style={{borderTop: '1px solid #444', margin: '12px -32px 0 -32px'}} />
