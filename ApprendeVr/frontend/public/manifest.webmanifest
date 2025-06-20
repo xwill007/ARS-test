@@ -1,0 +1,22 @@
+{
+  "name": "VR Experience",
+  "short_name": "ApprendeVr",
+  "description": "Aprende en VR y AR .",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#547a54",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "/images/vr-glasses-128.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/vr-glasses-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
