@@ -15,7 +15,10 @@
     "menu": {
       "title": "Menu Configuraciones",
       "language": "Idioma",
-      "viewMode": "Modo de Vista"
+      "viewMode": "Modo de Vista",
+      "theme": "Tema",
+      "theme_light": "Claro",
+      "theme_dark": "Oscuro"
     }
   }
 }

@@ -14,7 +14,10 @@
     "menu": {
       "title": "Menu Configuracionciña",
       "language": "Idiomiño",
-      "viewMode": "Modo de Vistiña"
+      "viewMode": "Modo de Vistiña",
+      "theme": "Temiño",
+      "theme_light": "Clarito",
+      "theme_dark": "Oscurito"
     }
   }
 }

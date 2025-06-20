@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>  <head>
     <meta charset="utf-8">
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/images/vr-glasses-128.png" />
     <title>A-Frame VR Scene</title>
 
-    <script src="libs/aframe.min.js"></script>
+    <script src="/libs/aframe.min.js"></script>
     <script type="module" src="index.js"></script>
 
     <style>
@@ -54,7 +54,9 @@
                 moveType: cursor;
                 fastTurnAngle: 0;
                 fastSpeed: 0.5">
-      </a-entity>        <!-- Video con componente vr-local-video -->
+      </a-entity>        
+      
+      <!-- Video con componente vr-local-video -->
       <a-entity 
         id="video-container" 
         position="0 6 -9" 
@@ -66,7 +68,18 @@
           autoplay: false;
           doubleSided: true;
           invertBackSide: false">
+          <a-text 
+            id="main-text"
+            value="Español, canción, acción, ñ, á, é, í, ó, ú" 
+            font="roboto" 
+            position="0 3.5 1.5" 
+            align="center" 
+            width="6"
+            shader="msdf">
+          </a-text>
       </a-entity> 
+
+      
 
     </a-scene>
   </body>

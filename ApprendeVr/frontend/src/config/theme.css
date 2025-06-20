@@ -1,8 +1,58 @@
 :root {
+  /* Light Theme por defecto */
+  --primary-light: #547a54;
+  --on-primary-light: #ffffff;
+  --secondary-light: #00ffff;
+  --on-secondary-light: #000000;
+  --accent-light: #ff0000;
+  --on-accent-light: #ffffff;
+  --background-light: #ffffff;
+  --on-background-light: #000000;
+  --surface-light: #f0f0f0;
+  --on-surface-light: #000000;
+
+  --primary-dark: #2e4a2e;
+  --on-primary-dark: #ffffff;
+  --secondary-dark: #00cccc;
+  --on-secondary-dark: #000000;
+  --accent-dark: #ff5555;
+  --on-accent-dark: #000000;
+  --background-dark: #222222;
+  --on-background-dark: #ffffff;
+  --surface-dark: #333333;
+  --on-surface-dark: #ffffff;
+
+  /* Legacy/otros */
   --white: #ffffff;
   --red: #ff0000;
   --cyan: #00ffff;
   --green: #547a54;
   --black: #000000;
   --blue: #0000ff;
+}
+
+.theme-light {
+  --primary-light: #547a54;
+  --on-primary-light: #ffffff;
+  --secondary-light: #00ffff;
+  --on-secondary-light: #000000;
+  --accent-light: #ff0000;
+  --on-accent-light: #ffffff;
+  --background-light: #ffffff;
+  --on-background-light: #000000;
+  --surface-light: #f0f0f0;
+  --on-surface-light: #000000;
+}
+
+.theme-dark {
+  --primary-light: #2e4a2e;
+  --on-primary-light: #ffffff;
+  --secondary-light: #00cccc;
+  --on-secondary-light: #000000;
+  --accent-light: #ff5555;
+  --on-accent-light: #000000;
+  --background-light: #222222;
+  --on-background-light: #ffffff;
+  --surface-light: #333333;
+  --on-surface-light: #ffffff;
 }

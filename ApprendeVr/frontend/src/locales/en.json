@@ -14,7 +14,10 @@
     "menu": {
       "title": "Configuration Menu",
       "language": "Language",
-      "view_Mode": "view Mode"
+      "viewMode": "View Mode",
+      "theme": "Theme",
+      "theme_light": "Light",
+      "theme_dark": "Dark"
     }
   }
 }

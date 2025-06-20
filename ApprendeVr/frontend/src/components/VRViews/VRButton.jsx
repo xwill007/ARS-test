@@ -1,21 +1,28 @@
 import { useState } from 'react'
 import { Text } from '@react-three/drei'
 import { RoundedBox } from '@react-three/drei'
+import { useVRTheme } from '../VRConfig/VRThemeContext';
 
-const TextLabel = ({ text, rotationY = 0 }) => (
-  <Text
-    fontSize={0.25}
-    color="white"
-    anchorX="center"
-    anchorY="middle"
-    rotation-y={rotationY}
-    outlineWidth={0.004}
-    outlineColor="#000000"
-    outlineBlur={0.001}
-  >
-    {text}
-  </Text>
-)
+const TextLabel = ({ text, rotationY = 0 }) => {
+  const { theme } = useVRTheme();
+  const colors = theme?.colors || {};
+  const fonts = theme?.fonts || {};
+  return (
+    <Text
+      fontSize={0.25}
+      color={colors.primary?.contrast || '#fff'}
+      font={fonts.primary}
+      anchorX="center"
+      anchorY="middle"
+      rotation-y={rotationY}
+      outlineWidth={0.004}
+      outlineColor="#000000"
+      outlineBlur={0.001}
+    >
+      {text}
+    </Text>
+  );
+}
 
 function VRButton({ 
   position = [0, 1.5, -2],
@@ -25,12 +32,20 @@ function VRButton({
   navigateTo = null
 }) {
   const [hovered, setHovered] = useState(false)
+  const { theme } = useVRTheme();
+  const colors = theme?.colors || {};
+  const fonts = theme?.fonts || {};
 
   const handleClick = () => {
     if (navigateTo) {
       window.location.href = navigateTo
     }
   }
+
+  // Colores y fuente desde theme, con fallback seguro
+  const primaryColor = colors.primary?.main || '#1976d2';
+  const secondaryColor = colors.secondary?.main || '#2196f3';
+  const emissiveColor = colors.primary?.main || '#1976d2';
 
   return (
     <group
@@ -47,10 +62,10 @@ function VRButton({
         smoothness={4}
       >
         <meshStandardMaterial
-          color={hovered ? '#2196f3' : '#1976d2'}
+          color={hovered ? secondaryColor : primaryColor}
           metalness={0.1}
           roughness={0.2}
-          emissive={hovered ? '#1976d2' : '#000000'}
+          emissive={hovered ? emissiveColor : '#000000'}
           emissiveIntensity={0.2}
         />
       </RoundedBox>

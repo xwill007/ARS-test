@@ -9,17 +9,20 @@ import VRDisplay from './components/VRDisplay';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Sky } from '@react-three/drei';
 import { VRLanguageProvider, useVRLanguage } from './components/VRConfig/VRLanguageContext';
+import { VRThemeProvider } from './components/VRConfig/VRThemeContext';
 import { useRef, useState as useStateReact, useEffect } from 'react';
 
 function App() {
   const [showVRDisplay, setShowVRDisplay] = useStateReact(true);
   return (
-    <VRLanguageProvider>
-      <div className="canvas-container">
-        {/* UI y R3F */}
-        <AppContent showVRDisplay={showVRDisplay} setShowVRDisplay={setShowVRDisplay} />
-      </div>
-    </VRLanguageProvider>
+    <VRThemeProvider>
+      <VRLanguageProvider>
+        <div className="canvas-container">
+          {/* UI y R3F */}
+          <AppContent showVRDisplay={showVRDisplay} setShowVRDisplay={setShowVRDisplay} />
+        </div>
+      </VRLanguageProvider>
+    </VRThemeProvider>
   );
 }
 
