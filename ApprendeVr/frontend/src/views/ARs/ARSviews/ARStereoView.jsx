@@ -2,6 +2,18 @@ import React, { useRef, useEffect, useState } from 'react';
 import ARPanel from '../ARScomponents/ARPanel';
 import ARSConfig from '../ARScomponents/ARSConfig';
 
+const LOCAL_KEY = 'arsconfig-user';
+
+function getInitialConfig(defaults) {
+  try {
+    const stored = localStorage.getItem(LOCAL_KEY);
+    if (stored) {
+      return { ...defaults, ...JSON.parse(stored) };
+    }
+  } catch (e) {}
+  return defaults;
+}
+
 /**
  * ARStereoView
  * Vista AR estereoscópica reutilizable.
@@ -19,15 +31,31 @@ const ARStereoView = ({
   overlay,
   floatingButtonProps = { bottom: 32, right: 32, scale: 1 }
 }) => {
-  const [arSeparation, setArSeparation] = useState(defaultSeparation);
-  const [arWidth, setArWidth] = useState(defaultWidth);
-  const [arHeight, setArHeight] = useState(defaultHeight);
-  const [offsetL, setOffsetL] = useState(0);
-  const [offsetR, setOffsetR] = useState(0);
-  const [zoom, setZoom] = useState(1);
-  const [showMenu, setShowMenu] = useState(true);
+  const initial = getInitialConfig({
+    arSeparation: defaultSeparation,
+    arWidth: defaultWidth,
+    arHeight: defaultHeight,
+    offsetL: 0,
+    offsetR: 0,
+    zoom: 1
+  });
+  const [arSeparation, setArSeparation] = useState(initial.arSeparation);
+  const [arWidth, setArWidth] = useState(initial.arWidth);
+  const [arHeight, setArHeight] = useState(initial.arHeight);
+  const [offsetL, setOffsetL] = useState(initial.offsetL);
+  const [offsetR, setOffsetR] = useState(initial.offsetR);
+  const [zoom, setZoom] = useState(initial.zoom);
+  // Solo mostrar el menú si no hay configuración previa
+  const [showMenu, setShowMenu] = useState(() => !localStorage.getItem(LOCAL_KEY));
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
+
+  // Guardar configuración en localStorage y cerrar menú
+  const saveConfig = () => {
+    const config = { arSeparation, arWidth, arHeight, offsetL, offsetR, zoom };
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(config));
+    setShowMenu(false);
+  };
 
   useEffect(() => {
     // Pantalla completa al entrar
@@ -110,6 +138,7 @@ const ARStereoView = ({
         offsetR={offsetR} setOffsetR={setOffsetR}
         zoom={zoom} setZoom={setZoom}
         showMenu={showMenu} setShowMenu={setShowMenu}
+        onSave={saveConfig}
       />
       {/* Vista izquierda */}
       <ARPanel

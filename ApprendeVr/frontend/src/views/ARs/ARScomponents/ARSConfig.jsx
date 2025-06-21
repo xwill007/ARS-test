@@ -11,6 +11,7 @@ import React from 'react';
  *  - offsetR, setOffsetR
  *  - zoom, setZoom
  *  - showMenu, setShowMenu
+ *  - onSave: función para guardar en localStorage
  */
 const ARSConfig = ({
   arSeparation, setArSeparation,
@@ -19,7 +20,8 @@ const ARSConfig = ({
   offsetL, setOffsetL,
   offsetR, setOffsetR,
   zoom, setZoom,
-  showMenu, setShowMenu
+  showMenu, setShowMenu,
+  onSave
 }) => (
   <>
     {/* Botón X para mostrar/ocultar menú */}
@@ -94,6 +96,25 @@ const ARSConfig = ({
           <input type="range" min="0.5" max="2" step="0.01" value={zoom} onChange={e => setZoom(Number(e.target.value))} />
           <span style={{ width: 36, textAlign: 'right' }}>{zoom.toFixed(2)}x</span>
         </div>
+        {/* Botón Guardar configuración */}
+        <button
+          style={{
+            marginTop: 10,
+            background: '#1e90ff',
+            color: 'white',
+            border: 'none',
+            borderRadius: 6,
+            padding: '6px 18px',
+            fontSize: 15,
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            alignSelf: 'flex-end',
+            boxShadow: '0 2px 8px #000a',
+          }}
+          onClick={onSave}
+        >
+          Guardar
+        </button>
       </div>
     )}
   </>
