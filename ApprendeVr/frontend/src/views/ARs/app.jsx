@@ -32,7 +32,9 @@ const ARSApp = () => {
         {/* Renderiza overlay R3F dentro del Canvas */}
         {overlayObj.type === 'r3f' && overlayObj.component}
       </Canvas>
+
       {/* Selector visual para overlays */}
+
       <div style={{ position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 5000 }}>
         <button
           style={{ marginRight: 8, padding: 6 }}
@@ -43,7 +45,9 @@ const ARSApp = () => {
           onClick={() => setSelectedOverlay('TestR3FOverlay')}
         >Test R3F Overlay</button>
       </div>
+
       {/* Renderiza overlay HTML fuera del Canvas */}
+      
       {overlayObj.type === 'html' && overlayObj.component}
       <ARSExperience 
         floatingButtonProps={{ bottom: 32, right: 32, scale: 1 }} 
