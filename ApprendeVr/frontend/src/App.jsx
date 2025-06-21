@@ -124,7 +124,12 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
             text="A-FRAME"
             navigateTo={aframeUrl}
           />
-          <OrbitControls />
+          <VRButton
+            position={[0, 0.8, 0]}
+            scale={0.9}
+            text="VR-AR STEREO"
+            navigateTo={baseUrl + '/src/views/ARs/index.html'}
+          />
         </Canvas>
       )}
       {(showDomo || showBoth) && (
