@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import ARPanel from './ARPanel';
+import ARSConfig from './ARSConfig';
+import ARSFloatingButton from './ARSFloatingButton';
 
 /**
  * ARStereoView
@@ -8,17 +10,23 @@ import ARPanel from './ARPanel';
  *  - onClose: función para cerrar la vista
  *  - defaultSeparation, defaultWidth, defaultHeight: valores iniciales
  *  - overlay: componente React a superponer (ej: <VRDomo />)
+ *  - floatingButtonProps: props para el botón flotante (ubicación, escala)
  */
 const ARStereoView = ({
   onClose,
   defaultSeparation = 24,
   defaultWidth = 380,
   defaultHeight = 480,
-  overlay
+  overlay,
+  floatingButtonProps = { bottom: 32, right: 32, scale: 1 }
 }) => {
   const [arSeparation, setArSeparation] = useState(defaultSeparation);
   const [arWidth, setArWidth] = useState(defaultWidth);
   const [arHeight, setArHeight] = useState(defaultHeight);
+  const [offsetL, setOffsetL] = useState(0);
+  const [offsetR, setOffsetR] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [showMenu, setShowMenu] = useState(true);
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
 
@@ -68,38 +76,26 @@ const ARStereoView = ({
       justifyContent: 'center',
       flexDirection: 'row',
     }}>
-      {/* Botón para volver */}
-      <button
-        style={{
-          position: 'absolute',
-          top: 16,
-          right: 24,
-          zIndex: 3101,
-          background: '#222',
-          color: 'white',
-          border: 'none',
-          borderRadius: 6,
-          padding: '8px 18px',
-          fontSize: 16,
-          cursor: 'pointer',
-          opacity: 0.85
-        }}
-        onClick={onClose}
-      >
-        Volver
-      </button>
-      {/* Controles de separación y tamaño */}
-      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 3100, color: 'white', background: '#222b', padding: 12, borderRadius: 8 }}>
-        <label>Separación: <input type="range" min={0} max={100} value={arSeparation} onChange={e => setArSeparation(Number(e.target.value))} /></label> {arSeparation} px<br/>
-        <label>Ancho: <input type="range" min={200} max={700} value={arWidth} onChange={e => setArWidth(Number(e.target.value))} /></label> {arWidth} px<br/>
-        <label>Alto: <input type="range" min={200} max={900} value={arHeight} onChange={e => setArHeight(Number(e.target.value))} /></label> {arHeight} px<br/>
-      </div>
+      {/* Botón flotante para salir de ARS */}
+      <ARSFloatingButton {...floatingButtonProps} onClick={onClose} />
+      {/* Menú de configuración ARS (incluye botón de mostrar/ocultar) */}
+      <ARSConfig
+        arSeparation={arSeparation} setArSeparation={setArSeparation}
+        arWidth={arWidth} setArWidth={setArWidth}
+        arHeight={arHeight} setArHeight={setArHeight}
+        offsetL={offsetL} setOffsetL={setOffsetL}
+        offsetR={offsetR} setOffsetR={setOffsetR}
+        zoom={zoom} setZoom={setZoom}
+        showMenu={showMenu} setShowMenu={setShowMenu}
+      />
       {/* Vista izquierda */}
       <ARPanel
         videoRef={videoRefL}
         width={arWidth}
         height={arHeight}
         overlay={overlay}
+        zoom={zoom}
+        offset={offsetL}
         style={{ marginRight: arSeparation / 2 }}
       />
       {/* Vista derecha */}
@@ -108,6 +104,8 @@ const ARStereoView = ({
         width={arWidth}
         height={arHeight}
         overlay={overlay}
+        zoom={zoom}
+        offset={offsetR}
         style={{ marginLeft: arSeparation / 2 }}
       />
     </div>

@@ -9,7 +9,7 @@ import React, { forwardRef } from 'react';
  *  - overlay: componente React a superponer (ej: <VRDomo />)
  *  - style: estilos extra
  */
-const ARPanel = forwardRef(({ videoRef, width, height, overlay, style = {} }, ref) => (
+const ARPanel = forwardRef(({ videoRef, width, height, overlay, style = {}, zoom = 1, offset = 0 }, ref) => (
   <div
     ref={ref}
     style={{
@@ -27,7 +27,16 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, style = {} }, re
       autoPlay
       playsInline
       muted
-      style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }}
+      style={{
+        position: 'absolute',
+        width: `${zoom * 100}%`,
+        height: `${zoom * 100}%`,
+        left: offset,
+        top: 0,
+        objectFit: 'cover',
+        zIndex: 1,
+        transition: 'width 0.2s, height 0.2s, left 0.2s',
+      }}
     />
     {/* Overlay 3D/A-Frame */}
     <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import StereoARPanel from './StereoARPanel';
+import ARSConfig from './ARSConfig';
 
 /**
  * StereoARView
@@ -19,6 +20,10 @@ const StereoARView = ({
   const [arSeparation, setArSeparation] = useState(defaultSeparation);
   const [arWidth, setArWidth] = useState(defaultWidth);
   const [arHeight, setArHeight] = useState(defaultHeight);
+  const [offsetL, setOffsetL] = useState(0);
+  const [offsetR, setOffsetR] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [showMenu, setShowMenu] = useState(true);
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
 
@@ -68,6 +73,15 @@ const StereoARView = ({
       justifyContent: 'center',
       flexDirection: 'row',
     }}>
+      <ARSConfig
+        arSeparation={arSeparation} setArSeparation={setArSeparation}
+        arWidth={arWidth} setArWidth={setArWidth}
+        arHeight={arHeight} setArHeight={setArHeight}
+        offsetL={offsetL} setOffsetL={setOffsetL}
+        offsetR={offsetR} setOffsetR={setOffsetR}
+        zoom={zoom} setZoom={setZoom}
+        showMenu={showMenu} setShowMenu={setShowMenu}
+      />
       {/* Botón para volver */}
       <button
         style={{
@@ -88,13 +102,7 @@ const StereoARView = ({
       >
         Volver
       </button>
-      {/* Controles de separación y tamaño */}
-      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 3100, color: 'white', background: '#222b', padding: 12, borderRadius: 8 }}>
-        <label>Separación: <input type="range" min={0} max={100} value={arSeparation} onChange={e => setArSeparation(Number(e.target.value))} /></label> {arSeparation} px<br/>
-        <label>Ancho: <input type="range" min={200} max={700} value={arWidth} onChange={e => setArWidth(Number(e.target.value))} /></label> {arWidth} px<br/>
-        <label>Alto: <input type="range" min={200} max={900} value={arHeight} onChange={e => setArHeight(Number(e.target.value))} /></label> {arHeight} px<br/>
-      </div>
-      {/* Vista izquierda */}
+      {/* Paneles estereoscópicos */}
       <StereoARPanel
         videoRef={videoRefL}
         width={arWidth}
@@ -102,7 +110,6 @@ const StereoARView = ({
         overlay={overlay}
         style={{ marginRight: arSeparation / 2 }}
       />
-      {/* Vista derecha */}
       <StereoARPanel
         videoRef={videoRefR}
         width={arWidth}
