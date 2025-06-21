@@ -26,8 +26,8 @@ const ARSConfig = ({
     <button
       style={{
         position: 'absolute',
-        top: 16,
-        left: 16,
+        top: 12,
+        left: 6,
         zIndex: 3200,
         background: 'rgba(30,30,30,0.85)',
         color: 'white',
