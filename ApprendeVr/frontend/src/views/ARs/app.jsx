@@ -4,6 +4,8 @@ import { Sky, OrbitControls } from '@react-three/drei';
 import VRWorld from '../../components/VRWorld/VRWorld';
 import ARSExperience from './ARScomponents/ARSExperience';
 import VRDomo from '../../components/VRViews/VRDomo';
+import TestHtmlOverlay from './TestHtmlOverlay';
+import TestR3FOverlay from './TestR3FOverlay';
 
 const MyReactOverlay = () => (
   <group>
@@ -12,57 +14,21 @@ const MyReactOverlay = () => (
 );
 
 const ARSApp = () => {
-  const [overlayType, setOverlayType] = useState('aframe'); // o 'r3f'
-
-  // Overlay de prueba para HTML/A-Frame
-  const TestHtmlOverlay = () => (
-    <div style={{
-      position: 'absolute',
-      top: 40,
-      left: 40,
-      width: 80,
-      height: 80,
-      background: 'rgba(255,0,0,0.4)',
-      borderRadius: 12,
-      color: '#fff',
-      fontWeight: 'bold',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10,
-      pointerEvents: 'none',
-    }}>
-      Overlay HTML
-    </div>
-  );
-
-  // Overlay de prueba para R3F
-  const TestR3FOverlay = () => {
-    console.log('[TestR3FOverlay] Renderizando overlay R3F');
-    return (
-      <>
-        <mesh position={[0, 0, 0]}>
-          <sphereGeometry args={[0.3, 32, 32]} />
-          <meshStandardMaterial color="orange" />
-        </mesh>
-        <mesh position={[0, -0.5, 0]}>
-          <boxGeometry args={[1, 0.05, 1]} />
-          <meshStandardMaterial color="blue" />
-        </mesh>
-      </>
-    );
-  };
+  const [selectedOverlay, setSelectedOverlay] = useState('TestHtmlOverlay'); // o 'TestR3FOverlay'
 
   let overlay;
-  if (overlayType === 'aframe') {
-    overlay = <TestHtmlOverlay />; // Prueba visual HTML
-    // overlay = <VRDomo />; // Descomenta para probar VRDomo real
-  } else {
-    overlay = <TestR3FOverlay />; // Prueba visual R3F
-    // overlay = <MyReactOverlay />; // Descomenta para probar overlay R3F real
+  switch (selectedOverlay) {
+    case 'TestHtmlOverlay':
+      overlay = <TestHtmlOverlay />;
+      // overlay = <VRDomo />; // Descomenta para probar VRDomo real
+      break;
+    case 'TestR3FOverlay':
+      overlay = <TestR3FOverlay />;
+      // overlay = <MyReactOverlay />; // Descomenta para probar overlay R3F real
+      break;
+    default:
+      overlay = null;
   }
-
-  if (true) console.log('[ARSApp] overlayType:', overlayType, 'overlay:', overlay);
 
   return (
     <>
@@ -76,13 +42,13 @@ const ARSApp = () => {
       {/* Selector visual para overlays */}
       <div style={{ position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 5000 }}>
         <button
-          style={{ marginRight: 8, padding: 6, fontWeight: overlayType === 'aframe' ? 'bold' : 'normal' }}
-          onClick={() => setOverlayType('aframe')}
-        >A-Frame (VRDomo)</button>
+          style={{ marginRight: 8, padding: 6 }}
+          onClick={() => setSelectedOverlay('TestHtmlOverlay')}
+        >Test HTML Overlay</button>
         <button
-          style={{ padding: 6, fontWeight: overlayType === 'r3f' ? 'bold' : 'normal' }}
-          onClick={() => setOverlayType('r3f')}
-        >R3F (VRWorld)</button>
+          style={{ padding: 6 }}
+          onClick={() => setSelectedOverlay('TestR3FOverlay')}
+        >Test R3F Overlay</button>
       </div>
       <ARSExperience floatingButtonProps={{ bottom: 32, right: 32, scale: 1 }} overlay={overlay} />
     </>
