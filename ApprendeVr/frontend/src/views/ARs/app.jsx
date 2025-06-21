@@ -23,6 +23,9 @@ const StereoARView = ({ onClose, defaultSeparation = 24, defaultWidth = 380, def
   const [arSeparation, setArSeparation] = useState(defaultSeparation);
   const [arWidth, setArWidth] = useState(defaultWidth);
   const [arHeight, setArHeight] = useState(defaultHeight);
+  const [offsetL, setOffsetL] = useState(0); // Offset izquierdo
+  const [offsetR, setOffsetR] = useState(0); // Offset derecho (antes 'offset')
+  const [zoom, setZoom] = useState(1); // Zoom para ambas vistas
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
 
@@ -126,10 +129,29 @@ const StereoARView = ({ onClose, defaultSeparation = 24, defaultWidth = 380, def
           <input type="range" min="100" max="800" value={arHeight} onChange={e => setArHeight(Number(e.target.value))} />
           <span style={{ width: 36, textAlign: 'right' }}>{arHeight}px</span>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ minWidth: 80 }}>Offset I</span>
+          <input type="range" min="-200" max="200" value={offsetL} onChange={e => setOffsetL(Number(e.target.value))} />
+          <span style={{ width: 36, textAlign: 'right' }}>{offsetL}px</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ minWidth: 80 }}>Offset D</span>
+          <input type="range" min="-200" max="200" value={offsetR} onChange={e => setOffsetR(Number(e.target.value))} />
+          <span style={{ width: 36, textAlign: 'right' }}>{offsetR}px</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ minWidth: 80 }}>Zoom</span>
+          <input type="range" min="0.5" max="2" step="0.01" value={zoom} onChange={e => setZoom(Number(e.target.value))} />
+          <span style={{ width: 36, textAlign: 'right' }}>{zoom.toFixed(2)}x</span>
+        </div>
       </div>
       <div style={{ display: 'flex', gap: arSeparation, justifyContent: 'center', alignItems: 'center' }}>
-        <video ref={videoRefL} autoPlay playsInline width={arWidth} height={arHeight} style={{ borderRadius: 8, background: '#111' }} />
-        <video ref={videoRefR} autoPlay playsInline width={arWidth} height={arHeight} style={{ borderRadius: 8, background: '#111' }} />
+        <div style={{ width: arWidth, height: arHeight, overflow: 'hidden', borderRadius: 8, background: '#111', position: 'relative' }}>
+          <video ref={videoRefL} autoPlay playsInline width={arWidth} height={arHeight} style={{ position: 'absolute', left: offsetL, top: 0, transform: `scale(${zoom})`, transformOrigin: 'center' }} />
+        </div>
+        <div style={{ width: arWidth, height: arHeight, overflow: 'hidden', borderRadius: 8, background: '#111', position: 'relative' }}>
+          <video ref={videoRefR} autoPlay playsInline width={arWidth} height={arHeight} style={{ position: 'absolute', left: offsetR, top: 0, transform: `scale(${zoom})`, transformOrigin: 'center' }} />
+        </div>
       </div>
     </div>
   );
