@@ -26,6 +26,7 @@ const StereoARView = ({ onClose, defaultSeparation = 24, defaultWidth = 380, def
   const [offsetL, setOffsetL] = useState(0); // Offset izquierdo
   const [offsetR, setOffsetR] = useState(0); // Offset derecho (antes 'offset')
   const [zoom, setZoom] = useState(1); // Zoom para ambas vistas
+  const [showMenu, setShowMenu] = useState(true);
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
 
@@ -79,78 +80,113 @@ const StereoARView = ({ onClose, defaultSeparation = 24, defaultWidth = 380, def
       alignItems: 'center',
       justifyContent: 'center',
     }}>
+      {/* Botón X para mostrar/ocultar menú */}
+      <button
+        style={{
+          position: 'absolute',
+          top: 16,
+          left: 16,
+          zIndex: 3200,
+          background: 'rgba(30,30,30,0.85)',
+          color: 'white',
+          border: 'none',
+          borderRadius: '50%',
+          
+          width: 15,
+          height: 15,
+          fontSize: 12,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 2px 8px #000a',
+        }}
+        onClick={() => setShowMenu((v) => !v)}
+        aria-label={showMenu ? 'Ocultar menú' : 'Mostrar menú'}
+      >
+        {showMenu ? '✕' : '☰'}
+      </button>
+      {/* Botón Volver solo con icono */}
       <button
         style={{
           position: 'absolute',
           top: 16,
           right: 24,
           zIndex: 3100,
-          background: '#222',
+          background: 'rgba(34,34,34,0.95)',
           color: 'white',
           border: 'none',
-          borderRadius: 6,
-          padding: '8px 18px',
-          fontSize: 16,
+          borderRadius: '50%',
+          width: 15,
+          height: 15,
+          fontSize: 12,
+          fontWeight: 'bold',
           cursor: 'pointer',
-          opacity: 0.85
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 2px 8px #000a',
         }}
         onClick={onClose}
+        aria-label="Volver"
       >
-        Volver
+        ←
       </button>
-      <div style={{
-        position: 'absolute',
-        top: 16,
-        left: 24,
-        zIndex: 3100,
-        background: 'rgba(30,30,30,0.95)',
-        color: 'white',
-        borderRadius: 8,
-        padding: '10px 18px',
-        fontSize: 15,
-        boxShadow: '0 2px 8px #000a',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        minWidth: 220
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ minWidth: 80 }}>Separación</span>
-          <input type="range" min="0" max="100" value={arSeparation} onChange={e => setArSeparation(Number(e.target.value))} />
-          <span style={{ width: 36, textAlign: 'right' }}>{arSeparation}px</span>
+      {showMenu && (
+        <div style={{
+          position: 'absolute',
+          top: 6,
+          left: 250,
+          zIndex: 3100,
+          background: 'rgba(30,30,30,0.95)',
+          color: 'white',
+          borderRadius: 8,
+          padding: '10px 18px',
+          fontSize: 15,
+          boxShadow: '0 2px 8px #000a',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          minWidth: 220
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ minWidth: 80 }}>Separación</span>
+            <input type="range" min="0" max="100" value={arSeparation} onChange={e => setArSeparation(Number(e.target.value))} />
+            <span style={{ width: 36, textAlign: 'right' }}>{arSeparation}px</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ minWidth: 80 }}>Ancho</span>
+            <input type="range" min="100" max="800" value={arWidth} onChange={e => setArWidth(Number(e.target.value))} />
+            <span style={{ width: 36, textAlign: 'right' }}>{arWidth}px</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ minWidth: 80 }}>Alto</span>
+            <input type="range" min="100" max="800" value={arHeight} onChange={e => setArHeight(Number(e.target.value))} />
+            <span style={{ width: 36, textAlign: 'right' }}>{arHeight}px</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ minWidth: 80 }}>Offset I</span>
+            <input type="range" min="-200" max="200" value={offsetL} onChange={e => setOffsetL(Number(e.target.value))} />
+            <span style={{ width: 36, textAlign: 'right' }}>{offsetL}px</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ minWidth: 80 }}>Offset D</span>
+            <input type="range" min="-200" max="200" value={offsetR} onChange={e => setOffsetR(Number(e.target.value))} />
+            <span style={{ width: 36, textAlign: 'right' }}>{offsetR}px</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ minWidth: 80 }}>Zoom</span>
+            <input type="range" min="0.5" max="2" step="0.01" value={zoom} onChange={e => setZoom(Number(e.target.value))} />
+            <span style={{ width: 36, textAlign: 'right' }}>{zoom.toFixed(2)}x</span>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ minWidth: 80 }}>Ancho</span>
-          <input type="range" min="100" max="800" value={arWidth} onChange={e => setArWidth(Number(e.target.value))} />
-          <span style={{ width: 36, textAlign: 'right' }}>{arWidth}px</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ minWidth: 80 }}>Alto</span>
-          <input type="range" min="100" max="800" value={arHeight} onChange={e => setArHeight(Number(e.target.value))} />
-          <span style={{ width: 36, textAlign: 'right' }}>{arHeight}px</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ minWidth: 80 }}>Offset I</span>
-          <input type="range" min="-200" max="200" value={offsetL} onChange={e => setOffsetL(Number(e.target.value))} />
-          <span style={{ width: 36, textAlign: 'right' }}>{offsetL}px</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ minWidth: 80 }}>Offset D</span>
-          <input type="range" min="-200" max="200" value={offsetR} onChange={e => setOffsetR(Number(e.target.value))} />
-          <span style={{ width: 36, textAlign: 'right' }}>{offsetR}px</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ minWidth: 80 }}>Zoom</span>
-          <input type="range" min="0.5" max="2" step="0.01" value={zoom} onChange={e => setZoom(Number(e.target.value))} />
-          <span style={{ width: 36, textAlign: 'right' }}>{zoom.toFixed(2)}x</span>
-        </div>
-      </div>
+      )}
       <div style={{ display: 'flex', gap: arSeparation, justifyContent: 'center', alignItems: 'center' }}>
         <div style={{ width: arWidth, height: arHeight, overflow: 'hidden', borderRadius: 8, background: '#111', position: 'relative' }}>
-          <video ref={videoRefL} autoPlay playsInline width={arWidth} height={arHeight} style={{ position: 'absolute', left: offsetL, top: 0, transform: `scale(${zoom})`, transformOrigin: 'center' }} />
+          <video ref={videoRefL} autoPlay playsInline width={arWidth} height={arHeight} style={{ position: 'absolute', left: 0, top: 0 }} />
         </div>
         <div style={{ width: arWidth, height: arHeight, overflow: 'hidden', borderRadius: 8, background: '#111', position: 'relative' }}>
-          <video ref={videoRefR} autoPlay playsInline width={arWidth} height={arHeight} style={{ position: 'absolute', left: offsetR, top: 0, transform: `scale(${zoom})`, transformOrigin: 'center' }} />
+          <video ref={videoRefR} autoPlay playsInline width={arWidth} height={arHeight} style={{ position: 'absolute', left: 0, top: 0 }} />
         </div>
       </div>
     </div>
