@@ -6,28 +6,20 @@ import ARSExperience from './ARScomponents/ARSExperience';
 import TestHtmlOverlay from './ARScomponents/ARStest/TestHtmlOverlay';
 import TestR3FOverlay from './ARScomponents/ARStest/TestR3FOverlay';
 
-const MyReactOverlay = () => (
-  <group>
-    <VRWorld diameter={2} position={[0, 0, 0]} />
-  </group>
-);
+const overlays = {
+  TestHtmlOverlay: {
+    type: 'html',
+    component: <TestHtmlOverlay />
+  },
+  TestR3FOverlay: {
+    type: 'r3f',
+    component: <TestR3FOverlay />
+  }
+};
 
 const ARSApp = () => {
-  const [selectedOverlay, setSelectedOverlay] = useState('TestHtmlOverlay'); // o 'TestR3FOverlay'
-
-  let overlay;
-  switch (selectedOverlay) {
-    case 'TestHtmlOverlay':
-      overlay = <TestHtmlOverlay />;
-      // overlay = <VRDomo />; // Descomenta para probar VRDomo real
-      break;
-    case 'TestR3FOverlay':
-      overlay = <TestR3FOverlay />;
-      // overlay = <MyReactOverlay />; // Descomenta para probar overlay R3F real
-      break;
-    default:
-      overlay = null;
-  }
+  const [selectedOverlay, setSelectedOverlay] = useState('TestHtmlOverlay');
+  const overlayObj = overlays[selectedOverlay];
 
   return (
     <>
@@ -37,6 +29,8 @@ const ARSApp = () => {
         <pointLight position={[10, 10, 10]} />
         <OrbitControls />
         <VRWorld diameter={10} position={[0, 0, 0]} />
+        {/* Renderiza overlay R3F dentro del Canvas */}
+        {overlayObj.type === 'r3f' && overlayObj.component}
       </Canvas>
       {/* Selector visual para overlays */}
       <div style={{ position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 5000 }}>
@@ -49,7 +43,13 @@ const ARSApp = () => {
           onClick={() => setSelectedOverlay('TestR3FOverlay')}
         >Test R3F Overlay</button>
       </div>
-      <ARSExperience floatingButtonProps={{ bottom: 32, right: 32, scale: 1 }} overlay={overlay} />
+      {/* Renderiza overlay HTML fuera del Canvas */}
+      {overlayObj.type === 'html' && overlayObj.component}
+      <ARSExperience 
+        floatingButtonProps={{ bottom: 32, right: 32, scale: 1 }} 
+        overlay={overlayObj.component}
+        overlayType={overlayObj.type}
+      />
     </>
   );
 };
