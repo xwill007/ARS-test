@@ -14,6 +14,30 @@ function getInitialConfig(defaults) {
   return defaults;
 }
 
+const detectOverlayType = (overlay) => {
+  if (!overlay) return 'html';
+  // Si es un string, es HTML
+  if (typeof overlay === 'string') return 'html';
+  // Si es un React element
+  if (overlay.type) {
+    const typeName = typeof overlay.type === 'string' ? overlay.type : overlay.type.name;
+    // Heurística: si es mesh, group, etc. => R3F
+    if ([
+      'mesh', 'group', 'instancedMesh', 'points', 'line', 'lineSegments', 'primitive'
+    ].includes(typeName)) return 'r3f';
+    // Si es un div, a-scene, span, etc. => HTML/A-Frame
+    if ([
+      'div', 'span', 'a-scene', 'a-entity', 'a-box', 'a-sphere', 'a-cylinder', 'a-plane', 'a-assets'
+    ].includes(typeName)) return 'html';
+    // Si el nombre contiene VRWorld, VRGirl, etc. => R3F
+    if (typeName && /VRWorld|VRGirl|TestR3FOverlay|MyReactOverlay/i.test(typeName)) return 'r3f';
+    // Si el nombre contiene VRDomo, VRVideo, etc. => HTML/A-Frame
+    if (typeName && /VRDomo|VRVideo|TestHtmlOverlay/i.test(typeName)) return 'html';
+  }
+  // Por defecto, html
+  return 'html';
+};
+
 /**
  * ARStereoView
  * Vista AR estereoscópica reutilizable.
@@ -28,7 +52,8 @@ const ARStereoView = ({
   defaultSeparation = 24,
   defaultWidth = 380,
   defaultHeight = 480,
-  overlay,
+  overlay = null,
+  overlayType: overlayTypeProp,
   floatingButtonProps = { bottom: 32, right: 32, scale: 1 }
 }) => {
   const initial = getInitialConfig({
@@ -89,6 +114,9 @@ const ARStereoView = ({
     };
   }, []);
 
+  // Determinar overlayType automáticamente si no se pasa
+  const overlayType = overlayTypeProp || detectOverlayType(overlay);
+
   return (
     <div style={{
       position: 'fixed',
@@ -146,6 +174,7 @@ const ARStereoView = ({
         width={arWidth}
         height={arHeight}
         overlay={overlay}
+        overlayType={overlayType}
         zoom={zoom}
         offset={offsetL}
         style={{ marginRight: arSeparation / 2 }}
@@ -156,6 +185,7 @@ const ARStereoView = ({
         width={arWidth}
         height={arHeight}
         overlay={overlay}
+        overlayType={overlayType}
         zoom={zoom}
         offset={offsetR}
         style={{ marginLeft: arSeparation / 2 }}

@@ -10,8 +10,10 @@ import ARStereoView from '../ARSviews/ARStereoView';
  * Props:
  *  - floatingButtonProps: props para el botón flotante (ubicación, escala)
  *  - stereoViewProps: props para ARStereoView (opcional)
+ *  - overlay: componente React a superponer en ambos paneles
+ *  - overlayType: 'r3f' | 'html' (opcional)
  */
-const ARSExperience = ({ floatingButtonProps = { bottom: 32, right: 32, scale: 1 }, stereoViewProps = {} }) => {
+const ARSExperience = ({ floatingButtonProps = { bottom: 32, right: 32, scale: 1 }, stereoViewProps = {}, overlay = null, overlayType = 'html' }) => {
   const [showStereoAR, setShowStereoAR] = useState(false);
   return (
     <>
@@ -25,6 +27,8 @@ const ARSExperience = ({ floatingButtonProps = { bottom: 32, right: 32, scale: 1
         <ARStereoView
           onClose={() => setShowStereoAR(false)}
           floatingButtonProps={floatingButtonProps}
+          overlay={overlay}
+          overlayType={overlayType}
           {...stereoViewProps}
         />
       )}
