@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import ARPanel from './ARPanel';
-import ARSConfig from './ARSConfig';
-import ARSFloatingButton from './ARSFloatingButton';
+import ARPanel from '../ARScomponents/ARPanel';
+import ARSConfig from '../ARScomponents/ARSConfig';
 
 /**
  * ARStereoView
@@ -76,8 +75,32 @@ const ARStereoView = ({
       justifyContent: 'center',
       flexDirection: 'row',
     }}>
-      {/* Botón flotante para salir de ARS */}
-      <ARSFloatingButton {...floatingButtonProps} onClick={onClose} />
+      {/* Botón flecha atrás para salir de ARS */}
+      <button
+        style={{
+          position: 'absolute',
+          top: 10,
+          right: 12,
+          zIndex: 4001,
+          background: 'rgba(34,34,34,0.95)',
+          color: 'white',
+          border: 'none',
+          borderRadius: '50%',
+          width: 15,
+          height: 15,
+          fontSize: 12,
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 2px 8px #000a',
+        }}
+        onClick={onClose}
+        aria-label="Volver"
+      >
+        ←
+      </button>
       {/* Menú de configuración ARS (incluye botón de mostrar/ocultar) */}
       <ARSConfig
         arSeparation={arSeparation} setArSeparation={setArSeparation}

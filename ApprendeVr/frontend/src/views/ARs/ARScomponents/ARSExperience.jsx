@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ARSFloatingButton from './ARSFloatingButton';
-import ARStereoView from './ARStereoView';
+import ARStereoView from '../ARSviews/ARStereoView';
 
 /**
  * ARSExperience
