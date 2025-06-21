@@ -17,7 +17,7 @@ const TestHtmlOverlay = () => (
     zIndex: 10,
     pointerEvents: 'none',
   }}>
-    HTML
+    A-frame
   </div>
 );
 

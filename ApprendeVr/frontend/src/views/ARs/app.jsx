@@ -3,9 +3,8 @@ import { Canvas } from '@react-three/fiber';
 import { Sky, OrbitControls } from '@react-three/drei';
 import VRWorld from '../../components/VRWorld/VRWorld';
 import ARSExperience from './ARScomponents/ARSExperience';
-import VRDomo from '../../components/VRViews/VRDomo';
-import TestHtmlOverlay from './TestHtmlOverlay';
-import TestR3FOverlay from './TestR3FOverlay';
+import TestHtmlOverlay from './ARScomponents/ARStest/TestHtmlOverlay';
+import TestR3FOverlay from './ARScomponents/ARStest/TestR3FOverlay';
 
 const MyReactOverlay = () => (
   <group>
