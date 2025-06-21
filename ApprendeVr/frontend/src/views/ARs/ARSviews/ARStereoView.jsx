@@ -16,23 +16,20 @@ function getInitialConfig(defaults) {
 
 const detectOverlayType = (overlay) => {
   if (!overlay) return 'html';
-  // Si es un string, es HTML
   if (typeof overlay === 'string') return 'html';
-  // Si es un React element
   if (overlay.type) {
-    const typeName = typeof overlay.type === 'string' ? overlay.type : overlay.type.name;
-    // Heurística: si es mesh, group, etc. => R3F
-    if ([
-      'mesh', 'group', 'instancedMesh', 'points', 'line', 'lineSegments', 'primitive'
-    ].includes(typeName)) return 'r3f';
-    // Si es un div, a-scene, span, etc. => HTML/A-Frame
-    if ([
-      'div', 'span', 'a-scene', 'a-entity', 'a-box', 'a-sphere', 'a-cylinder', 'a-plane', 'a-assets'
-    ].includes(typeName)) return 'html';
-    // Si el nombre contiene VRWorld, VRGirl, etc. => R3F
-    if (typeName && /VRWorld|VRGirl|TestR3FOverlay|MyReactOverlay/i.test(typeName)) return 'r3f';
-    // Si el nombre contiene VRDomo, VRVideo, etc. => HTML/A-Frame
-    if (typeName && /VRDomo|VRVideo|TestHtmlOverlay/i.test(typeName)) return 'html';
+    // Si es un tag HTML estándar
+    if (typeof overlay.type === 'string') {
+      // Lista corta de tags HTML y A-Frame
+      const htmlTags = [
+        'div', 'span', 'a', 'p', 'img', 'button', 'input', 'form', 'a-scene', 'a-entity', 'a-box', 'a-sphere', 'a-cylinder', 'a-plane', 'a-assets'
+      ];
+      if (htmlTags.includes(overlay.type)) return 'html';
+      // Si no es un tag HTML conocido, podría ser R3F
+      return 'r3f';
+    }
+    // Si es un componente (función o clase), asumimos R3F por defecto
+    return 'r3f';
   }
   // Por defecto, html
   return 'html';
