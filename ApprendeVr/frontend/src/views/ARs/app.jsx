@@ -5,7 +5,8 @@ import VRWorld from '../../components/VRWorld/VRWorld';
 import ARSExperience from './ARScomponents/ARSExperience';
 import TestHtmlOverlay from './ARScomponents/ARStest/TestHtmlOverlay';
 import TestR3FOverlay from './ARScomponents/ARStest/TestR3FOverlay';
-import VRDomoOverlay from './ARScomponents/ARStest/VRDomoOverlay';
+import VRDomoOverlay from './ARScomponents/a-frame-components-ars/VRDomoOverlay';
+import VRUserArs from './ARScomponents/VRUserArs/VRUserArs'; // Importa el nuevo componente
 
 const overlays = {
   TestHtmlOverlay: {
@@ -33,9 +34,12 @@ const ARSApp = () => {
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         <OrbitControls />
-        <VRWorld diameter={10} position={[0, 0, 0]} />
-        {/* Renderiza overlay R3F dentro del Canvas */}
-        {overlayObj.type === 'r3f' && overlayObj.component}
+        {/* Encapsula la experiencia VR/AR del usuario */}
+        <VRUserArs mode="first">
+          <VRWorld diameter={10} position={[0, 0, 0]} />
+          {/* Renderiza overlay R3F dentro del Canvas */}
+          {overlayObj.type === 'r3f' && overlayObj.component}
+        </VRUserArs>
       </Canvas>
 
       {/* Selector visual para overlays */}
