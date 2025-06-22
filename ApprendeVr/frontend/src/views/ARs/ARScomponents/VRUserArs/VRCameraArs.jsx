@@ -5,6 +5,8 @@ import VRCursorArs from './VRCursorArs';
 import VRControlMobilArs from './VRControlMobilArs';
 import VRControlWebArs from './VRControlWebArs';
 
+const showLogs = false; // Cambia a false para ocultar logs
+
 // Utilidad simple para detectar móvil
 const isMobile = () =>
   typeof window !== 'undefined' &&
@@ -18,17 +20,25 @@ const VRCameraArs = ({ mode, initialPosition, initialRotation }) => {
   useFrame(() => {
     camera.position.copy(position.current);
     camera.rotation.copy(rotation.current);
+    if (showLogs) {
+      console.log('[VRCameraArs] Camera position:', camera.position.toArray());
+      console.log('[VRCameraArs] Camera rotation:', camera.rotation.toArray());
+    }
   });
+
+  if (showLogs) {
+    console.log('[VRCameraArs] Render, mode:', mode, 'isMobile:', isMobile());
+  }
 
   return (
     <>
       {/* En primera persona: usa controles según el dispositivo */}
       {mode === 'first' && (
         isMobile()
-          ? <VRControlMobilArs />
-          : <VRControlWebArs />
+          ? <VRControlMobilArs showLogs={showLogs} />
+          : <VRControlWebArs showLogs={showLogs} />
       )}
-      <VRCursorArs />
+      <VRCursorArs showLogs={showLogs} />
     </>
   );
 };
