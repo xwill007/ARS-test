@@ -68,18 +68,31 @@
           autoplay: false;
           doubleSided: true;
           invertBackSide: false">
-          <a-text 
-            id="main-text"
-            value="Español, canción, acción, ñ, á, é, í, ó, ú" 
-            font="roboto" 
-            position="0 3.5 1.5" 
-            align="center" 
+          <a-text
+            value="á é í ó ú ñ"
+            font="/fonts/Ultra-msdf/Ultra-msdf.json"
+            font-image="/fonts/Ultra-msdf/Ultra-msdf.png"
+            shader="msdf"
+            color="#FF0"
             width="6"
-            shader="msdf">
+            position="0 6 -4">
           </a-text>
+
       </a-entity> 
 
-      
+      <a-assets>
+        
+      </a-assets>
+
+      <a-text
+        value="msdf-ultra á,é,í,ó,ú,ñ"
+        font="/fonts/Ultra-msdf/Ultra-msdf.json"
+        font-image="/fonts/Ultra-msdf/Ultra-msdf.png"
+        shader="msdf"
+        color="white"
+        width="6"
+        position="1 2.2 -4">
+      </a-text>
 
     </a-scene>
   </body>

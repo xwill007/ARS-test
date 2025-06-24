@@ -482,7 +482,7 @@ const generateDomeElements = (geometryData) => {
         > 
           <a-entity
             class="texto-panel"
-            text={`value: ${palabra.en}; color: #FFFFFF; align: center; width: 5; wrapCount: 10; font: mozillavr`}
+            text={`value: ${palabra.en}; color: #FFFFFF; align: center; width: 5; wrapCount: 10; font: /fonts/Ultra-msdf/Ultra-msdf.json; fontImage: /fonts/Ultra-msdf/Ultra-msdf.png; shader: msdf`}
             position="0 0 0.11"
           ></a-entity>
         </a-box>
