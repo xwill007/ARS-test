@@ -5,7 +5,7 @@ import VRWorldArs from './ARScomponents/VRWorldArs/VRWorlsArs';
 import ARSExperience from './ARScomponents/ARSExperience';
 import TestHtmlOverlay from './ARScomponents/ARStest/TestHtmlOverlay';
 import TestR3FOverlay from './ARScomponents/ARStest/TestR3FOverlay';
-import VRDomoOverlay from './ARScomponents/a-frame-components-ars/VRDomoOverlay';
+import VRConeOverlay from './ARScomponents/a-frame-components-ars/VRConeOverlay';
 import VRUserArs from './ARScomponents/VRUserArs/VRUserArs';
 import ARStrackingView from './ARSviews/ARStrackingView';
 import XRStereoView from './ARSviews/XRStereoView'; // <--- Importa tu nuevo componente
@@ -21,7 +21,7 @@ const overlays = {
   },
   VRDomo: {
     type: 'html',
-    component: <VRDomoOverlay />
+    component: <VRConeOverlay />
   }
 };
 
@@ -62,7 +62,7 @@ const ARSApp = () => {
             <button
               style={{ padding: 6 }}
               onClick={() => setSelectedOverlay('VRDomo')}
-            >VRDomo Overlay</button>
+            >VRCone Overlay</button>
             <button
               style={{ padding: 6, background: '#0af', color: '#fff' }}
               onClick={() => setShowARStracking(true)}

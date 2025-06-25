@@ -52,8 +52,8 @@ const ARSConfig = ({
     {showMenu && (
       <div style={{
         position: 'absolute',
-        top: 6,
-        left: 250,
+        top: 90,
+        left: 270,
         zIndex: 3100,
         background: 'rgba(30,30,30,0.95)',
         color: 'white',
