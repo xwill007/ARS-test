@@ -110,10 +110,10 @@ const ULTRA_MSDF = {
 };
 
 function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras) {
-  const radiusBase = 10;
+  const radiusBase = 15;
   const height = 15;
   const numPanels = palabras.length;
-  const angleIncrement = (2 * Math.PI) / numPanels;
+  const angleIncrement = (6 * Math.PI) / numPanels;
   const heightIncrement = height / numPanels;
   let panels = '';
 
@@ -123,9 +123,6 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras) {
     const x = currentRadius * Math.cos(angle);
     const z = currentRadius * Math.sin(angle);
     const y = i * heightIncrement;
-    // Para colocar los paneles uno al lado del otro, orientamos la tangente:
-    const rotationY = (Math.atan2(z, x) * (180 / Math.PI)) + 90;
-
     const palabra = palabras[i];
 
     panels += `
@@ -136,7 +133,7 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras) {
         depth="0.1"
         color="#222"
         opacity="0.85"
-        rotation="0 ${rotationY.toFixed(2)} 0">
+        look-at="0 0 0">
         <a-text
           value="${palabra.en}"
           color="#FFCC00"
@@ -155,23 +152,23 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras) {
 
 const VRDomoOverlay = () => {
   const [font, setFont] = useState(ULTRA_MSDF);
-
   const panelsHTML = generateConeSpiralHTML(font.font, font.image);
-
   const srcDoc = `
     <html>
       <head>
-        <script src='https://aframe.io/releases/1.4.2/aframe.min.js'></script>
+        <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
       </head>
-      <body style='margin:0; background:transparent;'>
+      <body style="margin:0; background:transparent;">
         <a-scene embedded vr-mode-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
           ${panelsHTML}
-          <a-camera position="0 8 20"></a-camera>
+          <!-- Marcador donde debería estar el usuario -->
+          <a-sphere position="0 0 0" radius="0.3" color="#FF0000" opacity="0.7"></a-sphere>
+          <!-- Mover la cámara al centro (0 0 0) donde está la esfera roja -->
+          <a-camera position="0 0 0"></a-camera>
         </a-scene>
       </body>
     </html>
   `;
-
   return (
     <iframe
       title="VRDomo Overlay"
