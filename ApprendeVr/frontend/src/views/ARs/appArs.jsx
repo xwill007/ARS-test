@@ -34,7 +34,14 @@ const ARSApp = () => {
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         <VRWorldArs>
-          <VRUserArs mode="first">
+          <VRUserArs 
+            mode="first"
+            initialPosition={[0, 0, 0]}
+            showAvatar={false}
+            enableMovement={true}
+            enableCursor={true}
+            moveSpeed={0.1}
+          >
             {overlayObj.type === 'r3f' && overlayObj.component}
           </VRUserArs>
         </VRWorldArs>
