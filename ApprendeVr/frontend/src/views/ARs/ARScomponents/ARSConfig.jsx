@@ -1,8 +1,9 @@
 import React from 'react';
+import ARSoverlayList from './ARSoverlayList';
 
 /**
  * ARSConfig
- * Menú de configuración para la vista ARS (zoom, separación, ancho, alto, offset).
+ * Menú de configuración para la vista ARS (zoom, separación, ancho, alto, offset) + lista de overlays.
  * Props:
  *  - arSeparation, setArSeparation
  *  - arWidth, setArWidth
@@ -11,6 +12,8 @@ import React from 'react';
  *  - offsetR, setOffsetR
  *  - zoom, setZoom
  *  - showMenu, setShowMenu
+ *  - selectedOverlay, setSelectedOverlay
+ *  - overlays
  *  - onSave: función para guardar en localStorage
  */
 const ARSConfig = ({
@@ -21,6 +24,8 @@ const ARSConfig = ({
   offsetR, setOffsetR,
   zoom, setZoom,
   showMenu, setShowMenu,
+  selectedOverlay, setSelectedOverlay,
+  overlays,
   onSave
 }) => (
   <>
@@ -66,6 +71,20 @@ const ARSConfig = ({
         gap: 6,
         minWidth: 220
       }}>
+        {/* Sección de Overlays */}
+        <div style={{ marginBottom: 10 }}>
+          <span style={{ fontWeight: 'bold', display: 'block', marginBottom: 6 }}>Overlays:</span>
+          <ARSoverlayList 
+            selectedOverlay={selectedOverlay}
+            setSelectedOverlay={setSelectedOverlay}
+            overlays={overlays}
+            inline={true}
+          />
+        </div>
+        
+        <hr style={{ border: '1px solid rgba(255,255,255,0.2)', margin: '10px 0' }} />
+        
+        {/* Controles de configuración */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ minWidth: 80 }}>Separación</span>
           <input type="range" min="0" max="100" value={arSeparation} onChange={e => setArSeparation(Number(e.target.value))} />

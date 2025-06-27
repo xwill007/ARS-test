@@ -7,6 +7,7 @@ import TestR3FOverlay from './ARScomponents/ARStest/TestR3FOverlay';
 import VRConeOverlayWrapper from './ARScomponents/a-frame-components-ars/VRConeOverlayWrapper';
 import VRConeR3FOverlay from './ARScomponents/ARStest/VRConeR3FOverlay';
 import VRUserArs from './ARScomponents/VRUserArs/VRUserArs';
+import ARSoverlayList from './ARScomponents/ARSoverlayList';
 
 const overlays = {
   TestR3FOverlay: {
@@ -61,20 +62,11 @@ const ARSApp = () => {
         </VRWorldArs>
       </Canvas>
 
-      <div style={{ position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 5000, display: 'flex', gap: 8 }}>
-        <button
-          style={{ padding: 6 }}
-          onClick={() => setSelectedOverlay('TestR3FOverlay')}
-        >Overlay Static</button>
-        <button
-          style={{ padding: 6 }}
-          onClick={() => setSelectedOverlay('VRConeOverlay')}
-        >Overlay HTML</button>
-        <button
-          style={{ padding: 6 }}
-          onClick={() => setSelectedOverlay('VRConeR3FOverlay')}
-        >Overlay R3F</button>
-      </div>
+      <ARSoverlayList 
+        selectedOverlay={selectedOverlay}
+        setSelectedOverlay={setSelectedOverlay}
+        overlays={overlays}
+      />
 
       {overlayObj.type === 'html' && overlayObj.component}
       <ARSExperience
