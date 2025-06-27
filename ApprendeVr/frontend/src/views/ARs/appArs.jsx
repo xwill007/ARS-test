@@ -16,7 +16,7 @@ const overlays = {
   VRConeOverlay: {
     type: 'html',
     component: <VRConeOverlayWrapper 
-      radiusBase={9} 
+      radiusBase={6} 
       height={6} 
       showUserMarker={true}
       targetObjectId="user-marker"

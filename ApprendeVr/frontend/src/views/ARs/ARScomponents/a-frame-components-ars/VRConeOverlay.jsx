@@ -109,7 +109,7 @@ const ULTRA_MSDF = {
   image: "/fonts/Ultra-msdf/Ultra-msdf.png"
 };
 
-function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiusBase = 6, height = 3, targetObject = "#user-marker", lookAtTarget = false, panelSpacing = 0.3) {
+function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiusBase = 6, height = 3, targetObject = "#user-marker", lookAtTarget = false, panelSpacing = 0.1, spiralSpacing = 0.3) {
   const numPanels = palabras.length;
   let panels = '';
 
@@ -123,10 +123,11 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
     
     if (currentRadius <= 0.3) break; // No crear niveles muy pequeños
     
-    // Calcular cuántos paneles caben en este nivel
+    // Calcular cuántos paneles caben en este nivel con el nuevo espaciado
     const panelWidth = currentRadius > 2 ? 2.0 : 1.5; // Paneles más pequeños en niveles pequeños
     const circumference = 2 * Math.PI * currentRadius;
-    const maxPanelsInLevel = Math.floor(circumference / (panelWidth + panelSpacing));
+    // Usar spiralSpacing en lugar de panelSpacing para mejor control
+    const maxPanelsInLevel = Math.floor(circumference / (panelWidth + spiralSpacing));
     
     // Altura del nivel
     const levelHeight = (level * height) / totalLevels + 0.25;
@@ -150,7 +151,9 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
     for (let i = 0; i < wordsInThisLevel; i++) {
       if (currentWordIndex >= numPanels) break;
       
-      const angle = (i * 2 * Math.PI) / wordsInThisLevel;
+      // Añadir un pequeño offset rotacional para crear efecto espiral suave
+      const spiralOffset = levelIndex * 0.2; // Offset entre niveles
+      const angle = (i * 2 * Math.PI) / wordsInThisLevel + spiralOffset;
       const x = level.radius * Math.cos(angle);
       const z = level.radius * Math.sin(angle);
       const y = level.height;
@@ -195,17 +198,16 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
     const remainingWords = numPanels - currentWordIndex;
     const tipRadius = 0.8;
     const wordsPerRing = 6;
-    let ringIndex = 0;
     
     for (let i = 0; i < remainingWords; i++) {
       const wordInRing = i % wordsPerRing;
       const currentRing = Math.floor(i / wordsPerRing);
-      const currentTipRadius = tipRadius + (currentRing * 0.3);
+      const currentTipRadius = tipRadius + (currentRing * (0.3 + spiralSpacing));
       
       const angle = (wordInRing * 2 * Math.PI) / wordsPerRing;
       const x = currentTipRadius * Math.cos(angle);
       const z = currentTipRadius * Math.sin(angle);
-      const y = height - 0.5 + (currentRing * 0.2);
+      const y = height - 0.5 + (currentRing * (0.2 + spiralSpacing));
       
       const palabra = palabras[currentWordIndex + i];
       const lookAtAttribute = lookAtTarget ? `look-at="${targetObject}"` : '';
@@ -264,10 +266,11 @@ const VRConeOverlay = ({
     opacity: 0.7
   },
   lookAtTarget = false,
-  panelSpacing = 0.3 // Nueva prop para espaciado entre paneles
+  panelSpacing = 0.3, // Espaciado general entre paneles
+  spiralSpacing = 0.0 // Nueva variable para espaciado entre espirales
 }) => {
   const [font, setFont] = useState(ULTRA_MSDF);
-  const panelsHTML = generateConeSpiralHTML(font.font, font.image, palabras, radiusBase, height, `#${targetObjectId}`, lookAtTarget, panelSpacing);
+  const panelsHTML = generateConeSpiralHTML(font.font, font.image, palabras, radiusBase, height, `#${targetObjectId}`, lookAtTarget, panelSpacing, spiralSpacing);
   
   // Función para generar el objeto objetivo
   const generateTargetObject = () => {
