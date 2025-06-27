@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import VRUserArs from './VRUserArs/VRUserArs';
 
 /**
  * StereoARPanel
@@ -29,12 +30,22 @@ const StereoARPanel = forwardRef(({ videoRef, width, height, overlay, style = {}
       muted
       style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }}
     />
+
     <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
+      
       <a-scene embedded vr-mode-ui="enabled: false" style={{ width: '100%', height: '100%', background: 'transparent' }}>
-        <a-entity camera look-controls position="0 1.6 0"></a-entity>
+        
+        <a-entity camera look-controls position="0 1.6 0">
+
+         
+
+        </a-entity>
+
         {overlay}
+      
       </a-scene>
     </div>
+
   </div>
 ));
 

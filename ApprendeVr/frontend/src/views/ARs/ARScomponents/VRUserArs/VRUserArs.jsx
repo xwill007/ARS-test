@@ -6,6 +6,10 @@ import VRBodyArs from './VRBodyArs';
 import VRMoveControlsArs from './VRMoveControlsArs';
 import VRCursorArs from './VRCursorArs';
 import VRAvatarArs from './VRAvatarArs';
+import showLogs from '../../../../tools/showLogs';
+
+// Configuración de logs
+const ENABLE_LOGS = false; // Cambiar a false para deshabilitar logs
 
 /**
  * VRUserArs - Componente de usuario mejorado para AR/VR
@@ -38,8 +42,18 @@ const VRUserArs = ({
   });
   const [pointerColor] = useState(new Color('#2196f3'));
 
+  // Logs de inicialización
+  useEffect(() => {
+    showLogs('VRUserArs component initialized', 'VRUserArs', ENABLE_LOGS);
+    showLogs(mode, 'VRUserArs - Mode', ENABLE_LOGS);
+    showLogs(initialPosition, 'VRUserArs - Initial Position', ENABLE_LOGS);
+    showLogs(initialRotation, 'VRUserArs - Initial Rotation', ENABLE_LOGS);
+  }, []);
+
   // Configurar posición inicial de la cámara
   useEffect(() => {
+    showLogs('Setting up camera initial position', 'VRUserArs - Camera Setup', ENABLE_LOGS);
+    
     if (mode === 'first') {
       const eyeHeight = 1.6;
       camera.position.set(
@@ -47,6 +61,7 @@ const VRUserArs = ({
         userPosition.current.y + eyeHeight,
         userPosition.current.z
       );
+      showLogs(camera.position, 'VRUserArs - First Person Camera Position', ENABLE_LOGS);
     } else if (mode === 'third') {
       // Vista en tercera persona
       camera.position.set(
@@ -55,17 +70,39 @@ const VRUserArs = ({
         userPosition.current.z + 5
       );
       camera.lookAt(userPosition.current);
+      showLogs(camera.position, 'VRUserArs - Third Person Camera Position', ENABLE_LOGS);
     }
   }, [mode, camera]);
 
+  // Log cuando cambia la rotación
+  useEffect(() => {
+    showLogs(rotation, 'VRUserArs - Rotation Changed', ENABLE_LOGS);
+  }, [rotation]);
+
   // Actualizar rotación de la cámara
-  useFrame(() => {
+  useFrame((state, delta) => {
     if (mode === 'first') {
       camera.rotation.x = rotation.x;
       camera.rotation.y = rotation.y;
       camera.rotation.z = rotation.z;
+      
+      // Log periódico (cada 60 frames aproximadamente)
+      if (state.clock.elapsedTime % 1 < delta) {
+        showLogs(`Frame time: ${delta.toFixed(4)}s`, 'VRUserArs - Frame', ENABLE_LOGS);
+        showLogs(userPosition.current, 'VRUserArs - User Position', ENABLE_LOGS);
+      }
     }
   });
+
+  // Log cuando cambian las props
+  useEffect(() => {
+    showLogs({
+      showAvatar,
+      enableMovement,
+      enableCursor,
+      moveSpeed
+    }, 'VRUserArs - Props Update', ENABLE_LOGS);
+  }, [showAvatar, enableMovement, enableCursor, moveSpeed]);
 
   return (
     <group {...props}>

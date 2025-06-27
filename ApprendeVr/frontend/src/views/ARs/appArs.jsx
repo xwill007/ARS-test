@@ -4,7 +4,7 @@ import { Sky } from '@react-three/drei';
 import VRWorldArs from './ARScomponents/VRWorldArs/VRWorlsArs';
 import ARSExperience from './ARScomponents/ARSExperience';
 import TestR3FOverlay from './ARScomponents/ARStest/TestR3FOverlay';
-import VRConeOverlay from './ARScomponents/a-frame-components-ars/VRConeOverlay';
+import VRConeOverlayWrapper from './ARScomponents/a-frame-components-ars/VRConeOverlayWrapper';
 import VRConeR3FOverlay from './ARScomponents/ARStest/VRConeR3FOverlay';
 import VRUserArs from './ARScomponents/VRUserArs/VRUserArs';
 
@@ -15,7 +15,21 @@ const overlays = {
   },
   VRConeOverlay: {
     type: 'html',
-    component: <VRConeOverlay />
+    component: <VRConeOverlayWrapper 
+      radiusBase={9} 
+      height={6} 
+      showUserMarker={true}
+      targetObjectId="user-marker"
+      targetObjectType="sphere"
+      targetObjectProps={{
+        position: "0 0.15 0",
+        radius: 0.15,
+        color: "#FF0000",
+        opacity: 0.7
+      }}
+      lookAtTarget={true}
+      targetPosition={[0, 0.15, 0]}
+    />
   },
   VRConeR3FOverlay: {
     type: 'r3f',
