@@ -85,8 +85,12 @@ const ARSApp = () => {
   };
 
   return (
-    <div key={renderKey}>
-      <Canvas camera={{ position: [0, 2, 5] }}>
+    <div key={renderKey} className="ars-container">
+      {/* Canvas con el mundo 3D en el fondo */}
+      <Canvas 
+        camera={{ position: [0, 2, 5], fov: 75 }}
+        className="ars-canvas"
+      >
         <Sky sunPosition={[100, 10, 100]} />
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
@@ -104,16 +108,25 @@ const ARSApp = () => {
         </VRWorldArs>
       </Canvas>
 
-      {!isARActive && (
-        <ARSoverlayList 
-          selectedOverlay={selectedOverlay}
-          setSelectedOverlay={handleOverlayChange}
-          overlays={overlays}
-        />
+      {/* Overlay HTML superpuesto */}
+      {overlayObj.type === 'html' && (
+        <div className="ars-html-overlay">
+          {overlayObj.component}
+        </div>
       )}
 
-      {overlayObj.type === 'html' && overlayObj.component}
+      {/* Controles de overlay */}
+      {!isARActive && (
+        <div className="ars-controls">
+          <ARSoverlayList 
+            selectedOverlay={selectedOverlay}
+            setSelectedOverlay={handleOverlayChange}
+            overlays={overlays}
+          />
+        </div>
+      )}
       
+      {/* Botón AR */}
       <ARSExperience
         floatingButtonProps={{ bottom: 32, right: 32, scale: 1 }}
         overlay={overlayObj.component}
