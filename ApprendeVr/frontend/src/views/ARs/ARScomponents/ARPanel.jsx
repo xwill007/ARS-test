@@ -37,13 +37,10 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
   return (
     <div
       ref={ref}
+      className="ar-panel"
       style={{
         width,
         height,
-        background: '#111',
-        borderRadius: 8,
-        overflow: 'hidden',
-        position: 'relative',
         ...style
       }}
     >
@@ -52,6 +49,7 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
         autoPlay
         playsInline
         muted
+        className="ar-video"
         style={{
           position: 'absolute',
           width: `${zoom * 100}%`,
@@ -60,22 +58,20 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
           top: 0,
           objectFit: 'cover',
           zIndex: 1,
-          transition: 'width 0.2s, height 0.2s, left 0.2s',
         }}
       />
       {/* Overlay 3D/A-Frame/R3F */}
       <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
         {renderOverlay()}
       </div>
-      {/* Cursor central visual */}
+      {/* Cursor central visual mejorado */}
       <div
         style={{
           position: 'absolute',
           top: '50%',
           left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 18,
-          height: 18,
+          width: 20,
+          height: 20,
           pointerEvents: 'none',
           zIndex: 3,
           display: 'flex',
@@ -83,17 +79,15 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
           justifyContent: 'center',
         }}
       >
-        <div
-          style={{
-            width: 14,
-            height: 14,
-            borderRadius: '50%',
-            border: '2px solid #fff',
-            background: 'rgba(255,255,255,0.08)',
-            boxShadow: '0 0 8px #fff8',
-            transition: 'all 0.2s',
-          }}
-        />
+        <div className="ar-cursor" style={{
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        }} />
       </div>
     </div>
   );

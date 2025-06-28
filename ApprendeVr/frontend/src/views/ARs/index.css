@@ -53,6 +53,77 @@ body,
   pointer-events: auto; /* Permite interactuar con los controles */
 }
 
+/* Estilos específicos para vista estereoscópica AR */
+.ar-stereo-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ar-panel {
+  background: #111;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  border: 1px solid rgba(79,195,247,0.2);
+  transition: all 0.3s ease;
+}
+
+.ar-panel:hover {
+  border-color: rgba(79,195,247,0.4);
+  box-shadow: 0 6px 25px rgba(79,195,247,0.2);
+}
+
+.ar-video {
+  transition: all 0.2s ease;
+  filter: brightness(1.1) contrast(1.05);
+}
+
+.ar-cursor {
+  border: 2px solid rgba(79,195,247,0.8);
+  background: rgba(79,195,247,0.1);
+  box-shadow: 
+    0 0 8px rgba(79,195,247,0.6),
+    inset 0 0 4px rgba(79,195,247,0.3);
+  animation: ar-pulse 2s infinite;
+}
+
+@keyframes ar-pulse {
+  0%, 100% { 
+    opacity: 0.8; 
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% { 
+    opacity: 1; 
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+/* Responsive para diferentes tamaños de pantalla */
+@media (max-width: 768px) {
+  .ar-panel {
+    border-radius: 6px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .ar-panel {
+    border-radius: 4px;
+  }
+}
+
 /* Canvas container styles */
 .canvas-container {
   position: absolute;

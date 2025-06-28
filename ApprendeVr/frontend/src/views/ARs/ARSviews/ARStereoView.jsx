@@ -4,14 +4,68 @@ import ARSConfig from '../ARScomponents/ARSConfig';
 
 const LOCAL_KEY = 'arsconfig-user';
 
+// Detectar tipo de dispositivo para configuración inicial
+const detectDeviceType = () => {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
+  const isTablet = /ipad|android(?!.*mobile)/.test(userAgent);
+  
+  if (isMobile && !isTablet) return 'mobile';
+  if (isTablet) return 'tablet';
+  return 'desktop';
+};
+
+// Configuraciones predeterminadas por dispositivo
+const getDeviceDefaults = () => {
+  const deviceType = detectDeviceType();
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+  
+  switch (deviceType) {
+    case 'mobile':
+      return {
+        arSeparation: Math.min(20, screenWidth * 0.05),
+        arWidth: Math.min(320, screenWidth * 0.4),
+        arHeight: Math.min(400, screenHeight * 0.6),
+        offsetL: -5,
+        offsetR: 5,
+        zoom: 1.1
+      };
+    case 'tablet':
+      return {
+        arSeparation: Math.min(35, screenWidth * 0.06),
+        arWidth: Math.min(400, screenWidth * 0.35),
+        arHeight: Math.min(500, screenHeight * 0.65),
+        offsetL: -8,
+        offsetR: 8,
+        zoom: 1.15
+      };
+    default: // desktop
+      return {
+        arSeparation: Math.min(50, screenWidth * 0.08),
+        arWidth: Math.min(450, screenWidth * 0.3),
+        arHeight: Math.min(550, screenHeight * 0.7),
+        offsetL: -12,
+        offsetR: 12,
+        zoom: 1.2
+      };
+  }
+};
+
 function getInitialConfig(defaults) {
   try {
     const stored = localStorage.getItem(LOCAL_KEY);
     if (stored) {
-      return { ...defaults, ...JSON.parse(stored) };
+      const parsed = JSON.parse(stored);
+      // Combinar con defaults del dispositivo actual
+      const deviceDefaults = getDeviceDefaults();
+      return { ...deviceDefaults, ...defaults, ...parsed };
     }
-  } catch (e) {}
-  return defaults;
+  } catch (e) {
+    console.warn('Error loading AR config from localStorage:', e);
+  }
+  // Si no hay configuración guardada, usar defaults del dispositivo
+  return { ...defaults, ...getDeviceDefaults() };
 }
 
 const detectOverlayType = (overlay) => {
@@ -115,46 +169,44 @@ const ARStereoView = ({
   const overlayType = overlayTypeProp || detectOverlayType(overlay);
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      background: 'black',
-      zIndex: 3000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'row',
-    }}>
-      {/* Botón flecha atrás para salir de ARS */}
+    <div className="ar-stereo-container">
+      {/* Botón flecha atrás para salir de ARS - Mejorado */}
       <button
         style={{
           position: 'absolute',
-          top: 10,
-          right: 12,
+          top: 15,
+          right: 15,
           zIndex: 4001,
-          background: 'rgba(34,34,34,0.95)',
+          background: 'linear-gradient(135deg, rgba(244,67,54,0.9), rgba(211,47,47,0.9))',
           color: 'white',
           border: 'none',
           borderRadius: '50%',
-          width: 15,
-          height: 15,
-          fontSize: 12,
+          width: 22,
+          height: 22,
+          fontSize: 14,
           fontWeight: 'bold',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 2px 8px #000a',
+          boxShadow: '0 3px 12px rgba(244,67,54,0.4)',
+          transition: 'all 0.3s ease',
         }}
         onClick={onClose}
-        aria-label="Volver"
+        onMouseEnter={(e) => {
+          e.target.style.transform = 'scale(1.1)';
+          e.target.style.boxShadow = '0 4px 16px rgba(244,67,54,0.6)';
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.transform = 'scale(1)';
+          e.target.style.boxShadow = '0 3px 12px rgba(244,67,54,0.4)';
+        }}
+        aria-label="Cerrar Vista AR"
+        title="Cerrar Vista AR"
       >
-        ←
+        ✕
       </button>
-      {/* Menú de configuración ARS (incluye botón de mostrar/ocultar) */}
+      {/* Menú de configuración ARS (incluye botón de mostrar/ocultar) - Posición mejorada */}
       <ARSConfig
         arSeparation={arSeparation} setArSeparation={setArSeparation}
         arWidth={arWidth} setArWidth={setArWidth}
@@ -165,32 +217,48 @@ const ARStereoView = ({
         showMenu={showMenu} setShowMenu={setShowMenu}
         onSave={saveConfig}
         position={{
-          button: { top: 20, left: '50%', transform: 'translateX(-50%)' },
-          menu: { top: 60, left: '50%', transform: 'translateX(-50%)' }
+          button: { 
+            top: 15, 
+            left: 15
+          },
+          menu: { 
+            top: 50, 
+            left: 15,
+            maxHeight: 'calc(100vh - 80px)',
+            overflowY: 'auto'
+          }
         }}
       />
-      {/* Vista izquierda */}
-      <ARPanel
-        videoRef={videoRefL}
-        width={arWidth}
-        height={arHeight}
-        overlay={overlay}
-        overlayType={overlayType}
-        zoom={zoom}
-        offset={offsetL}
-        style={{ marginRight: arSeparation / 2 }}
-      />
-      {/* Vista derecha */}
-      <ARPanel
-        videoRef={videoRefR}
-        width={arWidth}
-        height={arHeight}
-        overlay={overlay}
-        overlayType={overlayType}
-        zoom={zoom}
-        offset={offsetR}
-        style={{ marginLeft: arSeparation / 2 }}
-      />
+      {/* Contenedor de los paneles AR */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: arSeparation,
+        height: '100%',
+        width: '100%'
+      }}>
+        {/* Vista izquierda */}
+        <ARPanel
+          videoRef={videoRefL}
+          width={arWidth}
+          height={arHeight}
+          overlay={overlay}
+          overlayType={overlayType}
+          zoom={zoom}
+          offset={offsetL}
+        />
+        {/* Vista derecha */}
+        <ARPanel
+          videoRef={videoRefR}
+          width={arWidth}
+          height={arHeight}
+          overlay={overlay}
+          overlayType={overlayType}
+          zoom={zoom}
+          offset={offsetR}
+        />
+      </div>
     </div>
   );
 };
