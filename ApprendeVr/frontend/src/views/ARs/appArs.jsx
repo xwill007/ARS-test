@@ -97,7 +97,7 @@ const ARSApp = () => {
         <VRWorldArs>
           <VRUserArs 
             mode="first"
-            initialPosition={[0, 0, 0]}
+            initialPosition={[0, 0, 3]}
             showAvatar={false}
             enableMovement={true}
             enableCursor={true}

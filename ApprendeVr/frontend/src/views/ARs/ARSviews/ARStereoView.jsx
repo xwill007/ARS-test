@@ -164,6 +164,10 @@ const ARStereoView = ({
         zoom={zoom} setZoom={setZoom}
         showMenu={showMenu} setShowMenu={setShowMenu}
         onSave={saveConfig}
+        position={{
+          button: { top: 20, left: '50%', transform: 'translateX(-50%)' },
+          menu: { top: 60, left: '50%', transform: 'translateX(-50%)' }
+        }}
       />
       {/* Vista izquierda */}
       <ARPanel
