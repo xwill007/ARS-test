@@ -1,6 +1,7 @@
 import React from 'react';
 import ARSoverlayList from './ARSoverlayList';
 import ARSHelpTooltip from './ARSHelpTooltip';
+import arsConfigManager from '../../../config/ARSConfigManager';
 
 /**
  * ARSConfig
@@ -35,6 +36,23 @@ const ARSConfig = ({
   }
 }) => {
   const [showHelp, setShowHelp] = React.useState(false);
+
+  // Función para aplicar presets usando el manager
+  const applyPreset = async (presetName) => {
+    try {
+      const preset = await arsConfigManager.applyPreset(presetName);
+      // Actualizar los estados locales
+      setArSeparation(preset.arSeparation);
+      setArWidth(preset.arWidth);
+      setArHeight(preset.arHeight);
+      setOffsetL(preset.offsetL);
+      setOffsetR(preset.offsetR);
+      setZoom(preset.zoom);
+      console.log(`✅ Preset ${presetName} aplicado:`, preset);
+    } catch (error) {
+      console.error(`❌ Error aplicando preset ${presetName}:`, error);
+    }
+  };
   // Estilos por defecto del botón
   const defaultButtonStyle = {
     position: 'absolute',
@@ -222,7 +240,7 @@ const ARSConfig = ({
             <span style={{ width: 40, textAlign: 'right', fontSize: 12 }}>{zoom.toFixed(2)}x</span>
           </div>
           
-          {/* Botones de presets */}
+          {/* Botones de presets mejorados */}
           <div style={{ marginTop: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button
               style={{
@@ -236,14 +254,7 @@ const ARSConfig = ({
                 flex: 1,
                 minWidth: 60
               }}
-              onClick={() => {
-                setArSeparation(24);
-                setArWidth(380);
-                setArHeight(480);
-                setOffsetL(0);
-                setOffsetR(0);
-                setZoom(1);
-              }}
+              onClick={() => applyPreset('mobile')}
             >
               📱 Móvil
             </button>
@@ -259,14 +270,7 @@ const ARSConfig = ({
                 flex: 1,
                 minWidth: 60
               }}
-              onClick={() => {
-                setArSeparation(40);
-                setArWidth(450);
-                setArHeight(550);
-                setOffsetL(-10);
-                setOffsetR(10);
-                setZoom(1.2);
-              }}
+              onClick={() => applyPreset('desktop')}
             >
               💻 Desktop
             </button>
@@ -282,14 +286,7 @@ const ARSConfig = ({
                 flex: 1,
                 minWidth: 60
               }}
-              onClick={() => {
-                setArSeparation(60);
-                setArWidth(300);
-                setArHeight(400);
-                setOffsetL(-20);
-                setOffsetR(20);
-                setZoom(1.5);
-              }}
+              onClick={() => applyPreset('vr')}
             >
               🥽 VR
             </button>

@@ -1,72 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
 import ARPanel from '../ARScomponents/ARPanel';
 import ARSConfig from '../ARScomponents/ARSConfig';
+import ARSConfigStatus from '../ARScomponents/ARSConfigStatus';
+import arsConfigManager from '../../../config/ARSConfigManager';
 
-const LOCAL_KEY = 'arsconfig-user';
-
-// Detectar tipo de dispositivo para configuración inicial
-const detectDeviceType = () => {
-  const userAgent = navigator.userAgent.toLowerCase();
-  const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
-  const isTablet = /ipad|android(?!.*mobile)/.test(userAgent);
-  
-  if (isMobile && !isTablet) return 'mobile';
-  if (isTablet) return 'tablet';
-  return 'desktop';
+// Usar el nuevo sistema de configuración basado en archivos JSON
+const getInitialConfig = (defaults) => {
+  return arsConfigManager.loadConfig(defaults);
 };
-
-// Configuraciones predeterminadas por dispositivo
-const getDeviceDefaults = () => {
-  const deviceType = detectDeviceType();
-  const screenWidth = window.innerWidth;
-  const screenHeight = window.innerHeight;
-  
-  switch (deviceType) {
-    case 'mobile':
-      return {
-        arSeparation: Math.min(20, screenWidth * 0.05),
-        arWidth: Math.min(320, screenWidth * 0.4),
-        arHeight: Math.min(400, screenHeight * 0.6),
-        offsetL: -5,
-        offsetR: 5,
-        zoom: 1.1
-      };
-    case 'tablet':
-      return {
-        arSeparation: Math.min(35, screenWidth * 0.06),
-        arWidth: Math.min(400, screenWidth * 0.35),
-        arHeight: Math.min(500, screenHeight * 0.65),
-        offsetL: -8,
-        offsetR: 8,
-        zoom: 1.15
-      };
-    default: // desktop
-      return {
-        arSeparation: Math.min(50, screenWidth * 0.08),
-        arWidth: Math.min(450, screenWidth * 0.3),
-        arHeight: Math.min(550, screenHeight * 0.7),
-        offsetL: -12,
-        offsetR: 12,
-        zoom: 1.2
-      };
-  }
-};
-
-function getInitialConfig(defaults) {
-  try {
-    const stored = localStorage.getItem(LOCAL_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Combinar con defaults del dispositivo actual
-      const deviceDefaults = getDeviceDefaults();
-      return { ...deviceDefaults, ...defaults, ...parsed };
-    }
-  } catch (e) {
-    console.warn('Error loading AR config from localStorage:', e);
-  }
-  // Si no hay configuración guardada, usar defaults del dispositivo
-  return { ...defaults, ...getDeviceDefaults() };
-}
 
 const detectOverlayType = (overlay) => {
   if (!overlay) return 'html';
@@ -122,15 +63,35 @@ const ARStereoView = ({
   const [offsetR, setOffsetR] = useState(initial.offsetR);
   const [zoom, setZoom] = useState(initial.zoom);
   // Solo mostrar el menú si no hay configuración previa
-  const [showMenu, setShowMenu] = useState(() => !localStorage.getItem(LOCAL_KEY));
+  const [showMenu, setShowMenu] = useState(() => {
+    // Verificar si existe configuración personalizada
+    const config = arsConfigManager.config?.userConfig;
+    return !config?.customProfile;
+  });
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
 
-  // Guardar configuración en localStorage y cerrar menú
-  const saveConfig = () => {
+  // Guardar configuración en archivo JSON
+  const saveConfig = async () => {
     const config = { arSeparation, arWidth, arHeight, offsetL, offsetR, zoom };
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(config));
-    setShowMenu(false);
+    const success = await arsConfigManager.saveConfig(config);
+    if (success) {
+      setShowMenu(false);
+      // Mostrar feedback visual de éxito
+      console.log('✅ Configuración guardada en config_Ars.json');
+    } else {
+      console.error('❌ Error al guardar configuración');
+    }
+  };
+
+  // Función para manejar cuando se carga una nueva configuración
+  const handleConfigLoaded = (newConfig) => {
+    setArSeparation(newConfig.arSeparation);
+    setArWidth(newConfig.arWidth);
+    setArHeight(newConfig.arHeight);
+    setOffsetL(newConfig.offsetL);
+    setOffsetR(newConfig.offsetR);
+    setZoom(newConfig.zoom);
   };
 
   useEffect(() => {
@@ -263,6 +224,9 @@ const ARStereoView = ({
           offset={offsetR}
         />
       </div>
+      
+      {/* Estado y opciones de configuración */}
+      <ARSConfigStatus onConfigLoaded={handleConfigLoaded} />
     </div>
   );
 };
