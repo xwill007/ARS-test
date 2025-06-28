@@ -1,0 +1,87 @@
+[33m8b0e81b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32m#17-will-ARS-config[m[33m, [m[1;31morigin/#17-will-ARS-config[m[33m)[m feat: Refactor ARSoverlayList and ARSApp to support multiple overlay selections and improve overlay management
+[33m124c5c5[m feat: Enhance ARSApp layout with new container and overlay styles for improved user interaction
+[33med3cc9c[m feat: Enhance ARSExperience and ARSoverlayList components with overlay selection and AR status notifications
+[33m9591c08[m feat: Add ARSoverlayList component for overlay selection in ARS configuration
+[33m15e50f3[m[33m ([m[1;31morigin/#16-will-fonts-custom[m[33m, [m[1;32m#16-will-fonts-custom[m[33m)[m feat: Adjust VRConeOverlay radiusBase to improve layout and spacing in AR experience
+[33m3440459[m feat: Integrate VRConeOverlay and VRConeOverlayWrapper components with enhanced logging and customizable properties
+[33mcf0c8ab[m VRuserArs moveControls
+[33m2acb057[m feat: Add VRConeR3FOverlay and VRConeBase components for enhanced AR experience
+[33m9e7f182[m feat: Update VRDomo overlay to VRCone overlay and adjust display properties
+[33me4e818a[m feat: Add text panel class to cone elements for improved styling
+[33mc8b453a[m font msdf-ultra
+[33mc6813cf[m[33m ([m[1;32m15-will-XR-ARtracking[m[33m)[m feat: Add XRStereoView component and integrate stereo view functionality in ARSApp
+[33mff82076[m feat: Add ARStrackingView component and integrate AR tracking functionality in ARSApp
+[33m9a119d1[m[33m ([m[1;32m#15-will-MindAR[m[33m, [m[1;32m#15-will-ARS-tracking[m[33m)[m refactor: Remove ARSApp component to streamline AR experience
+[33m40a8467[m[33m ([m[1;32m#14-will-overlay[m[33m)[m feat: Refactor VR components and implement new VRWorld and VRPlane components for enhanced AR experience
+[33maea6f82[m feat: Add VR components for user interaction and movement
+[33m93f9d46[m[33m ([m[1;31morigin/#14-will-overlay[m[33m)[m feat: Add VRDomoOverlay component and update overlay selection in ARSApp
+[33me06b7ca[m feat: Implement OrbitCameraController for enhanced camera control in R3F overlays
+[33m8b368d6[m fix: Adjust mesh positions in TestR3FOverlay for improved rendering
+[33mf4b92fe[m refactor: Simplify overlay management in ARSApp by using an overlay object
+[33mb3d01b3[m[33m ([m[1;32m#13-will-ARs-controls[m[33m)[m feat: Move TestHtmlOverlay and TestR3FOverlay components to ARScomponents/ARStest directory
+[33m9ab8db7[m feat: Add TestHtmlOverlay and TestR3FOverlay components and update overlay selection logic in ARSApp
+[33mdd65a39[m fix: Improve overlay type detection logic in ARStereoView
+[33mbc42035[m feat: Add overlay support in ARPanel and ARStereoView, and implement overlay type detection
+[33m26f40cb[m[33m ([m[1;31morigin/#13-will-ARs-controls[m[33m)[m feat: Implement configuration saving in localStorage and add save button in ARSConfig
+[33m7ae10af[m fix: Adjust button positioning in ARSConfig for improved layout
+[33mf0ed9ec[m feat: Refactor ARStereoView component to new directory structure and update import paths
+[33m5ec55a5[m feat: Enhance AR experience with zoom and offset controls, and add floating button for ARS activation
+[33mb308ef1[m ARScomponentes
+[33m535319a[m feat: Add menu toggle button and improve layout for Stereo AR View
+[33m86b9b63[m feat: Add offset and zoom controls for Stereo AR View
+[33md122bb7[m feat: Implement AR Stereo View with VR Button and Camera Access
+[33m08481a1[m[33m ([m[1;31morigin/#12-wil-PWA[m[33m, [m[1;32m#12-wil-PWA[m[33m)[m pwa aplicattion ssl error
+[33m227a319[m[33m ([m[1;31morigin/#11-will-theme[m[33m, [m[1;32m#11-will-theme[m[33m)[m fonts theme ok
+[33ma7a0866[m[33m ([m[1;31morigin/#10-will-AR[m[33m, [m[1;32m#10-will-AR[m[33m)[m import a-frame local in index.html
+[33mf669875[m theme, fonts, colors
+[33ma616c9b[m clean
+[33m482c082[m feat: add mobile VR experience with React Three Fiber
+[33m7d56950[m feat: Adjust VRButton positions for improved layout in AppContent
+[33m21d86ec[m feat: Integrate VRDisplay component and enhance VRConfig with display toggle
+[33m7efa86c[m feat: Refactor language management and add configuration panel with language selection
+[33m8c182c8[m feat: Add rotation prop to VRAvatar for initial avatar orientation
+[33me99ee6c[m feat: Add VRVideoLocal component for local video playback in VR
+[33m5b1e8ba[m feat: Implement stereo AR mode with camera access and adjustable settings
+[33m1be7655[m[33m ([m[1;31morigin/#9-will-Domo[m[33m, [m[1;32m#9-will-Domo[m[33m)[m feat: Update aframe-container styles and add 'Volver' button for better user navigation
+[33mffda7f0[m feat: Add toggle button for showing both views VRDomo in the App component
+[33m26e8bc9[m button VRDomo
+[33mfcb589c[m[33m ([m[1;31morigin/#8-will-moveControls[m[33m, [m[1;32m#8-will-moveControls[m[33m)[m feat: Add movement type and fast movement options to vr-move-controls and vr-user components
+[33m6e144e7[m fix: Correct invertBackSide property in vr-local-video component to false
+[33m8df765a[m feat: Enhance vr-local-video component with double-sided rendering and inversion options
+[33m3e2196b[m[33m ([m[1;32m#8-will-VRCursor[m[33m)[m feat: Add vr-move-controls component for enhanced user movement in VR
+[33m69f1926[m feat: Refactor VR components and add camera controls
+[33m1900a1b[m[33m ([m[1;31morigin/#7-will-Aframe-video[m[33m, [m[1;32m#7-will-Aframe-video[m[33m)[m local A-frame
+[33m5f072bd[m feat: Implement vr-local-video component for local video playback with progress bar
+[33m2b3002b[m fix: Adjust video container position and improve HTML structure
+[33mf1a7ce8[m Implement code changes to enhance functionality and improve performance
+[33m8abc60d[m VRLocalVideo
+[33mb0f1fdb[m feat: Add YouTube video components for A-Frame VR experience
+[33m2b323d4[m[33m ([m[1;31morigin/#6-VR-view[m[33m, [m[1;32m#6-VR-view[m[33m)[m VRFloor
+[33me5c0af5[m Refactor VRButton components: adjust scale and text for improved clarity and consistency
+[33mc240b27[m A-frame view
+[33m22edc2c[m Refactor VRYoutubePlayer component: adjust width, increase button size and text, and enhance scaling for improved user experience
+[33m2f9c49a[m Add VRVideoLocal and VRYoutubePlayer components for local and YouTube video playback
+[33mf5e8da7[m Add VideoBox component for displaying YouTube videos in VR; update dependencies in package.json and package-lock.json
+[33mc51df5e[m Refactor MobileApp and styles; add VRUser and VRPointer components for improved VR experience
+[33mafeb592[m Add VRTextTranslation component for dynamic multilingual support; update welcome message translation
+[33m0d1d492[m Refactor VR button styles and functionality; update translations for button text in multiple languages
+[33m3b224db[m VRButton
+[33m00014e3[m sky and floor
+[33mba250f3[m VRLanguages
+[33md2d3409[m default vr view in /mobile.html
+[33mb70293e[m vista VR en /mobile.html
+[33m0b0c4af[m[33m ([m[1;31morigin/#5-docker-ip-public[m[33m, [m[1;32m#5-docker-ip-public[m[33m)[m VITE_HTTPS
+[33m8af184a[m iniciando contendor docker para definir conexion ip con https en la red wifi
+[33m9cd8d6a[m[33m ([m[1;31morigin/will[m[33m, [m[1;32mwill[m[33m)[m Add VRLanguages component for language selection and dynamic loading of available languages
+[33mda758c0[m Add i18n support for multilingual functionality with language detection and translation files
+[33md55da73[m remove debug log from useFrame in VRAvatar component
+[33mc625af3[m showLogs
+[33m5735804[m fix VRCamera position adjustments for user tracking
+[33md4bc39a[m Refactor VRAvatar to use useFrame for position updates instead of useEffect
+[33m60dbe2a[m fix move VRAvatar
+[33me59e507[m no fonts
+[33m8fef4b5[m vrgirl
+[33mbf412f3[m raycast
+[33m4ceb9d0[m Add VRCursor component for pointer interaction and update camera positioning in VRCamera
+[33ma7344c7[m Add VRUser, VRCamera, and VRMoveControls components for user interaction and camera control
+[33m6d47ed6[m Refactor VRUser movement logic to use moveDir
