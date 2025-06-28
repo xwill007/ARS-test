@@ -10,7 +10,7 @@ import VRUserArs from './ARScomponents/VRUserArs/VRUserArs';
 import ARSoverlayList from './ARScomponents/ARSoverlayList';
 
 const ARSApp = () => {
-  const [selectedOverlay, setSelectedOverlay] = useState('VRConeOverlay');
+  const [selectedOverlays, setSelectedOverlays] = useState(['VRConeOverlay']); // Array de overlays seleccionados
   const [renderKey, setRenderKey] = useState(0);
   const [isARActive, setIsARActive] = useState(false);
 
@@ -55,13 +55,33 @@ const ARSApp = () => {
     }
   };
 
-  // Actualizar renderKey cuando cambie selectedOverlay
+  // Crear múltiples overlays basados en la selección
+  const createMultipleOverlays = (overlayTypes, renderKey) => {
+    const r3fComponents = [];
+    const htmlComponents = [];
+
+    overlayTypes.forEach((type, index) => {
+      const overlay = createOverlay(type, `${type}-${renderKey}-${index}`);
+      if (overlay.type === 'r3f') {
+        r3fComponents.push(overlay.component);
+      } else if (overlay.type === 'html') {
+        htmlComponents.push(overlay.component);
+      }
+    });
+
+    return {
+      r3f: r3fComponents,
+      html: htmlComponents
+    };
+  };
+
+  // Actualizar renderKey cuando cambien los overlays seleccionados
   useEffect(() => {
     setRenderKey(prev => prev + 1);
-    console.log('Overlay changed to:', selectedOverlay);
-  }, [selectedOverlay]);
+    console.log('Overlays changed to:', selectedOverlays);
+  }, [selectedOverlays]);
 
-  const overlayObj = createOverlay(selectedOverlay, `${selectedOverlay}-${renderKey}`);
+  const overlaysObj = createMultipleOverlays(selectedOverlays, renderKey);
 
   // Lista de overlays para el componente ARSoverlayList
   const overlays = {
@@ -70,18 +90,31 @@ const ARSApp = () => {
     VRConeR3FOverlay: { type: 'r3f' }
   };
 
-  console.log('Current overlay:', selectedOverlay, 'Render key:', renderKey);
+  console.log('Current overlays:', selectedOverlays, 'Render key:', renderKey);
 
-  const handleOverlayChange = (newOverlay) => {
-    console.log('Setting overlay to:', newOverlay);
-    if (newOverlay !== selectedOverlay) {
-      setSelectedOverlay(newOverlay);
+  const handleOverlayChange = (overlayType, isSelected) => {
+    console.log('Toggle overlay:', overlayType, 'Selected:', isSelected);
+    
+    if (isSelected) {
+      // Agregar overlay si no está ya seleccionado
+      if (!selectedOverlays.includes(overlayType)) {
+        setSelectedOverlays(prev => [...prev, overlayType]);
+      }
+    } else {
+      // Remover overlay
+      setSelectedOverlays(prev => prev.filter(overlay => overlay !== overlayType));
     }
   };
 
   const handleARStatusChange = (status) => {
     setIsARActive(status);
     console.log('AR Status changed:', status);
+  };
+
+  // Combinar todos los componentes para pasar a ARSExperience
+  const combinedOverlays = {
+    r3f: overlaysObj.r3f,
+    html: overlaysObj.html
   };
 
   return (
@@ -103,15 +136,24 @@ const ARSApp = () => {
             enableCursor={true}
             moveSpeed={0.1}
           >
-            {overlayObj.type === 'r3f' && overlayObj.component}
+            {/* Renderizar todos los overlays R3F */}
+            {overlaysObj.r3f.map((component, index) => (
+              <React.Fragment key={index}>
+                {component}
+              </React.Fragment>
+            ))}
           </VRUserArs>
         </VRWorldArs>
       </Canvas>
 
-      {/* Overlay HTML superpuesto */}
-      {overlayObj.type === 'html' && (
+      {/* Overlays HTML superpuestos */}
+      {overlaysObj.html.length > 0 && (
         <div className="ars-html-overlay">
-          {overlayObj.component}
+          {overlaysObj.html.map((component, index) => (
+            <React.Fragment key={index}>
+              {component}
+            </React.Fragment>
+          ))}
         </div>
       )}
 
@@ -119,8 +161,8 @@ const ARSApp = () => {
       {!isARActive && (
         <div className="ars-controls">
           <ARSoverlayList 
-            selectedOverlay={selectedOverlay}
-            setSelectedOverlay={handleOverlayChange}
+            selectedOverlays={selectedOverlays} // Cambiar a array
+            onOverlayToggle={handleOverlayChange} // Nueva función para toggle
             overlays={overlays}
           />
         </div>
@@ -129,8 +171,7 @@ const ARSApp = () => {
       {/* Botón AR */}
       <ARSExperience
         floatingButtonProps={{ bottom: 32, right: 32, scale: 1 }}
-        overlay={overlayObj.component}
-        overlayType={overlayObj.type}
+        overlays={combinedOverlays} // Pasar múltiples overlays
         onARStatusChange={handleARStatusChange}
       />
     </div>

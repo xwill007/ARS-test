@@ -2,11 +2,11 @@ import React from 'react';
 
 /**
  * ARSoverlayList
- * Lista de botones para seleccionar overlays
+ * Lista de botones para seleccionar overlays (ahora con soporte múltiple)
  */
 const ARSoverlayList = ({ 
-  selectedOverlay, 
-  setSelectedOverlay, 
+  selectedOverlays = [], // Cambiar a array
+  onOverlayToggle, // Nueva función para toggle
   overlays, 
   inline = false 
 }) => {
@@ -16,15 +16,16 @@ const ARSoverlayList = ({
     { key: 'VRConeR3FOverlay', label: 'Overlay R3F' }
   ];
 
-  const handleOverlayChange = (overlayKey) => {
-    console.log('Button clicked:', overlayKey, 'Current:', selectedOverlay);
-    if (setSelectedOverlay) {
-      setSelectedOverlay(overlayKey);
+  const handleOverlayToggle = (overlayKey) => {
+    console.log('Button clicked:', overlayKey, 'Current selected:', selectedOverlays);
+    if (onOverlayToggle) {
+      const isCurrentlySelected = selectedOverlays.includes(overlayKey);
+      onOverlayToggle(overlayKey, !isCurrentlySelected);
     }
   };
 
   const getButtonStyle = (overlayKey) => {
-    const isSelected = selectedOverlay === overlayKey;
+    const isSelected = selectedOverlays.includes(overlayKey); // Cambiar lógica
     
     if (inline) {
       return {
@@ -75,9 +76,9 @@ const ARSoverlayList = ({
         <button
           key={key}
           style={getButtonStyle(key)}
-          onClick={() => handleOverlayChange(key)}
+          onClick={() => handleOverlayToggle(key)}
           onMouseOver={(e) => {
-            if (selectedOverlay !== key) {
+            if (!selectedOverlays.includes(key)) {
               e.target.style.opacity = '0.8';
             }
           }}
@@ -85,7 +86,7 @@ const ARSoverlayList = ({
             e.target.style.opacity = '1';
           }}
         >
-          {label}
+          {label} {selectedOverlays.includes(key) ? '✓' : ''}
         </button>
       ))}
     </div>
