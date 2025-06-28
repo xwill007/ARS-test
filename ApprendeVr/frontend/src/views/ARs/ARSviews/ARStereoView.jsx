@@ -174,37 +174,41 @@ const ARStereoView = ({
       <button
         style={{
           position: 'absolute',
-          top: 15,
-          right: 15,
+          top: 3,
+          right: 3,
           zIndex: 4001,
-          background: 'linear-gradient(135deg, rgba(244,67,54,0.9), rgba(211,47,47,0.9))',
+          background: 'rgba(34,34,34,0.9)',
           color: 'white',
           border: 'none',
           borderRadius: '50%',
-          width: 22,
-          height: 22,
-          fontSize: 14,
+          width: 18,
+          height: 18,
+          fontSize: 12,
           fontWeight: 'bold',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 3px 12px rgba(244,67,54,0.4)',
+          boxShadow: '0 3px 12px rgba(0,0,0,0.4)',
           transition: 'all 0.3s ease',
+          lineHeight: 1,
+          fontFamily: 'monospace'
         }}
         onClick={onClose}
         onMouseEnter={(e) => {
           e.target.style.transform = 'scale(1.1)';
-          e.target.style.boxShadow = '0 4px 16px rgba(244,67,54,0.6)';
+          e.target.style.background = 'rgba(64,64,64,0.9)';
+          e.target.style.boxShadow = '0 4px 16px rgba(0,0,0,0.6)';
         }}
         onMouseLeave={(e) => {
           e.target.style.transform = 'scale(1)';
-          e.target.style.boxShadow = '0 3px 12px rgba(244,67,54,0.4)';
+          e.target.style.background = 'rgba(34,34,34,0.9)';
+          e.target.style.boxShadow = '0 3px 12px rgba(0,0,0,0.4)';
         }}
-        aria-label="Cerrar Vista AR"
-        title="Cerrar Vista AR"
+        aria-label="Volver"
+        title="Volver"
       >
-        ✕
+        ←
       </button>
       {/* Menú de configuración ARS (incluye botón de mostrar/ocultar) - Posición mejorada */}
       <ARSConfig
@@ -218,8 +222,8 @@ const ARStereoView = ({
         onSave={saveConfig}
         position={{
           button: { 
-            top: 15, 
-            left: 15
+            top: 6, 
+            left: 6
           },
           menu: { 
             top: 50, 
