@@ -480,11 +480,18 @@ const generateDomeElements = (geometryData) => {
           panel-flip={`palabraEs: ${palabra.es}; palabraEn: ${palabra.en}`}
           class="clickable"
         > 
-          <a-entity
+          <a-text
             class="texto-panel"
-            text={`value: ${palabra.en}; color: #FFFFFF; align: center; width: 5; wrapCount: 10; font: mozillavr`}
+            value={palabra.en}
+            color="#FFFFFF"
+            align="center"
+            width="5"
+            wrap-count="10"
+            //font="/fonts/Ultra-msdf/Ultra-msdf.json"
+            //font-image="/fonts/Ultra-msdf/Ultra-msdf.png"
+            shader="msdf"
             position="0 0 0.11"
-          ></a-entity>
+          ></a-text>
         </a-box>
       );
     }
@@ -553,15 +560,23 @@ const VRDomo = ({ position = posicionDomo, numPalabras = numWords }) => {
   return (
     <a-entity id="domo" ref={domoRef}>
       {elementos}
-      
+
       {/* Panel grande para mostrar la palabra seleccionada */}
-      <a-entity 
-        id="palabra-actual" 
-        position="0 0 -1.5" 
-        text="value: Selecciona una palabra; color: white; align: center; width: 2; wrapCount: 20; baseline: center" 
-        geometry="primitive: plane; width: 2.1; height: 0.7" 
+      <a-text
+        id="palabra-actual"
+        position="0 0 -1.5"
+        value="Selecciona una palabra"
+        color="white"
+        align="center"
+        width="2"
+        wrap-count="20"
+        baseline="center"
+        font="/fonts/Ultra-msdf/Ultra-msdf.json"
+        font-image="/fonts/Ultra-msdf/Ultra-msdf.png"
+        shader="msdf"
+        geometry="primitive: plane; width: 2.1; height: 0.7"
         material="color: #333333; opacity: 0.7; side: double"
-      ></a-entity>
+      ></a-text>
     </a-entity>
   );
 };

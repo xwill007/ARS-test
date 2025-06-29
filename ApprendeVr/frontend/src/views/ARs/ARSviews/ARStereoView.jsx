@@ -1,18 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
 import ARPanel from '../ARScomponents/ARPanel';
 import ARSConfig from '../ARScomponents/ARSConfig';
+import ARSConfigStatus from '../ARScomponents/ARSConfigStatus';
+import arsConfigManager from '../../../config/ARSConfigManager';
 
-const LOCAL_KEY = 'arsconfig-user';
-
-function getInitialConfig(defaults) {
-  try {
-    const stored = localStorage.getItem(LOCAL_KEY);
-    if (stored) {
-      return { ...defaults, ...JSON.parse(stored) };
-    }
-  } catch (e) {}
-  return defaults;
-}
+// Usar el nuevo sistema de configuración basado en archivos JSON
+const getInitialConfig = (defaults) => {
+  return arsConfigManager.loadConfig(defaults);
+};
 
 const detectOverlayType = (overlay) => {
   if (!overlay) return 'html';
@@ -68,15 +63,35 @@ const ARStereoView = ({
   const [offsetR, setOffsetR] = useState(initial.offsetR);
   const [zoom, setZoom] = useState(initial.zoom);
   // Solo mostrar el menú si no hay configuración previa
-  const [showMenu, setShowMenu] = useState(() => !localStorage.getItem(LOCAL_KEY));
+  const [showMenu, setShowMenu] = useState(() => {
+    // Verificar si existe configuración personalizada
+    const config = arsConfigManager.config?.userConfig;
+    return !config?.customProfile;
+  });
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
 
-  // Guardar configuración en localStorage y cerrar menú
-  const saveConfig = () => {
+  // Guardar configuración en archivo JSON
+  const saveConfig = async () => {
     const config = { arSeparation, arWidth, arHeight, offsetL, offsetR, zoom };
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(config));
-    setShowMenu(false);
+    const success = await arsConfigManager.saveConfig(config);
+    if (success) {
+      setShowMenu(false);
+      // Mostrar feedback visual de éxito
+      console.log('✅ Configuración guardada en config_Ars.json');
+    } else {
+      console.error('❌ Error al guardar configuración');
+    }
+  };
+
+  // Función para manejar cuando se carga una nueva configuración
+  const handleConfigLoaded = (newConfig) => {
+    setArSeparation(newConfig.arSeparation);
+    setArWidth(newConfig.arWidth);
+    setArHeight(newConfig.arHeight);
+    setOffsetL(newConfig.offsetL);
+    setOffsetR(newConfig.offsetR);
+    setZoom(newConfig.zoom);
   };
 
   useEffect(() => {
@@ -115,46 +130,48 @@ const ARStereoView = ({
   const overlayType = overlayTypeProp || detectOverlayType(overlay);
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      background: 'black',
-      zIndex: 3000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'row',
-    }}>
-      {/* Botón flecha atrás para salir de ARS */}
+    <div className="ar-stereo-container">
+      {/* Botón flecha atrás para salir de ARS - Mejorado */}
       <button
         style={{
           position: 'absolute',
-          top: 10,
-          right: 12,
+          top: 3,
+          right: 3,
           zIndex: 4001,
-          background: 'rgba(34,34,34,0.95)',
+          background: 'rgba(34,34,34,0.9)',
           color: 'white',
           border: 'none',
           borderRadius: '50%',
-          width: 15,
-          height: 15,
+          width: 18,
+          height: 18,
           fontSize: 12,
           fontWeight: 'bold',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 2px 8px #000a',
+          boxShadow: '0 3px 12px rgba(0,0,0,0.4)',
+          transition: 'all 0.3s ease',
+          lineHeight: 1,
+          fontFamily: 'monospace'
         }}
         onClick={onClose}
+        onMouseEnter={(e) => {
+          e.target.style.transform = 'scale(1.1)';
+          e.target.style.background = 'rgba(64,64,64,0.9)';
+          e.target.style.boxShadow = '0 4px 16px rgba(0,0,0,0.6)';
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.transform = 'scale(1)';
+          e.target.style.background = 'rgba(34,34,34,0.9)';
+          e.target.style.boxShadow = '0 3px 12px rgba(0,0,0,0.4)';
+        }}
         aria-label="Volver"
+        title="Volver"
       >
         ←
       </button>
-      {/* Menú de configuración ARS (incluye botón de mostrar/ocultar) */}
+      {/* Menú de configuración ARS (incluye botón de mostrar/ocultar) - Posición mejorada */}
       <ARSConfig
         arSeparation={arSeparation} setArSeparation={setArSeparation}
         arWidth={arWidth} setArWidth={setArWidth}
@@ -164,29 +181,52 @@ const ARStereoView = ({
         zoom={zoom} setZoom={setZoom}
         showMenu={showMenu} setShowMenu={setShowMenu}
         onSave={saveConfig}
+        position={{
+          button: { 
+            top: 6, 
+            left: 6
+          },
+          menu: { 
+            top: 50, 
+            left: 15,
+            maxHeight: 'calc(100vh - 80px)',
+            overflowY: 'auto'
+          }
+        }}
       />
-      {/* Vista izquierda */}
-      <ARPanel
-        videoRef={videoRefL}
-        width={arWidth}
-        height={arHeight}
-        overlay={overlay}
-        overlayType={overlayType}
-        zoom={zoom}
-        offset={offsetL}
-        style={{ marginRight: arSeparation / 2 }}
-      />
-      {/* Vista derecha */}
-      <ARPanel
-        videoRef={videoRefR}
-        width={arWidth}
-        height={arHeight}
-        overlay={overlay}
-        overlayType={overlayType}
-        zoom={zoom}
-        offset={offsetR}
-        style={{ marginLeft: arSeparation / 2 }}
-      />
+      {/* Contenedor de los paneles AR */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: arSeparation,
+        height: '100%',
+        width: '100%'
+      }}>
+        {/* Vista izquierda */}
+        <ARPanel
+          videoRef={videoRefL}
+          width={arWidth}
+          height={arHeight}
+          overlay={overlay}
+          overlayType={overlayType}
+          zoom={zoom}
+          offset={offsetL}
+        />
+        {/* Vista derecha */}
+        <ARPanel
+          videoRef={videoRefR}
+          width={arWidth}
+          height={arHeight}
+          overlay={overlay}
+          overlayType={overlayType}
+          zoom={zoom}
+          offset={offsetR}
+        />
+      </div>
+      
+      {/* Estado y opciones de configuración */}
+      <ARSConfigStatus onConfigLoaded={handleConfigLoaded} />
     </div>
   );
 };

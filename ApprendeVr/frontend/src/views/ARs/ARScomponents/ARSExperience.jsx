@@ -12,20 +12,38 @@ import ARStereoView from '../ARSviews/ARStereoView';
  *  - stereoViewProps: props para ARStereoView (opcional)
  *  - overlay: componente React a superponer en ambos paneles
  *  - overlayType: 'r3f' | 'html' (opcional)
+ *  - onARStatusChange: función callback para notificar cambios de estado AR
  */
-const ARSExperience = ({ floatingButtonProps = { bottom: 32, right: 32, scale: 1 }, stereoViewProps = {}, overlay = null, overlayType = 'html' }) => {
+const ARSExperience = ({ 
+  floatingButtonProps = { bottom: 32, right: 32, scale: 1 }, 
+  stereoViewProps = {}, 
+  overlay = null, 
+  overlayType = 'html',
+  onARStatusChange 
+}) => {
   const [showStereoAR, setShowStereoAR] = useState(false);
+
+  const handleARStart = () => {
+    setShowStereoAR(true);
+    onARStatusChange?.(true); // Notifica que AR está activo
+  };
+
+  const handleAREnd = () => {
+    setShowStereoAR(false);
+    onARStatusChange?.(false); // Notifica que AR está inactivo
+  };
+
   return (
     <>
       {!showStereoAR && (
         <ARSFloatingButton
-          onClick={() => setShowStereoAR(true)}
+          onClick={handleARStart}
           {...floatingButtonProps}
         />
       )}
       {showStereoAR && (
         <ARStereoView
-          onClose={() => setShowStereoAR(false)}
+          onClose={handleAREnd}
           floatingButtonProps={floatingButtonProps}
           overlay={overlay}
           overlayType={overlayType}

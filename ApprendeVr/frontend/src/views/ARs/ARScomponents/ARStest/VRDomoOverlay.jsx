@@ -11,6 +11,7 @@ const VRDomoOverlay = () => (
         <body style='margin:0; background:transparent;'>
           <a-scene embedded vr-mode-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
             <a-sphere radius="2" segments-width="32" segments-height="16" color="#6699CC" opacity="0.5" side="double" position="0 2 -5"></a-sphere>
+            <a-text value="ÑOÑO" color="#FFCC00" position="0 3 -5" align="center" width="6"></a-text>
             <a-camera position="0 2 5"></a-camera>
           </a-scene>
         </body>

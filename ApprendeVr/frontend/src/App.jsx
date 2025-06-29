@@ -136,7 +136,7 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
         <div id="aframe-container"
           style={showBoth ? {
             width: '100vw',
-            height: '45vh',
+            height: '90vh',
             position: 'absolute',
             left: 0,
             bottom: 0,
