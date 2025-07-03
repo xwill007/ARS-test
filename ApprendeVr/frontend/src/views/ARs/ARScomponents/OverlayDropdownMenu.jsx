@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import overlayRegistry from './overlays/index';
+import './OverlayDropdownMenu.css';
 
 /**
  * Menú desplegable de overlays con checkboxes
@@ -11,6 +12,10 @@ const OverlayDropdownMenu = ({
   multiSelect = true 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuSize, setMenuSize] = useState({ width: 350, height: 400 });
+  const [isResizing, setIsResizing] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [startSize, setStartSize] = useState({ width: 0, height: 0 });
 
   // Obtener overlays dinámicamente del registro
   const overlayList = useMemo(() => {
@@ -46,6 +51,57 @@ const OverlayDropdownMenu = ({
     }
   };
 
+  // Funciones para el redimensionamiento
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    setStartPos({ x: e.clientX, y: e.clientY });
+    setStartSize({ width: menuSize.width, height: menuSize.height });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isResizing) return;
+    
+    const deltaX = e.clientX - startPos.x;
+    const deltaY = e.clientY - startPos.y;
+    
+    // Límites más estrictos para mejor UX
+    const minWidth = 280;
+    const maxWidth = 800;
+    const minHeight = 200;
+    const maxHeight = 600;
+    
+    const newWidth = Math.max(minWidth, Math.min(maxWidth, startSize.width + deltaX));
+    const newHeight = Math.max(minHeight, Math.min(maxHeight, startSize.height + deltaY));
+    
+    setMenuSize({ width: newWidth, height: newHeight });
+  };
+
+  const handleMouseUp = () => {
+    setIsResizing(false);
+  };
+
+  // Event listeners para el redimensionamiento
+  React.useEffect(() => {
+    if (isResizing) {
+      const handleGlobalMouseMove = (e) => handleMouseMove(e);
+      const handleGlobalMouseUp = () => handleMouseUp();
+      
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.body.style.cursor = 'se-resize';
+      document.body.style.userSelect = 'none';
+      
+      return () => {
+        document.removeEventListener('mousemove', handleGlobalMouseMove);
+        document.removeEventListener('mouseup', handleGlobalMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [isResizing, startPos, startSize]);
+
   // Estilos del componente
   const menuButtonStyle = {
     display: 'flex',
@@ -69,15 +125,20 @@ const OverlayDropdownMenu = ({
     position: 'absolute',
     top: '100%',
     left: 0,
-    right: 0,
+    width: `${menuSize.width}px`,
+    height: `${menuSize.height}px`,
     background: 'rgba(0, 0, 0, 0.95)',
     border: '2px solid #007acc',
     borderTop: 'none',
     borderRadius: '0 0 8px 8px',
     padding: '8px',
-    maxHeight: '300px',
-    overflowY: 'auto',
-    zIndex: 1000
+    zIndex: 1000,
+    display: 'flex',
+    flexDirection: 'column',
+    resize: 'none', // Deshabilitamos el resize nativo
+    overflow: 'hidden',
+    boxShadow: isResizing ? '0 0 20px rgba(0, 122, 204, 0.5)' : '0 4px 20px rgba(0, 0, 0, 0.3)',
+    transition: isResizing ? 'none' : 'all 0.2s ease'
   };
 
   const overlayItemStyle = {
@@ -120,6 +181,51 @@ const OverlayDropdownMenu = ({
     transition: 'background 0.2s ease'
   };
 
+  const scrollContainerStyle = {
+    flex: 1,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    marginBottom: '8px',
+    paddingRight: '4px',
+    // Estilos personalizados para el scrollbar
+    scrollbarWidth: 'thin',
+    scrollbarColor: '#007acc rgba(255, 255, 255, 0.1)'
+  };
+
+  const resizeHandleStyle = {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: '20px',
+    height: '20px',
+    cursor: 'se-resize',
+    background: isResizing ? 'rgba(0, 122, 204, 0.7)' : 'rgba(0, 122, 204, 0.3)',
+    borderRadius: '8px 0 8px 0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '10px',
+    color: '#007acc',
+    transition: 'all 0.2s ease',
+    userSelect: 'none',
+    transform: isResizing ? 'scale(1.2)' : 'scale(1)'
+  };
+
+  const sizeIndicatorStyle = {
+    position: 'absolute',
+    bottom: '25px',
+    right: '5px',
+    padding: '2px 6px',
+    background: 'rgba(0, 122, 204, 0.9)',
+    color: 'white',
+    fontSize: '10px',
+    borderRadius: '4px',
+    fontFamily: 'monospace',
+    pointerEvents: 'none',
+    opacity: isResizing ? 1 : 0,
+    transition: 'opacity 0.2s ease'
+  };
+
   const getTypeColor = (type) => {
     return type === 'r3f' ? '#00ff00' : '#ff6600';
   };
@@ -159,7 +265,10 @@ const OverlayDropdownMenu = ({
 
       {/* Menú desplegable */}
       {isOpen && (
-        <div style={dropdownStyle}>
+        <div 
+          style={dropdownStyle}
+          className={`overlay-dropdown ${isResizing ? 'resizing' : ''}`}
+        >
           {/* Header del menú */}
           <div style={{ 
             padding: '8px 0', 
@@ -171,84 +280,89 @@ const OverlayDropdownMenu = ({
             {multiSelect ? 'Selecciona múltiples overlays' : 'Selecciona un overlay'}
           </div>
 
-          {/* Lista de overlays */}
-          {overlayList.map(({ key, label, type, description, category }) => {
-            const selected = isSelected(key);
-            return (
-              <div
-                key={key}
-                style={{
-                  ...overlayItemStyle,
-                  background: selected ? 'rgba(0, 122, 204, 0.2)' : 'transparent'
-                }}
-                onClick={() => handleOverlayChange(key)}
-                onMouseOver={(e) => {
-                  if (!selected) {
-                    e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!selected) {
-                    e.target.style.background = 'transparent';
-                  }
-                }}
-              >
-                {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={selected}
-                  onChange={() => handleOverlayChange(key)}
-                  style={checkboxStyle}
-                  onClick={(e) => e.stopPropagation()}
-                />
+          {/* Contenedor con scroll para la lista de overlays */}
+          <div 
+            style={scrollContainerStyle}
+            className="overlay-dropdown-scroll"
+          >
+            {overlayList.map(({ key, label, type, description, category }) => {
+              const selected = isSelected(key);
+              return (
+                <div
+                  key={key}
+                  style={{
+                    ...overlayItemStyle,
+                    background: selected ? 'rgba(0, 122, 204, 0.2)' : 'transparent'
+                  }}
+                  onClick={() => handleOverlayChange(key)}
+                  onMouseOver={(e) => {
+                    if (!selected) {
+                      e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!selected) {
+                      e.target.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  {/* Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => handleOverlayChange(key)}
+                    style={checkboxStyle}
+                    onClick={(e) => e.stopPropagation()}
+                  />
 
-                {/* Información del overlay */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: getTypeColor(type) }}>
-                      {getTypeIcon(type)}
-                    </span>
-                    <strong style={{ color: 'white' }}>{label}</strong>
-                    <span style={{ 
-                      fontSize: '8px', 
-                      color: '#999',
-                      textTransform: 'uppercase',
-                      background: 'rgba(255,255,255,0.1)',
-                      padding: '2px 4px',
-                      borderRadius: '2px'
-                    }}>
-                      {type}
-                    </span>
-                  </div>
-                  <div style={{ 
-                    fontSize: '10px', 
-                    color: '#bbb', 
-                    marginTop: '2px',
-                    lineHeight: '1.2'
-                  }}>
-                    {description}
-                  </div>
-                  {category && (
-                    <div style={{ 
-                      fontSize: '9px', 
-                      color: '#888', 
-                      marginTop: '2px',
-                      fontStyle: 'italic'
-                    }}>
-                      📁 {category}
+                  {/* Información del overlay */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: getTypeColor(type) }}>
+                        {getTypeIcon(type)}
+                      </span>
+                      <strong style={{ color: 'white' }}>{label}</strong>
+                      <span style={{ 
+                        fontSize: '8px', 
+                        color: '#999',
+                        textTransform: 'uppercase',
+                        background: 'rgba(255,255,255,0.1)',
+                        padding: '2px 4px',
+                        borderRadius: '2px'
+                      }}>
+                        {type}
+                      </span>
                     </div>
+                    <div style={{ 
+                      fontSize: '10px', 
+                      color: '#bbb', 
+                      marginTop: '2px',
+                      lineHeight: '1.2'
+                    }}>
+                      {description}
+                    </div>
+                    {category && (
+                      <div style={{ 
+                        fontSize: '9px', 
+                        color: '#888', 
+                        marginTop: '2px',
+                        fontStyle: 'italic'
+                      }}>
+                        📁 {category}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Indicador de selección */}
+                  {selected && (
+                    <span style={{ color: '#00ff00', fontSize: '14px' }}>
+                      ✓
+                    </span>
                   )}
                 </div>
-
-                {/* Indicador de selección */}
-                {selected && (
-                  <span style={{ color: '#00ff00', fontSize: '14px' }}>
-                    ✓
-                  </span>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
 
           {/* Botón limpiar todo */}
           {selectedCount > 0 && (
@@ -276,6 +390,33 @@ const OverlayDropdownMenu = ({
             textAlign: 'center'
           }}>
             {overlayList.length} overlays disponibles • {selectedCount} activos
+          </div>
+
+          {/* Handle de redimensionamiento */}
+          <div
+            style={resizeHandleStyle}
+            className="resize-handle"
+            onMouseDown={handleMouseDown}
+            onMouseOver={(e) => {
+              if (!isResizing) {
+                e.target.style.background = 'rgba(0, 122, 204, 0.5)';
+                e.target.style.transform = 'scale(1.1)';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!isResizing) {
+                e.target.style.background = 'rgba(0, 122, 204, 0.3)';
+                e.target.style.transform = 'scale(1)';
+              }
+            }}
+            title="Arrastrar para redimensionar"
+          >
+            ◢
+          </div>
+
+          {/* Indicador de tamaño durante redimensionamiento */}
+          <div style={sizeIndicatorStyle}>
+            {Math.round(menuSize.width)}×{Math.round(menuSize.height)}
           </div>
         </div>
       )}

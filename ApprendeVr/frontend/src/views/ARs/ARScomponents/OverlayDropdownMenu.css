@@ -1,0 +1,41 @@
+/* Estilos personalizados para el scrollbar del menú de overlays */
+.overlay-dropdown-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.overlay-dropdown-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.overlay-dropdown-scroll::-webkit-scrollbar-thumb {
+  background: #007acc;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.overlay-dropdown-scroll::-webkit-scrollbar-thumb:hover {
+  background: #0099ff;
+}
+
+/* Estilos para el estado de redimensionamiento */
+.resizing-dropdown {
+  transition: none !important;
+}
+
+.resizing-dropdown * {
+  pointer-events: none;
+}
+
+.resizing-dropdown .resize-handle {
+  pointer-events: auto;
+}
+
+/* Animaciones suaves */
+.overlay-dropdown {
+  transition: all 0.2s ease;
+}
+
+.overlay-dropdown.resizing {
+  transition: none;
+}
