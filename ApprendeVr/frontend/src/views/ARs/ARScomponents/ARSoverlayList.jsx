@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import overlayRegistry from './overlays/index'; // Auto-registro de overlays
 
 /**
  * ARSoverlayList
  * Lista de botones para seleccionar overlays (soporte para selección múltiple)
+ * Ahora usa el registro automático de overlays
  */
 const ARSoverlayList = ({ 
   selectedOverlay, 
@@ -12,11 +14,17 @@ const ARSoverlayList = ({
   inline = false,
   multiSelect = false 
 }) => {
-  const overlayButtons = [
-    { key: 'TestR3FOverlay', label: 'Overlay Static' },
-    { key: 'VRConeOverlay', label: 'Overlay HTML' },
-    { key: 'VRConeR3FOverlay', label: 'Overlay R3F' }
-  ];
+  // Obtener overlays dinámicamente del registro
+  const overlayButtons = useMemo(() => {
+    const allOverlays = overlayRegistry.getAll();
+    return Object.entries(allOverlays).map(([key, config]) => ({
+      key,
+      label: config.label,
+      type: config.type,
+      description: config.description,
+      category: config.category
+    }));
+  }, []);
 
   const handleOverlayChange = (overlayKey) => {
     console.log('Button clicked:', overlayKey);
