@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import overlayRegistry from './overlays/index'; // Auto-registro de overlays
-import ARSoverlayList from './ARSoverlayList';
+import OverlayDropdownMenu from './OverlayDropdownMenu';
 import ARSOverlayCounter from './ARSOverlayCounter';
 
 /**
@@ -87,40 +87,18 @@ const AROverlayController = ({
   // Componentes de UI
   const OverlayControls = () => (
     !isARActive && (
-      <div className="ars-controls">
-        <ARSoverlayList 
+      <div style={{ 
+        position: 'fixed', 
+        top: 12, 
+        left: 12, 
+        zIndex: 5000 
+      }}>
+        <OverlayDropdownMenu
           selectedOverlays={selectedOverlays}
-          setSelectedOverlay={handleOverlayToggle}
-          overlays={availableOverlays}
+          onOverlayToggle={handleOverlayToggle}
+          onClearAll={handleClearAllOverlays}
           multiSelect={true}
         />
-        {selectedOverlays.length > 0 && (
-          <button
-            onClick={handleClearAllOverlays}
-            style={{
-              marginTop: '10px',
-              padding: '6px 12px',
-              background: '#ff4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.background = '#cc0000';
-              e.target.style.transform = 'scale(1.05)';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.background = '#ff4444';
-              e.target.style.transform = 'scale(1)';
-            }}
-          >
-            🗑️ Limpiar todo
-          </button>
-        )}
       </div>
     )
   );
@@ -142,7 +120,7 @@ const AROverlayController = ({
     
     // Componentes
     OverlayControls,
-    OverlayCounter,
+    // OverlayCounter, // Ya no se necesita - el menú tiene su propio contador
     
     // Utilidades
     hasHTMLOverlays: overlayComponents.html.length > 0,
