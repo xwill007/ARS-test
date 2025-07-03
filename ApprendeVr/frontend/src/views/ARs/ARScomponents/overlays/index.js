@@ -1,7 +1,16 @@
 /**
  * Auto-registro de overlays
  * 
- * Este archivo importa todos los overlays y los registra automáticamente.
+ * Este archivo// Registrar VRConeR3FOverlay (cono R3F básico)
+overlayRegistry.register('vrConeR3FOverlay', {
+  component: VRConeR3FOverlay,
+  type: 'r3f',
+  label: 'Cono R3F',
+  description: 'Cono 3D usando React Three Fiber',
+  category: 'geometry',
+  configurable: true,
+  defaultProps: {}
+});todos los overlays y los registra automáticamente.
  * Solo necesitas importar este archivo para tener todos los overlays disponibles.
  */
 
@@ -13,6 +22,7 @@ import RotatingCubeOverlay from './RotatingCubeOverlay';
 import VRConeOverlayWrapper from '../a-frame-components-ars/VRConeOverlayWrapper';
 import TestR3FOverlay from '../ARStest/TestR3FOverlay';
 import VRConeR3FOverlay from '../ARStest/VRConeR3FOverlay';
+import VRConeR3FVideoOverlayConfigurable from '../ARStest/VRConeR3FVideoOverlayConfigurable';
 import VRConeR3FVideoOverlay from '../ARStest/VRConeR3FVideoOverlay';
 
 // Registrar overlay básico de texto
@@ -62,13 +72,25 @@ overlayRegistry.register('vrConeR3FOverlay', {
   defaultProps: {}
 });
 
-// Registrar VRConeR3FVideoOverlay (video en cono R3F)
+// Registrar VRConeR3FVideoOverlay (video en cono R3F) - Versión configurable
 overlayRegistry.register('vrConeR3FVideoOverlay', {
-  component: VRConeR3FVideoOverlay,
+  component: VRConeR3FVideoOverlayConfigurable,
   type: 'r3f',
   label: 'Video Cono R3F',
-  description: 'Video proyectado en cono R3F',
+  description: 'Video proyectado en cono R3F - Configurable',
   category: 'video',
+  configurable: true,
+  defaultProps: {}
+});
+
+// Registrar VRConeR3FVideoOverlay (video en cono R3F) - Versión original
+overlayRegistry.register('vrConeR3FVideoOverlayOriginal', {
+  component: VRConeR3FVideoOverlay,
+  type: 'r3f',
+  label: 'Video Cono R3F (Original)',
+  description: 'Video proyectado en cono R3F - Versión original',
+  category: 'video',
+  configurable: false,
   defaultProps: {}
 });
 
@@ -79,6 +101,7 @@ overlayRegistry.register('vrConeOverlay', {
   label: 'Cono de Palabras',
   description: 'Cono 3D con palabras en A-Frame',
   category: 'educational',
+  configurable: true,
   defaultProps: {
     radiusBase: 6,
     height: 6,

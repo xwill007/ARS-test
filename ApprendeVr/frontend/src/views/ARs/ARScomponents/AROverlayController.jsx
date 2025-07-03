@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import overlayRegistry from './overlays/index'; // Auto-registro de overlays
 import OverlayDropdownMenu from './OverlayDropdownMenu';
 import ARSOverlayCounter from './ARSOverlayCounter';
+import OverlayConfigPanel from './OverlayConfigPanel';
 
 /**
  * AROverlayController - Controlador completo de overlays
@@ -13,6 +14,7 @@ const AROverlayController = ({
 }) => {
   const [selectedOverlays, setSelectedOverlays] = useState(initialOverlays);
   const [renderKey, setRenderKey] = useState(0);
+  const [configPanelOverlay, setConfigPanelOverlay] = useState(null);
 
   // Obtener overlays disponibles del registro
   const availableOverlays = overlayRegistry.getAll();
@@ -78,6 +80,17 @@ const AROverlayController = ({
     setSelectedOverlays([]);
   };
 
+  const handleConfigureOverlay = (overlayKey) => {
+    console.log('Configuring overlay:', overlayKey);
+    setConfigPanelOverlay(overlayKey);
+  };
+
+  const handleCloseConfigPanel = () => {
+    setConfigPanelOverlay(null);
+    // Forzar re-render de overlays para mostrar cambios
+    setRenderKey(prev => prev + 1);
+  };
+
   const prepareOverlaysForAR = () => {
     if (selectedOverlays.length === 0) return null;
     const allOverlays = [...overlayComponents.html, ...overlayComponents.r3f];
@@ -97,6 +110,7 @@ const AROverlayController = ({
           selectedOverlays={selectedOverlays}
           onOverlayToggle={handleOverlayToggle}
           onClearAll={handleClearAllOverlays}
+          onConfigureOverlay={handleConfigureOverlay}
           multiSelect={true}
         />
       </div>
@@ -105,6 +119,15 @@ const AROverlayController = ({
 
   const OverlayCounter = () => (
     <ARSOverlayCounter selectedOverlays={selectedOverlays} />
+  );
+
+  // Componente de panel de configuración
+  const ConfigPanel = () => (
+    <OverlayConfigPanel
+      overlayId={configPanelOverlay}
+      isVisible={configPanelOverlay !== null}
+      onClose={handleCloseConfigPanel}
+    />
   );
 
   return {
@@ -116,11 +139,14 @@ const AROverlayController = ({
     // Métodos
     handleOverlayToggle,
     handleClearAllOverlays,
+    handleConfigureOverlay,
+    handleCloseConfigPanel,
     prepareOverlaysForAR,
     
     // Componentes
     OverlayControls,
     // OverlayCounter, // Ya no se necesita - el menú tiene su propio contador
+    ConfigPanel,
     
     // Utilidades
     hasHTMLOverlays: overlayComponents.html.length > 0,

@@ -20,6 +20,7 @@ const ARSApp = () => {
     renderKey,
     prepareOverlaysForAR,
     OverlayControls,
+    ConfigPanel,
     hasHTMLOverlays,
     hasR3FOverlays
   } = overlayController;
@@ -33,6 +34,9 @@ const ARSApp = () => {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }} key={renderKey} className="ars-container">
       {/* Controles de overlay */}
       <OverlayControls />
+      
+      {/* Panel de configuración */}
+      <ConfigPanel />
       
       {/* Canvas con el mundo 3D en el fondo */}
       <Canvas 

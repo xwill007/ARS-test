@@ -1,4 +1,5 @@
-{
+// Configuración base para AR estereoscópico - Las configuraciones de usuario se guardan en localStorage
+const configArs = {
   "version": "1.0.0",
   "description": "Configuración base para AR estereoscópico - Las configuraciones de usuario se guardan en localStorage",
   "deviceProfiles": {
@@ -91,6 +92,15 @@
       "radiusBase": 6,
       "height": 6,
       "showUserMarker": true
+    },
+    "vrConeR3FOverlay": {
+      "position": [0, 1, -3],
+      "radiusBase": 4,
+      "height": 6,
+      "color": "#ff8800",
+      "visible": true
     }
   }
-}
+};
+
+export default configArs;

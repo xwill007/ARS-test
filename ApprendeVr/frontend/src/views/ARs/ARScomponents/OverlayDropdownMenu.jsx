@@ -3,12 +3,13 @@ import overlayRegistry from './overlays/index';
 import './OverlayDropdownMenu.css';
 
 /**
- * Menú desplegable de overlays con checkboxes
+ * Menú desplegable de overlays con checkboxes y configuración
  */
 const OverlayDropdownMenu = ({ 
   selectedOverlays = [], 
   onOverlayToggle,
   onClearAll,
+  onConfigureOverlay,
   multiSelect = true 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -149,7 +150,8 @@ const OverlayDropdownMenu = ({
     borderRadius: '4px',
     cursor: 'pointer',
     transition: 'background 0.2s ease',
-    fontSize: '13px'
+    fontSize: '13px',
+    position: 'relative'
   };
 
   const checkboxStyle = {
@@ -232,6 +234,19 @@ const OverlayDropdownMenu = ({
 
   const getTypeIcon = (type) => {
     return type === 'r3f' ? '🟢' : '🔴';
+  };
+
+  const handleConfigureOverlay = (overlayKey, event) => {
+    event.stopPropagation();
+    if (onConfigureOverlay) {
+      onConfigureOverlay(overlayKey);
+    }
+  };
+
+  const isConfigurable = (overlayKey) => {
+    // Verificar si el overlay tiene la propiedad configurable en su registro
+    const overlayConfig = overlayRegistry.get(overlayKey);
+    return overlayConfig?.configurable === true;
   };
 
   return (
@@ -351,14 +366,41 @@ const OverlayDropdownMenu = ({
                         📁 {category}
                       </div>
                     )}
-                  </div>
+                  </div>                {/* Indicador de selección */}
+                {selected && (
+                  <span style={{ color: '#00ff00', fontSize: '14px' }}>
+                    ✓
+                  </span>
+                )}
 
-                  {/* Indicador de selección */}
-                  {selected && (
-                    <span style={{ color: '#00ff00', fontSize: '14px' }}>
-                      ✓
-                    </span>
-                  )}
+                {/* Botón de configuración */}
+                {isConfigurable(key) && (
+                  <button
+                    onClick={(e) => handleConfigureOverlay(key, e)}
+                    style={{
+                      background: 'rgba(0, 122, 204, 0.3)',
+                      border: '1px solid #007acc',
+                      borderRadius: '4px',
+                      color: '#007acc',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      padding: '2px 6px',
+                      marginLeft: '5px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = 'rgba(0, 122, 204, 0.5)';
+                      e.target.style.color = 'white';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = 'rgba(0, 122, 204, 0.3)';
+                      e.target.style.color = '#007acc';
+                    }}
+                    title="Configurar posición y parámetros"
+                  >
+                    ⚙️
+                  </button>
+                )}
                 </div>
               );
             })}
