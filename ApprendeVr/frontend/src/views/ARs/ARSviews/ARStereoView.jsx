@@ -11,6 +11,13 @@ const getInitialConfig = (defaults) => {
 
 const detectOverlayType = (overlay) => {
   if (!overlay) return 'html';
+  
+  // Si es un array, determinar el tipo basado en el primer elemento
+  if (Array.isArray(overlay)) {
+    if (overlay.length === 0) return 'html';
+    return detectOverlayType(overlay[0]);
+  }
+  
   if (typeof overlay === 'string') return 'html';
   if (overlay.type) {
     // Si es un tag HTML estándar
@@ -129,6 +136,9 @@ const ARStereoView = ({
   // Determinar overlayType automáticamente si no se pasa
   const overlayType = overlayTypeProp || detectOverlayType(overlay);
 
+  // Si hay múltiples overlays, usar 'mixed'
+  const finalOverlayType = Array.isArray(overlay) && overlay.length > 1 ? 'mixed' : overlayType;
+
   return (
     <div className="ar-stereo-container">
       {/* Botón flecha atrás para salir de ARS - Mejorado */}
@@ -209,7 +219,7 @@ const ARStereoView = ({
           width={arWidth}
           height={arHeight}
           overlay={overlay}
-          overlayType={overlayType}
+          overlayType={finalOverlayType}
           zoom={zoom}
           offset={offsetL}
         />
@@ -219,7 +229,7 @@ const ARStereoView = ({
           width={arWidth}
           height={arHeight}
           overlay={overlay}
-          overlayType={overlayType}
+          overlayType={finalOverlayType}
           zoom={zoom}
           offset={offsetR}
         />
