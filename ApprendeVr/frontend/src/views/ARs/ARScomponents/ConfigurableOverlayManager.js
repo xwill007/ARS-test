@@ -8,6 +8,44 @@ class ConfigurableOverlayManager {
   constructor() {
     this.config = { ...configData };
     this.userOverlaySettings = this.loadUserSettings();
+    this.listeners = new Map(); // Para notificar cambios
+  }
+
+  /**
+   * Suscribirse a cambios de configuración
+   */
+  subscribe(overlayId, callback) {
+    if (!this.listeners.has(overlayId)) {
+      this.listeners.set(overlayId, new Set());
+    }
+    this.listeners.get(overlayId).add(callback);
+    
+    // Retornar función para desuscribirse
+    return () => {
+      const callbacks = this.listeners.get(overlayId);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.listeners.delete(overlayId);
+        }
+      }
+    };
+  }
+
+  /**
+   * Notificar cambios a los suscriptores
+   */
+  notifyListeners(overlayId, newConfig) {
+    const callbacks = this.listeners.get(overlayId);
+    if (callbacks) {
+      callbacks.forEach(callback => {
+        try {
+          callback(newConfig);
+        } catch (error) {
+          console.error('Error in overlay config listener:', error);
+        }
+      });
+    }
   }
 
   /**
@@ -54,9 +92,16 @@ class ConfigurableOverlayManager {
     const currentUserConfig = this.userOverlaySettings[overlayId] || {};
     const updatedConfig = { ...currentUserConfig, ...newConfig };
     
-    return this.saveUserSettings({
+    const success = this.saveUserSettings({
       [overlayId]: updatedConfig
     });
+    
+    if (success) {
+      const fullConfig = this.getOverlayConfig(overlayId);
+      this.notifyListeners(overlayId, fullConfig);
+    }
+    
+    return success;
   }
 
   /**
@@ -72,7 +117,8 @@ class ConfigurableOverlayManager {
       }
     };
     
-    return this.updateOverlayConfig(overlayId, updatedConfig);
+    const success = this.updateOverlayConfig(overlayId, updatedConfig);
+    return success;
   }
 
   /**

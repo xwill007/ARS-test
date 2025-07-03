@@ -41,6 +41,10 @@ const OverlayConfigPanel = ({
     
     setConfig(newConfig);
     setHasChanges(true);
+    
+    // Guardar inmediatamente para actualización en tiempo real
+    configurableOverlayManager.updateOverlayConfig(overlayId, newConfig);
+    console.log('Configuración actualizada inmediatamente:', key, value);
   };
 
   const saveConfig = () => {
@@ -343,6 +347,43 @@ const OverlayConfigPanel = ({
                   color: 'white'
                 }}
               />
+            </div>
+
+            {/* Opciones de fondo para videos */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: 'bold',
+                color: '#ff88ff'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={config.mainVideo?.showBackground || false}
+                  onChange={(e) => updateConfig('mainVideo.showBackground', e.target.checked)}
+                  style={{ accentColor: '#ff88ff' }}
+                />
+                Mostrar fondo del video principal
+              </label>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: 'bold',
+                color: '#ff88ff'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={config.secondaryVideo?.showBackground || false}
+                  onChange={(e) => updateConfig('secondaryVideo.showBackground', e.target.checked)}
+                  style={{ accentColor: '#ff88ff' }}
+                />
+                Mostrar fondo del video secundario
+              </label>
             </div>
           </div>
         )}

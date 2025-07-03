@@ -21,6 +21,7 @@ const ARSApp = () => {
     prepareOverlaysForAR,
     OverlayControls,
     ConfigPanel,
+    DebugPanel,
     hasHTMLOverlays,
     hasR3FOverlays
   } = overlayController;
@@ -37,6 +38,9 @@ const ARSApp = () => {
       
       {/* Panel de configuración */}
       <ConfigPanel />
+      
+      {/* Panel de debug */}
+      <DebugPanel />
       
       {/* Canvas con el mundo 3D en el fondo */}
       <Canvas 

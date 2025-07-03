@@ -3,6 +3,7 @@ import overlayRegistry from './overlays/index'; // Auto-registro de overlays
 import OverlayDropdownMenu from './OverlayDropdownMenu';
 import ARSOverlayCounter from './ARSOverlayCounter';
 import OverlayConfigPanel from './OverlayConfigPanel';
+import OverlayDebugPanel from './OverlayDebugPanel';
 
 /**
  * AROverlayController - Controlador completo de overlays
@@ -35,6 +36,7 @@ const AROverlayController = ({
       const Component = overlayConfig.component;
       const props = {
         key,
+        renderKey,
         ...overlayConfig.defaultProps
       };
       
@@ -130,6 +132,14 @@ const AROverlayController = ({
     />
   );
 
+  // Panel de debug (opcional)
+  const DebugPanel = () => (
+    <OverlayDebugPanel
+      overlayId={configPanelOverlay}
+      visible={configPanelOverlay !== null}
+    />
+  );
+
   return {
     // Estado
     selectedOverlays,
@@ -147,6 +157,7 @@ const AROverlayController = ({
     OverlayControls,
     // OverlayCounter, // Ya no se necesita - el menú tiene su propio contador
     ConfigPanel,
+    DebugPanel,
     
     // Utilidades
     hasHTMLOverlays: overlayComponents.html.length > 0,

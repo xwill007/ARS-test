@@ -69,12 +69,14 @@ const configArs = {
       "mainVideo": {
         "position": [0, 5, 0],
         "scale": [5, 4, 1],
-        "videoSrc": "/videos/sample.mp4"
+        "videoSrc": "/videos/sample.mp4",
+        "showBackground": false
       },
       "secondaryVideo": {
         "position": [6, 5, 0],
         "scale": [3, 2, 1],
-        "videoSrc": "/videos/gangstas.mp4"
+        "videoSrc": "/videos/gangstas.mp4",
+        "showBackground": false
       },
       "labels": {
         "radiusBase": 8,

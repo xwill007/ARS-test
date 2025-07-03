@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Text } from '@react-three/drei';
 import ARSVideoLocal from './ARSVideoLocal';
-import configurableOverlayManager from '../ConfigurableOverlayManager';
+import useOverlayConfig from '../useOverlayConfig';
 
 /**
  * VRConeR3FVideoOverlayConfigurable - Overlay R3F configurable para video
@@ -9,10 +9,11 @@ import configurableOverlayManager from '../ConfigurableOverlayManager';
  */
 const VRConeR3FVideoOverlayConfigurable = ({ 
   onPositionChange,
-  showControls = false 
+  showControls = false,
+  renderKey = 0 // Clave para forzar re-render
 }) => {
   const overlayId = 'vrConeR3FVideoOverlay';
-  const config = configurableOverlayManager.getOverlayConfig(overlayId);
+  const { config, updatePosition } = useOverlayConfig(overlayId, renderKey);
   
   const [isDragging, setIsDragging] = useState(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -23,11 +24,11 @@ const VRConeR3FVideoOverlayConfigurable = ({
 
   // Función para actualizar posición de elementos
   const updateElementPosition = useCallback((elementKey, newPosition) => {
-    configurableOverlayManager.updateOverlayPosition(overlayId, elementKey, newPosition);
+    updatePosition(elementKey, newPosition);
     if (onPositionChange) {
       onPositionChange(overlayId, elementKey, newPosition);
     }
-  }, [overlayId, onPositionChange]);
+  }, [overlayId, onPositionChange, updatePosition]);
 
   // Obtener posiciones desde la configuración
   const mainVideoPosition = config.mainVideo?.position || [0, 5, 0];
@@ -38,6 +39,14 @@ const VRConeR3FVideoOverlayConfigurable = ({
   const height = config.labels?.height || 10;
   const yOffset = config.labels?.yOffset || -2;
   const centerMarkerPosition = config.centerMarker?.position || [0, 0, 0];
+
+  // Debug logging
+  console.log('VRConeR3FVideoOverlayConfigurable render:', {
+    overlayId,
+    renderKey,
+    mainVideoPosition,
+    config
+  });
 
   // Componente de control de posición (para modo debug)
   const PositionControl = ({ position, onUpdate, label, color = "#00ff88" }) => {
@@ -87,17 +96,20 @@ const VRConeR3FVideoOverlayConfigurable = ({
           autoPlay={true}
           loop={true}
           muted={true}
+          showFrame={false}
         />
         
-        {/* Fondo semitransparente para mejorar visibilidad */}
-        <mesh position={[0, 0, -0.1]}>
-          <planeGeometry args={[mainVideoScale[0] + 0.5, mainVideoScale[1] + 0.5]} />
-          <meshStandardMaterial 
-            color="#000000" 
-            opacity={0.3} 
-            transparent 
-          />
-        </mesh>
+        {/* Fondo semitransparente para mejorar visibilidad - solo si está habilitado */}
+        {config.mainVideo?.showBackground && (
+          <mesh position={[0, 0, -0.01]}>
+            <planeGeometry args={[mainVideoScale[0] + 0.5, mainVideoScale[1] + 0.5]} />
+            <meshStandardMaterial 
+              color="#000000" 
+              opacity={0.15} 
+              transparent 
+            />
+          </mesh>
+        )}
         
         {/* Etiqueta del video principal */}
         <Text
@@ -120,17 +132,20 @@ const VRConeR3FVideoOverlayConfigurable = ({
           autoPlay={true}
           loop={true}
           muted={true}
+          showFrame={false}
         />
         
-        {/* Fondo semitransparente para el video secundario */}
-        <mesh position={[0, 0, -0.1]}>
-          <planeGeometry args={[secondaryVideoScale[0] + 0.3, secondaryVideoScale[1] + 0.3]} />
-          <meshStandardMaterial 
-            color="#000000" 
-            opacity={0.3} 
-            transparent 
-          />
-        </mesh>
+        {/* Fondo semitransparente para el video secundario - solo si está habilitado */}
+        {config.secondaryVideo?.showBackground && (
+          <mesh position={[0, 0, -0.01]}>
+            <planeGeometry args={[secondaryVideoScale[0] + 0.3, secondaryVideoScale[1] + 0.3]} />
+            <meshStandardMaterial 
+              color="#000000" 
+              opacity={0.15} 
+              transparent 
+            />
+          </mesh>
+        )}
         
         {/* Etiqueta del video secundario */}
         <Text

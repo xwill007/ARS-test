@@ -11,6 +11,7 @@ import { VideoTexture, TextureLoader } from 'three';
  * - autoPlay: reproducir automáticamente (default: true)
  * - loop: repetir video (default: true)
  * - muted: silenciar video (default: true)
+ * - showFrame: mostrar marco alrededor del video (default: false)
  */
 const ARSVideoLocal = ({ 
   videoSrc = '/videos/sample.mp4', 
@@ -18,7 +19,8 @@ const ARSVideoLocal = ({
   scale = [4, 3, 1],
   autoPlay = true,
   loop = true,
-  muted = true
+  muted = true,
+  showFrame = false
 }) => {
   const meshRef = useRef();
   const videoRef = useRef();
@@ -56,8 +58,27 @@ const ARSVideoLocal = ({
       }
     });
 
+    video.addEventListener('loadeddata', () => {
+      console.log('Video data loaded');
+    });
+
+    video.addEventListener('playing', () => {
+      console.log('Video is playing');
+      setIsPlaying(true);
+    });
+
+    video.addEventListener('pause', () => {
+      console.log('Video paused');
+      setIsPlaying(false);
+    });
+
     video.addEventListener('error', (e) => {
       console.error('Video error:', e);
+      console.error('Video error details:', {
+        error: video.error,
+        networkState: video.networkState,
+        readyState: video.readyState
+      });
     });
 
     // Crear texture de video
@@ -121,14 +142,16 @@ const ARSVideoLocal = ({
         onClick={handleClick}
       >
         <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial map={videoTexture} />
+        <meshBasicMaterial map={videoTexture} side={2} />
       </mesh>
       
-      {/* Frame border */}
-      <mesh position={position} scale={[scale[0] * 1.05, scale[1] * 1.05, 1]}>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial color="#222" transparent opacity={0.8} />
-      </mesh>
+      {/* Frame border - solo si está habilitado */}
+      {showFrame && (
+        <mesh position={[position[0], position[1], position[2] - 0.02]} scale={[scale[0] * 1.02, scale[1] * 1.02, 1]}>
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial color="#000000" transparent opacity={0.1} />
+        </mesh>
+      )}
       
       {/* Play/Pause indicator */}
       {!isPlaying && (
