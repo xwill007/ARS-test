@@ -5,7 +5,6 @@ import VRWorldArs from './ARScomponents/VRWorldArs/VRWorlsArs';
 import ARSExperience from './ARScomponents/ARSExperience';
 import VRUserArs from './ARScomponents/VRUserArs/VRUserArs';
 import AROverlayController from './ARScomponents/AROverlayController';
-import OverlayDebugger from './ARScomponents/overlays/OverlayDebugger';
 
 const ARSApp = () => {
   const [isARActive, setIsARActive] = useState(false);
@@ -33,8 +32,7 @@ const ARSApp = () => {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }} key={renderKey} className="ars-container">
-      {/* Debugger temporal */}
-      <OverlayDebugger />
+     
       
       {/* Controles de overlay */}
       <OverlayControls />
