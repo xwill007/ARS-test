@@ -24,6 +24,13 @@ window.debugARSConfig = function() {
         } else {
           console.log('❌ No hay resolución de cámara en userConfig');
         }
+        
+        if (parsed.userConfig.selectedOverlays) {
+          console.log(`🎭 Overlays seleccionados: [${parsed.userConfig.selectedOverlays.join(', ')}]`);
+          console.log(`📊 Cantidad de overlays: ${parsed.userConfig.selectedOverlays.length}`);
+        } else {
+          console.log('❌ No hay overlays seleccionados en userConfig');
+        }
       }
     } catch (e) {
       console.error('❌ Error parsing configuración persistente:', e);
@@ -62,6 +69,7 @@ window.testARSConfig = function() {
       offsetR: 10,
       zoom: 1.2,
       cameraResolution: "1080p",
+      selectedOverlays: ["vrConeOverlay", "vrConeR3FVideoOverlay"],
       deviceType: "test",
       customProfile: true
     },
@@ -72,7 +80,32 @@ window.testARSConfig = function() {
   console.log('🧪 Configuración de prueba establecida:', testConfig);
 };
 
+// Función para probar solo overlays
+window.testOverlaysConfig = function() {
+  const testOverlays = ["vrConeOverlay", "vrConeR3FVideoOverlay"];
+  
+  // Cargar configuración actual
+  const current = localStorage.getItem('arsconfig-persistent');
+  let config = {};
+  
+  if (current) {
+    config = JSON.parse(current);
+  }
+  
+  config.userConfig = {
+    ...config.userConfig,
+    selectedOverlays: testOverlays
+  };
+  
+  localStorage.setItem('arsconfig-persistent', JSON.stringify(config));
+  console.log('🎭 Overlays de prueba establecidos:', testOverlays);
+};
+
 console.log('🛠️ Herramientas de debug ARS cargadas:');
 console.log('- debugARSConfig(): Verificar estado actual');
 console.log('- clearARSConfig(): Limpiar configuración');
 console.log('- testARSConfig(): Establecer configuración de prueba');
+console.log('- testOverlaysConfig(): Establecer overlays de prueba');
+console.log('');
+console.log('💡 Nota: Los overlays se cargan y guardan AUTOMÁTICAMENTE');
+console.log('💡 No necesitas botón "Cargar" - al hacer click en checkbox se guarda');

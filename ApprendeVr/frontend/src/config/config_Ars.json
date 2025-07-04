@@ -9,7 +9,8 @@
       "offsetL": -5,
       "offsetR": 5,
       "zoom": 1.1,
-      "cameraResolution": "720p"
+      "cameraResolution": "720p",
+      "selectedOverlays": ["vrConeOverlay"]
     },
     "tablet": {
       "arSeparation": 35,
@@ -18,7 +19,8 @@
       "offsetL": -8,
       "offsetR": 8,
       "zoom": 1.15,
-      "cameraResolution": "1080p"
+      "cameraResolution": "1080p",
+      "selectedOverlays": ["vrConeOverlay", "vrConeR3FVideoOverlay"]
     },
     "desktop": {
       "arSeparation": 50,
@@ -27,7 +29,8 @@
       "offsetL": -12,
       "offsetR": 12,
       "zoom": 1.2,
-      "cameraResolution": "1080p"
+      "cameraResolution": "1080p",
+      "selectedOverlays": ["vrConeOverlay", "vrConeR3FVideoOverlay"]
     }
   },
   "userConfig": {
@@ -38,6 +41,7 @@
     "offsetR": 0,
     "zoom": 1.0,
     "cameraResolution": "720p",
+    "selectedOverlays": ["vrConeOverlay"],
     "deviceType": "auto",
     "customProfile": false
   },
@@ -49,7 +53,8 @@
       "offsetL": 0,
       "offsetR": 0,
       "zoom": 1.0,
-      "cameraResolution": "720p"
+      "cameraResolution": "720p",
+      "selectedOverlays": ["vrConeOverlay"]
     },
     "desktop": {
       "arSeparation": 40,
@@ -58,7 +63,8 @@
       "offsetL": -10,
       "offsetR": 10,
       "zoom": 1.2,
-      "cameraResolution": "1080p"
+      "cameraResolution": "1080p",
+      "selectedOverlays": ["vrConeOverlay", "vrConeR3FVideoOverlay"]
     },
     "vr": {
       "arSeparation": 60,
@@ -67,7 +73,8 @@
       "offsetL": -20,
       "offsetR": 20,
       "zoom": 1.5,
-      "cameraResolution": "4K"
+      "cameraResolution": "4K",
+      "selectedOverlays": ["vrConeR3FVideoOverlay"]
     }
   },
   "overlays": {

@@ -4,16 +4,26 @@ import OverlayDropdownMenu from './OverlayDropdownMenu';
 import ARSOverlayCounter from './ARSOverlayCounter';
 import OverlayConfigPanel from './OverlayConfigPanel';
 import OverlayDebugPanel from './OverlayDebugPanel';
+import arsConfigManager from '../../../config/ARSConfigManager';
 
 /**
  * AROverlayController - Controlador completo de overlays
- * Versión simplificada que usa el sistema de registro automático
+ * Versión con persistencia automática que usa el sistema de configuración ARS
+ * - Carga automáticamente overlays al iniciar desde configuración persistente
+ * - Guarda automáticamente al hacer cambios (toggle de checkboxes)
+ * - No requiere botón "Cargar" - todo es automático
  */
 const AROverlayController = ({ 
   isARActive = false, 
-  initialOverlays = ['vrConeOverlay'] // Usar el overlay VRCone registrado
+  initialOverlays = ['vrConeOverlay'] // Fallback si no hay configuración guardada
 }) => {
-  const [selectedOverlays, setSelectedOverlays] = useState(initialOverlays);
+  // Cargar overlays desde la configuración persistente
+  const [selectedOverlays, setSelectedOverlays] = useState(() => {
+    const savedOverlays = arsConfigManager.loadSelectedOverlays();
+    console.log('🔄 Carga automática de overlays desde configuración:', savedOverlays);
+    return savedOverlays || initialOverlays;
+  });
+  
   const [renderKey, setRenderKey] = useState(0);
   const [configPanelOverlay, setConfigPanelOverlay] = useState(null);
 
@@ -55,10 +65,25 @@ const AROverlayController = ({
     return overlayComponents;
   };
 
-  // Actualizar renderKey cuando cambien los overlays
+  // Actualizar renderKey cuando cambien los overlays y guardar en configuración
   useEffect(() => {
     setRenderKey(prev => prev + 1);
     console.log('AROverlayController - Overlays changed to:', selectedOverlays);
+    
+    // Guardar overlays seleccionados automáticamente en la configuración
+    const saveOverlays = async () => {
+      const success = await arsConfigManager.updateOverlaySelection(selectedOverlays);
+      if (success) {
+        console.log('✅ Overlays guardados automáticamente:', selectedOverlays);
+      } else {
+        console.warn('⚠️ Error guardando overlays automáticamente');
+      }
+    };
+    
+    // Solo guardar si hay cambios (evitar guardar en la carga inicial)
+    if (renderKey > 0) {
+      saveOverlays();
+    }
   }, [selectedOverlays]);
 
   // Calcular componentes de overlay
@@ -67,7 +92,7 @@ const AROverlayController = ({
 
   // Métodos de control
   const handleOverlayToggle = (overlayKey) => {
-    console.log('Toggling overlay:', overlayKey);
+    console.log('Toggle overlay:', overlayKey, '- Guardado automático activado');
     setSelectedOverlays(prev => {
       if (prev.includes(overlayKey)) {
         return prev.filter(overlay => overlay !== overlayKey);
@@ -80,6 +105,12 @@ const AROverlayController = ({
   const handleClearAllOverlays = () => {
     console.log('Clearing all overlays');
     setSelectedOverlays([]);
+  };
+
+  const handleResetToDefaults = () => {
+    console.log('Resetting overlays to defaults');
+    const defaultOverlays = arsConfigManager.config.userConfig.selectedOverlays || ['vrConeOverlay'];
+    setSelectedOverlays(defaultOverlays);
   };
 
   const handleConfigureOverlay = (overlayKey) => {
@@ -112,6 +143,7 @@ const AROverlayController = ({
           selectedOverlays={selectedOverlays}
           onOverlayToggle={handleOverlayToggle}
           onClearAll={handleClearAllOverlays}
+          onResetToDefaults={handleResetToDefaults}
           onConfigureOverlay={handleConfigureOverlay}
           multiSelect={true}
         />
@@ -149,6 +181,7 @@ const AROverlayController = ({
     // Métodos
     handleOverlayToggle,
     handleClearAllOverlays,
+    handleResetToDefaults,
     handleConfigureOverlay,
     handleCloseConfigPanel,
     prepareOverlaysForAR,

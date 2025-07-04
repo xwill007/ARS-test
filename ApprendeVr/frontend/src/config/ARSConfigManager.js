@@ -48,9 +48,10 @@ class ARSConfigManager {
    */
   loadConfig(defaults = {}) {
     try {
-      // Defaults con resolución de cámara
+      // Defaults con resolución de cámara y overlays
       const defaultsWithCamera = {
         cameraResolution: '720p',
+        selectedOverlays: ['vrConeOverlay'],
         ...defaults
       };
 
@@ -98,7 +99,8 @@ class ARSConfigManager {
       return { 
         ...defaults, 
         ...this.getDeviceDefaults(),
-        cameraResolution: '720p' 
+        cameraResolution: '720p',
+        selectedOverlays: ['vrConeOverlay']
       };
     }
   }
@@ -198,6 +200,68 @@ class ARSConfigManager {
       return importedConfig;
     }
     throw new Error('Configuración inválida para importar');
+  }
+
+  /**
+   * Guarda solo la lista de overlays seleccionados
+   */
+  async saveSelectedOverlays(selectedOverlays) {
+    try {
+      const currentConfig = this.loadPersistedConfig() || {};
+      const newConfig = {
+        ...currentConfig,
+        selectedOverlays
+      };
+      
+      return await this.saveConfig(newConfig);
+    } catch (error) {
+      console.error('❌ Error guardando overlays seleccionados:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Carga solo la lista de overlays seleccionados
+   */
+  loadSelectedOverlays() {
+    try {
+      const config = this.loadPersistedConfig();
+      if (config && config.selectedOverlays) {
+        console.log('📂 Overlays seleccionados cargados:', config.selectedOverlays);
+        return config.selectedOverlays;
+      }
+      
+      // Fallback a configuración por defecto
+      const defaultOverlays = this.config.userConfig.selectedOverlays || ['vrConeOverlay'];
+      console.log('📄 Usando overlays por defecto:', defaultOverlays);
+      return defaultOverlays;
+    } catch (error) {
+      console.warn('Error cargando overlays seleccionados:', error);
+      return ['vrConeOverlay'];
+    }
+  }
+
+  /**
+   * Actualiza la configuración con nuevos overlays seleccionados
+   */
+  async updateOverlaySelection(selectedOverlays) {
+    try {
+      // Cargar configuración actual
+      const currentConfig = this.loadPersistedConfig() || this.config.userConfig || {};
+      
+      // Actualizar solo los overlays
+      const updatedConfig = {
+        ...currentConfig,
+        selectedOverlays,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      console.log('🔄 Actualizando selección de overlays:', selectedOverlays);
+      return await this.saveConfig(updatedConfig);
+    } catch (error) {
+      console.error('❌ Error actualizando selección de overlays:', error);
+      return false;
+    }
   }
 }
 

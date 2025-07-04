@@ -9,6 +9,7 @@ const OverlayDropdownMenu = ({
   selectedOverlays = [], 
   onOverlayToggle,
   onClearAll,
+  onResetToDefaults,
   onConfigureOverlay,
   multiSelect = true 
 }) => {
@@ -49,6 +50,12 @@ const OverlayDropdownMenu = ({
   const handleClearAll = () => {
     if (onClearAll) {
       onClearAll();
+    }
+  };
+
+  const handleResetToDefaults = () => {
+    if (onResetToDefaults) {
+      onResetToDefaults();
     }
   };
 
@@ -181,6 +188,20 @@ const OverlayDropdownMenu = ({
     fontWeight: 'bold',
     marginTop: '8px',
     transition: 'background 0.2s ease'
+  };
+
+  const actionButtonStyle = {
+    width: '100%',
+    padding: '6px',
+    color: 'white',
+    border: '1px solid #007acc',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    marginTop: '4px',
+    transition: 'all 0.2s ease',
+    background: 'rgba(0, 122, 204, 0.2)'
   };
 
   const scrollContainerStyle = {
@@ -406,21 +427,43 @@ const OverlayDropdownMenu = ({
             })}
           </div>
 
-          {/* Botón limpiar todo */}
-          {selectedCount > 0 && (
+          {/* Botones de acción */}
+          <div style={{ marginTop: '8px', borderTop: '1px solid #333', paddingTop: '8px' }}>
+            {/* Botón limpiar todo */}
+            {selectedCount > 0 && (
+              <button
+                style={clearButtonStyle}
+                onClick={handleClearAll}
+                onMouseOver={(e) => {
+                  e.target.style.background = '#cc0000';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.background = '#ff4444';
+                }}
+              >
+                🗑️ Limpiar todo ({selectedCount})
+              </button>
+            )}
+
+            {/* Botón resetear a defaults */}
             <button
-              style={clearButtonStyle}
-              onClick={handleClearAll}
+              style={actionButtonStyle}
+              onClick={handleResetToDefaults}
               onMouseOver={(e) => {
-                e.target.style.background = '#cc0000';
+                e.target.style.background = 'rgba(255, 152, 0, 0.3)';
+                e.target.style.borderColor = '#ff9800';
+                e.target.style.color = '#ffcc80';
               }}
               onMouseOut={(e) => {
-                e.target.style.background = '#ff4444';
+                e.target.style.background = 'rgba(0, 122, 204, 0.2)';
+                e.target.style.borderColor = '#007acc';
+                e.target.style.color = 'white';
               }}
+              title="Resetear a la configuración por defecto del dispositivo"
             >
-              🗑️ Limpiar todo ({selectedCount})
+              🔄 Resetear a Defaults
             </button>
-          )}
+          </div>
 
           {/* Footer con estadísticas */}
           <div style={{ 

@@ -5,7 +5,7 @@ import arsConfigManager from '../../../config/ARSConfigManager';
 
 /**
  * ARSConfig
- * Menú de configuración para la vista ARS (zoom, separación, ancho, alto, offset, resolución) + lista de overlays.
+ * Menú de configuración para la vista ARS (zoom, separación, ancho, alto, offset, resolución, overlays) + lista de overlays.
  * Props:
  *  - arSeparation, setArSeparation
  *  - arWidth, setArWidth
@@ -206,6 +206,47 @@ const ARSConfig = ({
                 </option>
               ))}
             </select>
+          </div>
+          
+          {/* Información de overlays seleccionados */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 13, color: '#4fc3f7' }}>🎭 Overlays Activos</span>
+              <span style={{ 
+                background: 'rgba(79,195,247,0.2)', 
+                color: '#4fc3f7', 
+                padding: '1px 6px', 
+                borderRadius: 10, 
+                fontSize: 11 
+              }}>
+                {(() => {
+                  try {
+                    const savedOverlays = arsConfigManager.loadSelectedOverlays();
+                    return savedOverlays.length;
+                  } catch {
+                    return 0;
+                  }
+                })()}
+              </span>
+            </div>
+            <div style={{ 
+              fontSize: 10, 
+              color: '#bbb', 
+              marginLeft: 8,
+              maxHeight: 40,
+              overflowY: 'auto'
+            }}>
+              {(() => {
+                try {
+                  const savedOverlays = arsConfigManager.loadSelectedOverlays();
+                  return savedOverlays.length > 0 
+                    ? savedOverlays.join(', ') 
+                    : 'Ningún overlay seleccionado';
+                } catch {
+                  return 'Error cargando overlays';
+                }
+              })()}
+            </div>
           </div>
           
           {/* Controles de configuración mejorados */}
@@ -413,9 +454,17 @@ const ARSConfig = ({
               } else {
                 console.log('❌ No hay configuración en localStorage');
               }
+              
+              // Verificar overlays
+              try {
+                const savedOverlays = arsConfigManager.loadSelectedOverlays();
+                console.log('🎭 Overlays seleccionados:', savedOverlays);
+              } catch (error) {
+                console.error('❌ Error cargando overlays:', error);
+              }
             }}
           >
-            🔍 Debug Config
+            🔍 Debug Config & Overlays
           </button>
         </div>
       )}

@@ -55,6 +55,7 @@ const detectOverlayType = (overlay) => {
  *  - defaultSeparation, defaultWidth, defaultHeight: valores iniciales
  *  - overlay: componente React a superponer (ej: <VRDomo />)
  *  - floatingButtonProps: props para el botón flotante (ubicación, escala)
+ *  - overlayConfig: configuración de overlays seleccionados (opcional)
  */
 const ARStereoView = ({
   onClose,
@@ -63,6 +64,7 @@ const ARStereoView = ({
   defaultHeight = 480,
   overlay = null,
   overlayType: overlayTypeProp,
+  overlayConfig = null,
   floatingButtonProps = { bottom: 32, right: 32, scale: 1 }
 }) => {
   const initial = getInitialConfig({
