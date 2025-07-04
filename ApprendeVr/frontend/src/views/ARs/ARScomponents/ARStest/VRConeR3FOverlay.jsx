@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text } from '@react-three/drei';
+import ARSVideoLocal from './ARSVideoLocal';
 
 // Usando la misma lista de palabras que VRConeOverlay
 const listaPalabras = [
@@ -50,6 +51,16 @@ const VRConeR3FOverlay = () => {
           </group>
         );
       })}
+      
+      {/* Video local en el centro */}
+      <ARSVideoLocal 
+        videoSrc="/videos/sample.mp4"
+        position={[0, height/2, 0]}
+        scale={[3, 2, 1]}
+        autoPlay={true}
+        loop={true}
+        muted={true}
+      />
       
       {/* Esfera central de referencia */}
       <mesh position={[0, 0, 0]}>

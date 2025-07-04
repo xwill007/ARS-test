@@ -1,4 +1,5 @@
-{
+// Configuración base para AR estereoscópico - Las configuraciones de usuario se guardan en localStorage
+const configArs = {
   "version": "1.0.0",
   "description": "Configuración base para AR estereoscópico - Las configuraciones de usuario se guardan en localStorage",
   "deviceProfiles": {
@@ -8,9 +9,7 @@
       "arHeight": 400,
       "offsetL": -5,
       "offsetR": 5,
-      "zoom": 1.1,
-      "cameraResolution": "720p",
-      "selectedOverlays": ["vrConeOverlay"]
+      "zoom": 1.1
     },
     "tablet": {
       "arSeparation": 35,
@@ -18,9 +17,7 @@
       "arHeight": 500,
       "offsetL": -8,
       "offsetR": 8,
-      "zoom": 1.15,
-      "cameraResolution": "1080p",
-      "selectedOverlays": ["vrConeOverlay", "vrConeR3FVideoOverlay"]
+      "zoom": 1.15
     },
     "desktop": {
       "arSeparation": 50,
@@ -28,9 +25,7 @@
       "arHeight": 550,
       "offsetL": -12,
       "offsetR": 12,
-      "zoom": 1.2,
-      "cameraResolution": "1080p",
-      "selectedOverlays": ["vrConeOverlay", "vrConeR3FVideoOverlay"]
+      "zoom": 1.2
     }
   },
   "userConfig": {
@@ -40,8 +35,6 @@
     "offsetL": 0,
     "offsetR": 0,
     "zoom": 1.0,
-    "cameraResolution": "720p",
-    "selectedOverlays": ["vrConeOverlay"],
     "deviceType": "auto",
     "customProfile": false
   },
@@ -52,9 +45,7 @@
       "arHeight": 480,
       "offsetL": 0,
       "offsetR": 0,
-      "zoom": 1.0,
-      "cameraResolution": "720p",
-      "selectedOverlays": ["vrConeOverlay"]
+      "zoom": 1.0
     },
     "desktop": {
       "arSeparation": 40,
@@ -62,9 +53,7 @@
       "arHeight": 550,
       "offsetL": -10,
       "offsetR": 10,
-      "zoom": 1.2,
-      "cameraResolution": "1080p",
-      "selectedOverlays": ["vrConeOverlay", "vrConeR3FVideoOverlay"]
+      "zoom": 1.2
     },
     "vr": {
       "arSeparation": 60,
@@ -72,9 +61,7 @@
       "arHeight": 400,
       "offsetL": -20,
       "offsetR": 20,
-      "zoom": 1.5,
-      "cameraResolution": "4K",
-      "selectedOverlays": ["vrConeR3FVideoOverlay"]
+      "zoom": 1.5
     }
   },
   "overlays": {
@@ -82,12 +69,14 @@
       "mainVideo": {
         "position": [0, 5, 0],
         "scale": [5, 4, 1],
-        "videoSrc": "/videos/sample.mp4"
+        "videoSrc": "/videos/sample.mp4",
+        "showBackground": false
       },
       "secondaryVideo": {
         "position": [6, 5, 0],
         "scale": [3, 2, 1],
-        "videoSrc": "/videos/gangstas.mp4"
+        "videoSrc": "/videos/gangstas.mp4",
+        "showBackground": false
       },
       "labels": {
         "radiusBase": 8,
@@ -105,6 +94,15 @@
       "radiusBase": 6,
       "height": 6,
       "showUserMarker": true
+    },
+    "vrConeR3FOverlay": {
+      "position": [0, 1, -3],
+      "radiusBase": 4,
+      "height": 6,
+      "color": "#ff8800",
+      "visible": true
     }
   }
-}
+};
+
+export default configArs;

@@ -10,8 +10,8 @@ import ARStereoView from '../ARSviews/ARStereoView';
  * Props:
  *  - floatingButtonProps: props para el botón flotante (ubicación, escala)
  *  - stereoViewProps: props para ARStereoView (opcional)
- *  - overlay: componente React a superponer en ambos paneles
- *  - overlayType: 'r3f' | 'html' (opcional)
+ *  - overlay: componente React a superponer en ambos paneles (puede ser array)
+ *  - overlayType: 'r3f' | 'html' | 'mixed' (opcional)
  *  - onARStatusChange: función callback para notificar cambios de estado AR
  */
 const ARSExperience = ({ 
@@ -33,6 +33,14 @@ const ARSExperience = ({
     onARStatusChange?.(false); // Notifica que AR está inactivo
   };
 
+  // Determinar el tipo de overlay automáticamente si es 'mixed'
+  const getOverlayType = () => {
+    if (overlayType === 'mixed') {
+      return 'mixed'; // ARPanel manejará la separación
+    }
+    return overlayType;
+  };
+
   return (
     <>
       {!showStereoAR && (
@@ -46,7 +54,7 @@ const ARSExperience = ({
           onClose={handleAREnd}
           floatingButtonProps={floatingButtonProps}
           overlay={overlay}
-          overlayType={overlayType}
+          overlayType={getOverlayType()}
           {...stereoViewProps}
         />
       )}

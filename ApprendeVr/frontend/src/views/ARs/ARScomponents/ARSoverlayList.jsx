@@ -1,58 +1,83 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import overlayRegistry from './overlays/index'; // Auto-registro de overlays
 
 /**
  * ARSoverlayList
- * Lista de botones para seleccionar overlays
+ * Lista de botones para seleccionar overlays (soporte para selección múltiple)
+ * Ahora usa el registro automático de overlays
  */
 const ARSoverlayList = ({ 
   selectedOverlay, 
+  selectedOverlays, 
   setSelectedOverlay, 
   overlays, 
-  inline = false 
+  inline = false,
+  multiSelect = false 
 }) => {
-  const overlayButtons = [
-    { key: 'TestR3FOverlay', label: 'Overlay Static' },
-    { key: 'VRConeOverlay', label: 'Overlay HTML' },
-    { key: 'VRConeR3FOverlay', label: 'Overlay R3F' }
-  ];
+  // Obtener overlays dinámicamente del registro
+  const overlayButtons = useMemo(() => {
+    const allOverlays = overlayRegistry.getAll();
+    return Object.entries(allOverlays).map(([key, config]) => ({
+      key,
+      label: config.label,
+      type: config.type,
+      description: config.description,
+      category: config.category
+    }));
+  }, []);
 
   const handleOverlayChange = (overlayKey) => {
-    console.log('Button clicked:', overlayKey, 'Current:', selectedOverlay);
+    console.log('Button clicked:', overlayKey);
+    if (multiSelect) {
+      console.log('Multi-select mode, current overlays:', selectedOverlays);
+    } else {
+      console.log('Single-select mode, current overlay:', selectedOverlay);
+    }
+    
     if (setSelectedOverlay) {
       setSelectedOverlay(overlayKey);
     }
   };
 
+  const isSelected = (overlayKey) => {
+    if (multiSelect && selectedOverlays) {
+      return selectedOverlays.includes(overlayKey);
+    }
+    return selectedOverlay === overlayKey;
+  };
+
   const getButtonStyle = (overlayKey) => {
-    const isSelected = selectedOverlay === overlayKey;
+    const selected = isSelected(overlayKey);
     
     if (inline) {
       return {
         padding: '8px 12px',
         fontSize: 12,
-        background: isSelected ? '#0066cc' : '#1e90ff',
+        background: selected ? '#0066cc' : '#1e90ff',
         color: 'white',
-        border: isSelected ? '2px solid #ffffff' : 'none',
+        border: selected ? '2px solid #ffffff' : 'none',
         borderRadius: 4,
         cursor: 'pointer',
         width: '100%',
         textAlign: 'left',
-        fontWeight: isSelected ? 'bold' : 'normal',
+        fontWeight: selected ? 'bold' : 'normal',
         marginBottom: '4px',
-        transition: 'all 0.2s ease'
+        transition: 'all 0.2s ease',
+        position: 'relative'
       };
     } else {
       return {
         padding: '8px 16px',
         fontSize: 14,
-        background: isSelected ? '#1e90ff' : '#f0f0f0',
-        color: isSelected ? 'white' : 'black',
-        border: isSelected ? '2px solid #0066cc' : '1px solid #ccc',
+        background: selected ? '#1e90ff' : '#f0f0f0',
+        color: selected ? 'white' : 'black',
+        border: selected ? '2px solid #0066cc' : '1px solid #ccc',
         borderRadius: 6,
         cursor: 'pointer',
-        fontWeight: isSelected ? 'bold' : 'normal',
-        boxShadow: isSelected ? '0 2px 8px rgba(30,144,255,0.4)' : '0 1px 3px rgba(0,0,0,0.2)',
-        transition: 'all 0.2s ease'
+        fontWeight: selected ? 'bold' : 'normal',
+        boxShadow: selected ? '0 2px 8px rgba(30,144,255,0.4)' : '0 1px 3px rgba(0,0,0,0.2)',
+        transition: 'all 0.2s ease',
+        position: 'relative'
       };
     }
   };
@@ -71,13 +96,24 @@ const ARSoverlayList = ({
 
   return (
     <div style={containerStyle}>
+      {multiSelect && (
+        <div style={{ 
+          fontSize: 12, 
+          color: '#666', 
+          marginBottom: 8, 
+          textAlign: 'center',
+          fontStyle: 'italic' 
+        }}>
+          Haz clic para activar/desactivar overlays
+        </div>
+      )}
       {overlayButtons.map(({ key, label }) => (
         <button
           key={key}
           style={getButtonStyle(key)}
           onClick={() => handleOverlayChange(key)}
           onMouseOver={(e) => {
-            if (selectedOverlay !== key) {
+            if (!isSelected(key)) {
               e.target.style.opacity = '0.8';
             }
           }}
@@ -86,6 +122,18 @@ const ARSoverlayList = ({
           }}
         >
           {label}
+          {multiSelect && isSelected(key) && (
+            <span style={{ 
+              position: 'absolute', 
+              right: 8, 
+              top: '50%', 
+              transform: 'translateY(-50%)',
+              fontSize: 10,
+              color: '#00ff00'
+            }}>
+              ✓
+            </span>
+          )}
         </button>
       ))}
     </div>
