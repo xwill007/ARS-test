@@ -13,7 +13,8 @@ import arsConfigManager from '../../../config/ARSConfigManager';
  *  - arHeight, setArHeight
  *  - offsetL, setOffsetL
  *  - offsetR, setOffsetR
- *  - zoom, setZoom
+ *  - scale, setScale
+ *  - cameraZoom, setCameraZoom
  *  - cameraResolution, setCameraResolution
  *  - onCameraResolutionChange: función para cambiar la resolución de la cámara
  *  - showMenu, setShowMenu
@@ -28,7 +29,8 @@ const ARSConfig = ({
   arHeight, setArHeight,
   offsetL, setOffsetL,
   offsetR, setOffsetR,
-  zoom, setZoom,
+  scale, setScale,
+  cameraZoom, setCameraZoom,
   cameraResolution, setCameraResolution,
   onCameraResolutionChange,
   showMenu, setShowMenu,
@@ -81,7 +83,12 @@ const ARSConfig = ({
       setArHeight(preset.arHeight);
       setOffsetL(preset.offsetL);
       setOffsetR(preset.offsetR);
-      setZoom(preset.zoom);
+      setScale(preset.scale);
+      
+      // Actualizar zoom de cámara si está en el preset
+      if (preset.cameraZoom) {
+        setCameraZoom(preset.cameraZoom);
+      }
       
       // Actualizar resolución de cámara si está en el preset
       if (preset.cameraResolution) {
@@ -374,17 +381,31 @@ const ARSConfig = ({
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ minWidth: 90, fontSize: 13 }}>🔍 Zoom</span>
+                <span style={{ minWidth: 90, fontSize: 13 }}>� Escala</span>
                 <input 
                   type="range" 
                   min="0.3" 
                   max="3" 
                   step="0.05" 
-                  value={zoom} 
-                  onChange={e => setZoom(Number(e.target.value))}
+                  value={scale} 
+                  onChange={e => setScale(Number(e.target.value))}
                   style={{ flex: 1, accentColor: '#66bb6a' }}
                 />
-                <span style={{ width: 40, textAlign: 'right', fontSize: 12 }}>{zoom.toFixed(2)}x</span>
+                <span style={{ width: 40, textAlign: 'right', fontSize: 12 }}>{scale.toFixed(2)}x</span>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ minWidth: 90, fontSize: 13 }}>🔍 Zoom Cámara</span>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="8" 
+                  step="0.1" 
+                  value={cameraZoom} 
+                  onChange={e => setCameraZoom(Number(e.target.value))}
+                  style={{ flex: 1, accentColor: '#ff9800' }}
+                />
+                <span style={{ width: 40, textAlign: 'right', fontSize: 12 }}>{cameraZoom.toFixed(1)}x</span>
               </div>
               
               {/* Botones de presets */}

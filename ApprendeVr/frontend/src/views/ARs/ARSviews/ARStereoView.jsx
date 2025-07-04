@@ -74,6 +74,7 @@ const ARStereoView = ({
     offsetL: 0,
     offsetR: 0,
     zoom: 1,
+    cameraZoom: 1,
     cameraResolution: '720p'
   });
   const [arSeparation, setArSeparation] = useState(initial.arSeparation);
@@ -82,6 +83,7 @@ const ARStereoView = ({
   const [offsetL, setOffsetL] = useState(initial.offsetL);
   const [offsetR, setOffsetR] = useState(initial.offsetR);
   const [zoom, setZoom] = useState(initial.zoom);
+  const [cameraZoom, setCameraZoom] = useState(initial.cameraZoom || 1);
   const [cameraResolution, setCameraResolution] = useState(initial.cameraResolution || '720p'); // Resolución por defecto
   // Solo mostrar el menú si no hay configuración previa
   const [showMenu, setShowMenu] = useState(() => {
@@ -105,7 +107,7 @@ const ARStereoView = ({
   };
 
   // Función para inicializar la cámara con una resolución específica
-  const initializeCamera = async (resolution = '720p') => {
+  const initializeCamera = async (resolution = '720p', zoomLevel = 1) => {
     try {
       // Detener stream anterior si existe
       if (streamRef.current) {
@@ -117,12 +119,13 @@ const ARStereoView = ({
         video: { 
           facingMode: 'environment',
           width: { ideal: dimensions.width },
-          height: { ideal: dimensions.height }
+          height: { ideal: dimensions.height },
+          zoom: { ideal: zoomLevel }
         }, 
         audio: false
       };
 
-      console.log(`🎥 Iniciando cámara con resolución ${resolution}:`, dimensions);
+      console.log(`🎥 Iniciando cámara con resolución ${resolution} y zoom ${zoomLevel}x:`, dimensions);
       
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
@@ -156,7 +159,8 @@ const ARStereoView = ({
     console.log('📐 AR Height:', arHeight);
     console.log('⬅️ Offset L:', offsetL);
     console.log('➡️ Offset R:', offsetR);
-    console.log('🔍 Zoom:', zoom);
+    console.log('🔍 Zoom (Escala):', zoom);
+    console.log('📷 Zoom Cámara:', cameraZoom);
     
     // Verificar localStorage
     const persistent = localStorage.getItem('arsconfig-persistent');
@@ -176,6 +180,7 @@ const ARStereoView = ({
       offsetL, 
       offsetR, 
       zoom, 
+      cameraZoom,
       cameraResolution 
     };
     console.log('💾 Guardando configuración:', config);
@@ -203,14 +208,57 @@ const ARStereoView = ({
     setOffsetL(newConfig.offsetL);
     setOffsetR(newConfig.offsetR);
     setZoom(newConfig.zoom);
+    setCameraZoom(newConfig.cameraZoom || 1);
     
     // Actualizar resolución de cámara si está en la configuración
     if (newConfig.cameraResolution) {
       console.log(`📹 Actualizando resolución de cámara a: ${newConfig.cameraResolution}`);
       setCameraResolution(newConfig.cameraResolution);
-      initializeCamera(newConfig.cameraResolution);
+      initializeCamera(newConfig.cameraResolution, newConfig.cameraZoom || 1);
     } else {
       console.log('⚠️ Nueva configuración no incluye cameraResolution');
+    }
+    
+    // Actualizar zoom de cámara si está en la configuración
+    if (newConfig.cameraZoom) {
+      console.log(`🔍 Actualizando zoom de cámara a: ${newConfig.cameraZoom}x`);
+      applyCameraZoom(newConfig.cameraZoom);
+    }
+  };
+
+  // Función para aplicar zoom de cámara en tiempo real
+  const applyCameraZoom = async (zoomLevel) => {
+    try {
+      if (streamRef.current) {
+        const videoTrack = streamRef.current.getVideoTracks()[0];
+        if (videoTrack && videoTrack.getCapabilities && videoTrack.applyConstraints) {
+          const capabilities = videoTrack.getCapabilities();
+          
+          // Verificar si el dispositivo soporta zoom
+          if (capabilities.zoom) {
+            const constraints = {
+              zoom: {
+                ideal: Math.min(Math.max(zoomLevel, capabilities.zoom.min), capabilities.zoom.max)
+              }
+            };
+            
+            await videoTrack.applyConstraints(constraints);
+            console.log(`✅ Zoom de cámara aplicado: ${zoomLevel}x`);
+          } else {
+            console.log('⚠️ El dispositivo no soporta zoom de cámara nativo');
+            // Fallback: aplicar zoom visual en el elemento video
+            if (videoRefL.current) {
+              videoRefL.current.style.transform = `scale(${zoomLevel})`;
+            }
+            if (videoRefR.current) {
+              videoRefR.current.style.transform = `scale(${zoomLevel})`;
+            }
+            console.log(`✅ Zoom visual aplicado: ${zoomLevel}x`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error aplicando zoom de cámara:', error);
     }
   };
 
@@ -248,6 +296,13 @@ const ARStereoView = ({
     // Inicializar cámara con la resolución actual
     initializeCamera(cameraResolution);
   }, [cameraResolution]);
+
+  // Efecto para aplicar zoom de cámara cuando cambia
+  useEffect(() => {
+    if (cameraZoom && cameraZoom !== 1) {
+      applyCameraZoom(cameraZoom);
+    }
+  }, [cameraZoom]);
 
   // Determinar overlayType automáticamente si no se pasa
   const overlayType = overlayTypeProp || detectOverlayType(overlay);
@@ -303,8 +358,9 @@ const ARStereoView = ({
         arWidth={arWidth} setArWidth={setArWidth}
         arHeight={arHeight} setArHeight={setArHeight}
         offsetL={offsetL} setOffsetL={setOffsetL}
-        offsetR={offsetR} setOffsetR={setOffsetR}
-        zoom={zoom} setZoom={setZoom}
+        offsetR={offsetR} setOffsetR={setArWidth}
+        scale={zoom} setScale={setZoom}
+        cameraZoom={cameraZoom} setCameraZoom={setCameraZoom}
         cameraResolution={cameraResolution} setCameraResolution={setCameraResolution}
         onCameraResolutionChange={handleCameraResolutionChange}
         showMenu={showMenu} setShowMenu={setShowMenu}
@@ -339,6 +395,7 @@ const ARStereoView = ({
           overlay={overlay}
           overlayType={finalOverlayType}
           zoom={zoom}
+          cameraZoom={cameraZoom}
           offset={offsetL}
         />
         {/* Vista derecha */}
@@ -349,6 +406,7 @@ const ARStereoView = ({
           overlay={overlay}
           overlayType={finalOverlayType}
           zoom={zoom}
+          cameraZoom={cameraZoom}
           offset={offsetR}
         />
       </div>

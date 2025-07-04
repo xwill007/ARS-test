@@ -13,7 +13,7 @@ import { Canvas } from '@react-three/fiber';
  */
 const showLogs = true; // Cambia a false para desactivar logs
 
-const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, style = {}, zoom = 1, offset = 0 }, ref) => {
+const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, style = {}, zoom = 1, cameraZoom = 1, offset = 0 }, ref) => {
   if (showLogs) console.log('[ARPanel] overlayType:', overlayType, 'overlay:', overlay);
   // Si overlayType es 'r3f', renderizar overlay dentro de un Canvas embebido
   const renderOverlay = () => {
