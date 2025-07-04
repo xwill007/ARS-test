@@ -34,9 +34,12 @@ const OverlayDropdownMenu = ({
   const selectedCount = selectedOverlays.length;
 
   const handleOverlayChange = (overlayKey) => {
+    console.log('🔄 Smooth overlay toggle:', overlayKey);
     if (onOverlayToggle) {
       onOverlayToggle(overlayKey);
     }
+    // Mantener el menú abierto para selecciones fluidas múltiples
+    // El overlay se actualiza automáticamente sin resetear la vista
   };
 
   const isSelected = (overlayKey) => {
@@ -156,7 +159,7 @@ const OverlayDropdownMenu = ({
     padding: '8px 12px',
     borderRadius: '4px',
     cursor: 'pointer',
-    transition: 'background 0.2s ease',
+    transition: 'all 0.3s ease', // Transición suave para cambios
     fontSize: '13px',
     position: 'relative'
   };
@@ -328,17 +331,21 @@ const OverlayDropdownMenu = ({
                   key={key}
                   style={{
                     ...overlayItemStyle,
-                    background: selected ? 'rgba(0, 122, 204, 0.2)' : 'transparent'
+                    background: selected ? 'rgba(0, 122, 204, 0.3)' : 'transparent',
+                    borderLeft: selected ? '3px solid #00ff00' : '3px solid transparent',
+                    transform: selected ? 'translateX(2px)' : 'translateX(0px)'
                   }}
                   onClick={() => handleOverlayChange(key)}
                   onMouseOver={(e) => {
                     if (!selected) {
                       e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                      e.target.style.transform = 'translateX(2px)';
                     }
                   }}
                   onMouseOut={(e) => {
                     if (!selected) {
                       e.target.style.background = 'transparent';
+                      e.target.style.transform = 'translateX(0px)';
                     }
                   }}
                 >

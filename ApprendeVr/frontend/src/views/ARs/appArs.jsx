@@ -17,7 +17,6 @@ const ARSApp = () => {
 
   const {
     overlayComponents,
-    renderKey,
     prepareOverlaysForAR,
     OverlayControls,
     ConfigPanel,
@@ -32,7 +31,7 @@ const ARSApp = () => {
   };
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }} key={renderKey} className="ars-container">
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }} className="ars-container">
       {/* Controles de overlay */}
       <OverlayControls />
       
@@ -42,9 +41,8 @@ const ARSApp = () => {
       {/* Panel de debug */}
       <DebugPanel />
       
-      {/* Canvas con el mundo 3D en el fondo */}
+      {/* Canvas con el mundo 3D en el fondo - Sin renderKey para evitar reseteos */}
       <Canvas 
-        key={`ar-canvas-${renderKey}`}
         style={{ width: '100%', height: '100%' }}
         camera={{ position: [0, 2, 5], fov: 50 }}
       >
@@ -71,9 +69,13 @@ const ARSApp = () => {
         </VRWorldArs>
       </Canvas>
 
-      {/* Overlay HTML superpuesto */}
+      {/* Overlay HTML superpuesto - Con key estable para evitar reseteos */}
       {hasHTMLOverlays && (
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }} className="ars-html-overlay">
+        <div 
+          key="html-overlay-container"
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }} 
+          className="ars-html-overlay"
+        >
           {overlayComponents.html}
         </div>
       )}

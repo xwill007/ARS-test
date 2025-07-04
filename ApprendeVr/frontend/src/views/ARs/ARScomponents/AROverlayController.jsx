@@ -46,7 +46,8 @@ const AROverlayController = ({
       const Component = overlayConfig.component;
       const props = {
         key,
-        renderKey,
+        // Solo pasar renderKey para overlays que realmente lo necesiten
+        ...(overlayConfig.needsRenderKey ? { renderKey } : {}),
         ...overlayConfig.defaultProps
       };
       
@@ -65,9 +66,14 @@ const AROverlayController = ({
     return overlayComponents;
   };
 
-  // Actualizar renderKey cuando cambien los overlays y guardar en configuración
+  // Actualizar renderKey solo cuando sea necesario y guardar en configuración
   useEffect(() => {
-    setRenderKey(prev => prev + 1);
+    // Evitar loops infinitos en la carga inicial
+    if (renderKey === 0) {
+      console.log('🔄 Carga inicial de overlays:', selectedOverlays);
+      return;
+    }
+    
     console.log('AROverlayController - Overlays changed to:', selectedOverlays);
     
     // Guardar overlays seleccionados automáticamente en la configuración
@@ -80,37 +86,48 @@ const AROverlayController = ({
       }
     };
     
-    // Solo guardar si hay cambios (evitar guardar en la carga inicial)
-    if (renderKey > 0) {
-      saveOverlays();
-    }
-  }, [selectedOverlays]);
+    // Guardar automáticamente en cada cambio
+    saveOverlays();
+    
+    // No incrementar renderKey para cambios simples de overlay
+    // Solo para casos específicos donde sea realmente necesario
+  }, [selectedOverlays, renderKey]);
 
-  // Calcular componentes de overlay
-  const overlayKeys = selectedOverlays.map((overlay, index) => `${overlay}-${renderKey}-${index}`);
+  // Calcular componentes de overlay con keys estables (no dependientes del renderKey)
+  const overlayKeys = selectedOverlays.map((overlay) => `${overlay}-stable`);
   const overlayComponents = createOverlays(selectedOverlays, overlayKeys);
 
-  // Métodos de control
+  // Métodos de control optimizados para fluidez
   const handleOverlayToggle = (overlayKey) => {
-    console.log('Toggle overlay:', overlayKey, '- Guardado automático activado');
+    console.log('🔄 Toggle overlay:', overlayKey, '- Guardado automático y transición fluida');
     setSelectedOverlays(prev => {
-      if (prev.includes(overlayKey)) {
-        return prev.filter(overlay => overlay !== overlayKey);
-      } else {
-        return [...prev, overlayKey];
+      const newOverlays = prev.includes(overlayKey)
+        ? prev.filter(overlay => overlay !== overlayKey)
+        : [...prev, overlayKey];
+      
+      // Incrementar renderKey solo si cambió el número de overlays activos
+      // Esto permite transiciones más suaves
+      if (prev.length !== newOverlays.length) {
+        setRenderKey(current => current + 1);
       }
+      
+      return newOverlays;
     });
   };
 
   const handleClearAllOverlays = () => {
-    console.log('Clearing all overlays');
+    console.log('🧹 Clearing all overlays - Smooth transition');
     setSelectedOverlays([]);
+    // Forzar actualización visual al limpiar todo
+    setRenderKey(prev => prev + 1);
   };
 
   const handleResetToDefaults = () => {
-    console.log('Resetting overlays to defaults');
+    console.log('🔄 Resetting overlays to defaults - Smooth transition');
     const defaultOverlays = arsConfigManager.config.userConfig.selectedOverlays || ['vrConeOverlay'];
     setSelectedOverlays(defaultOverlays);
+    // Forzar actualización visual al resetear
+    setRenderKey(prev => prev + 1);
   };
 
   const handleConfigureOverlay = (overlayKey) => {
@@ -120,7 +137,13 @@ const AROverlayController = ({
 
   const handleCloseConfigPanel = () => {
     setConfigPanelOverlay(null);
-    // Forzar re-render de overlays para mostrar cambios
+    // Forzar re-render de overlays para mostrar cambios de configuración
+    setRenderKey(prev => prev + 1);
+  };
+
+  // Función para forzar re-render cuando sea realmente necesario
+  const forceOverlayRefresh = () => {
+    console.log('🔄 Forzando refresh de overlays...');
     setRenderKey(prev => prev + 1);
   };
 
@@ -184,6 +207,7 @@ const AROverlayController = ({
     handleResetToDefaults,
     handleConfigureOverlay,
     handleCloseConfigPanel,
+    forceOverlayRefresh,
     prepareOverlaysForAR,
     
     // Componentes
