@@ -9,10 +9,10 @@ import AROverlayController from './ARScomponents/AROverlayController';
 const ARSApp = () => {
   const [isARActive, setIsARActive] = useState(false);
 
-  // Usar el controlador de overlays
+  // Usar el controlador de overlays - ahora reacciona automáticamente a cambios en la configuración
   const overlayController = AROverlayController({ 
     isARActive,
-    initialOverlays: ['vrConeOverlay'] // Usar el overlay VRCone registrado
+    initialOverlays: ['vrConeOverlay'] // Fallback si no hay configuración guardada
   });
 
   const {

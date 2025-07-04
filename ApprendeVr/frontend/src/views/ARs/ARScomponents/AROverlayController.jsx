@@ -23,6 +23,40 @@ const AROverlayController = ({
     console.log('🔄 Carga automática de overlays desde configuración:', savedOverlays);
     return savedOverlays || initialOverlays;
   });
+
+  // Escuchar cambios en la configuración de overlays
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'arsconfig-persistent' && e.newValue) {
+        try {
+          const config = JSON.parse(e.newValue);
+          if (config.userConfig?.selectedOverlays) {
+            console.log('🔄 AROverlayController: Actualizando overlays desde configuración:', config.userConfig.selectedOverlays);
+            setSelectedOverlays(config.userConfig.selectedOverlays);
+          }
+        } catch (error) {
+          console.error('❌ Error procesando cambio de configuración en AROverlayController:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // También escuchar cambios directos en el objeto arsConfigManager
+  useEffect(() => {
+    const checkConfigChanges = () => {
+      const currentOverlays = arsConfigManager.loadSelectedOverlays();
+      if (JSON.stringify(currentOverlays) !== JSON.stringify(selectedOverlays)) {
+        console.log('🔄 AROverlayController: Detectado cambio directo en configuración:', currentOverlays);
+        setSelectedOverlays(currentOverlays);
+      }
+    };
+
+    const interval = setInterval(checkConfigChanges, 1000);
+    return () => clearInterval(interval);
+  }, [selectedOverlays]);
   
   const [renderKey, setRenderKey] = useState(0);
   const [configPanelOverlay, setConfigPanelOverlay] = useState(null);
