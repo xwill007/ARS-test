@@ -291,7 +291,7 @@ const OverlayDropdownMenu = ({
         <span>
           📋 OVERLAYS
           {selectedCount > 0 && (
-            <span style={badgeStyle}>{selectedCount}</span>
+            <span className="overlay-count-badge" style={badgeStyle}>{selectedCount}</span>
           )}
         </span>
         <span style={{ 
@@ -329,6 +329,7 @@ const OverlayDropdownMenu = ({
               return (
                 <div
                   key={key}
+                  className={`overlay-item-smooth ${selected ? 'overlay-item-selected' : ''}`}
                   style={{
                     ...overlayItemStyle,
                     background: selected ? 'rgba(0, 122, 204, 0.3)' : 'transparent',
@@ -354,6 +355,7 @@ const OverlayDropdownMenu = ({
                     type="checkbox"
                     checked={selected}
                     onChange={() => handleOverlayChange(key)}
+                    className="overlay-checkbox"
                     style={checkboxStyle}
                     onClick={(e) => e.stopPropagation()}
                   />

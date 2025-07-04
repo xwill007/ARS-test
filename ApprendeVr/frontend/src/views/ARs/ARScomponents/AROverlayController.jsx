@@ -30,8 +30,8 @@ const AROverlayController = ({
   // Obtener overlays disponibles del registro
   const availableOverlays = overlayRegistry.getAll();
 
-  // Función para crear los overlays dinámicamente usando el registro
-  const createOverlays = (overlayKeys, keys) => {
+  // Función para crear los overlays dinámicamente usando el registro con keys optimizadas
+  const createOverlays = (overlayKeys) => {
     const overlayComponents = { html: [], r3f: [] };
 
     overlayKeys.forEach((overlayKey, index) => {
@@ -42,11 +42,12 @@ const AROverlayController = ({
         return;
       }
       
-      const key = keys[index];
+      // Usar key estable basada en el overlayKey, no en el renderKey
+      const stableKey = `${overlayKey}-component`;
       const Component = overlayConfig.component;
       const props = {
-        key,
-        // Solo pasar renderKey para overlays que realmente lo necesiten
+        key: stableKey,
+        // Solo pasar renderKey para overlays que realmente lo necesiten para reconfiguracion
         ...(overlayConfig.needsRenderKey ? { renderKey } : {}),
         ...overlayConfig.defaultProps
       };
@@ -94,8 +95,7 @@ const AROverlayController = ({
   }, [selectedOverlays, renderKey]);
 
   // Calcular componentes de overlay con keys estables (no dependientes del renderKey)
-  const overlayKeys = selectedOverlays.map((overlay) => `${overlay}-stable`);
-  const overlayComponents = createOverlays(selectedOverlays, overlayKeys);
+  const overlayComponents = createOverlays(selectedOverlays);
 
   // Métodos de control optimizados para fluidez
   const handleOverlayToggle = (overlayKey) => {
