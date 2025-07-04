@@ -6,7 +6,17 @@ import arsConfigManager from '../../../config/ARSConfigManager';
 
 // Usar el nuevo sistema de configuración basado en archivos JSON
 const getInitialConfig = (defaults) => {
-  return arsConfigManager.loadConfig(defaults);
+  console.log('📥 Obteniendo configuración inicial con defaults:', defaults);
+  const config = arsConfigManager.loadConfig(defaults);
+  console.log('🔧 Configuración inicial cargada:', config);
+  
+  // Asegurar que cameraResolution siempre esté presente
+  if (!config.cameraResolution) {
+    console.log('⚠️ cameraResolution no encontrada, usando 720p por defecto');
+    config.cameraResolution = '720p';
+  }
+  
+  return config;
 };
 
 const detectOverlayType = (overlay) => {
@@ -61,7 +71,8 @@ const ARStereoView = ({
     arHeight: defaultHeight,
     offsetL: 0,
     offsetR: 0,
-    zoom: 1
+    zoom: 1,
+    cameraResolution: '720p'
   });
   const [arSeparation, setArSeparation] = useState(initial.arSeparation);
   const [arWidth, setArWidth] = useState(initial.arWidth);
@@ -69,6 +80,7 @@ const ARStereoView = ({
   const [offsetL, setOffsetL] = useState(initial.offsetL);
   const [offsetR, setOffsetR] = useState(initial.offsetR);
   const [zoom, setZoom] = useState(initial.zoom);
+  const [cameraResolution, setCameraResolution] = useState(initial.cameraResolution || '720p'); // Resolución por defecto
   // Solo mostrar el menú si no hay configuración previa
   const [showMenu, setShowMenu] = useState(() => {
     // Verificar si existe configuración personalizada
@@ -77,15 +89,103 @@ const ARStereoView = ({
   });
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
+  const streamRef = useRef(null);
+
+  // Función para obtener las dimensiones de la resolución
+  const getResolutionDimensions = (resolution) => {
+    const resolutions = {
+      '480p': { width: 640, height: 480 },
+      '720p': { width: 1280, height: 720 },
+      '1080p': { width: 1920, height: 1080 },
+      '4K': { width: 3840, height: 2160 }
+    };
+    return resolutions[resolution] || resolutions['720p'];
+  };
+
+  // Función para inicializar la cámara con una resolución específica
+  const initializeCamera = async (resolution = '720p') => {
+    try {
+      // Detener stream anterior si existe
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+
+      const dimensions = getResolutionDimensions(resolution);
+      const constraints = {
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: dimensions.width },
+          height: { ideal: dimensions.height }
+        }, 
+        audio: false
+      };
+
+      console.log(`🎥 Iniciando cámara con resolución ${resolution}:`, dimensions);
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      
+      if (videoRefL.current) videoRefL.current.srcObject = stream;
+      if (videoRefR.current) videoRefR.current.srcObject = stream;
+      
+      console.log(`✅ Cámara inicializada con resolución ${resolution}`);
+    } catch (e) {
+      console.error(`❌ Error al acceder a la cámara con resolución ${resolution}:`, e);
+      // Fallback a resolución más baja si falla
+      if (resolution !== '480p') {
+        console.log('🔄 Intentando con resolución 480p...');
+        await initializeCamera('480p');
+      }
+    }
+  };
+
+  // Función para manejar el cambio de resolución
+  const handleCameraResolutionChange = async (newResolution) => {
+    console.log(`🔧 Cambiando resolución de cámara a: ${newResolution}`);
+    await initializeCamera(newResolution);
+  };
+
+  // Función de debugging para verificar el estado actual
+  const debugCurrentConfig = () => {
+    console.log('🔍 Estado actual de la configuración:');
+    console.log('📹 Camera Resolution:', cameraResolution);
+    console.log('📐 AR Separation:', arSeparation);
+    console.log('📏 AR Width:', arWidth);
+    console.log('📐 AR Height:', arHeight);
+    console.log('⬅️ Offset L:', offsetL);
+    console.log('➡️ Offset R:', offsetR);
+    console.log('🔍 Zoom:', zoom);
+    
+    // Verificar localStorage
+    const persistent = localStorage.getItem('arsconfig-persistent');
+    if (persistent) {
+      console.log('💾 Configuración persistente en localStorage:', JSON.parse(persistent));
+    } else {
+      console.log('❌ No hay configuración persistente en localStorage');
+    }
+  };
 
   // Guardar configuración en archivo JSON
   const saveConfig = async () => {
-    const config = { arSeparation, arWidth, arHeight, offsetL, offsetR, zoom };
+    const config = { 
+      arSeparation, 
+      arWidth, 
+      arHeight, 
+      offsetL, 
+      offsetR, 
+      zoom, 
+      cameraResolution 
+    };
+    console.log('💾 Guardando configuración:', config);
     const success = await arsConfigManager.saveConfig(config);
     if (success) {
       setShowMenu(false);
       // Mostrar feedback visual de éxito
       console.log('✅ Configuración guardada en config_Ars.json');
+      // Debug después de guardar
+      setTimeout(() => {
+        debugCurrentConfig();
+      }, 100);
     } else {
       console.error('❌ Error al guardar configuración');
     }
@@ -93,32 +193,38 @@ const ARStereoView = ({
 
   // Función para manejar cuando se carga una nueva configuración
   const handleConfigLoaded = (newConfig) => {
+    console.log('📂 Cargando nueva configuración:', newConfig);
+    
     setArSeparation(newConfig.arSeparation);
     setArWidth(newConfig.arWidth);
     setArHeight(newConfig.arHeight);
     setOffsetL(newConfig.offsetL);
     setOffsetR(newConfig.offsetR);
     setZoom(newConfig.zoom);
+    
+    // Actualizar resolución de cámara si está en la configuración
+    if (newConfig.cameraResolution) {
+      console.log(`📹 Actualizando resolución de cámara a: ${newConfig.cameraResolution}`);
+      setCameraResolution(newConfig.cameraResolution);
+      initializeCamera(newConfig.cameraResolution);
+    } else {
+      console.log('⚠️ Nueva configuración no incluye cameraResolution');
+    }
   };
 
   useEffect(() => {
+    console.log('🎬 Iniciando ARStereoView con resolución:', cameraResolution);
+    
+    // Debug de configuración inicial
+    debugCurrentConfig();
+    
     // Pantalla completa al entrar
     const el = document.documentElement;
     if (el.requestFullscreen) el.requestFullscreen();
     else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
     else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
     else if (el.msRequestFullscreen) el.msRequestFullscreen();
-    let stream;
-    const getCamera = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        if (videoRefL.current) videoRefL.current.srcObject = stream;
-        if (videoRefR.current) videoRefR.current.srcObject = stream;
-      } catch (e) {
-        console.error('No se pudo acceder a la cámara', e);
-      }
-    };
-    getCamera();
+    
     return () => {
       // Salir de pantalla completa
       if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
@@ -127,11 +233,19 @@ const ARStereoView = ({
         else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
         else if (document.msExitFullscreen) document.msExitFullscreen();
       }
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      // Detener stream de cámara
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, []); // Remover dependencia de cameraResolution
+  
+  // useEffect separado para manejar cambios de resolución
+  useEffect(() => {
+    console.log('📹 Cambio de resolución detectado:', cameraResolution);
+    // Inicializar cámara con la resolución actual
+    initializeCamera(cameraResolution);
+  }, [cameraResolution]);
 
   // Determinar overlayType automáticamente si no se pasa
   const overlayType = overlayTypeProp || detectOverlayType(overlay);
@@ -189,6 +303,8 @@ const ARStereoView = ({
         offsetL={offsetL} setOffsetL={setOffsetL}
         offsetR={offsetR} setOffsetR={setOffsetR}
         zoom={zoom} setZoom={setZoom}
+        cameraResolution={cameraResolution} setCameraResolution={setCameraResolution}
+        onCameraResolutionChange={handleCameraResolutionChange}
         showMenu={showMenu} setShowMenu={setShowMenu}
         onSave={saveConfig}
         position={{

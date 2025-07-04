@@ -5,7 +5,7 @@ import arsConfigManager from '../../../config/ARSConfigManager';
 
 /**
  * ARSConfig
- * Menú de configuración para la vista ARS (zoom, separación, ancho, alto, offset) + lista de overlays.
+ * Menú de configuración para la vista ARS (zoom, separación, ancho, alto, offset, resolución) + lista de overlays.
  * Props:
  *  - arSeparation, setArSeparation
  *  - arWidth, setArWidth
@@ -13,6 +13,8 @@ import arsConfigManager from '../../../config/ARSConfigManager';
  *  - offsetL, setOffsetL
  *  - offsetR, setOffsetR
  *  - zoom, setZoom
+ *  - cameraResolution, setCameraResolution
+ *  - onCameraResolutionChange: función para cambiar la resolución de la cámara
  *  - showMenu, setShowMenu
  *  - selectedOverlay, setSelectedOverlay
  *  - overlays
@@ -26,6 +28,8 @@ const ARSConfig = ({
   offsetL, setOffsetL,
   offsetR, setOffsetR,
   zoom, setZoom,
+  cameraResolution, setCameraResolution,
+  onCameraResolutionChange,
   showMenu, setShowMenu,
   selectedOverlay, setSelectedOverlay,
   overlays,
@@ -37,17 +41,42 @@ const ARSConfig = ({
 }) => {
   const [showHelp, setShowHelp] = React.useState(false);
 
+  // Opciones de resolución disponibles
+  const resolutionOptions = [
+    { label: '480p', value: '480p', width: 640, height: 480 },
+    { label: '720p', value: '720p', width: 1280, height: 720 },
+    { label: '1080p', value: '1080p', width: 1920, height: 1080 },
+    { label: '4K', value: '4K', width: 3840, height: 2160 }
+  ];
+
+  // Función para cambiar la resolución de la cámara
+  const handleResolutionChange = (newResolution) => {
+    setCameraResolution(newResolution);
+    if (onCameraResolutionChange) {
+      onCameraResolutionChange(newResolution);
+    }
+  };
+
   // Función para aplicar presets usando el manager
   const applyPreset = async (presetName) => {
     try {
       const preset = await arsConfigManager.applyPreset(presetName);
-      // Actualizar los estados locales
+      // Actualizar los estados locales incluyendo la resolución de cámara
       setArSeparation(preset.arSeparation);
       setArWidth(preset.arWidth);
       setArHeight(preset.arHeight);
       setOffsetL(preset.offsetL);
       setOffsetR(preset.offsetR);
       setZoom(preset.zoom);
+      
+      // Actualizar resolución de cámara si está en el preset
+      if (preset.cameraResolution) {
+        setCameraResolution(preset.cameraResolution);
+        if (onCameraResolutionChange) {
+          onCameraResolutionChange(preset.cameraResolution);
+        }
+      }
+      
       console.log(`✅ Preset ${presetName} aplicado:`, preset);
     } catch (error) {
       console.error(`❌ Error aplicando preset ${presetName}:`, error);
@@ -153,6 +182,30 @@ const ARSConfig = ({
             >
               ?
             </button>
+          </div>
+          
+          {/* Control de resolución de cámara */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ minWidth: 90, fontSize: 13 }}>📹 Resolución</span>
+            <select 
+              value={cameraResolution} 
+              onChange={e => handleResolutionChange(e.target.value)}
+              style={{ 
+                flex: 1, 
+                background: 'rgba(40,40,40,0.9)', 
+                color: 'white', 
+                border: '1px solid rgba(79,195,247,0.3)',
+                borderRadius: 4,
+                padding: '2px 6px',
+                fontSize: 12
+              }}
+            >
+              {resolutionOptions.map(option => (
+                <option key={option.value} value={option.value} style={{ background: '#333' }}>
+                  {option.label} ({option.width}x{option.height})
+                </option>
+              ))}
+            </select>
           </div>
           
           {/* Controles de configuración mejorados */}
@@ -333,6 +386,36 @@ const ARSConfig = ({
             }}
           >
             💾 Guardar Configuración
+          </button>
+          
+          {/* Botón temporal de debug */}
+          <button
+            style={{
+              marginTop: 8,
+              background: 'linear-gradient(135deg, #ff9800, #f57c00)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 16px',
+              fontSize: 12,
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              alignSelf: 'stretch'
+            }}
+            onClick={() => {
+              console.log('🔍 DEBUG - Estado actual:');
+              console.log('📹 Camera Resolution:', cameraResolution);
+              
+              // Verificar localStorage
+              const persistent = localStorage.getItem('arsconfig-persistent');
+              if (persistent) {
+                console.log('💾 localStorage:', JSON.parse(persistent));
+              } else {
+                console.log('❌ No hay configuración en localStorage');
+              }
+            }}
+          >
+            🔍 Debug Config
           </button>
         </div>
       )}
