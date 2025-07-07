@@ -1,5 +1,4 @@
 import React from 'react';
-import VRVoiceController from './VRVoiceController';
 
 /**
  * Overlay para video local usando A-Frame HTML en iframe
@@ -42,8 +41,89 @@ const VRLocalVideoOverlay = ({
     if (!enableVoiceCommands) return '';
     
     return `
-      <!-- Placeholder para VRVoiceController -->
-      <a-entity id="voice-controller-placeholder"></a-entity>
+      <!-- Controles de voz -->
+      <a-entity
+        id="voice-controls"
+        position="${position[0]} ${position[1] - height/2 - 2.5} ${position[2]}"
+        voice-control="
+          enabled: ${voiceCommandsActivated};
+          videoEntity: vr-local-video-entity
+        ">
+        
+        <!-- Icono de micrófono -->
+        <a-entity
+          id="mic-icon"
+          position="0 0 0.01"
+          class="clickable"
+          mic-icon>
+          
+          <!-- Fondo circular del micrófono -->
+          <a-circle
+            radius="1.2"
+            material="color: #4CAF50; shader: flat; opacity: 0.9"
+            animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; dur: 800; loop: true; easing: easeInOutQuad">
+          </a-circle>
+          
+          <!-- Símbolo del micrófono usando geometría -->
+          <a-cylinder
+            radius="0.3"
+            height="0.6"
+            position="0 0.2 0.02"
+            material="color: white; shader: flat">
+          </a-cylinder>
+          
+          <!-- Base del micrófono -->
+          <a-cylinder
+            radius="0.5"
+            height="0.1"
+            position="0 -0.3 0.02"
+            material="color: white; shader: flat">
+          </a-cylinder>
+          
+          <!-- Pie del micrófono -->
+          <a-cylinder
+            radius="0.05"
+            height="0.4"
+            position="0 -0.1 0.02"
+            material="color: white; shader: flat">
+          </a-cylinder>
+          
+          <!-- Indicador de estado -->
+          <a-text
+            id="mic-status"
+            value="ON"
+            position="0 -0.8 0.03"
+            align="center"
+            color="white"
+            scale="0.8 0.8 0.8">
+          </a-text>
+          
+        </a-entity>
+        
+        <!-- Texto de reconocimiento de voz -->
+        <a-text
+          id="voice-text"
+          value="🎤 Comandos: 'play', 'pause', 'reproducir', 'pausar'"
+          position="0 -2.0 0"
+          align="center"
+          color="white"
+          scale="1.2 1.2 1.2"
+          width="8">
+        </a-text>
+        
+        <!-- Indicador de escucha -->
+        <a-text
+          id="listening-indicator"
+          value=""
+          position="0 -3.2 0"
+          align="center"
+          color="#FF9800"
+          scale="1.5 1.5 1.5"
+          width="6"
+          visible="false">
+        </a-text>
+        
+      </a-entity>
     `;
   };
 
@@ -281,6 +361,271 @@ const VRLocalVideoOverlay = ({
       });
 
       console.log('Componente vr-local-video registrado correctamente');
+
+      // Componente para controles de voz
+      AFRAME.registerComponent('voice-control', {
+        schema: {
+          enabled: { type: 'boolean', default: true },
+          videoEntity: { type: 'string', default: '' }
+        },
+
+        init: function() {
+          console.log('🎤 Iniciando control de voz');
+          
+          this.isListening = false;
+          this.recognition = null;
+          this.videoComponent = null;
+          
+          // Buscar el componente de video
+          this.findVideoComponent();
+          
+          // Configurar reconocimiento de voz
+          this.setupSpeechRecognition();
+          
+          // Configurar icono inicial con un delay para asegurar que el DOM esté listo
+          setTimeout(() => {
+            console.log('🎤 Verificando elementos del DOM:');
+            const micIcon = document.querySelector('#mic-icon');
+            const micStatus = document.querySelector('#mic-status');
+            const voiceText = document.querySelector('#voice-text');
+            
+            console.log('🎤 Elementos encontrados:', {
+              micIcon: !!micIcon,
+              micStatus: !!micStatus,
+              voiceText: !!voiceText
+            });
+            
+            this.updateMicIcon();
+            console.log('🎤 Icono inicializado');
+          }, 1000);
+          
+          // Iniciar escucha si está habilitado
+          if (this.data.enabled) {
+            setTimeout(() => this.startListening(), 1500);
+          }
+        },
+
+        findVideoComponent: function() {
+          const videoEntity = document.querySelector('#' + this.data.videoEntity);
+          if (videoEntity) {
+            this.videoComponent = videoEntity.components['vr-local-video'];
+            console.log('🎤 Componente de video encontrado');
+          } else {
+            console.warn('🎤 No se encontró el componente de video');
+          }
+        },
+
+        setupSpeechRecognition: function() {
+          if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            console.warn('🎤 Reconocimiento de voz no soportado');
+            this.updateVoiceText('❌ Reconocimiento de voz no disponible');
+            return;
+          }
+
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          this.recognition = new SpeechRecognition();
+          
+          this.recognition.continuous = true;
+          this.recognition.interimResults = true;
+          this.recognition.lang = 'es-ES';
+          
+          this.recognition.onstart = () => {
+            console.log('🎤 Reconocimiento iniciado');
+            this.isListening = true;
+            this.updateListeningIndicator('🎙️ Escuchando...');
+          };
+          
+          this.recognition.onend = () => {
+            console.log('🎤 Reconocimiento terminado');
+            this.isListening = false;
+            this.updateListeningIndicator('');
+            
+            // Reiniciar automáticamente si está habilitado
+            if (this.data.enabled) {
+              setTimeout(() => this.startListening(), 1000);
+            }
+          };
+          
+          this.recognition.onerror = (event) => {
+            console.error('🎤 Error en reconocimiento:', event.error);
+            this.updateListeningIndicator('❌ Error: ' + event.error);
+          };
+          
+          this.recognition.onresult = (event) => {
+            let finalTranscript = '';
+            let interimTranscript = '';
+            
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              const transcript = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+              } else {
+                interimTranscript += transcript;
+              }
+            }
+            
+            // Mostrar texto reconocido
+            const displayText = finalTranscript || interimTranscript;
+            this.updateVoiceText('🎧 "' + displayText + '"');
+            
+            // Procesar comandos finales
+            if (finalTranscript) {
+              this.processVoiceCommand(finalTranscript.toLowerCase());
+            }
+          };
+        },
+
+        processVoiceCommand: function(command) {
+          console.log('🎤 Procesando comando:', command);
+          
+          if (!this.videoComponent) {
+            console.warn('🎤 No hay componente de video para controlar');
+            return;
+          }
+
+          // Comandos de reproducción
+          if (command.includes('play') || command.includes('reproducir') || command.includes('reproduce')) {
+            console.log('🎤 Comando: Play');
+            this.updateVoiceText('▶️ Reproduciendo video');
+            if (this.videoComponent.video && this.videoComponent.video.paused) {
+              this.videoComponent.togglePlay();
+            }
+          }
+          // Comandos de pausa
+          else if (command.includes('pause') || command.includes('pausar') || command.includes('pausa')) {
+            console.log('🎤 Comando: Pause');
+            this.updateVoiceText('⏸️ Video pausado');
+            if (this.videoComponent.video && !this.videoComponent.video.paused) {
+              this.videoComponent.togglePlay();
+            }
+          }
+          // Comando de parar
+          else if (command.includes('stop') || command.includes('parar') || command.includes('detener')) {
+            console.log('🎤 Comando: Stop');
+            this.updateVoiceText('⏹️ Video detenido');
+            if (this.videoComponent.video) {
+              this.videoComponent.video.pause();
+              this.videoComponent.video.currentTime = 0;
+            }
+          }
+          // Comando de silenciar
+          else if (command.includes('mute') || command.includes('silenciar') || command.includes('sin sonido')) {
+            console.log('🎤 Comando: Mute');
+            this.updateVoiceText('🔇 Audio silenciado');
+            if (this.videoComponent.video) {
+              this.videoComponent.video.muted = true;
+            }
+          }
+          // Comando de activar sonido
+          else if (command.includes('unmute') || command.includes('activar sonido') || command.includes('sonido')) {
+            console.log('🎤 Comando: Unmute');
+            this.updateVoiceText('🔊 Audio activado');
+            if (this.videoComponent.video) {
+              this.videoComponent.video.muted = false;
+            }
+          }
+        },
+
+        updateVoiceText: function(text) {
+          const voiceTextEl = document.querySelector('#voice-text');
+          if (voiceTextEl) {
+            voiceTextEl.setAttribute('value', text);
+          }
+        },
+
+        updateListeningIndicator: function(text) {
+          const indicatorEl = document.querySelector('#listening-indicator');
+          if (indicatorEl) {
+            indicatorEl.setAttribute('value', text);
+            indicatorEl.setAttribute('visible', text !== '');
+          }
+        },
+
+        startListening: function() {
+          if (!this.recognition) {
+            console.warn('🎤 Reconocimiento no disponible');
+            return;
+          }
+          
+          if (!this.isListening) {
+            try {
+              this.recognition.start();
+            } catch (error) {
+              console.error('🎤 Error al iniciar:', error);
+            }
+          }
+        },
+
+        stopListening: function() {
+          if (this.recognition && this.isListening) {
+            this.recognition.stop();
+          }
+        },
+
+        toggleListening: function() {
+          if (this.isListening) {
+            this.stopListening();
+            this.data.enabled = false;
+          } else {
+            this.startListening();
+            this.data.enabled = true;
+          }
+          this.updateMicIcon();
+        },
+
+        updateMicIcon: function() {
+          const micIconEl = document.querySelector('#mic-icon');
+          const micStatusEl = document.querySelector('#mic-status');
+          const micCircle = micIconEl ? micIconEl.querySelector('a-circle') : null;
+          
+          if (micIconEl && micStatusEl && micCircle) {
+            if (this.data.enabled) {
+              // Micrófono activo - Verde con animación
+              micCircle.setAttribute('material', 'color: #4CAF50; shader: flat; opacity: 0.9');
+              micCircle.setAttribute('animation', 'property: scale; to: 1.1 1.1 1.1; dir: alternate; dur: 800; loop: true; easing: easeInOutQuad');
+              micStatusEl.setAttribute('value', 'ON');
+              micStatusEl.setAttribute('color', 'white');
+              console.log('🎤 Micrófono ACTIVADO - Verde');
+            } else {
+              // Micrófono desactivado - Rojo sin animación
+              micCircle.setAttribute('material', 'color: #F44336; shader: flat; opacity: 0.8');
+              micCircle.removeAttribute('animation');
+              micCircle.setAttribute('scale', '1 1 1');
+              micStatusEl.setAttribute('value', 'OFF');
+              micStatusEl.setAttribute('color', '#FFB3B3');
+              console.log('🎤 Micrófono DESACTIVADO - Rojo');
+            }
+          } else {
+            console.warn('🎤 No se encontraron elementos del micrófono:', {
+              micIcon: !!micIconEl,
+              micStatus: !!micStatusEl,
+              micCircle: !!micCircle
+            });
+          }
+        },
+
+        remove: function() {
+          if (this.recognition) {
+            this.recognition.stop();
+            this.recognition = null;
+          }
+          console.log('🎤 Control de voz removido');
+        }
+      });
+
+      // Componente para el icono del micrófono
+      AFRAME.registerComponent('mic-icon', {
+        init: function() {
+          this.el.addEventListener('click', () => {
+            const voiceControlEl = document.querySelector('[voice-control]');
+            if (voiceControlEl && voiceControlEl.components['voice-control']) {
+              voiceControlEl.components['voice-control'].toggleListening();
+            }
+          });
+        }
+      });
+
+      console.log('🎤 Componentes de control de voz registrados');
     </script>
   `;
 
@@ -303,73 +648,18 @@ const VRLocalVideoOverlay = ({
   `;
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {/* Video Player */}
-      <iframe
-        title="VR Local Video Overlay"
-        srcDoc={srcDoc}
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          border: 'none', 
-          background: 'transparent', 
-          pointerEvents: 'auto' 
-        }}
-        allow="autoplay; fullscreen"
-      />
-      
-      {/* Voice Controller */}
-      {enableVoiceCommands && (
-        <div style={{ 
-          position: 'absolute', 
-          top: 0, 
-          left: 0, 
-          width: '100%', 
-          height: '100%', 
-          pointerEvents: 'none' 
-        }}>
-          <VRVoiceController
-            position={[position[0], position[1] - height/2 - 2.5, position[2]]}
-            targetEntityId="vr-local-video-entity"
-            targetComponent="vr-local-video"
-            enabled={voiceCommandsActivated}
-            language="es-ES"
-            commands={{
-              'play': { 
-                keywords: ['play', 'reproducir', 'reproduce', 'empezar', 'iniciar'],
-                action: 'play',
-                feedback: '▶️ Reproduciendo video'
-              },
-              'pause': { 
-                keywords: ['pause', 'pausar', 'pausa'],
-                action: 'pause',
-                feedback: '⏸️ Video pausado'
-              },
-              'stop': { 
-                keywords: ['stop', 'parar', 'detener', 'terminar'],
-                action: 'stop',
-                feedback: '⏹️ Video detenido'
-              },
-              'mute': { 
-                keywords: ['mute', 'silenciar', 'sin sonido', 'mudo'],
-                action: 'mute',
-                feedback: '🔇 Audio silenciado'
-              },
-              'unmute': { 
-                keywords: ['unmute', 'activar sonido', 'sonido', 'audio'],
-                action: 'unmute',
-                feedback: '🔊 Audio activado'
-              }
-            }}
-            showMicIcon={true}
-            showVoiceText={true}
-            showListeningIndicator={true}
-            micIconSize={1}
-            textScale={1}
-          />
-        </div>
-      )}
-    </div>
+    <iframe
+      title="VR Local Video Overlay"
+      srcDoc={srcDoc}
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        border: 'none', 
+        background: 'transparent', 
+        pointerEvents: 'auto' 
+      }}
+      allow="autoplay; fullscreen; microphone"
+    />
   );
 };
 

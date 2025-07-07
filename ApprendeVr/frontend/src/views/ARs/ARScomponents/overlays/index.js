@@ -25,7 +25,6 @@ import VRConeR3FOverlay from '../ARStest/VRConeR3FOverlay';
 import VRConeR3FVideoOverlayConfigurable from '../ARStest/VRConeR3FVideoOverlayConfigurable';
 import VRConeR3FVideoOverlay from '../ARStest/VRConeR3FVideoOverlay';
 import VRLocalVideoOverlay from './VRLocalVideoOverlay';
-import VRVoiceController from './VRVoiceController';
 
 // Registrar overlay básico de texto
 overlayRegistry.register('simpleText', {
@@ -141,29 +140,6 @@ overlayRegistry.register('vrLocalVideoOverlay', {
     showMarker: true,
     enableVoiceCommands: true,
     voiceCommandsActivated: true
-  }
-});
-
-// Registrar VRVoiceController (controlador de voz reutilizable)
-overlayRegistry.register('vrVoiceController', {
-  component: VRVoiceController,
-  type: 'html',
-  label: 'Controlador de Voz',
-  description: 'Sistema de reconocimiento de voz reutilizable para cualquier componente',
-  category: 'control',
-  configurable: true,
-  defaultProps: {
-    position: [0, 0, 0],
-    targetEntityId: '',
-    targetComponent: '',
-    enabled: true,
-    language: 'es-ES',
-    commands: {},
-    showMicIcon: true,
-    showVoiceText: true,
-    showListeningIndicator: true,
-    micIconSize: 1,
-    textScale: 1
   }
 });
 
