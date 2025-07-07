@@ -1,4 +1,5 @@
 import React from 'react';
+import VRVoiceController from './VRVoiceController';
 
 /**
  * Overlay para video local usando A-Frame HTML en iframe
@@ -14,6 +15,8 @@ const VRLocalVideoOverlay = ({
   doubleSided = true,
   invertBackSide = true,
   showMarker = true,
+  enableVoiceCommands = true,
+  voiceCommandsActivated = true,
   ...props 
 }) => {
   
@@ -31,6 +34,16 @@ const VRLocalVideoOverlay = ({
         opacity="0.7"
         animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
       </a-sphere>
+    `;
+  };
+
+  // Generar controles de voz
+  const generateVoiceControls = () => {
+    if (!enableVoiceCommands) return '';
+    
+    return `
+      <!-- Placeholder para VRVoiceController -->
+      <a-entity id="voice-controller-placeholder"></a-entity>
     `;
   };
 
@@ -281,6 +294,7 @@ const VRLocalVideoOverlay = ({
         <a-scene embedded vr-mode-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
           ${generateVideoElement()}
           ${generateMarker()}
+          ${generateVoiceControls()}
           <!-- Cámara a altura de persona -->
           <a-camera position="0 1.8 0" rotation="0 0 0"></a-camera>
         </a-scene>
@@ -289,18 +303,73 @@ const VRLocalVideoOverlay = ({
   `;
 
   return (
-    <iframe
-      title="VR Local Video Overlay"
-      srcDoc={srcDoc}
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        border: 'none', 
-        background: 'transparent', 
-        pointerEvents: 'auto' 
-      }}
-      allow="autoplay; fullscreen"
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Video Player */}
+      <iframe
+        title="VR Local Video Overlay"
+        srcDoc={srcDoc}
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          border: 'none', 
+          background: 'transparent', 
+          pointerEvents: 'auto' 
+        }}
+        allow="autoplay; fullscreen"
+      />
+      
+      {/* Voice Controller */}
+      {enableVoiceCommands && (
+        <div style={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          width: '100%', 
+          height: '100%', 
+          pointerEvents: 'none' 
+        }}>
+          <VRVoiceController
+            position={[position[0], position[1] - height/2 - 2.5, position[2]]}
+            targetEntityId="vr-local-video-entity"
+            targetComponent="vr-local-video"
+            enabled={voiceCommandsActivated}
+            language="es-ES"
+            commands={{
+              'play': { 
+                keywords: ['play', 'reproducir', 'reproduce', 'empezar', 'iniciar'],
+                action: 'play',
+                feedback: '▶️ Reproduciendo video'
+              },
+              'pause': { 
+                keywords: ['pause', 'pausar', 'pausa'],
+                action: 'pause',
+                feedback: '⏸️ Video pausado'
+              },
+              'stop': { 
+                keywords: ['stop', 'parar', 'detener', 'terminar'],
+                action: 'stop',
+                feedback: '⏹️ Video detenido'
+              },
+              'mute': { 
+                keywords: ['mute', 'silenciar', 'sin sonido', 'mudo'],
+                action: 'mute',
+                feedback: '🔇 Audio silenciado'
+              },
+              'unmute': { 
+                keywords: ['unmute', 'activar sonido', 'sonido', 'audio'],
+                action: 'unmute',
+                feedback: '🔊 Audio activado'
+              }
+            }}
+            showMicIcon={true}
+            showVoiceText={true}
+            showListeningIndicator={true}
+            micIconSize={1}
+            textScale={1}
+          />
+        </div>
+      )}
+    </div>
   );
 };
 
