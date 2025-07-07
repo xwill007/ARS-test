@@ -268,11 +268,6 @@ const OverlayConfigPanel = ({
               defaultValue={[0, 5, 0]}
             />
             <PositionControl 
-              label="Video Secundario" 
-              configKey="secondaryVideo.position" 
-              defaultValue={[6, 5, 0]}
-            />
-            <PositionControl 
               label="Marcador Central" 
               configKey="centerMarker.position" 
               defaultValue={[0, 0, 0]}
@@ -287,11 +282,6 @@ const OverlayConfigPanel = ({
               label="Escala Video Principal" 
               configKey="mainVideo.scale" 
               defaultValue={[5, 4, 1]}
-            />
-            <ScaleControl 
-              label="Escala Video Secundario" 
-              configKey="secondaryVideo.scale" 
-              defaultValue={[3, 2, 1]}
             />
           </div>
         )}
@@ -358,67 +348,6 @@ const OverlayConfigPanel = ({
               </select>
             </div>
 
-            {/* Separador */}
-            <hr style={{ border: '1px solid #666', margin: '20px 0' }} />
-
-            {/* URL del video secundario */}
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '5px', 
-                fontWeight: 'bold',
-                color: '#ff8800'
-              }}>
-                URL del Video Secundario
-              </label>
-              <input
-                type="text"
-                value={config.secondaryVideo?.videoSrc || ''}
-                onChange={(e) => updateConfig('secondaryVideo.videoSrc', e.target.value)}
-                placeholder="Ej: /videos/gangstas.mp4 o https://youtube.com/watch?v=..."
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  border: '1px solid #666',
-                  background: '#444',
-                  color: 'white'
-                }}
-              />
-              <small style={{ color: '#aaa', fontSize: '12px' }}>
-                Soporta archivos locales y URLs de YouTube
-              </small>
-            </div>
-
-            {/* Calidad del video secundario */}
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '5px', 
-                fontWeight: 'bold',
-                color: '#ff8800'
-              }}>
-                Calidad del Video Secundario
-              </label>
-              <select
-                value={config.secondaryVideo?.quality || '720'}
-                onChange={(e) => updateConfig('secondaryVideo.quality', e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  border: '1px solid #666',
-                  background: '#444',
-                  color: 'white'
-                }}
-              >
-                <option value="default">Automática</option>
-                <option value="480">480p</option>
-                <option value="720">720p</option>
-                <option value="1080">1080p</option>
-              </select>
-            </div>
-
             {/* Opciones de fondo para videos */}
             <div style={{ marginBottom: '15px' }}>
               <label style={{ 
@@ -438,76 +367,201 @@ const OverlayConfigPanel = ({
               </label>
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ 
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontWeight: 'bold',
-                color: '#ff8800'
-              }}>
-                <input
-                  type="checkbox"
-                  checked={config.secondaryVideo?.showBackground || false}
-                  onChange={(e) => updateConfig('secondaryVideo.showBackground', e.target.checked)}
-                  style={{ accentColor: '#ff8800' }}
-                />
-                Mostrar fondo del video secundario
-              </label>
-            </div>
+            {/* Separador para Video Local A-Frame */}
+            <hr style={{ border: '2px solid #00ffff', margin: '30px 0' }} />
 
-            {/* Botones de prueba rápida */}
-            <div style={{ marginTop: '20px' }}>
-              <h5 style={{ color: '#00ff88', marginBottom: '10px' }}>URLs de Prueba Rápida</h5>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <button
-                  onClick={() => {
-                    updateConfig('secondaryVideo.videoSrc', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
-                  }}
+            {/* Configuración de Video Local A-Frame */}
+            <div style={{ marginBottom: '20px' }}>
+              <h5 style={{ color: '#00ffff', marginBottom: '15px' }}>📹 Video Local A-Frame</h5>
+              
+              {/* URL del video local */}
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '5px', 
+                  fontWeight: 'bold',
+                  color: '#00ffff'
+                }}>
+                  Ruta del Video Local
+                </label>
+                <input
+                  type="text"
+                  value={config.vrLocalVideo?.videoSrc || '/videos/gangstas.mp4'}
+                  onChange={(e) => updateConfig('vrLocalVideo.videoSrc', e.target.value)}
+                  placeholder="/videos/gangstas.mp4"
                   style={{
-                    padding: '6px 12px',
-                    background: '#666',
-                    color: 'white',
-                    border: 'none',
+                    width: '100%',
+                    padding: '8px',
                     borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
+                    border: '1px solid #00ffff',
+                    background: '#003333',
+                    color: 'white'
                   }}
-                >
-                  🎵 YouTube: Rick Astley - Never Gonna Give You Up
-                </button>
-                <button
-                  onClick={() => {
-                    updateConfig('secondaryVideo.videoSrc', 'https://www.youtube.com/watch?v=kJQP7kiw5Fk');
-                  }}
-                  style={{
-                    padding: '6px 12px',
-                    background: '#666',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  🎬 YouTube: Despacito - Luis Fonsi
-                </button>
-                <button
-                  onClick={() => {
-                    updateConfig('secondaryVideo.videoSrc', '/videos/gangstas.mp4');
-                  }}
-                  style={{
-                    padding: '6px 12px',
-                    background: '#666',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  📁 Archivo Local: gangstas.mp4
-                </button>
+                />
+                <small style={{ color: '#aaa', fontSize: '12px' }}>
+                  Ruta del archivo de video local (relativa a /public)
+                </small>
+              </div>
+
+              {/* Dimensiones del video */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '5px', 
+                    fontWeight: 'bold',
+                    color: '#00ffff'
+                  }}>
+                    Ancho
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={config.vrLocalVideo?.width || 8}
+                    onChange={(e) => updateConfig('vrLocalVideo.width', parseFloat(e.target.value) || 8)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      border: '1px solid #00ffff',
+                      background: '#003333',
+                      color: 'white'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '5px', 
+                    fontWeight: 'bold',
+                    color: '#00ffff'
+                  }}>
+                    Alto
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={config.vrLocalVideo?.height || 4.5}
+                    onChange={(e) => updateConfig('vrLocalVideo.height', parseFloat(e.target.value) || 4.5)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      border: '1px solid #00ffff',
+                      background: '#003333',
+                      color: 'white'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Opciones del video local */}
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: 'bold',
+                  color: '#00ffff',
+                  marginBottom: '8px'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={config.vrLocalVideo?.autoplay || false}
+                    onChange={(e) => updateConfig('vrLocalVideo.autoplay', e.target.checked)}
+                    style={{ accentColor: '#00ffff' }}
+                  />
+                  Reproducción automática
+                </label>
+                
+                <label style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: 'bold',
+                  color: '#00ffff',
+                  marginBottom: '8px'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={config.vrLocalVideo?.doubleSided || true}
+                    onChange={(e) => updateConfig('vrLocalVideo.doubleSided', e.target.checked)}
+                    style={{ accentColor: '#00ffff' }}
+                  />
+                  Video de doble cara
+                </label>
+
+                <label style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: 'bold',
+                  color: '#00ffff'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={config.vrLocalVideo?.invertBackSide || true}
+                    onChange={(e) => updateConfig('vrLocalVideo.invertBackSide', e.target.checked)}
+                    style={{ accentColor: '#00ffff' }}
+                  />
+                  Invertir lado posterior
+                </label>
+                
+                <label style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: 'bold',
+                  color: '#00ffff',
+                  marginTop: '8px'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={config.vrLocalVideo?.showMarker || true}
+                    onChange={(e) => updateConfig('vrLocalVideo.showMarker', e.target.checked)}
+                    style={{ accentColor: '#00ffff' }}
+                  />
+                  Mostrar marcador de referencia
+                </label>
+              </div>
+
+              {/* Botones de prueba para video local */}
+              <div style={{ marginTop: '15px' }}>
+                <h6 style={{ color: '#00ffff', marginBottom: '8px' }}>Videos de Prueba</h6>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button
+                    onClick={() => {
+                      updateConfig('vrLocalVideo.videoSrc', '/videos/gangstas.mp4');
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#006666',
+                      color: 'white',
+                      border: '1px solid #00ffff',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    📁 gangstas.mp4 (Defecto)
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateConfig('vrLocalVideo.videoSrc', '/videos/sample.mp4');
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#006666',
+                      color: 'white',
+                      border: '1px solid #00ffff',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    📁 sample.mp4
+                  </button>
+                </div>
               </div>
             </div>
           </div>
