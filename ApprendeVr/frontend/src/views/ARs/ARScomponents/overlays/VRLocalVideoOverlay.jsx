@@ -54,8 +54,9 @@ const VRLocalVideoOverlay = ({
         <a-entity
           id="mic-icon"
           position="0 0 0.01"
-          class="clickable"
-          mic-icon>
+          class="clickable raycastable"
+          mic-icon
+          gaze-toggle>
           
           <!-- Fondo circular del micrófono -->
           <a-circle
@@ -63,6 +64,18 @@ const VRLocalVideoOverlay = ({
             material="color: #4CAF50; shader: flat; opacity: 0.9"
             animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; dur: 800; loop: true; easing: easeInOutQuad">
           </a-circle>
+          
+          <!-- Indicador de progreso de mirada (inicialmente invisible) -->
+          <a-ring
+            id="gaze-progress"
+            radius-inner="1.3"
+            radius-outer="1.4"
+            theta-start="0"
+            theta-length="0"
+            position="0 0 0.01"
+            material="color: #FFD700; shader: flat; opacity: 0.8"
+            visible="false">
+          </a-ring>
           
           <!-- Símbolo del micrófono usando geometría -->
           <a-cylinder
@@ -622,6 +635,119 @@ const VRLocalVideoOverlay = ({
               voiceControlEl.components['voice-control'].toggleListening();
             }
           });
+        }
+      });
+
+      // Componente para control por mirada (gaze)
+      AFRAME.registerComponent('gaze-toggle', {
+        init: function() {
+          this.gazeTimer = null;
+          this.gazeProgress = 0;
+          this.isGazing = false;
+          this.progressRing = this.el.querySelector('#gaze-progress');
+          
+          // Configurar eventos del raycaster
+          this.el.addEventListener('mouseenter', this.onGazeStart.bind(this));
+          this.el.addEventListener('mouseleave', this.onGazeEnd.bind(this));
+          
+          console.log('🎯 Componente gaze-toggle inicializado');
+        },
+
+        onGazeStart: function() {
+          console.log('👁️ Iniciando mirada en micrófono');
+          this.isGazing = true;
+          this.gazeProgress = 0;
+          
+          // Mostrar anillo de progreso
+          if (this.progressRing) {
+            this.progressRing.setAttribute('visible', true);
+            this.progressRing.setAttribute('theta-length', 0);
+          }
+          
+          // Iniciar timer de progreso
+          this.startGazeProgress();
+        },
+
+        onGazeEnd: function() {
+          console.log('👁️ Terminando mirada en micrófono');
+          this.isGazing = false;
+          this.gazeProgress = 0;
+          
+          // Ocultar anillo de progreso
+          if (this.progressRing) {
+            this.progressRing.setAttribute('visible', false);
+          }
+          
+          // Limpiar timer
+          if (this.gazeTimer) {
+            clearInterval(this.gazeTimer);
+            this.gazeTimer = null;
+          }
+        },
+
+        startGazeProgress: function() {
+          const duration = 3000; // 3 segundos
+          const interval = 50; // Actualizar cada 50ms
+          const increment = (360 / duration) * interval; // Grados por intervalo
+          
+          this.gazeTimer = setInterval(() => {
+            if (!this.isGazing) {
+              clearInterval(this.gazeTimer);
+              return;
+            }
+            
+            this.gazeProgress += increment;
+            
+            // Actualizar anillo de progreso
+            if (this.progressRing) {
+              this.progressRing.setAttribute('theta-length', this.gazeProgress);
+            }
+            
+            // Si completó los 3 segundos, activar toggle
+            if (this.gazeProgress >= 360) {
+              console.log('✅ Gaze completo - Cambiando estado del micrófono');
+              this.toggleMicrophone();
+              this.onGazeEnd(); // Resetear estado
+            }
+          }, interval);
+        },
+
+        toggleMicrophone: function() {
+          const voiceControlEl = document.querySelector('[voice-control]');
+          if (voiceControlEl && voiceControlEl.components['voice-control']) {
+            voiceControlEl.components['voice-control'].toggleListening();
+            
+            // Feedback visual de activación
+            this.showActivationFeedback();
+          }
+        },
+
+        showActivationFeedback: function() {
+          // Crear efecto de flash para confirmar la activación
+          const micIcon = this.el;
+          const originalScale = micIcon.getAttribute('scale') || '1 1 1';
+          
+          // Efecto de pulse
+          micIcon.setAttribute('animation__feedback', {
+            property: 'scale',
+            to: '1.3 1.3 1.3',
+            dur: 200,
+            dir: 'alternate',
+            loop: 2,
+            easing: 'easeInOutQuad'
+          });
+          
+          // Restaurar escala original después del efecto
+          setTimeout(() => {
+            micIcon.removeAttribute('animation__feedback');
+            micIcon.setAttribute('scale', originalScale);
+          }, 600);
+        },
+
+        remove: function() {
+          if (this.gazeTimer) {
+            clearInterval(this.gazeTimer);
+          }
         }
       });
 

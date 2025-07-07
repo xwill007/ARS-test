@@ -35,25 +35,57 @@ const VRVoiceController = ({
         ">
         
         ${showMicIcon ? `
-        <!-- Icono de micrófono -->
-        <a-plane
-          id="mic-icon"
-          width="${micIconSize}"
-          height="${micIconSize}"
-          position="0 0 0.01"
-          material="color: #4CAF50; shader: flat"
-          geometry="primitive: plane"
-          class="clickable"
-          vr-mic-icon>
-          <a-text
-            id="mic-text"
-            value="🎤"
+        <!-- Contenedor del icono de micrófono con gaze control -->
+        <a-entity
+          id="mic-container"
+          position="0 0 0"
+          vr-mic-gaze-control>
+          
+          <!-- Fondo del icono -->
+          <a-plane
+            id="mic-icon"
+            width="${micIconSize}"
+            height="${micIconSize}"
             position="0 0 0.01"
+            material="color: #4CAF50; shader: flat; opacity: 0.9"
+            geometry="primitive: plane"
+            class="clickable raycastable"
+            vr-mic-icon>
+            
+            <!-- Ring de progreso para gaze (inicialmente oculto) -->
+            <a-ring
+              id="gaze-progress-ring"
+              radius-inner="${micIconSize * 0.6}"
+              radius-outer="${micIconSize * 0.7}"
+              theta-start="0"
+              theta-length="0"
+              position="0 0 0.01"
+              material="color: #FFD700; shader: flat; opacity: 0.8"
+              visible="false">
+            </a-ring>
+            
+            <!-- Texto del micrófono -->
+            <a-text
+              id="mic-text"
+              value="🎤"
+              position="0 0 0.02"
+              align="center"
+              color="white"
+              scale="${1.5 * textScale} ${1.5 * textScale} ${1.5 * textScale}">
+            </a-text>
+          </a-plane>
+          
+          <!-- Estado del micrófono -->
+          <a-text
+            id="mic-status"
+            value="ON"
+            position="0 ${-micIconSize * 0.8} 0.01"
             align="center"
-            color="white"
-            scale="${2 * textScale} ${2 * textScale} ${2 * textScale}">
+            color="#4CAF50"
+            scale="${0.6 * textScale} ${0.6 * textScale} ${0.6 * textScale}">
           </a-text>
-        </a-plane>
+          
+        </a-entity>
         ` : ''}
         
         ${showVoiceText ? `
@@ -382,19 +414,186 @@ const VRVoiceController = ({
           }
           console.log('🎤 VRVoiceController removido');
         }
-      });
-
-      // Componente para el icono del micrófono
-      AFRAME.registerComponent('vr-mic-icon', {
-        init: function() {
-          this.el.addEventListener('click', () => {
-            const voiceControlEl = document.querySelector('[vr-voice-control]');
-            if (voiceControlEl && voiceControlEl.components['vr-voice-control']) {
-              voiceControlEl.components['vr-voice-control'].toggleListening();
+      });          
+          // Registrar componente para control de micrófono con gaze
+          AFRAME.registerComponent('vr-mic-gaze-control', {
+            init: function() {
+              this.gazeStartTime = null;
+              this.gazeTimeout = 3000; // 3 segundos
+              this.progressRing = null;
+              this.gazeInterval = null;
+              this.isGazing = false;
+              
+              // Referencias a elementos
+              setTimeout(() => {
+                this.progressRing = this.el.querySelector('#gaze-progress-ring');
+                console.log('🎯 Ring de progreso encontrado:', !!this.progressRing);
+              }, 100);
+              
+              // Eventos de raycaster usando A-Frame
+              this.el.addEventListener('raycaster-intersected', (evt) => {
+                console.log('👁️ Raycaster intersectado en micrófono');
+                this.startGaze();
+              });
+              
+              this.el.addEventListener('raycaster-intersected-cleared', (evt) => {
+                console.log('👁️ Raycaster ya no intersecta el micrófono');
+                this.stopGaze();
+              });
+            },
+            
+            startGaze: function() {
+              if (this.isGazing) return; // Ya está en progreso
+              
+              console.log('🎯 Iniciando gaze en micrófono');
+              this.isGazing = true;
+              this.gazeStartTime = Date.now();
+              
+              // Mostrar ring de progreso
+              if (this.progressRing) {
+                this.progressRing.setAttribute('visible', true);
+                this.progressRing.setAttribute('theta-length', 0);
+                this.progressRing.setAttribute('material', 'color', '#FFD700');
+              }
+              
+              // Animación de progreso
+              this.gazeInterval = setInterval(() => {
+                const elapsed = Date.now() - this.gazeStartTime;
+                const progress = Math.min(elapsed / this.gazeTimeout, 1);
+                const thetaLength = progress * 360;
+                
+                if (this.progressRing) {
+                  this.progressRing.setAttribute('theta-length', thetaLength);
+                }
+                
+                // Completado
+                if (progress >= 1) {
+                  this.completeGaze();
+                }
+              }, 50);
+            },
+            
+            stopGaze: function() {
+              if (!this.isGazing) return;
+              
+              console.log('🎯 Deteniendo gaze en micrófono');
+              this.isGazing = false;
+              this.gazeStartTime = null;
+              
+              // Ocultar ring de progreso
+              if (this.progressRing) {
+                this.progressRing.setAttribute('visible', false);
+                this.progressRing.setAttribute('theta-length', 0);
+              }
+              
+              // Limpiar intervalo
+              if (this.gazeInterval) {
+                clearInterval(this.gazeInterval);
+                this.gazeInterval = null;
+              }
+            },
+            
+            completeGaze: function() {
+              console.log('🎯 ¡Gaze completado! Activando micrófono');
+              this.stopGaze();
+              
+              // Toggle del micrófono
+              const micIcon = this.el.querySelector('#mic-icon');
+              if (micIcon && micIcon.components && micIcon.components['vr-mic-icon']) {
+                micIcon.components['vr-mic-icon'].toggleMicrophone();
+              }
+              
+              // Efecto de pulso visual
+              if (this.progressRing) {
+                this.progressRing.setAttribute('visible', true);
+                this.progressRing.setAttribute('theta-length', 360);
+                this.progressRing.setAttribute('material', 'color', '#4CAF50');
+                this.progressRing.setAttribute('animation', {
+                  property: 'scale',
+                  to: '1.3 1.3 1.3',
+                  dur: 300,
+                  direction: 'alternate',
+                  loop: 2
+                });
+                
+                // Ocultar después del efecto
+                setTimeout(() => {
+                  this.progressRing.setAttribute('visible', false);
+                }, 800);
+              }
             }
           });
-        }
-      });
+          
+          // Componente para el icono del micrófono
+          AFRAME.registerComponent('vr-mic-icon', {
+            init: function() {
+              this.micText = null;
+              this.micStatus = null;
+              
+              // Obtener referencias después de que el DOM esté listo
+              setTimeout(() => {
+                this.micText = this.el.querySelector('#mic-text');
+                this.micStatus = this.el.querySelector('#mic-status');
+              }, 100);
+              
+              // Manejar click
+              this.el.addEventListener('click', () => {
+                this.toggleMicrophone();
+              });
+              
+              // Estado inicial
+              setTimeout(() => {
+                this.updateVisualState();
+              }, 200);
+            },
+            
+            toggleMicrophone: function() {
+              const voiceControlEl = document.querySelector('[vr-voice-control]');
+              if (voiceControlEl && voiceControlEl.components['vr-voice-control']) {
+                voiceControlEl.components['vr-voice-control'].toggleListening();
+                
+                // Actualizar estado visual después de un breve delay
+                setTimeout(() => {
+                  this.updateVisualState();
+                }, 100);
+              }
+            },
+            
+            updateVisualState: function() {
+              const voiceControlEl = document.querySelector('[vr-voice-control]');
+              const isListening = voiceControlEl?.components?.['vr-voice-control']?.data?.enabled || false;
+              
+              // Actualizar color del fondo
+              this.el.setAttribute('material', {
+                color: isListening ? '#4CAF50' : '#757575'
+              });
+              
+              // Actualizar texto del estado
+              if (this.micStatus) {
+                this.micStatus.setAttribute('value', isListening ? 'ON' : 'OFF');
+                this.micStatus.setAttribute('color', isListening ? '#4CAF50' : '#757575');
+              }
+              
+              // Actualizar emoji del micrófono
+              if (this.micText) {
+                this.micText.setAttribute('value', isListening ? '🎤' : '🔇');
+              }
+              
+              // Animación de pulso cuando está activo
+              if (isListening) {
+                this.el.setAttribute('animation', {
+                  property: 'scale',
+                  to: '1.1 1.1 1.1',
+                  dur: 1000,
+                  direction: 'alternate',
+                  loop: true
+                });
+              } else {
+                this.el.removeAttribute('animation');
+                this.el.setAttribute('scale', '1 1 1');
+              }
+            }
+          });
 
       console.log('🎤 VRVoiceController registrado correctamente');
     </script>
@@ -409,8 +608,17 @@ const VRVoiceController = ({
       <body style="margin:0; background:transparent;">
         <a-scene embedded vr-mode-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
           ${generateVoiceControls()}
-          <!-- Cámara a altura de persona -->
-          <a-camera position="0 1.8 0" rotation="0 0 0"></a-camera>
+          <a-camera position="0 1.8 0" rotation="0 0 0">
+            <!-- Cursor para interacción por mirada -->
+            <a-entity 
+              id="vr-voice-cursor"
+              cursor="rayOrigin: mouse; fuse: false"
+              raycaster="objects: .raycastable; far: 10; showLine: true; lineColor: #4CAF50; lineOpacity: 0.5"
+              position="0 0 -1"
+              geometry="primitive: ring; radiusInner: 0.005; radiusOuter: 0.01"
+              material="color: white; shader: flat; opacity: 0.8">
+            </a-entity>
+          </a-camera>
         </a-scene>
       </body>
     </html>
