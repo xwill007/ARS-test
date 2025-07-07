@@ -238,7 +238,7 @@ const OverlayConfigPanel = ({
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        {['positions', 'scales', 'general'].map(tab => (
+        {['positions', 'scales', 'videos', 'general'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -293,6 +293,223 @@ const OverlayConfigPanel = ({
               configKey="secondaryVideo.scale" 
               defaultValue={[3, 2, 1]}
             />
+          </div>
+        )}
+
+        {activeTab === 'videos' && (
+          <div>
+            <h4 style={{ color: '#ff0000', marginTop: 0 }}>Configuración de Videos</h4>
+            
+            {/* URL del video principal */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '5px', 
+                fontWeight: 'bold',
+                color: '#ff0000'
+              }}>
+                URL del Video Principal
+              </label>
+              <input
+                type="text"
+                value={config.mainVideo?.videoSrc || ''}
+                onChange={(e) => updateConfig('mainVideo.videoSrc', e.target.value)}
+                placeholder="Ej: /videos/sample.mp4 o https://youtube.com/watch?v=..."
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #666',
+                  background: '#444',
+                  color: 'white'
+                }}
+              />
+              <small style={{ color: '#aaa', fontSize: '12px' }}>
+                Soporta archivos locales y URLs de YouTube
+              </small>
+            </div>
+
+            {/* Calidad del video principal */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '5px', 
+                fontWeight: 'bold',
+                color: '#ff0000'
+              }}>
+                Calidad del Video Principal
+              </label>
+              <select
+                value={config.mainVideo?.quality || '720'}
+                onChange={(e) => updateConfig('mainVideo.quality', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #666',
+                  background: '#444',
+                  color: 'white'
+                }}
+              >
+                <option value="default">Automática</option>
+                <option value="480">480p</option>
+                <option value="720">720p</option>
+                <option value="1080">1080p</option>
+              </select>
+            </div>
+
+            {/* Separador */}
+            <hr style={{ border: '1px solid #666', margin: '20px 0' }} />
+
+            {/* URL del video secundario */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '5px', 
+                fontWeight: 'bold',
+                color: '#ff8800'
+              }}>
+                URL del Video Secundario
+              </label>
+              <input
+                type="text"
+                value={config.secondaryVideo?.videoSrc || ''}
+                onChange={(e) => updateConfig('secondaryVideo.videoSrc', e.target.value)}
+                placeholder="Ej: /videos/gangstas.mp4 o https://youtube.com/watch?v=..."
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #666',
+                  background: '#444',
+                  color: 'white'
+                }}
+              />
+              <small style={{ color: '#aaa', fontSize: '12px' }}>
+                Soporta archivos locales y URLs de YouTube
+              </small>
+            </div>
+
+            {/* Calidad del video secundario */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '5px', 
+                fontWeight: 'bold',
+                color: '#ff8800'
+              }}>
+                Calidad del Video Secundario
+              </label>
+              <select
+                value={config.secondaryVideo?.quality || '720'}
+                onChange={(e) => updateConfig('secondaryVideo.quality', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #666',
+                  background: '#444',
+                  color: 'white'
+                }}
+              >
+                <option value="default">Automática</option>
+                <option value="480">480p</option>
+                <option value="720">720p</option>
+                <option value="1080">1080p</option>
+              </select>
+            </div>
+
+            {/* Opciones de fondo para videos */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: 'bold',
+                color: '#ff0000'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={config.mainVideo?.showBackground || false}
+                  onChange={(e) => updateConfig('mainVideo.showBackground', e.target.checked)}
+                  style={{ accentColor: '#ff0000' }}
+                />
+                Mostrar fondo del video principal
+              </label>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: 'bold',
+                color: '#ff8800'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={config.secondaryVideo?.showBackground || false}
+                  onChange={(e) => updateConfig('secondaryVideo.showBackground', e.target.checked)}
+                  style={{ accentColor: '#ff8800' }}
+                />
+                Mostrar fondo del video secundario
+              </label>
+            </div>
+
+            {/* Botones de prueba rápida */}
+            <div style={{ marginTop: '20px' }}>
+              <h5 style={{ color: '#00ff88', marginBottom: '10px' }}>URLs de Prueba Rápida</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button
+                  onClick={() => {
+                    updateConfig('secondaryVideo.videoSrc', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#666',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  🎵 YouTube: Rick Astley - Never Gonna Give You Up
+                </button>
+                <button
+                  onClick={() => {
+                    updateConfig('secondaryVideo.videoSrc', 'https://www.youtube.com/watch?v=kJQP7kiw5Fk');
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#666',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  🎬 YouTube: Despacito - Luis Fonsi
+                </button>
+                <button
+                  onClick={() => {
+                    updateConfig('secondaryVideo.videoSrc', '/videos/gangstas.mp4');
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#666',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  📁 Archivo Local: gangstas.mp4
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -360,29 +577,11 @@ const OverlayConfigPanel = ({
               }}>
                 <input
                   type="checkbox"
-                  checked={config.mainVideo?.showBackground || false}
-                  onChange={(e) => updateConfig('mainVideo.showBackground', e.target.checked)}
+                  checked={config.centerMarker?.visible || false}
+                  onChange={(e) => updateConfig('centerMarker.visible', e.target.checked)}
                   style={{ accentColor: '#ff88ff' }}
                 />
-                Mostrar fondo del video principal
-              </label>
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ 
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontWeight: 'bold',
-                color: '#ff88ff'
-              }}>
-                <input
-                  type="checkbox"
-                  checked={config.secondaryVideo?.showBackground || false}
-                  onChange={(e) => updateConfig('secondaryVideo.showBackground', e.target.checked)}
-                  style={{ accentColor: '#ff88ff' }}
-                />
-                Mostrar fondo del video secundario
+                Mostrar marcador central
               </label>
             </div>
           </div>
@@ -404,6 +603,26 @@ const OverlayConfigPanel = ({
         >
           Resetear
         </button>
+        
+        <button
+          onClick={() => {
+            configurableOverlayManager.forceReloadConfig();
+            const newConfig = configurableOverlayManager.getOverlayConfig(overlayId);
+            setConfig(newConfig);
+            setHasChanges(false);
+          }}
+          style={{
+            padding: '8px 16px',
+            background: '#ff8800',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Force Reload
+        </button>
+        
         <button
           onClick={exportConfig}
           style={{

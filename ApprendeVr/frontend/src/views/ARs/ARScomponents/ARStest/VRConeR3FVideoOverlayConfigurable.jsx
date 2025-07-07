@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Text } from '@react-three/drei';
-import ARSVideoLocal from './ARSVideoLocal';
+import ARSVideoUniversal from './ARSVideoUniversal';
 import useOverlayConfig from '../useOverlayConfig';
 
 /**
@@ -45,7 +45,9 @@ const VRConeR3FVideoOverlayConfigurable = ({
     overlayId,
     renderKey,
     mainVideoPosition,
-    config
+    config,
+    mainVideoSrc: config.mainVideo?.videoSrc,
+    secondaryVideoSrc: config.secondaryVideo?.videoSrc
   });
 
   // Componente de control de posición (para modo debug)
@@ -89,7 +91,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
     <group>
       {/* Video principal */}
       <group position={mainVideoPosition}>
-        <ARSVideoLocal 
+        <ARSVideoUniversal 
           videoSrc={config.mainVideo?.videoSrc || "/videos/sample.mp4"}
           position={[0, 0, 0]}
           scale={mainVideoScale}
@@ -97,6 +99,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
           loop={true}
           muted={true}
           showFrame={false}
+          quality={config.mainVideo?.quality || "720"}
         />
         
         {/* Fondo semitransparente para mejorar visibilidad - solo si está habilitado */}
@@ -125,7 +128,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
 
       {/* Video secundario */}
       <group position={secondaryVideoPosition}>
-        <ARSVideoLocal 
+        <ARSVideoUniversal 
           videoSrc={config.secondaryVideo?.videoSrc || "/videos/gangstas.mp4"}
           position={[0, 0, 0]}
           scale={secondaryVideoScale}
@@ -133,6 +136,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
           loop={true}
           muted={true}
           showFrame={false}
+          quality={config.secondaryVideo?.quality || "720"}
         />
         
         {/* Fondo semitransparente para el video secundario - solo si está habilitado */}
