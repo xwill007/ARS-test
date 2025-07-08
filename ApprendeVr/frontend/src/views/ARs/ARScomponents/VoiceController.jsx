@@ -207,7 +207,7 @@ const VoiceController = ({
           {isListening ? '🔇' : '🎤'}
         </button>
         <span style={{ fontSize: '9px', opacity: 0.8 }}>
-          {isListening ? 'Escuchando...' : 'Control Voz'}
+          {isListening ? 'Activado' : 'Control Voz'}
         </span>
       </div>
       

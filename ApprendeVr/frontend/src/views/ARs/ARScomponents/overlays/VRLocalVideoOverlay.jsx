@@ -445,7 +445,7 @@ const VRLocalVideoOverlay = ({
           this.recognition.onstart = () => {
             console.log('🎤 Reconocimiento iniciado');
             this.isListening = true;
-            this.updateListeningIndicator('🎙️ Escuchando...');
+            this.updateListeningIndicator('🎙️ Escuchando..');
           };
           
           this.recognition.onend = () => {

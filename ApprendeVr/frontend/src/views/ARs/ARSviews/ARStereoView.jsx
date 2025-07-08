@@ -75,7 +75,11 @@ const ARStereoView = ({
     offsetR: 0,
     zoom: 1,
     cameraZoom: 1,
-    cameraResolution: '720p'
+    cameraResolution: '720p',
+    // Nuevas opciones de optimización
+    optimizeStereo: false,
+    mirrorRightPanel: false,
+    muteRightPanel: true
   });
   const [arSeparation, setArSeparation] = useState(initial.arSeparation);
   const [arWidth, setArWidth] = useState(initial.arWidth);
@@ -85,6 +89,11 @@ const ARStereoView = ({
   const [zoom, setZoom] = useState(initial.zoom);
   const [cameraZoom, setCameraZoom] = useState(initial.cameraZoom || 1);
   const [cameraResolution, setCameraResolution] = useState(initial.cameraResolution || '720p'); // Resolución por defecto
+  
+  // Nuevos estados para optimización estereoscópica
+  const [optimizeStereo, setOptimizeStereo] = useState(initial.optimizeStereo || false);
+  const [mirrorRightPanel, setMirrorRightPanel] = useState(initial.mirrorRightPanel || false);
+  const [muteRightPanel, setMuteRightPanel] = useState(initial.muteRightPanel || true);
   // Solo mostrar el menú si no hay configuración previa
   const [showMenu, setShowMenu] = useState(() => {
     // Verificar si existe configuración personalizada
@@ -181,7 +190,11 @@ const ARStereoView = ({
       offsetR, 
       zoom, 
       cameraZoom,
-      cameraResolution 
+      cameraResolution,
+      // Nuevas opciones de optimización
+      optimizeStereo,
+      mirrorRightPanel,
+      muteRightPanel
     };
     console.log('💾 Guardando configuración:', config);
     const success = await arsConfigManager.saveConfig(config);
@@ -210,6 +223,11 @@ const ARStereoView = ({
     setZoom(newConfig.zoom);
     setCameraZoom(newConfig.cameraZoom || 1);
     
+    // Nuevas opciones de optimización
+    setOptimizeStereo(newConfig.optimizeStereo || false);
+    setMirrorRightPanel(newConfig.mirrorRightPanel || false);
+    setMuteRightPanel(newConfig.muteRightPanel !== undefined ? newConfig.muteRightPanel : true);
+    
     // Actualizar resolución de cámara si está en la configuración
     if (newConfig.cameraResolution) {
       console.log(`📹 Actualizando resolución de cámara a: ${newConfig.cameraResolution}`);
@@ -223,6 +241,13 @@ const ARStereoView = ({
     if (newConfig.cameraZoom) {
       console.log(`🔍 Actualizando zoom de cámara a: ${newConfig.cameraZoom}x`);
       applyCameraZoom(newConfig.cameraZoom);
+    }
+    
+    // Log de optimización
+    if (newConfig.optimizeStereo) {
+      console.log('⚡ Modo optimización estereoscópica activado:');
+      console.log('  🪞 Espejo panel derecho:', newConfig.mirrorRightPanel);
+      console.log('  🔇 Silenciar panel derecho:', newConfig.muteRightPanel);
     }
   };
 
@@ -312,6 +337,31 @@ const ARStereoView = ({
 
   return (
     <div className="ar-stereo-container">
+      {/* Indicador de optimización activa */}
+      {optimizeStereo && (
+        <div style={{
+          position: 'absolute',
+          top: 50,
+          right: 10,
+          zIndex: 4000,
+          background: 'rgba(76, 175, 80, 0.9)',
+          color: 'white',
+          padding: '8px 12px',
+          borderRadius: '8px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          ⚡ Modo Optimizado
+          <div style={{ fontSize: '10px', opacity: 0.9 }}>
+            {mirrorRightPanel && '🪞'} {muteRightPanel && '🔇'}
+          </div>
+        </div>
+      )}
+      
       {/* Botón flecha atrás para salir de ARS - Mejorado */}
       <button
         style={{
@@ -365,6 +415,10 @@ const ARStereoView = ({
         onCameraResolutionChange={handleCameraResolutionChange}
         showMenu={showMenu} setShowMenu={setShowMenu}
         onSave={saveConfig}
+        // Nuevas props para optimización estereoscópica
+        optimizeStereo={optimizeStereo} setOptimizeStereo={setOptimizeStereo}
+        mirrorRightPanel={mirrorRightPanel} setMirrorRightPanel={setMirrorRightPanel}
+        muteRightPanel={muteRightPanel} setMuteRightPanel={setMuteRightPanel}
         position={{
           button: { 
             top: 6, 
@@ -387,7 +441,7 @@ const ARStereoView = ({
         height: '100%',
         width: '100%'
       }}>
-        {/* Vista izquierda */}
+        {/* Vista izquierda (principal) */}
         <ARPanel
           videoRef={videoRefL}
           width={arWidth}
@@ -397,17 +451,30 @@ const ARStereoView = ({
           zoom={zoom}
           cameraZoom={cameraZoom}
           offset={offsetL}
+          isPrimaryPanel={true}
+          optimizationSettings={{
+            optimizeStereo,
+            mirrorRightPanel,
+            muteRightPanel
+          }}
         />
-        {/* Vista derecha */}
+        {/* Vista derecha (secundaria/optimizada) */}
         <ARPanel
           videoRef={videoRefR}
           width={arWidth}
           height={arHeight}
-          overlay={overlay}
+          overlay={optimizeStereo && mirrorRightPanel ? null : overlay} // No overlay si está en modo espejo
           overlayType={finalOverlayType}
           zoom={zoom}
           cameraZoom={cameraZoom}
           offset={offsetR}
+          isPrimaryPanel={false}
+          isRightPanel={true}
+          optimizationSettings={{
+            optimizeStereo,
+            mirrorRightPanel,
+            muteRightPanel
+          }}
         />
       </div>
       

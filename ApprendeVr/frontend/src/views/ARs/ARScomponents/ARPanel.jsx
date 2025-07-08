@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
+import OptimizedOverlayWrapper from './overlays/OptimizedOverlayWrapper';
 
 /**
  * ARPanel
@@ -10,14 +11,75 @@ import { Canvas } from '@react-three/fiber';
  *  - overlay: componente React a superponer (ej: <VRDomo /> o R3F)
  *  - overlayType: 'r3f' | 'html' (opcional, para forzar Canvas)
  *  - style: estilos extra
+ *  - isPrimaryPanel: si es el panel principal (para optimizaciones)
+ *  - isRightPanel: si es el panel derecho
+ *  - optimizationSettings: configuraciones de optimización
  */
 const showLogs = true; // Cambia a false para desactivar logs
 
-const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, style = {}, zoom = 1, cameraZoom = 1, offset = 0 }, ref) => {
+const ARPanel = forwardRef(({ 
+  videoRef, 
+  width, 
+  height, 
+  overlay, 
+  overlayType, 
+  style = {}, 
+  zoom = 1, 
+  cameraZoom = 1, 
+  offset = 0,
+  isPrimaryPanel = false,
+  isRightPanel = false,
+  optimizationSettings = {}
+}, ref) => {
+  const { optimizeStereo = false, mirrorRightPanel = false, muteRightPanel = true } = optimizationSettings;
+  
+  if (showLogs) console.log('[ARPanel] Configuración:', {
+    isPrimaryPanel,
+    isRightPanel,
+    optimizeStereo,
+    mirrorRightPanel,
+    muteRightPanel,
+    overlayType,
+    overlay: !!overlay
+  });
+  
+  // Lógica de optimización para panel derecho
+  const shouldSkipOverlay = isRightPanel && optimizeStereo && mirrorRightPanel;
+  const shouldMuteAudio = isRightPanel && optimizeStereo && muteRightPanel;
+  
+  if (showLogs && isRightPanel && optimizeStereo) {
+    console.log('[ARPanel] Panel derecho optimizado:', {
+      skipOverlay: shouldSkipOverlay,
+      muteAudio: shouldMuteAudio
+    });
+  }
   if (showLogs) console.log('[ARPanel] overlayType:', overlayType, 'overlay:', overlay);
   // Si overlayType es 'r3f', renderizar overlay dentro de un Canvas embebido
   const renderOverlay = () => {
     if (showLogs) console.log('[ARPanel] renderOverlay called, overlayType:', overlayType, 'overlay:', overlay);
+    
+    // Si es panel derecho en modo espejo, mostrar mensaje de optimización
+    if (shouldSkipOverlay) {
+      if (showLogs) console.log('[ARPanel] Panel derecho optimizado - usando espejo del panel izquierdo');
+      return (
+        <div style={{ 
+          position: 'absolute', 
+          top: '50%', 
+          left: '50%', 
+          transform: 'translate(-50%, -50%)',
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: '12px',
+          textAlign: 'center',
+          padding: '4px 8px',
+          background: 'rgba(0,0,0,0.5)',
+          borderRadius: '4px',
+          zIndex: 10
+        }}>
+          🪞 Panel Espejo<br/>
+          <span style={{ fontSize: '10px' }}>Optimizado</span>
+        </div>
+      );
+    }
     
     // Si no hay overlay, no renderizar nada
     if (!overlay) {
@@ -135,7 +197,7 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
         ref={videoRef}
         autoPlay
         playsInline
-        muted
+        muted={shouldMuteAudio} // Silenciar si está en modo optimización
         className="ar-video"
         style={{
           position: 'absolute',
@@ -149,7 +211,12 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
       />
       {/* Overlay 3D/A-Frame/R3F */}
       <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
-        {renderOverlay()}
+        <OptimizedOverlayWrapper 
+          isPrimaryPanel={isPrimaryPanel}
+          optimizationSettings={optimizationSettings}
+        >
+          {renderOverlay()}
+        </OptimizedOverlayWrapper>
       </div>
       {/* Cursor central visual mejorado */}
       <div

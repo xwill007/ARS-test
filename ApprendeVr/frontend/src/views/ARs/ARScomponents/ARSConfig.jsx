@@ -22,6 +22,9 @@ import arsConfigManager from '../../../config/ARSConfigManager';
  *  - overlays
  *  - onSave: función para guardar en localStorage
  *  - position: objeto con propiedades de posición { button: {}, menu: {} }
+ *  - optimizeStereo, setOptimizeStereo: optimización para modo estereoscópico
+ *  - mirrorRightPanel, setMirrorRightPanel: espejo del panel derecho
+ *  - muteRightPanel, setMuteRightPanel: silenciar panel derecho
  */
 const ARSConfig = ({
   arSeparation, setArSeparation,
@@ -40,7 +43,14 @@ const ARSConfig = ({
   position = {
     button: { top: 12, left: 6 },
     menu: { top: 90, left: 270 }
-  }
+  },
+  // Nuevas props para optimización estereoscópica
+  optimizeStereo = false, 
+  setOptimizeStereo = () => {},
+  mirrorRightPanel = false, 
+  setMirrorRightPanel = () => {},
+  muteRightPanel = true, 
+  setMuteRightPanel = () => {}
 }) => {
   const [showHelp, setShowHelp] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('config'); // 'config' o 'overlays'
@@ -406,6 +416,98 @@ const ARSConfig = ({
                   style={{ flex: 1, accentColor: '#ff9800' }}
                 />
                 <span style={{ width: 40, textAlign: 'right', fontSize: 12 }}>{cameraZoom.toFixed(1)}x</span>
+              </div>
+              
+              {/* Separador para optimización estereoscópica */}
+              <div style={{ 
+                borderTop: '1px solid rgba(79,195,247,0.3)', 
+                margin: '12px 0 8px 0',
+                paddingTop: 8
+              }}>
+                <div style={{ 
+                  fontSize: 12, 
+                  color: '#4fc3f7', 
+                  marginBottom: 8,
+                  fontWeight: 'bold'
+                }}>
+                  🔧 Optimización Estereoscópica
+                </div>
+                
+                {/* Optimización general */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>⚡ Optimizar</span>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 6, 
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    flex: 1
+                  }}>
+                    <input 
+                      type="checkbox" 
+                      checked={optimizeStereo}
+                      onChange={e => setOptimizeStereo(e.target.checked)}
+                      style={{ 
+                        accentColor: '#4fc3f7',
+                        transform: 'scale(0.9)'
+                      }}
+                    />
+                    Modo eficiente
+                  </label>
+                </div>
+                
+                {/* Espejo del panel derecho */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>🪞 Espejo D</span>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 6, 
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    flex: 1,
+                    opacity: optimizeStereo ? 1 : 0.6
+                  }}>
+                    <input 
+                      type="checkbox" 
+                      checked={mirrorRightPanel}
+                      onChange={e => setMirrorRightPanel(e.target.checked)}
+                      disabled={!optimizeStereo}
+                      style={{ 
+                        accentColor: '#4fc3f7',
+                        transform: 'scale(0.9)'
+                      }}
+                    />
+                    Panel derecho = izquierdo
+                  </label>
+                </div>
+                
+                {/* Silenciar panel derecho */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>🔇 Silenciar D</span>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 6, 
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    flex: 1,
+                    opacity: optimizeStereo ? 1 : 0.6
+                  }}>
+                    <input 
+                      type="checkbox" 
+                      checked={muteRightPanel}
+                      onChange={e => setMuteRightPanel(e.target.checked)}
+                      disabled={!optimizeStereo}
+                      style={{ 
+                        accentColor: '#4fc3f7',
+                        transform: 'scale(0.9)'
+                      }}
+                    />
+                    Sin audio en panel derecho
+                  </label>
+                </div>
               </div>
               
               {/* Botones de presets */}
