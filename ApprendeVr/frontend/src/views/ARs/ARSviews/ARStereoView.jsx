@@ -107,9 +107,7 @@ const ARStereoView = ({
   const videoRefR = useRef(null);
   const streamRef = useRef(null);
   const leftPanelRef = useRef(null);
-  const rightPanelRef = useRef(null);
-  const leftCanvasRef = useRef(null); // Nuevo ref para el canvas izquierdo (espejo)
-  const debugCanvasRef = useRef(null); // Ref para el canvas de depuración
+  const rightCanvasRef = useRef(null);
 
   // Función para obtener las dimensiones de la resolución
   const getResolutionDimensions = (resolution) => {
@@ -336,44 +334,36 @@ const ARStereoView = ({
     }
   }, [cameraZoom]);
 
-  // Copiar video y overlays al canvas izquierdo en modo espejo (mejorado)
+  // Copiar video y overlays al canvas derecho en modo espejo
   useEffect(() => {
-    let animationId;
-    function drawFrame() {
-      if (mirrorRightPanel && optimizeStereo) {
-        const rightPanel = rightPanelRef.current;
-        const canvas = leftCanvasRef.current;
-        const debugCanvas = debugCanvasRef.current;
-        const video = videoRefR.current;
-        if (canvas && video && video.readyState >= 2) {
+    if (mirrorRightPanel && optimizeStereo) {
+      const interval = setInterval(() => {
+        const leftPanel = leftPanelRef.current;
+        const canvas = rightCanvasRef.current;
+        const video = videoRefL.current;
+        if (canvas && video) {
           const ctx = canvas.getContext('2d');
+          // Dibujar frame del video
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          if (rightPanel) {
-            const overlays = rightPanel.querySelectorAll('[data-overlay], .ars-overlay');
+          // Dibujar overlays encima
+          if (leftPanel) {
+            // Buscar el overlay dentro del leftPanel
+            const overlays = leftPanel.querySelectorAll('[data-overlay], .ars-overlay');
             overlays.forEach(overlayEl => {
               html2canvas(overlayEl, {backgroundColor: null}).then(imgCanvas => {
+                // Obtener posición relativa del overlay
                 const rect = overlayEl.getBoundingClientRect();
-                const parentRect = rightPanel.getBoundingClientRect();
+                const parentRect = leftPanel.getBoundingClientRect();
                 const x = rect.left - parentRect.left;
                 const y = rect.top - parentRect.top;
                 ctx.drawImage(imgCanvas, x, y, rect.width, rect.height);
               });
             });
           }
-          // Copiar el contenido del canvas izquierdo al canvas de depuración central
-          if (debugCanvas) {
-            const debugCtx = debugCanvas.getContext('2d');
-            debugCtx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
-            debugCtx.drawImage(canvas, 0, 0, debugCanvas.width, debugCanvas.height);
-          }
         }
-        animationId = requestAnimationFrame(drawFrame);
-      }
-    }
-    if (mirrorRightPanel && optimizeStereo) {
-      animationId = requestAnimationFrame(drawFrame);
-      return () => cancelAnimationFrame(animationId);
+      }, 1000 / 15);
+      return () => clearInterval(interval);
     }
   }, [mirrorRightPanel, optimizeStereo, arWidth, arHeight]);
 
@@ -527,15 +517,8 @@ const ARStereoView = ({
         height: '100%',
         width: '100%'
       }}>
-        {/* Vista izquierda (espejo/canvas o video normal) */}
-        {mirrorRightPanel && optimizeStereo ? (
-          <canvas
-            ref={leftCanvasRef}
-            width={arWidth}
-            height={arHeight}
-            style={{width: arWidth, height: arHeight, background: 'black', borderRadius: 8}}
-          />
-        ) : (
+        {/* Vista izquierda (principal) */}
+        <div ref={leftPanelRef} style={{width: arWidth, height: arHeight}}>
           <ARPanel
             videoRef={videoRefL}
             width={arWidth}
@@ -555,18 +538,16 @@ const ARStereoView = ({
               singleCursor
             }}
           />
-        )}
-        {/* Panel central de depuración (solo en modo espejo) */}
-        {mirrorRightPanel && optimizeStereo && (
+        </div>
+        {/* Vista derecha (secundaria/optimizada) */}
+        {mirrorRightPanel && optimizeStereo ? (
           <canvas
-            ref={debugCanvasRef}
+            ref={rightCanvasRef}
             width={arWidth}
             height={arHeight}
-            style={{width: arWidth, height: arHeight, background: '#222', border: '2px dashed orange', borderRadius: 8, margin: '0 8px'}}
+            style={{width: arWidth, height: arHeight, background: 'black', borderRadius: 8}}
           />
-        )}
-        {/* Vista derecha (principal con overlays) */}
-        <div ref={rightPanelRef} style={{width: arWidth, height: arHeight}}>
+        ) : (
           <ARPanel
             videoRef={videoRefR}
             width={arWidth}
@@ -576,10 +557,10 @@ const ARStereoView = ({
             zoom={zoom}
             cameraZoom={cameraZoom}
             offset={offsetR}
-            isPrimaryPanel={true}
+            isPrimaryPanel={false}
             isRightPanel={true}
             showCursor={false}
-            showOverlayCursor={showWhiteCursors}
+            showOverlayCursor={showWhiteCursors && !(optimizeStereo && mirrorRightPanel)}
             optimizationSettings={{
               optimizeStereo,
               mirrorRightPanel,
@@ -587,7 +568,7 @@ const ARStereoView = ({
               singleCursor
             }}
           />
-        </div>
+        )}
       </div>
       
       {/* Estado y opciones de configuración */}
