@@ -25,6 +25,7 @@ import arsConfigManager from '../../../config/ARSConfigManager';
  *  - optimizeStereo, setOptimizeStereo: optimización para modo estereoscópico
  *  - mirrorRightPanel, setMirrorRightPanel: espejo del panel derecho
  *  - muteRightPanel, setMuteRightPanel: silenciar panel derecho
+ *  - singleCursor, setSingleCursor: ocultar cursores en ambas vistas (true = ocultar, false = mostrar)
  */
 const ARSConfig = ({
   arSeparation, setArSeparation,
@@ -50,7 +51,9 @@ const ARSConfig = ({
   mirrorRightPanel = false, 
   setMirrorRightPanel = () => {},
   muteRightPanel = true, 
-  setMuteRightPanel = () => {}
+  setMuteRightPanel = () => {},
+  singleCursor = false, // Por defecto, mostrar cursores blancos en ambas vistas
+  setSingleCursor = () => {}
 }) => {
   const [showHelp, setShowHelp] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('config'); // 'config' o 'overlays'
@@ -506,6 +509,30 @@ const ARSConfig = ({
                       }}
                     />
                     Sin audio en panel derecho
+                  </label>
+                </div>
+                
+                {/* Control de cursores */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>🎯 Ocultar cursores</span>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 6, 
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    flex: 1
+                  }} title="Oculta los cursores blancos en ambas vistas. Deja un punto mínimo para referencia.">
+                    <input 
+                      type="checkbox" 
+                      checked={singleCursor}
+                      onChange={e => setSingleCursor(e.target.checked)}
+                      style={{ 
+                        accentColor: '#4fc3f7',
+                        transform: 'scale(0.9)'
+                      }}
+                    />
+                    Ocultar cursores blancos
                   </label>
                 </div>
               </div>

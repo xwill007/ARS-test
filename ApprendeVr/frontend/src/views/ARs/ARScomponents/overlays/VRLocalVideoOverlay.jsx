@@ -16,6 +16,7 @@ const VRLocalVideoOverlay = ({
   showMarker = true,
   enableVoiceCommands = true,
   voiceCommandsActivated = true,
+  showCursor = true, // Nueva prop para controlar si se muestra el cursor
   ...props 
 }) => {
   
@@ -58,18 +59,19 @@ const VRLocalVideoOverlay = ({
           mic-icon
           gaze-toggle>
           
-          <!-- Fondo circular del micrófono -->
+          <!-- Fondo circular del micrófono (tamaño reducido) - también clickeable -->
           <a-circle
-            radius="1.2"
+            radius="0.6"
             material="color: #4CAF50; shader: flat; opacity: 0.9"
-            animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; dur: 800; loop: true; easing: easeInOutQuad">
+            animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; dur: 800; loop: true; easing: easeInOutQuad"
+            class="clickable raycastable">
           </a-circle>
           
           <!-- Indicador de progreso de mirada (inicialmente invisible) -->
           <a-ring
             id="gaze-progress"
-            radius-inner="1.3"
-            radius-outer="1.4"
+            radius-inner="0.65"
+            radius-outer="0.7"
             theta-start="0"
             theta-length="0"
             position="0 0 0.01"
@@ -77,38 +79,38 @@ const VRLocalVideoOverlay = ({
             visible="false">
           </a-ring>
           
-          <!-- Símbolo del micrófono usando geometría -->
+          <!-- Símbolo del micrófono usando geometría (tamaño reducido) -->
           <a-cylinder
-            radius="0.3"
-            height="0.6"
-            position="0 0.2 0.02"
+            radius="0.15"
+            height="0.3"
+            position="0 0.1 0.02"
             material="color: white; shader: flat">
           </a-cylinder>
           
-          <!-- Base del micrófono -->
+          <!-- Base del micrófono (tamaño reducido) -->
           <a-cylinder
-            radius="0.5"
-            height="0.1"
-            position="0 -0.3 0.02"
+            radius="0.25"
+            height="0.05"
+            position="0 -0.15 0.02"
             material="color: white; shader: flat">
           </a-cylinder>
           
-          <!-- Pie del micrófono -->
+          <!-- Pie del micrófono (tamaño reducido) -->
           <a-cylinder
-            radius="0.05"
-            height="0.4"
-            position="0 -0.1 0.02"
+            radius="0.025"
+            height="0.2"
+            position="0 -0.05 0.02"
             material="color: white; shader: flat">
           </a-cylinder>
           
-          <!-- Indicador de estado -->
+          <!-- Indicador de estado (tamaño reducido) -->
           <a-text
             id="mic-status"
             value="ON"
-            position="0 -0.8 0.03"
+            position="0 -0.4 0.03"
             align="center"
             color="white"
-            scale="0.8 0.8 0.8">
+            scale="0.4 0.4 0.4">
           </a-text>
           
         </a-entity>
@@ -446,6 +448,9 @@ const VRLocalVideoOverlay = ({
             console.log('🎤 Reconocimiento iniciado');
             this.isListening = true;
             this.updateListeningIndicator('🎙️ Escuchando..');
+            
+            // Suprimir sonidos del sistema
+            this.suppressSystemSounds();
           };
           
           this.recognition.onend = () => {
@@ -453,15 +458,18 @@ const VRLocalVideoOverlay = ({
             this.isListening = false;
             this.updateListeningIndicator('');
             
-            // Reiniciar automáticamente si está habilitado
-            if (this.data.enabled) {
-              setTimeout(() => this.startListening(), 1000);
-            }
+            // Suprimir sonidos del sistema
+            this.suppressSystemSounds();
+            
+            // NO reiniciar automáticamente - solo activación manual
           };
           
           this.recognition.onerror = (event) => {
             console.error('🎤 Error en reconocimiento:', event.error);
             this.updateListeningIndicator('❌ Error: ' + event.error);
+            
+            // Suprimir sonidos del sistema
+            this.suppressSystemSounds();
           };
           
           this.recognition.onresult = (event) => {
@@ -554,6 +562,30 @@ const VRLocalVideoOverlay = ({
           }
         },
 
+        suppressSystemSounds: function() {
+          // Suprimir sonidos del sistema de Chrome para reconocimiento de voz
+          try {
+            // Desactivar sonidos de notificación del navegador
+            if (typeof speechSynthesis !== 'undefined') {
+              speechSynthesis.cancel();
+            }
+            
+            // Intentar silenciar contexto de audio temporal
+            if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+              const AudioCtx = AudioContext || webkitAudioContext;
+              if (this.tempAudioContext) {
+                this.tempAudioContext.close();
+              }
+              this.tempAudioContext = new AudioCtx();
+              this.tempAudioContext.suspend();
+            }
+            
+            console.log('🔇 Sonidos del sistema suprimidos');
+          } catch (error) {
+            console.warn('⚠️ No se pudieron suprimir todos los sonidos del sistema:', error);
+          }
+        },
+
         startListening: function() {
           if (!this.recognition) {
             console.warn('🎤 Reconocimiento no disponible');
@@ -626,15 +658,80 @@ const VRLocalVideoOverlay = ({
         }
       });
 
-      // Componente para el icono del micrófono
+      // Componente para el icono del micrófono (mejorado para cursor y raycast)
       AFRAME.registerComponent('mic-icon', {
         init: function() {
-          this.el.addEventListener('click', () => {
-            const voiceControlEl = document.querySelector('[voice-control]');
-            if (voiceControlEl && voiceControlEl.components['voice-control']) {
-              voiceControlEl.components['voice-control'].toggleListening();
-            }
+          // Eventos para web y móvil
+          this.el.addEventListener('click', this.toggleVoice.bind(this));
+          this.el.addEventListener('touchstart', this.onTouchStart.bind(this));
+          this.el.addEventListener('touchend', this.onTouchEnd.bind(this));
+          
+          // Eventos del cursor/raycaster
+          this.el.addEventListener('mouseenter', this.onCursorEnter.bind(this));
+          this.el.addEventListener('mouseleave', this.onCursorLeave.bind(this));
+          this.el.addEventListener('fusing', this.onFusing.bind(this));
+          
+          // Mejorar la geometría para detección del cursor
+          this.el.setAttribute('geometry', {
+            primitive: 'circle',
+            radius: 0.6
           });
+          
+          // Asegurar que sea clickeable y visible para el raycaster
+          this.el.classList.add('clickable', 'raycastable');
+          this.el.setAttribute('material', 'transparent: true; opacity: 0.01'); // Invisible pero clickeable
+          
+          console.log('🎤 Icono de micrófono inicializado con soporte de cursor');
+        },
+
+        onCursorEnter: function() {
+          console.log('🎯 Cursor sobre micrófono');
+          // Cambiar color del círculo de fondo para feedback visual
+          const circle = this.el.querySelector('a-circle');
+          if (circle) {
+            circle.setAttribute('material', 'color: #81C784; shader: flat; opacity: 0.9');
+          }
+        },
+
+        onCursorLeave: function() {
+          console.log('🎯 Cursor fuera del micrófono');
+          // Restaurar color original
+          const circle = this.el.querySelector('a-circle');
+          if (circle) {
+            circle.setAttribute('material', 'color: #4CAF50; shader: flat; opacity: 0.9');
+          }
+        },
+
+        onFusing: function() {
+          console.log('🎯 Cursor haciendo fusing en micrófono');
+          // Efecto visual durante el fusing
+          const circle = this.el.querySelector('a-circle');
+          if (circle) {
+            circle.setAttribute('material', 'color: #FFA726; shader: flat; opacity: 0.9');
+          }
+        },
+
+        onTouchStart: function(event) {
+          event.preventDefault();
+          this.touchStarted = true;
+          console.log('📱 Touch start en micrófono');
+        },
+
+        onTouchEnd: function(event) {
+          event.preventDefault();
+          if (this.touchStarted) {
+            this.toggleVoice();
+            this.touchStarted = false;
+            console.log('📱 Touch end - activando micrófono');
+          }
+        },
+
+        toggleVoice: function() {
+          console.log('🎤 Activando/desactivando micrófono');
+          const voiceControlEl = document.querySelector('[voice-control]');
+          if (voiceControlEl && voiceControlEl.components['voice-control']) {
+            voiceControlEl.components['voice-control'].toggleListening();
+          }
         }
       });
 
@@ -752,6 +849,26 @@ const VRLocalVideoOverlay = ({
       });
 
       console.log('🎤 Componentes de control de voz registrados');
+      
+      // Script adicional para mejorar la interacción con mouse en modo web
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('🖱️ Configurando interacción de mouse');
+        
+        // Asegurar que los elementos clickeables respondan al mouse
+        const clickableElements = document.querySelectorAll('.clickable, .raycastable');
+        clickableElements.forEach(el => {
+          el.style.cursor = 'pointer';
+          
+          // Agregar eventos de mouse adicionales
+          el.addEventListener('mouseenter', function() {
+            console.log('🖱️ Mouse sobre elemento clickeable');
+          });
+          
+          el.addEventListener('mouseleave', function() {
+            console.log('🖱️ Mouse fuera de elemento clickeable');
+          });
+        });
+      });
     </script>
   `;
 
@@ -762,12 +879,34 @@ const VRLocalVideoOverlay = ({
         ${videoScript}
       </head>
       <body style="margin:0; background:transparent;">
-        <a-scene embedded vr-mode-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
+        <a-scene 
+          embedded 
+          vr-mode-ui="enabled: false" 
+          stats="false"
+          style="width: 100vw; height: 100vh; background: transparent;">
+          
           ${generateVideoElement()}
           ${generateMarker()}
           ${generateVoiceControls()}
-          <!-- Cámara a altura de persona -->
-          <a-camera position="0 1.8 0" rotation="0 0 0"></a-camera>
+          
+          <!-- Cámara con cursor condicional -->
+          <a-camera position="0 1.8 0" rotation="0 0 0">
+            ${showCursor ? `
+            <!-- Cursor único para toda la interacción -->
+            <a-cursor
+              id="main-cursor"
+              position="0 0 -1"
+              geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+              material="color: white; shader: flat; opacity: 0.8"
+              animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+              animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
+              animation__mouseleave="property: scale; startEvents: mouseleave; to: 1 1 1; dur: 500"
+              raycaster="objects: .clickable, .raycastable; far: 20; interval: 1000"
+              fuse="true"
+              fuse-timeout="1500">
+            </a-cursor>
+            ` : ''}
+          </a-camera>
         </a-scene>
       </body>
     </html>

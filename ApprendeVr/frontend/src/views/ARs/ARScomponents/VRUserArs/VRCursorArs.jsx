@@ -3,12 +3,14 @@ import { useThree, useFrame } from '@react-three/fiber';
 import { Vector3, Raycaster, SphereGeometry, MeshBasicMaterial, Mesh } from 'three';
 import VRClickArs from './VRClickArs';
 
-const VRCursorArs = ({ userPosition, pointerColor = '#2196f3', pointerScale = 0.05 }) => {
+const VRCursorArs = ({ userPosition, pointerColor = '#2196f3', pointerScale = 0.05, enabled = true }) => {
   const { scene, camera } = useThree();
   const pointer = useRef(null);
   const raycaster = useRef(new Raycaster());
 
   useEffect(() => {
+    if (!enabled) return;
+    
     // Crear cursor 3D
     const geometry = new SphereGeometry(pointerScale, 16, 16);
     const material = new MeshBasicMaterial({ 
@@ -22,12 +24,13 @@ const VRCursorArs = ({ userPosition, pointerColor = '#2196f3', pointerScale = 0.
     return () => {
       if (pointer.current) {
         scene.remove(pointer.current);
+        pointer.current = null;
       }
     };
-  }, [scene, pointerColor, pointerScale]);
+  }, [scene, pointerColor, pointerScale, enabled]);
 
   useFrame(() => {
-    if (!pointer.current) return;
+    if (!enabled || !pointer.current) return;
 
     // Actualizar color del cursor
     pointer.current.material.color.set(pointerColor);
@@ -56,7 +59,7 @@ const VRCursorArs = ({ userPosition, pointerColor = '#2196f3', pointerScale = 0.
     }
   });
 
-  return <VRClickArs raycaster={raycaster} />;
+  return enabled ? <VRClickArs raycaster={raycaster} /> : null;
 };
 
 export default VRCursorArs;

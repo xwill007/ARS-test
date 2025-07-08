@@ -29,6 +29,8 @@ const ARPanel = forwardRef(({
   offset = 0,
   isPrimaryPanel = false,
   isRightPanel = false,
+  showCursor = true, // Cursor del panel (div visual)
+  showOverlayCursor = true, // Cursor de los overlays (A-Frame/R3F)
   optimizationSettings = {}
 }, ref) => {
   const { optimizeStereo = false, mirrorRightPanel = false, muteRightPanel = true } = optimizationSettings;
@@ -36,6 +38,8 @@ const ARPanel = forwardRef(({
   if (showLogs) console.log('[ARPanel] Configuración:', {
     isPrimaryPanel,
     isRightPanel,
+    showCursor,
+    showOverlayCursor,
     optimizeStereo,
     mirrorRightPanel,
     muteRightPanel,
@@ -110,11 +114,21 @@ const ARPanel = forwardRef(({
           !singleOverlay.type.toString().includes('VRConeOverlay');
         
         if (isR3FComponent) {
-          // Es un componente R3F válido
-          r3fOverlays.push(React.cloneElement(singleOverlay, { key: `r3f-${index}` }));
+          // Es un componente R3F válido - pasar showOverlayCursor si el componente lo acepta
+          const overlayProps = { key: `r3f-${index}` };
+          if (singleOverlay.type.name === 'VRLocalVideoOverlay' || 
+              singleOverlay.props?.showCursor !== undefined) {
+            overlayProps.showCursor = showOverlayCursor;
+          }
+          r3fOverlays.push(React.cloneElement(singleOverlay, overlayProps));
         } else {
-          // Es HTML/A-Frame o componente con iframe
-          htmlOverlays.push(React.cloneElement(singleOverlay, { key: `html-${index}` }));
+          // Es HTML/A-Frame o componente con iframe - pasar showOverlayCursor si el componente lo acepta
+          const overlayProps = { key: `html-${index}` };
+          if (singleOverlay.type.name === 'VRLocalVideoOverlay' || 
+              singleOverlay.props?.showCursor !== undefined) {
+            overlayProps.showCursor = showOverlayCursor;
+          }
+          htmlOverlays.push(React.cloneElement(singleOverlay, overlayProps));
         }
       });
       
@@ -162,6 +176,12 @@ const ARPanel = forwardRef(({
       
       if (isR3FComponent) {
         if (showLogs) console.log('[ARPanel] Renderizando overlay individual en Canvas (R3F)');
+        // Pasar showOverlayCursor si el componente lo acepta
+        const enhancedOverlay = (overlay.type.name === 'VRLocalVideoOverlay' || 
+                                overlay.props?.showCursor !== undefined) 
+          ? React.cloneElement(overlay, { showCursor: showOverlayCursor })
+          : overlay;
+        
         return (
           <Canvas 
             style={{ width: '100%', height: '100%', pointerEvents: 'none', background: 'transparent' }} 
@@ -173,13 +193,17 @@ const ARPanel = forwardRef(({
           >
             <ambientLight intensity={0.7} />
             <pointLight position={[2, 2, 2]} />
-            {overlay}
+            {enhancedOverlay}
           </Canvas>
         );
       }
     }
     if (showLogs) console.log('[ARPanel] Renderizando overlay como HTML/A-Frame');
-    // Si es HTML/A-Frame, renderizar tal cual
+    // Si es HTML/A-Frame, renderizar tal cual pero pasar showOverlayCursor si el componente lo acepta
+    if (overlay.type.name === 'VRLocalVideoOverlay' || 
+        overlay.props?.showCursor !== undefined) {
+      return React.cloneElement(overlay, { showCursor: showOverlayCursor });
+    }
     return overlay;
   };
 
@@ -218,31 +242,22 @@ const ARPanel = forwardRef(({
           {renderOverlay()}
         </OptimizedOverlayWrapper>
       </div>
-      {/* Cursor central visual mejorado */}
+      {/* Punto mínimo de referencia visual (siempre visible) */}
       <div
         style={{
           position: 'absolute',
           top: '50%',
           left: '50%',
-          width: 20,
-          height: 20,
+          width: 4,
+          height: 4,
+          background: 'rgba(255, 255, 255, 0.3)',
+          borderRadius: '50%',
+          transform: 'translate(-50%, -50%)',
           pointerEvents: 'none',
           zIndex: 3,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
         }}
-      >
-        <div className="ar-cursor" style={{
-          width: 16,
-          height: 16,
-          borderRadius: '50%',
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-        }} />
-      </div>
+      />
+      {/* Cursor central visual eliminado - solo usamos el cursor del overlay */}
     </div>
   );
 });

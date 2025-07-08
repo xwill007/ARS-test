@@ -79,7 +79,8 @@ const ARStereoView = ({
     // Nuevas opciones de optimización
     optimizeStereo: false,
     mirrorRightPanel: false,
-    muteRightPanel: true
+    muteRightPanel: true,
+    singleCursor: false
   });
   const [arSeparation, setArSeparation] = useState(initial.arSeparation);
   const [arWidth, setArWidth] = useState(initial.arWidth);
@@ -94,6 +95,7 @@ const ARStereoView = ({
   const [optimizeStereo, setOptimizeStereo] = useState(initial.optimizeStereo || false);
   const [mirrorRightPanel, setMirrorRightPanel] = useState(initial.mirrorRightPanel || false);
   const [muteRightPanel, setMuteRightPanel] = useState(initial.muteRightPanel || true);
+  const [singleCursor, setSingleCursor] = useState(initial.singleCursor !== undefined ? initial.singleCursor : false);
   // Solo mostrar el menú si no hay configuración previa
   const [showMenu, setShowMenu] = useState(() => {
     // Verificar si existe configuración personalizada
@@ -335,6 +337,35 @@ const ARStereoView = ({
   // Si hay múltiples overlays, usar 'mixed'
   const finalOverlayType = Array.isArray(overlay) && overlay.length > 1 ? 'mixed' : overlayType;
 
+  // Detectar si el overlay actual tiene cursor
+  const hasOverlayCursor = React.useMemo(() => {
+    if (!overlay) return false;
+    
+    const checkOverlayForCursor = (singleOverlay) => {
+      if (!singleOverlay) return false;
+      // VRLocalVideoOverlay tiene cursor A-Frame
+      if (singleOverlay.type?.name === 'VRLocalVideoOverlay') return true;
+      // Otros overlays que podrían tener cursor...
+      return false;
+    };
+    
+    if (Array.isArray(overlay)) {
+      return overlay.some(checkOverlayForCursor);
+    }
+    
+    return checkOverlayForCursor(overlay);
+  }, [overlay]);
+
+  // Lógica de cursor simplificada
+  // singleCursor ahora controla si se muestran los cursores blancos en ambos paneles o en ninguno
+  const showWhiteCursors = !singleCursor; // Cuando singleCursor es false, mostrar cursores blancos en ambos
+
+  console.log('🎯 [ARStereoView] Lógica de cursor simplificada:', {
+    singleCursor,
+    showWhiteCursors,
+    overlayType: finalOverlayType
+  });
+
   return (
     <div className="ar-stereo-container">
       {/* Indicador de optimización activa */}
@@ -419,6 +450,7 @@ const ARStereoView = ({
         optimizeStereo={optimizeStereo} setOptimizeStereo={setOptimizeStereo}
         mirrorRightPanel={mirrorRightPanel} setMirrorRightPanel={setMirrorRightPanel}
         muteRightPanel={muteRightPanel} setMuteRightPanel={setMuteRightPanel}
+        singleCursor={singleCursor} setSingleCursor={setSingleCursor}
         position={{
           button: { 
             top: 6, 
@@ -452,10 +484,13 @@ const ARStereoView = ({
           cameraZoom={cameraZoom}
           offset={offsetL}
           isPrimaryPanel={true}
+          showCursor={false} // Cursor del panel eliminado
+          showOverlayCursor={showWhiteCursors} // Cursor blanco del overlay en ambos paneles cuando esté activado
           optimizationSettings={{
             optimizeStereo,
             mirrorRightPanel,
-            muteRightPanel
+            muteRightPanel,
+            singleCursor
           }}
         />
         {/* Vista derecha (secundaria/optimizada) */}
@@ -470,10 +505,13 @@ const ARStereoView = ({
           offset={offsetR}
           isPrimaryPanel={false}
           isRightPanel={true}
+          showCursor={false} // Cursor del panel eliminado
+          showOverlayCursor={showWhiteCursors} // Cursor blanco del overlay en ambos paneles cuando esté activado
           optimizationSettings={{
             optimizeStereo,
             mirrorRightPanel,
-            muteRightPanel
+            muteRightPanel,
+            singleCursor
           }}
         />
       </div>
