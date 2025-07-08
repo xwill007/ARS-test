@@ -3,6 +3,7 @@ import ARPanel from '../ARScomponents/ARPanel';
 import ARSConfig from '../ARScomponents/ARSConfig';
 import ARSConfigStatus from '../ARScomponents/ARSConfigStatus';
 import arsConfigManager from '../../../config/ARSConfigManager';
+import html2canvas from 'html2canvas';
 
 // Usar el nuevo sistema de configuración basado en archivos JSON
 const getInitialConfig = (defaults) => {
@@ -105,6 +106,10 @@ const ARStereoView = ({
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
   const streamRef = useRef(null);
+  const leftPanelRef = useRef(null);
+  const rightPanelRef = useRef(null);
+  const leftCanvasRef = useRef(null); // Nuevo ref para el canvas izquierdo (espejo)
+  const debugCanvasRef = useRef(null); // Ref para el canvas de depuración
 
   // Función para obtener las dimensiones de la resolución
   const getResolutionDimensions = (resolution) => {
@@ -331,6 +336,47 @@ const ARStereoView = ({
     }
   }, [cameraZoom]);
 
+  // Copiar video y overlays al canvas izquierdo en modo espejo (mejorado)
+  useEffect(() => {
+    let animationId;
+    function drawFrame() {
+      if (mirrorRightPanel && optimizeStereo) {
+        const rightPanel = rightPanelRef.current;
+        const canvas = leftCanvasRef.current;
+        const debugCanvas = debugCanvasRef.current;
+        const video = videoRefR.current;
+        if (canvas && video && video.readyState >= 2) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          if (rightPanel) {
+            const overlays = rightPanel.querySelectorAll('[data-overlay], .ars-overlay');
+            overlays.forEach(overlayEl => {
+              html2canvas(overlayEl, {backgroundColor: null}).then(imgCanvas => {
+                const rect = overlayEl.getBoundingClientRect();
+                const parentRect = rightPanel.getBoundingClientRect();
+                const x = rect.left - parentRect.left;
+                const y = rect.top - parentRect.top;
+                ctx.drawImage(imgCanvas, x, y, rect.width, rect.height);
+              });
+            });
+          }
+          // Copiar el contenido del canvas izquierdo al canvas de depuración central
+          if (debugCanvas) {
+            const debugCtx = debugCanvas.getContext('2d');
+            debugCtx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
+            debugCtx.drawImage(canvas, 0, 0, debugCanvas.width, debugCanvas.height);
+          }
+        }
+        animationId = requestAnimationFrame(drawFrame);
+      }
+    }
+    if (mirrorRightPanel && optimizeStereo) {
+      animationId = requestAnimationFrame(drawFrame);
+      return () => cancelAnimationFrame(animationId);
+    }
+  }, [mirrorRightPanel, optimizeStereo, arWidth, arHeight]);
+
   // Determinar overlayType automáticamente si no se pasa
   const overlayType = overlayTypeProp || detectOverlayType(overlay);
 
@@ -364,6 +410,14 @@ const ARStereoView = ({
     singleCursor,
     showWhiteCursors,
     overlayType: finalOverlayType
+  });
+
+  console.log('🪞 [ARStereoView] Estado del modo espejo:', {
+    optimizeStereo,
+    mirrorRightPanel,
+    muteRightPanel,
+    'Panel derecho muestra overlay': !!overlay,
+    'Panel derecho showOverlayCursor': showWhiteCursors && !(optimizeStereo && mirrorRightPanel)
   });
 
   return (
@@ -473,47 +527,67 @@ const ARStereoView = ({
         height: '100%',
         width: '100%'
       }}>
-        {/* Vista izquierda (principal) */}
-        <ARPanel
-          videoRef={videoRefL}
-          width={arWidth}
-          height={arHeight}
-          overlay={overlay}
-          overlayType={finalOverlayType}
-          zoom={zoom}
-          cameraZoom={cameraZoom}
-          offset={offsetL}
-          isPrimaryPanel={true}
-          showCursor={false} // Cursor del panel eliminado
-          showOverlayCursor={showWhiteCursors} // Cursor blanco del overlay en ambos paneles cuando esté activado
-          optimizationSettings={{
-            optimizeStereo,
-            mirrorRightPanel,
-            muteRightPanel,
-            singleCursor
-          }}
-        />
-        {/* Vista derecha (secundaria/optimizada) */}
-        <ARPanel
-          videoRef={videoRefR}
-          width={arWidth}
-          height={arHeight}
-          overlay={optimizeStereo && mirrorRightPanel ? null : overlay} // No overlay si está en modo espejo
-          overlayType={finalOverlayType}
-          zoom={zoom}
-          cameraZoom={cameraZoom}
-          offset={offsetR}
-          isPrimaryPanel={false}
-          isRightPanel={true}
-          showCursor={false} // Cursor del panel eliminado
-          showOverlayCursor={showWhiteCursors} // Cursor blanco del overlay en ambos paneles cuando esté activado
-          optimizationSettings={{
-            optimizeStereo,
-            mirrorRightPanel,
-            muteRightPanel,
-            singleCursor
-          }}
-        />
+        {/* Vista izquierda (espejo/canvas o video normal) */}
+        {mirrorRightPanel && optimizeStereo ? (
+          <canvas
+            ref={leftCanvasRef}
+            width={arWidth}
+            height={arHeight}
+            style={{width: arWidth, height: arHeight, background: 'black', borderRadius: 8}}
+          />
+        ) : (
+          <ARPanel
+            videoRef={videoRefL}
+            width={arWidth}
+            height={arHeight}
+            overlay={overlay}
+            overlayType={finalOverlayType}
+            zoom={zoom}
+            cameraZoom={cameraZoom}
+            offset={offsetL}
+            isPrimaryPanel={true}
+            showCursor={false}
+            showOverlayCursor={showWhiteCursors}
+            optimizationSettings={{
+              optimizeStereo,
+              mirrorRightPanel,
+              muteRightPanel,
+              singleCursor
+            }}
+          />
+        )}
+        {/* Panel central de depuración (solo en modo espejo) */}
+        {mirrorRightPanel && optimizeStereo && (
+          <canvas
+            ref={debugCanvasRef}
+            width={arWidth}
+            height={arHeight}
+            style={{width: arWidth, height: arHeight, background: '#222', border: '2px dashed orange', borderRadius: 8, margin: '0 8px'}}
+          />
+        )}
+        {/* Vista derecha (principal con overlays) */}
+        <div ref={rightPanelRef} style={{width: arWidth, height: arHeight}}>
+          <ARPanel
+            videoRef={videoRefR}
+            width={arWidth}
+            height={arHeight}
+            overlay={overlay}
+            overlayType={finalOverlayType}
+            zoom={zoom}
+            cameraZoom={cameraZoom}
+            offset={offsetR}
+            isPrimaryPanel={true}
+            isRightPanel={true}
+            showCursor={false}
+            showOverlayCursor={showWhiteCursors}
+            optimizationSettings={{
+              optimizeStereo,
+              mirrorRightPanel,
+              muteRightPanel,
+              singleCursor
+            }}
+          />
+        </div>
       </div>
       
       {/* Estado y opciones de configuración */}

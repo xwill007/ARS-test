@@ -48,7 +48,8 @@ const ARPanel = forwardRef(({
   });
   
   // Lógica de optimización para panel derecho
-  const shouldSkipOverlay = isRightPanel && optimizeStereo && mirrorRightPanel;
+  // En modo espejo, NO omitir el overlay - queremos mostrarlo igual que el izquierdo
+  const shouldSkipOverlay = false; // Deshabilitado: queremos que el espejo muestre el contenido
   const shouldMuteAudio = isRightPanel && optimizeStereo && muteRightPanel;
   
   if (showLogs && isRightPanel && optimizeStereo) {
@@ -61,29 +62,6 @@ const ARPanel = forwardRef(({
   // Si overlayType es 'r3f', renderizar overlay dentro de un Canvas embebido
   const renderOverlay = () => {
     if (showLogs) console.log('[ARPanel] renderOverlay called, overlayType:', overlayType, 'overlay:', overlay);
-    
-    // Si es panel derecho en modo espejo, mostrar mensaje de optimización
-    if (shouldSkipOverlay) {
-      if (showLogs) console.log('[ARPanel] Panel derecho optimizado - usando espejo del panel izquierdo');
-      return (
-        <div style={{ 
-          position: 'absolute', 
-          top: '50%', 
-          left: '50%', 
-          transform: 'translate(-50%, -50%)',
-          color: 'rgba(255,255,255,0.7)',
-          fontSize: '12px',
-          textAlign: 'center',
-          padding: '4px 8px',
-          background: 'rgba(0,0,0,0.5)',
-          borderRadius: '4px',
-          zIndex: 10
-        }}>
-          🪞 Panel Espejo<br/>
-          <span style={{ fontSize: '10px' }}>Optimizado</span>
-        </div>
-      );
-    }
     
     // Si no hay overlay, no renderizar nada
     if (!overlay) {
@@ -257,6 +235,26 @@ const ARPanel = forwardRef(({
           zIndex: 3,
         }}
       />
+      
+      {/* Indicador de modo espejo (solo en panel derecho) */}
+      {isRightPanel && optimizeStereo && mirrorRightPanel && (
+        <div style={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          background: 'rgba(76, 175, 80, 0.8)',
+          color: 'white',
+          padding: '2px 6px',
+          borderRadius: '8px',
+          fontSize: '10px',
+          fontWeight: 'bold',
+          zIndex: 4,
+          pointerEvents: 'none'
+        }}>
+          🪞
+        </div>
+      )}
+      
       {/* Cursor central visual eliminado - solo usamos el cursor del overlay */}
     </div>
   );
