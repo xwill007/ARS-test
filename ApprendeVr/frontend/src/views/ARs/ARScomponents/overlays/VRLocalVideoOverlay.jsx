@@ -63,7 +63,7 @@ const VRLocalVideoOverlay = ({
           <a-circle
             id="mic-click-area"
             radius="0.6"
-            material="color: #4CAF50; shader: flat; opacity: 0.9"
+            material="color: #F44336; shader: flat; opacity: 0.8" // Rojo por defecto
             class="clickable raycastable"
             mic-icon
           ></a-circle>
@@ -99,7 +99,7 @@ const VRLocalVideoOverlay = ({
             position="0 -0.4 0.03"
             align="center"
             color="white"
-            scale="0.4 0.4 0.4">
+            scale="1 1 1"> <!-- Escala aumentada para texto más grande -->
           </a-text>
           
         </a-entity>
@@ -382,12 +382,11 @@ const VRLocalVideoOverlay = ({
           this.findVideoComponent();
           // Configurar reconocimiento de voz
           this.setupSpeechRecognition();
-          // Configurar icono inicial con un delay para asegurar que el DOM esté listo
+          // Forzar estado visual a desactivado (rojo y OFF) y no llamar a updateMicIcon()
           setTimeout(() => {
             const micIcon = document.querySelector('#mic-icon');
             const micStatus = document.querySelector('#mic-status');
             const micCircle = micIcon ? micIcon.querySelector('a-circle') : null;
-            // Forzar estado visual a desactivado (rojo y OFF)
             if (micCircle && micStatus) {
               micCircle.setAttribute('material', 'color: #F44336; shader: flat; opacity: 0.8');
               micCircle.removeAttribute('animation');
@@ -395,7 +394,6 @@ const VRLocalVideoOverlay = ({
               micStatus.setAttribute('value', 'OFF');
               micStatus.setAttribute('color', '#FFB3B3');
             }
-            this.updateMicIcon();
           }, 1000);
           // No iniciar escucha aunque enabled sea true
         },
@@ -595,7 +593,8 @@ const VRLocalVideoOverlay = ({
             this.startListening();
             this.data.enabled = true;
           }
-          this.updateMicIcon();
+          // Solo actualizar el icono si el estado realmente cambió
+          setTimeout(() => this.updateMicIcon(), 100);
         },
 
         updateMicIcon: function() {
