@@ -25,6 +25,7 @@ import VRConeR3FOverlay from '../ARStest/VRConeR3FOverlay';
 import VRConeR3FVideoOverlayConfigurable from '../ARStest/VRConeR3FVideoOverlayConfigurable';
 import VRConeR3FVideoOverlay from '../ARStest/VRConeR3FVideoOverlay';
 import VRLocalVideoOverlay from './VRLocalVideoOverlay';
+import CombinedAFrameOverlay from './CombinedAFrameOverlay';
 
 // Registrar overlay básico de texto
 overlayRegistry.register('simpleText', {
@@ -140,6 +141,21 @@ overlayRegistry.register('vrLocalVideoOverlay', {
     showMarker: true,
     enableVoiceCommands: true,
     voiceCommandsActivated: true
+  }
+});
+
+// Registrar overlay combinado de A-Frame (Cono de Palabras + Video Local)
+overlayRegistry.register('combinedAFrame', {
+  component: CombinedAFrameOverlay,
+  type: 'html',
+  label: 'Cono de Palabras + Video Local (A-Frame)',
+  description: 'Muestra ambos overlays de A-Frame juntos en una sola escena',
+  category: 'combinado',
+  configurable: true,
+  defaultProps: {
+    coneProps: {},
+    videoProps: {},
+    showCursor: true
   }
 });
 
