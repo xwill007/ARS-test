@@ -1,5 +1,26 @@
 import React from 'react';
 
+// Función para leer la configuración de autoinicio de voz
+const getVoiceCommandsActivated = () => {
+  // Intenta leer de localStorage
+  try {
+    const persisted = localStorage.getItem('arsconfig-persistent');
+    if (persisted) {
+      const parsed = JSON.parse(persisted);
+      if (parsed && parsed.userConfig && typeof parsed.userConfig.voiceCommandsActivated !== 'undefined') {
+        return parsed.userConfig.voiceCommandsActivated;
+      }
+    }
+  } catch (e) {}
+  // Intenta leer de config (si existe)
+  if (typeof window !== 'undefined' && window.arsConfigManager && window.arsConfigManager.config && typeof window.arsConfigManager.config.userConfig !== 'undefined') {
+    const val = window.arsConfigManager.config.userConfig.voiceCommandsActivated;
+    if (typeof val !== 'undefined') return val;
+  }
+  // Si no existe, retorna false por defecto
+  return false;
+};
+
 /**
  * Overlay para video local usando A-Frame HTML en iframe
  * Siguiendo el patrón del VRConeOverlay
@@ -15,11 +36,11 @@ const VRLocalVideoOverlay = ({
   invertBackSide = true,
   showMarker = true,
   enableVoiceCommands = true,
-  voiceCommandsActivated = true,
+  voiceCommandsActivated = false, // Siempre false por defecto
   showCursor = true, // Nueva prop para controlar si se muestra el cursor
   ...props 
 }) => {
-  
+
   // Generar el marcador visual (opcional)
   const generateMarker = () => {
     if (!showMarker) return '';
@@ -180,10 +201,15 @@ const VRLocalVideoOverlay = ({
           this.video = document.createElement('video');
           this.video.crossOrigin = 'anonymous';
           this.video.loop = true;
-          this.video.muted = true;
           this.video.playsInline = true;
           this.video.setAttribute('playsinline', '');
           this.video.setAttribute('webkit-playsinline', '');
+          // Solo mutear si autoplay está activado
+          if (this.data.autoplay === true || this.data.autoplay === 'true') {
+            this.video.muted = true;
+          } else {
+            this.video.muted = false;
+          }
           // Configurar listeners
           this.video.addEventListener('timeupdate', this.updateProgress.bind(this));
           this.videoPlane.addEventListener('click', this.togglePlay.bind(this));
@@ -194,7 +220,7 @@ const VRLocalVideoOverlay = ({
           // Cargar el video
           this.video.src = this.data.src;
           this.video.load();
-          console.log('Video src asignado:', this.video.src, 'autoplay:', this.data.autoplay);
+          console.log('Video src asignado:', this.video.src, 'autoplay:', this.data.autoplay, 'muted:', this.video.muted);
           // Aplicar textura al plano frontal
           this.videoPlane.setAttribute('material', {
             shader: 'flat',
@@ -372,7 +398,7 @@ const VRLocalVideoOverlay = ({
       // Componente para controles de voz
       AFRAME.registerComponent('voice-control', {
         schema: {
-          enabled: { type: 'boolean', default: true },
+          enabled: { type: 'boolean', default: false }, // Siempre false por defecto
           videoEntity: { type: 'string', default: '' }
         },
 
@@ -383,18 +409,39 @@ const VRLocalVideoOverlay = ({
           this.recognition = null;
           this.videoComponent = null;
           
+          // Forzar enabled a false al inicio
+          this.data.enabled = false;
+          
           // Buscar el componente de video
           this.findVideoComponent();
           
           // Configurar reconocimiento de voz
           this.setupSpeechRecognition();
           
-          // Configurar icono inicial con un delay para asegurar que el DOM esté listo
+          // Forzar estado visual desactivado (rojo y OFF) sin delay
           setTimeout(() => {
-            const micIcon = document.querySelector('#mic-icon');
-            const micStatus = document.querySelector('#mic-status');
-            this.updateMicIcon();
-          }, 1000);
+            this.forceDisabledState();
+          }, 500);
+          
+          // NO iniciar escucha automáticamente
+        },
+        
+        forceDisabledState: function() {
+          const micIcon = document.querySelector('#mic-icon');
+          const micStatus = document.querySelector('#mic-status');
+          const micCircle = micIcon ? micIcon.querySelector('a-circle') : null;
+          
+          if (micCircle && micStatus) {
+            // Forzar estado desactivado
+            micCircle.setAttribute('material', 'color: #F44336; shader: flat; opacity: 0.9');
+            micCircle.removeAttribute('animation');
+            micCircle.setAttribute('scale', '1 1 1');
+            micStatus.setAttribute('value', 'OFF');
+            micStatus.setAttribute('color', '#FFB3B3');
+            micStatus.setAttribute('scale', '0.7 0.7 0.7');
+            
+            console.log('🎤 Estado inicial forzado: DESACTIVADO - Rojo/OFF');
+          }
         },
 
         findVideoComponent: function() {
