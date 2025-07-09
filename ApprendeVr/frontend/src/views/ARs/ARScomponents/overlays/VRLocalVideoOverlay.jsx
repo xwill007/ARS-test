@@ -110,14 +110,16 @@ const VRLocalVideoOverlay = ({
             material="color: white; shader: flat">
           </a-cylinder>
           
-          <!-- Indicador de estado (tamaño grande) -->
+          <!-- Indicador de estado (tamaño extra grande y en negrita) -->
           <a-text
             id="mic-status"
             value="OFF"
-            position="0 -0.5 0.03"
+            position="0 -0.40 0.03"
             align="center"
             color="#FFB3B3"
-            scale="0.7 0.7 0.7">
+            scale="1.0 1.0 1.0"
+            font="kelsonsans"
+            shader="msdf">
           </a-text>
           
         </a-entity>
@@ -438,7 +440,6 @@ const VRLocalVideoOverlay = ({
             micCircle.setAttribute('scale', '1 1 1');
             micStatus.setAttribute('value', 'OFF');
             micStatus.setAttribute('color', '#FFB3B3');
-            micStatus.setAttribute('scale', '0.7 0.7 0.7');
             
             console.log('🎤 Estado inicial forzado: DESACTIVADO - Rojo/OFF');
           }
