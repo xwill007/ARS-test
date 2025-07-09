@@ -5,6 +5,9 @@
 
 import configArs from './config_Ars.json';
 
+// Variable global para mostrar logs de ARSConfigManager
+window.ShowLogs = false;
+
 class ARSConfigManager {
   constructor() {
     this.configPath = '/src/config/config_Ars.json';
@@ -55,15 +58,15 @@ class ARSConfigManager {
         ...defaults
       };
 
-      console.log('🔍 Cargando configuración AR con defaults:', defaultsWithCamera);
+      if (window.ShowLogs) console.log('🔍 Cargando configuración AR con defaults:', defaultsWithCamera);
 
       // Primero intentar cargar configuración persistente
       const persistedConfig = this.loadPersistedConfig();
       if (persistedConfig) {
-        console.log('📂 Configuración persistente encontrada:', persistedConfig);
+        if (window.ShowLogs) console.log('📂 Configuración persistente encontrada:', persistedConfig);
         const deviceDefaults = this.getDeviceDefaults();
         const finalConfig = { ...defaultsWithCamera, ...deviceDefaults, ...persistedConfig };
-        console.log('✅ Configuración final cargada:', finalConfig);
+        if (window.ShowLogs) console.log('✅ Configuración final cargada:', finalConfig);
         return finalConfig;
       }
 
@@ -71,7 +74,7 @@ class ARSConfigManager {
       const localStored = localStorage.getItem('arsconfig-user');
       if (localStored) {
         const parsed = JSON.parse(localStored);
-        console.log('📂 Configuración legacy encontrada:', parsed);
+        if (window.ShowLogs) console.log('📂 Configuración legacy encontrada:', parsed);
         // Migrar a nuevo sistema
         this.saveConfig(parsed);
         localStorage.removeItem('arsconfig-user'); // Limpiar old key
@@ -82,9 +85,9 @@ class ARSConfigManager {
       const userConfig = this.config.userConfig;
       const deviceDefaults = this.getDeviceDefaults();
       
-      console.log('📄 Usando configuración por defecto del archivo JSON');
-      console.log('👤 UserConfig:', userConfig);
-      console.log('📱 DeviceDefaults:', deviceDefaults);
+      if (window.ShowLogs) console.log('📄 Usando configuración por defecto del archivo JSON');
+      if (window.ShowLogs) console.log('👤 UserConfig:', userConfig);
+      if (window.ShowLogs) console.log('📱 DeviceDefaults:', deviceDefaults);
       
       const finalConfig = {
         ...defaultsWithCamera,
@@ -92,7 +95,7 @@ class ARSConfigManager {
         ...userConfig
       };
       
-      console.log('✅ Configuración final (defaults):', finalConfig);
+      if (window.ShowLogs) console.log('✅ Configuración final (defaults):', finalConfig);
       return finalConfig;
     } catch (error) {
       console.warn('Error loading AR config:', error);
@@ -123,11 +126,13 @@ class ARSConfigManager {
       // Guardar en localStorage como persistencia real
       localStorage.setItem('arsconfig-persistent', JSON.stringify(this.config));
 
-      console.log('✅ Configuración AR guardada en localStorage persistente:', newConfig);
-      console.log('📁 Configuración completa:', this.config);
+      if (window.ShowLogs) {
+        console.log('✅ Configuración AR guardada en localStorage persistente:', newConfig);
+        console.log('📁 Configuración completa:', this.config);
+      }
       return true;
     } catch (error) {
-      console.error('❌ Error guardando configuración AR:', error);
+      if (window.ShowLogs) console.error('❌ Error guardando configuración AR:', error);
       return false;
     }
   }
@@ -138,16 +143,16 @@ class ARSConfigManager {
   loadPersistedConfig() {
     try {
       const stored = localStorage.getItem('arsconfig-persistent');
-      console.log('🔍 Buscando configuración persistente en localStorage...');
+      if (window.ShowLogs) console.log('🔍 Buscando configuración persistente en localStorage...');
       if (stored) {
         const parsedConfig = JSON.parse(stored);
-        console.log('📂 Configuración persistente encontrada en localStorage:', parsedConfig);
+        if (window.ShowLogs) console.log('📂 Configuración persistente encontrada en localStorage:', parsedConfig);
         // Actualizar la configuración en memoria
         this.config = { ...this.config, ...parsedConfig };
-        console.log('✅ UserConfig extraído:', parsedConfig.userConfig);
+        if (window.ShowLogs) console.log('✅ UserConfig extraído:', parsedConfig.userConfig);
         return parsedConfig.userConfig;
       } else {
-        console.log('❌ No se encontró configuración persistente en localStorage');
+        if (window.ShowLogs) console.log('❌ No se encontró configuración persistente en localStorage');
       }
     } catch (error) {
       console.warn('Error cargando configuración persistente:', error);
@@ -227,16 +232,15 @@ class ARSConfigManager {
     try {
       const config = this.loadPersistedConfig();
       if (config && config.selectedOverlays) {
-        console.log('📂 Overlays seleccionados cargados:', config.selectedOverlays);
+        if (window.ShowLogs) console.log('📂 Overlays seleccionados cargados:', config.selectedOverlays);
         return config.selectedOverlays;
       }
-      
       // Fallback a configuración por defecto
       const defaultOverlays = this.config.userConfig.selectedOverlays || ['vrConeOverlay'];
-      console.log('📄 Usando overlays por defecto:', defaultOverlays);
+      if (window.ShowLogs) console.log('📄 Usando overlays por defecto:', defaultOverlays);
       return defaultOverlays;
     } catch (error) {
-      console.warn('Error cargando overlays seleccionados:', error);
+      if (window.ShowLogs) console.warn('Error cargando overlays seleccionados:', error);
       return ['vrConeOverlay'];
     }
   }
@@ -248,18 +252,16 @@ class ARSConfigManager {
     try {
       // Cargar configuración actual
       const currentConfig = this.loadPersistedConfig() || this.config.userConfig || {};
-      
       // Actualizar solo los overlays
       const updatedConfig = {
         ...currentConfig,
         selectedOverlays,
         lastUpdated: new Date().toISOString()
       };
-      
-      console.log('🔄 Actualizando selección de overlays:', selectedOverlays);
+      if (window.ShowLogs) console.log('🔄 Actualizando selección de overlays:', selectedOverlays);
       return await this.saveConfig(updatedConfig);
     } catch (error) {
-      console.error('❌ Error actualizando selección de overlays:', error);
+      if (window.ShowLogs) console.error('❌ Error actualizando selección de overlays:', error);
       return false;
     }
   }
