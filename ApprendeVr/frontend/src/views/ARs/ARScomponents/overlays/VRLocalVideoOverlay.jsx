@@ -124,18 +124,19 @@ const VRLocalVideoOverlay = ({
           
         </a-entity>
         
-        <!-- Texto de reconocimiento de voz -->
+        <!-- Texto de reconocimiento de voz (ahora oculto por defecto) -->
         <a-text
           id="voice-text"
           value="🎤 Comandos: 'play', 'pause', 'reproducir', 'pausar'"
           position="0 -2.0 0"
           align="center"
-          color="white"
+          color="#87CEEB"
           scale="1.2 1.2 1.2"
-          width="8">
+          width="8"
+          visible="false">
         </a-text>
         
-        <!-- Indicador de escucha -->
+        <!-- Indicador de escucha con icono de ayuda -->
         <a-text
           id="listening-indicator"
           value=""
@@ -145,6 +146,21 @@ const VRLocalVideoOverlay = ({
           scale="0.8 0.8 0.8"
           width="6"
           visible="false">
+        </a-text>
+        
+        <!-- Icono de interrogación (ayuda) -->
+        <a-text
+          id="help-icon"
+          value="AYUDA"
+          position="0 -1.2 0"
+          align="center"
+          color="#87CEEB"
+          scale="1.0 1.0 1.0"
+          class="clickable raycastable"
+          help-toggle
+          visible="false"
+          font="kelsonsans"
+          shader="msdf">
         </a-text>
         
       </a-entity>
@@ -581,9 +597,15 @@ const VRLocalVideoOverlay = ({
 
         updateListeningIndicator: function(text) {
           const indicatorEl = document.querySelector('#listening-indicator');
+          const helpIconEl = document.querySelector('#help-icon');
           if (indicatorEl) {
             indicatorEl.setAttribute('value', text);
             indicatorEl.setAttribute('visible', text !== '');
+            
+            // Mostrar/ocultar icono de ayuda junto con el indicador
+            if (helpIconEl) {
+              helpIconEl.setAttribute('visible', text !== '');
+            }
           }
         },
 
@@ -694,6 +716,38 @@ const VRLocalVideoOverlay = ({
           const voiceControlEl = document.querySelector('[voice-control]');
           if (voiceControlEl && voiceControlEl.components['voice-control']) {
             voiceControlEl.components['voice-control'].toggleListening();
+          }
+        }
+      });
+
+      // Componente para el icono de ayuda
+      AFRAME.registerComponent('help-toggle', {
+        init: function() {
+          this.el.addEventListener('click', this.toggleHelp.bind(this));
+          this.el.addEventListener('touchstart', this.onTouchStart.bind(this));
+          this.el.addEventListener('touchend', this.onTouchEnd.bind(this));
+          this.el.setAttribute('geometry', { primitive: 'circle', radius: 0.5 });
+          this.el.classList.add('clickable', 'raycastable');
+          this.el.setAttribute('material', 'transparent: true; opacity: 0.01');
+          this.helpVisible = false;
+        },
+        onTouchStart: function(event) {
+          event.preventDefault();
+          this.touchStarted = true;
+        },
+        onTouchEnd: function(event) {
+          event.preventDefault();
+          if (this.touchStarted) {
+            this.toggleHelp();
+            this.touchStarted = false;
+          }
+        },
+        toggleHelp: function() {
+          const voiceTextEl = document.querySelector('#voice-text');
+          if (voiceTextEl) {
+            this.helpVisible = !this.helpVisible;
+            voiceTextEl.setAttribute('visible', this.helpVisible);
+            console.log('🎤 Ayuda de comandos:', this.helpVisible ? 'MOSTRADA' : 'OCULTA');
           }
         }
       });
