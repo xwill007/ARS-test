@@ -31,7 +31,7 @@ const VRLocalVideoOverlay = ({
   videoSrc = '/videos/gangstas.mp4',
   width = 8,
   height = 4.5,
-  autoplay = true,
+  autoplay = false, // Cambiado de true a false por defecto
   doubleSided = true,
   invertBackSide = true,
   showMarker = true,
@@ -213,20 +213,34 @@ const VRLocalVideoOverlay = ({
 
         init: function() {
           console.log('Iniciando componente vr-local-video', this.data);
+          
+          // Crear ID único para el video
+          this.videoId = 'video-' + Math.floor(Math.random() * 100000);
+          console.log('Video ID único:', this.videoId);
+          
           // Crear estructura de elementos
           this.createVideoElements();
           // Crear elemento de video principal
           this.video = document.createElement('video');
+          this.video.id = this.videoId;
           this.video.crossOrigin = 'anonymous';
           this.video.loop = true;
           this.video.playsInline = true;
           this.video.setAttribute('playsinline', '');
           this.video.setAttribute('webkit-playsinline', '');
+          
+          // Agregar el video al DOM para que A-Frame pueda accederlo
+          document.body.appendChild(this.video);
+          console.log('Video agregado al DOM con ID:', this.videoId);
           // Solo mutear si autoplay está activado
-          if (this.data.autoplay === true || this.data.autoplay === 'true') {
+          // Verificar autoplay más estrictamente (puede venir como boolean o string)
+          const isAutoplayEnabled = this.data.autoplay === true || this.data.autoplay === 'true';
+          if (isAutoplayEnabled) {
             this.video.muted = true;
+            console.log('🔇 Video muteado porque autoplay está ACTIVADO:', this.data.autoplay);
           } else {
             this.video.muted = false;
+            console.log('🔊 Video NO muteado porque autoplay está DESACTIVADO:', this.data.autoplay);
           }
           // Configurar listeners
           this.video.addEventListener('timeupdate', this.updateProgress.bind(this));
@@ -238,29 +252,79 @@ const VRLocalVideoOverlay = ({
           // Cargar el video
           this.video.src = this.data.src;
           this.video.load();
-          console.log('Video src asignado:', this.video.src, 'autoplay:', this.data.autoplay, 'muted:', this.video.muted);
-          // Aplicar textura al plano frontal
-          this.videoPlane.setAttribute('material', {
-            shader: 'flat',
-            src: this.video,
-            side: this.data.doubleSided ? 'double' : 'front'
+          console.log('🎬 Video configurado:', {
+            src: this.video.src,
+            autoplay: this.data.autoplay,
+            'autoplay (type)': typeof this.data.autoplay,
+            muted: this.video.muted,
+            'autoplay check': isAutoplayEnabled,
+            expectedState: isAutoplayEnabled ? 'will autoplay (muted)' : 'will be paused (unmuted)'
           });
-          // Mostrar el primer frame aunque autoplay sea false
+          
+          // Aplicar textura al plano frontal después de que el video esté listo
+          this.video.addEventListener('loadedmetadata', () => {
+            console.log('Video metadata cargada, aplicando textura...');
+            // Aplicar textura usando el ID del video con propiedades mejoradas
+            this.videoPlane.setAttribute('material', {
+              shader: 'flat',
+              src: '#' + this.videoId,
+              transparent: false,
+              alphaTest: 0,
+              side: this.data.doubleSided ? 'double' : 'front',
+              color: '#FFFFFF' // Asegurar color blanco para no oscurecer
+            });
+            console.log('🎨 Textura aplicada con ID:', '#' + this.videoId);
+          });
+          // Mostrar el primer frame y configurar estado inicial
           this.video.addEventListener('loadeddata', () => {
-            this.video.currentTime = 0;
-            this.video.pause();
+            console.log('Video loadeddata evento disparado');
+            
+            try {
+              this.video.currentTime = 0;
+              
+              // Solo pausar si autoplay está desactivado (reutilizar variable anterior)
+              if (!isAutoplayEnabled) {
+                this.video.pause();
+                console.log('🛑 Video pausado porque autoplay está DESACTIVADO:', this.data.autoplay);
+              } else {
+                console.log('▶️ Video listo para autoplay porque está ACTIVADO:', this.data.autoplay);
+              }
+              
+              // Asegurar que la textura se actualice
+              if (this.videoPlane.components.material) {
+                this.videoPlane.components.material.material.map.needsUpdate = true;
+                console.log('🎨 Textura del video actualizada en loadeddata');
+              }
+              
+              console.log('Video loadeddata: currentTime', this.video.currentTime, 'paused', this.video.paused, 'autoplay', this.data.autoplay);
+            } catch (error) {
+              console.error('Error en loadeddata:', error);
+            }
+          });
+          
+          // Evento adicional para asegurar que el video se muestre
+          this.video.addEventListener('canplay', () => {
+            console.log('Video canplay - listo para reproducir');
             if (this.videoPlane.components.material) {
               this.videoPlane.components.material.material.map.needsUpdate = true;
+              console.log('🎬 Textura actualizada en canplay');
             }
-            console.log('Video loadeddata: currentTime', this.video.currentTime, 'paused', this.video.paused);
           });
-          // Solo intentar reproducir automáticamente si autoplay es true
-          if (this.data.autoplay) {
+          
+          // Solo intentar reproducir automáticamente si autoplay es true (reutilizar variable anterior)
+          if (isAutoplayEnabled) {
             console.log('Intentando autoplay...');
             this.attemptAutoplay();
           } else {
             console.log('Autoplay está desactivado, no se reproduce automáticamente');
           }
+          
+          // Configurar actualización periódica de la textura para asegurar que el video se muestre
+          this.textureUpdateInterval = setInterval(() => {
+            if (this.video && this.videoPlane && this.videoPlane.components.material) {
+              this.videoPlane.components.material.material.map.needsUpdate = true;
+            }
+          }, 1000); // Actualizar cada segundo
         },
         
         createVideoElements: function() {
@@ -270,9 +334,19 @@ const VRLocalVideoOverlay = ({
           this.videoPlane = document.createElement('a-plane');
           this.videoPlane.setAttribute('width', this.data.width);
           this.videoPlane.setAttribute('height', this.data.height);
-          this.videoPlane.setAttribute('material', 'shader: flat');
+          this.videoPlane.setAttribute('position', '0 0 0');
+          this.videoPlane.setAttribute('material', {
+            shader: 'flat',
+            color: '#333333' // Color temporal hasta que se cargue el video
+          });
           this.videoPlane.classList.add('clickable');
           this.videoPlane.id = 'video-plane-' + Math.floor(Math.random() * 10000);
+          
+          console.log('🎬 Plano de video creado:', {
+            width: this.data.width,
+            height: this.data.height,
+            id: this.videoPlane.id
+          });
           
           // Contenedor para barra de progreso
           const progressContainer = document.createElement('a-entity');
@@ -335,7 +409,10 @@ const VRLocalVideoOverlay = ({
         },
         
         seekVideo: function(event) {
-          if (!this.video || !this.video.duration) return;
+          if (!this.video || !this.video.duration || isNaN(this.video.duration)) {
+            console.warn('seekVideo: video no disponible o duración inválida');
+            return;
+          }
           
           try {
             const mousePos = event.detail.intersection.point;
@@ -348,6 +425,8 @@ const VRLocalVideoOverlay = ({
             if (isFinite(seekTime) && !isNaN(seekTime)) {
               this.video.currentTime = seekTime;
               console.log("Seeking to", seekTime, "seconds");
+            } else {
+              console.warn('seekTime calculado es inválido:', seekTime);
             }
           } catch (error) {
             console.error("Error al buscar posición en el video:", error);
@@ -355,15 +434,26 @@ const VRLocalVideoOverlay = ({
         },
         
         togglePlay: function() {
-          if (!this.video) return;
+          if (!this.video) {
+            console.warn('togglePlay: video element no disponible');
+            return;
+          }
           
           try {
+            console.log('togglePlay: estado actual - paused:', this.video.paused, 'muted:', this.video.muted);
+            
             if (this.video.muted) {
               this.video.muted = false;
               console.log("Video unmuted");
             } else if (this.video.paused) {
               this.video.play()
-                .then(() => console.log("Video reproduciendo"))
+                .then(() => {
+                  console.log("Video reproduciendo exitosamente");
+                  // Asegurar que la textura se actualice durante la reproducción
+                  if (this.videoPlane.components.material) {
+                    this.videoPlane.components.material.material.map.needsUpdate = true;
+                  }
+                })
                 .catch(err => console.error("Error al reproducir:", err));
             } else {
               this.video.pause();
@@ -375,8 +465,9 @@ const VRLocalVideoOverlay = ({
         },
         
         attemptAutoplay: function() {
-          if (!this.data.autoplay) {
-            console.log('Autoplay deshabilitado por configuración');
+          const isAutoplayEnabled = this.data.autoplay === true || this.data.autoplay === 'true';
+          if (!isAutoplayEnabled) {
+            console.log('Autoplay deshabilitado por configuración - Video permanece pausado:', this.data.autoplay);
             return;
           }
           console.log('Llamando video.play() para autoplay...');
@@ -384,16 +475,19 @@ const VRLocalVideoOverlay = ({
           if (playPromise !== undefined) {
             playPromise
               .then(() => {
-                console.log('Autoplay funcionando (muted)', 'paused:', this.video.paused);
+                console.log('Autoplay exitoso - Video reproduciendo (muted):', 'paused:', this.video.paused, 'muted:', this.video.muted);
+                // Después de 2 segundos, activar audio si sigue reproduciendo
                 setTimeout(() => {
                   if (this.video && !this.video.paused) {
                     this.video.muted = false;
-                    console.log('Audio activado automáticamente');
+                    console.log('Audio activado automáticamente después de 2 segundos');
                   }
                 }, 2000);
               })
               .catch(error => {
-                console.warn('Error en autoplay:', error);
+                console.warn('Error en autoplay - Video permanece pausado:', error);
+                // Si falla autoplay, asegurar que quede pausado
+                this.video.pause();
               });
           } else {
             console.warn('video.play() no devolvió promesa');
@@ -401,10 +495,21 @@ const VRLocalVideoOverlay = ({
         },
 
         remove: function() {
+          // Limpiar intervalo de actualización de textura
+          if (this.textureUpdateInterval) {
+            clearInterval(this.textureUpdateInterval);
+            this.textureUpdateInterval = null;
+          }
+          
           if (this.video) {
             this.video.pause();
             this.video.src = '';
             this.video.load();
+            
+            // Remover el video del DOM
+            if (this.video.parentNode) {
+              this.video.parentNode.removeChild(this.video);
+            }
             this.video = null;
           }
           console.log('Componente vr-local-video removido correctamente');
