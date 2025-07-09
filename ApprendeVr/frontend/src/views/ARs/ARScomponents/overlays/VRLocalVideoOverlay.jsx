@@ -139,10 +139,10 @@ const VRLocalVideoOverlay = ({
         <a-text
           id="listening-indicator"
           value=""
-          position="0 -3.2 0"
+          position="0 0.8 0"
           align="center"
-          color="#FF9800"
-          scale="1.5 1.5 1.5"
+          color="#4CAF50"
+          scale="0.8 0.8 0.8"
           width="6"
           visible="false">
         </a-text>
