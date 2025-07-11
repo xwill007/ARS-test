@@ -31,15 +31,42 @@ const VRLocalVideoOverlay = ({
   videoSrc = '/videos/gangstas.mp4',
   width = 8,
   height = 4.5,
-  autoplay = false, // Cambiado de true a false por defecto
+  autoplay = false,
   doubleSided = true,
   invertBackSide = true,
   showMarker = true,
   enableVoiceCommands = true,
-  voiceCommandsActivated = false, // Siempre false por defecto
-  showCursor = true, // Nueva prop para controlar si se muestra el cursor
+  voiceCommandsActivated = false,
+  showCursor = true,
+  // Props para optimización estereoscópica (simplificadas)
+  isMirrorPanel = false, 
+  muteAudio = false, 
+  disableInteractions = false,
   ...props 
 }) => {
+
+  // Si es panel espejo, renderizar solo un placeholder simple
+  if (isMirrorPanel) {
+    return (
+      <div style={{
+        width: '100%',
+        height: '100%',
+        background: '#333',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#4CAF50',
+        fontSize: '24px',
+        fontFamily: 'Arial'
+      }}>
+        🪞 Panel Espejo
+        <br />
+        <small style={{ fontSize: '14px', marginTop: '10px' }}>
+          El contenido se copia del panel izquierdo
+        </small>
+      </div>
+    );
+  }
 
   // Generar el marcador visual (opcional)
   const generateMarker = () => {
@@ -63,14 +90,16 @@ const VRLocalVideoOverlay = ({
     if (!enableVoiceCommands) return '';
     
     return `
-      <!-- Controles de voz -->
+      <!-- Controles de voz (solo si no es panel espejo) -->
+      ${!isMirrorPanel ? `
       <a-entity
         id="voice-controls"
         position="${position[0]} ${position[1] - height/2 - 2.5} ${position[2]}"
         voice-control="
           enabled: ${voiceCommandsActivated};
-          videoEntity: vr-local-video-entity
-        ">
+          videoEntity: vr-local-video-entity;
+          isMirrorPanel: ${isMirrorPanel}
+        ">` : ''}
         
         <!-- Icono de micrófono -->
         <a-entity
@@ -164,6 +193,7 @@ const VRLocalVideoOverlay = ({
         </a-text>
         
       </a-entity>
+      ${!isMirrorPanel ? `</a-entity>` : ''}
     `;
   };
 
@@ -185,7 +215,10 @@ const VRLocalVideoOverlay = ({
             height: ${height};
             autoplay: ${autoplay};
             doubleSided: ${doubleSided};
-            invertBackSide: ${invertBackSide}
+            invertBackSide: ${invertBackSide};
+            isMirrorPanel: ${isMirrorPanel};
+            muteAudio: ${muteAudio};
+            disableInteractions: ${disableInteractions}
           ">
         </a-entity>
         
@@ -208,123 +241,478 @@ const VRLocalVideoOverlay = ({
           rotation: { type: 'vec3', default: { x: 0, y: 0, z: 0 } },
           autoplay: { type: 'boolean', default: false },
           doubleSided: { type: 'boolean', default: true },
-          invertBackSide: { type: 'boolean', default: true }
+          invertBackSide: { type: 'boolean', default: true },
+          isMirrorPanel: { type: 'boolean', default: false },
+          muteAudio: { type: 'boolean', default: false },
+          disableInteractions: { type: 'boolean', default: false }
         },
 
         init: function() {
           console.log('Iniciando componente vr-local-video', this.data);
           
-          // Crear ID único para el video
-          this.videoId = 'video-' + Math.floor(Math.random() * 100000);
-          console.log('Video ID único:', this.videoId);
-          
           // Crear estructura de elementos
           this.createVideoElements();
           // Crear elemento de video principal
           this.video = document.createElement('video');
-          this.video.id = this.videoId;
           this.video.crossOrigin = 'anonymous';
           this.video.loop = true;
           this.video.playsInline = true;
           this.video.setAttribute('playsinline', '');
           this.video.setAttribute('webkit-playsinline', '');
           
-          // Agregar el video al DOM para que A-Frame pueda accederlo
-          document.body.appendChild(this.video);
-          console.log('Video agregado al DOM con ID:', this.videoId);
-          // Solo mutear si autoplay está activado
-          // Verificar autoplay más estrictamente (puede venir como boolean o string)
-          const isAutoplayEnabled = this.data.autoplay === true || this.data.autoplay === 'true';
-          if (isAutoplayEnabled) {
+          // Configuración de audio - silenciar si es panel espejo
+          if (this.data.autoplay === true || this.data.autoplay === 'true' || this.data.muteAudio) {
             this.video.muted = true;
-            console.log('🔇 Video muteado porque autoplay está ACTIVADO:', this.data.autoplay);
+            console.log('🔇 Video muteado:', this.data.muteAudio ? 'por configuración de espejo' : 'por autoplay');
           } else {
             this.video.muted = false;
-            console.log('🔊 Video NO muteado porque autoplay está DESACTIVADO:', this.data.autoplay);
           }
-          // Configurar listeners
+          
+          // Configurar listeners solo si no está deshabilitado
           this.video.addEventListener('timeupdate', this.updateProgress.bind(this));
-          this.videoPlane.addEventListener('click', this.togglePlay.bind(this));
-          this.progressBarBg.addEventListener('click', this.seekVideo.bind(this));
-          if (this.backVideoPlane) {
-            this.backVideoPlane.addEventListener('click', this.togglePlay.bind(this));
+          if (!this.data.disableInteractions) {
+            this.videoPlane.addEventListener('click', this.togglePlay.bind(this));
+            this.progressBarBg.addEventListener('click', this.seekVideo.bind(this));
+            if (this.backVideoPlane) {
+              this.backVideoPlane.addEventListener('click', this.togglePlay.bind(this));
+            }
           }
+          
           // Cargar el video
           this.video.src = this.data.src;
           this.video.load();
           console.log('🎬 Video configurado:', {
             src: this.video.src,
             autoplay: this.data.autoplay,
-            'autoplay (type)': typeof this.data.autoplay,
             muted: this.video.muted,
-            'autoplay check': isAutoplayEnabled,
-            expectedState: isAutoplayEnabled ? 'will autoplay (muted)' : 'will be paused (unmuted)'
+            expectedState: this.data.autoplay ? 'will autoplay (muted)' : 'will be paused (unmuted)'
           });
-          
-          // Aplicar textura al plano frontal después de que el video esté listo
-          this.video.addEventListener('loadedmetadata', () => {
-            console.log('Video metadata cargada, aplicando textura...');
-            // Aplicar textura usando el ID del video con propiedades mejoradas
-            this.videoPlane.setAttribute('material', {
-              shader: 'flat',
-              src: '#' + this.videoId,
-              transparent: false,
-              alphaTest: 0,
-              side: this.data.doubleSided ? 'double' : 'front',
-              color: '#FFFFFF' // Asegurar color blanco para no oscurecer
-            });
-            console.log('🎨 Textura aplicada con ID:', '#' + this.videoId);
+          // Aplicar textura al plano frontal
+          this.videoPlane.setAttribute('material', {
+            shader: 'flat',
+            src: this.video,
+            side: this.data.doubleSided ? 'double' : 'front'
           });
           // Mostrar el primer frame y configurar estado inicial
           this.video.addEventListener('loadeddata', () => {
-            console.log('Video loadeddata evento disparado');
-            
-            try {
-              this.video.currentTime = 0;
-              
-              // Solo pausar si autoplay está desactivado (reutilizar variable anterior)
-              if (!isAutoplayEnabled) {
-                this.video.pause();
-                console.log('🛑 Video pausado porque autoplay está DESACTIVADO:', this.data.autoplay);
-              } else {
-                console.log('▶️ Video listo para autoplay porque está ACTIVADO:', this.data.autoplay);
-              }
-              
-              // Asegurar que la textura se actualice
-              if (this.videoPlane.components.material) {
-                this.videoPlane.components.material.material.map.needsUpdate = true;
-                console.log('🎨 Textura del video actualizada en loadeddata');
-              }
-              
-              console.log('Video loadeddata: currentTime', this.video.currentTime, 'paused', this.video.paused, 'autoplay', this.data.autoplay);
-            } catch (error) {
-              console.error('Error en loadeddata:', error);
+            this.video.currentTime = 0;
+            // Solo pausar si autoplay está desactivado
+            if (!this.data.autoplay) {
+              this.video.pause();
             }
-          });
-          
-          // Evento adicional para asegurar que el video se muestre
-          this.video.addEventListener('canplay', () => {
-            console.log('Video canplay - listo para reproducir');
             if (this.videoPlane.components.material) {
               this.videoPlane.components.material.material.map.needsUpdate = true;
-              console.log('🎬 Textura actualizada en canplay');
             }
+            console.log('Video loadeddata: currentTime', this.video.currentTime, 'paused', this.video.paused, 'autoplay', this.data.autoplay);
           });
-          
-          // Solo intentar reproducir automáticamente si autoplay es true (reutilizar variable anterior)
-          if (isAutoplayEnabled) {
+          // Solo intentar reproducir automáticamente si autoplay es true
+          if (this.data.autoplay) {
             console.log('Intentando autoplay...');
             this.attemptAutoplay();
           } else {
             console.log('Autoplay está desactivado, no se reproduce automáticamente');
           }
+        },
+        
+        initMirrorPanel: function() {
+          console.log('🪞 Inicializando panel espejo para capturar TODO el contenido del panel principal');
           
-          // Configurar actualización periódica de la textura para asegurar que el video se muestre
-          this.textureUpdateInterval = setInterval(() => {
-            if (this.video && this.videoPlane && this.videoPlane.components.material) {
-              this.videoPlane.components.material.material.map.needsUpdate = true;
+          // NO crear video, solo un canvas para mostrar la copia
+          this.mirrorCanvas = document.createElement('canvas');
+          this.mirrorCanvas.width = 1280;
+          this.mirrorCanvas.height = 720;
+          this.mirrorCtx = this.mirrorCanvas.getContext('2d');
+          
+          // Crear plano para mostrar el canvas
+          this.videoPlane = document.createElement('a-plane');
+          this.videoPlane.setAttribute('width', this.data.width);
+          this.videoPlane.setAttribute('height', this.data.height);
+          this.videoPlane.setAttribute('material', {
+            shader: 'flat',
+            src: this.mirrorCanvas,
+            side: this.data.doubleSided ? 'double' : 'front'
+          });
+          this.videoPlane.id = 'mirror-plane-' + Math.floor(Math.random() * 10000);
+          
+          this.el.appendChild(this.videoPlane);
+          
+          // Buscar el panel principal del DOM (elemento HTML del panel izquierdo)
+          this.findPrimaryPanelDOM();
+          
+          // Iniciar bucle de captura del panel completo
+          this.startDOMCapture();
+          
+          // Indicador visual de panel espejo
+          const indicator = document.createElement('a-text');
+          indicator.setAttribute('value', '🪞 PANEL ESPEJO');
+          indicator.setAttribute('position', (this.data.width/2 - 1.5) + ' ' + (this.data.height/2 - 0.5) + ' 0.01');
+          indicator.setAttribute('scale', '0.4 0.4 0.4');
+          indicator.setAttribute('color', '#4CAF50');
+          this.el.appendChild(indicator);
+        },
+        
+        findPrimaryPanelDOM: function() {
+          console.log('🔍 Buscando el panel principal del DOM...');
+          
+          // Estrategia 1: Buscar por clase o ID del panel izquierdo
+          setTimeout(() => {
+            // Buscar el contenedor del panel izquierdo en la página
+            const leftPanel = window.parent.document.querySelector('.ar-panel:first-child') ||
+                              window.parent.document.querySelector('[data-panel="left"]') ||
+                              window.parent.document.querySelector('.ar-stereo-container > div:first-child > div');
+            
+            if (leftPanel) {
+              this.primaryPanelElement = leftPanel;
+              console.log('✅ Panel principal encontrado en DOM:', leftPanel);
+              return;
             }
-          }, 1000); // Actualizar cada segundo
+            
+            // Estrategia 2: Buscar por posición o estructura
+            const allPanels = window.parent.document.querySelectorAll('.ar-panel');
+            if (allPanels.length >= 2) {
+              this.primaryPanelElement = allPanels[0]; // Primer panel = izquierdo
+              console.log('✅ Panel principal encontrado por posición:', allPanels[0]);
+              return;
+            }
+            
+            // Estrategia 3: Buscar contenedor de video
+            const videoContainers = window.parent.document.querySelectorAll('div[style*="width"]');
+            for (let container of videoContainers) {
+              if (container.querySelector('video') || container.querySelector('iframe')) {
+                this.primaryPanelElement = container;
+                console.log('✅ Panel principal encontrado por contenido:', container);
+                break;
+              }
+            }
+            
+            if (!this.primaryPanelElement) {
+              console.warn('❌ No se pudo encontrar el panel principal');
+              this.fallbackCapture();
+            }
+          }, 1000);
+        },
+        
+        startDOMCapture: function() {
+          console.log('🎬 Iniciando captura del DOM del panel principal...');
+          
+          // Iniciar bucle de captura a 30fps (más eficiente para captura DOM)
+          this.domCaptureInterval = setInterval(() => {
+            this.capturePrimaryPanel();
+          }, 1000 / 30);
+        },
+        
+        capturePrimaryPanel: function() {
+          if (!this.primaryPanelElement || !this.mirrorCtx || !this.mirrorCanvas) {
+            return;
+          }
+          
+          try {
+            // Captura manual del contenido
+            this.captureManually();
+          } catch (error) {
+            console.warn('⚠️ Error en captura del panel:', error);
+          }
+        },
+        
+        captureManually: function() {
+          // Limpiar canvas
+          this.mirrorCtx.fillStyle = '#000000';
+          this.mirrorCtx.fillRect(0, 0, this.mirrorCanvas.width, this.mirrorCanvas.height);
+          
+          // Buscar video en el panel principal
+          const video = this.primaryPanelElement ? this.primaryPanelElement.querySelector('video') : null;
+          if (video && video.readyState >= 2 && !video.paused) {
+            try {
+              this.mirrorCtx.drawImage(video, 0, 0, this.mirrorCanvas.width, this.mirrorCanvas.height);
+            } catch (error) {
+              console.warn('⚠️ Error dibujando video:', error);
+            }
+          }
+          
+          // Agregar texto indicativo
+          this.mirrorCtx.fillStyle = '#4CAF50';
+          this.mirrorCtx.font = '32px Arial';
+          this.mirrorCtx.fillText('🪞 PANEL ESPEJO', 50, 50);
+          this.mirrorCtx.fillStyle = '#FFFFFF';
+          this.mirrorCtx.font = '24px Arial';
+          this.mirrorCtx.fillText('Copiando del panel izquierdo...', 50, 100);
+          
+          // Actualizar textura
+          if (this.videoPlane.components.material && this.videoPlane.components.material.material.map) {
+            this.videoPlane.components.material.material.map.needsUpdate = true;
+          }
+        },
+        
+        fallbackCapture: function() {
+          console.log('🔄 Usando método de captura de respaldo...');
+          
+          // Crear un video espejo básico como fallback
+          this.fallbackVideo = document.createElement('video');
+          this.fallbackVideo.crossOrigin = 'anonymous';
+          this.fallbackVideo.loop = true;
+          this.fallbackVideo.playsInline = true;
+          this.fallbackVideo.muted = true; // Siempre muteado en el espejo
+          this.fallbackVideo.src = this.data.src;
+          
+          // Aplicar al plano
+          this.videoPlane.setAttribute('material', {
+            shader: 'flat',
+            src: this.fallbackVideo,
+            side: this.data.doubleSided ? 'double' : 'front'
+          });
+          
+          this.fallbackVideo.load();
+          
+          console.log('📺 Video de respaldo configurado (audio silenciado)');
+        },
+          // Crear canvas para capturar frames del panel principal
+          this.mirrorCanvas = document.createElement('canvas');
+          this.mirrorCanvas.width = 1280;
+          this.mirrorCanvas.height = 720;
+          this.mirrorCtx = this.mirrorCanvas.getContext('2d');
+          
+          // Intentar crossOrigin para evitar problemas de CORS
+          this.mirrorCanvas.crossOrigin = 'anonymous';
+          
+          // Crear textura desde canvas
+          this.videoPlane.setAttribute('material', {
+            shader: 'flat',
+            src: this.mirrorCanvas,
+            side: this.data.doubleSided ? 'double' : 'front'
+          });
+          
+          // Buscar el panel principal con reintentos
+          this.findPrimaryPanelWithRetry();
+        },
+        
+        findPrimaryPanelWithRetry: function() {
+          let attempts = 0;
+          const maxAttempts = 10;
+          
+          const tryFind = () => {
+            attempts++;
+            console.log('🔍 Intento', attempts, 'de encontrar panel principal');
+            
+            if (this.findPrimaryPanel()) {
+              // Encontrado - iniciar bucle de captura
+              this.startMirrorLoop();
+              this.updateDebugInfo('✅ Panel principal encontrado');
+            } else if (attempts < maxAttempts) {
+              // Reintentar después de un delay
+              setTimeout(tryFind, 1000);
+              this.updateDebugInfo('⏳ Reintentando... (' + attempts + '/' + maxAttempts + ')');
+            } else {
+              // Usar método de fallback
+              console.warn('⚠️ No se pudo encontrar panel principal, usando fallback');
+              this.updateDebugInfo('⚠️ Usando modo fallback');
+              this.useFallbackMirror();
+            }
+          };
+          
+          tryFind();
+        },
+        
+        updateDebugInfo: function(message) {
+          if (this.debugInfo) {
+            this.debugInfo.setAttribute('value', message);
+          }
+        },
+        
+        findPrimaryPanel: function() {
+          // Buscar el panel principal (sin isMirrorPanel)
+          const primaryPanels = document.querySelectorAll('[vr-local-video]');
+          for (let panel of primaryPanels) {
+            const component = panel.components['vr-local-video'];
+            if (component && !component.data.isMirrorPanel && component.video) {
+              this.primaryVideo = component.video;
+              this.primaryVideoPlane = component.videoPlane;
+              console.log('🎯 Panel principal encontrado para sincronización:', {
+                video: !!this.primaryVideo,
+                videoSrc: this.primaryVideo?.src,
+                videoPlane: !!this.primaryVideoPlane
+              });
+              return true;
+            }
+          }
+          
+          // Si no se encuentra inmediatamente, intentar de nuevo después de un delay
+          console.warn('⚠️ Panel principal no encontrado, reintentando...');
+          setTimeout(() => {
+            this.findPrimaryPanel();
+          }, 500);
+          return false;
+        },
+        
+        startMirrorLoop: function() {
+          if (this.mirrorInterval) {
+            clearInterval(this.mirrorInterval);
+          }
+          
+          // Capturar a 60fps
+          this.mirrorInterval = setInterval(() => {
+            this.updateMirrorFrame();
+          }, 1000 / 60);
+          
+          console.log('🔄 Bucle de espejo iniciado a 60fps');
+        },
+        
+        updateMirrorFrame: function() {
+          if (!this.primaryVideo || !this.mirrorCtx || !this.mirrorCanvas) {
+            // Intentar encontrar el panel principal si no está disponible
+            if (!this.primaryVideo) {
+              this.findPrimaryPanel();
+            }
+            return;
+          }
+          
+          try {
+            // Verificar que el video esté listo
+            if (this.primaryVideo.readyState >= 2) {
+              // Limpiar canvas
+              this.mirrorCtx.clearRect(0, 0, this.mirrorCanvas.width, this.mirrorCanvas.height);
+              
+              // Dibujar frame del video principal
+              this.mirrorCtx.drawImage(
+                this.primaryVideo, 
+                0, 0, 
+                this.mirrorCanvas.width, 
+                this.mirrorCanvas.height
+              );
+              
+              // Forzar actualización de textura en A-Frame
+              if (this.videoPlane && this.videoPlane.components && this.videoPlane.components.material) {
+                const material = this.videoPlane.components.material.material;
+                if (material.map) {
+                  material.map.needsUpdate = true;
+                }
+              }
+              
+              // Debug cada 60 frames (1 segundo aprox)
+              this.frameCount = (this.frameCount || 0) + 1;
+              if (this.frameCount % 60 === 0) {
+                console.log('🪞 Espejo actualizado - Frame:', this.frameCount, {
+                  videoTime: this.primaryVideo.currentTime.toFixed(2),
+                  videoPaused: this.primaryVideo.paused,
+                  canvasSize: this.mirrorCanvas.width + 'x' + this.mirrorCanvas.height
+                });
+              }
+            }
+          } catch (error) {
+            console.warn('⚠️ Error actualizando frame del espejo:', error);
+            // Reintentar encontrar el panel principal
+            if (error.message.includes('cross-origin') || error.message.includes('tainted')) {
+              console.warn('⚠️ Problema de CORS - usando método alternativo');
+              this.useFallbackMirror();
+            }
+          }
+        },
+        
+        useFallbackMirror: function() {
+          // Método alternativo: usar la misma fuente de video pero silenciada
+          console.log('🔄 Iniciando método fallback para panel espejo');
+          
+          if (!this.fallbackVideo) {
+            this.fallbackVideo = document.createElement('video');
+            this.fallbackVideo.crossOrigin = 'anonymous';
+            this.fallbackVideo.src = this.data.src; // Usar la misma fuente
+            this.fallbackVideo.muted = true; // SIEMPRE silenciado
+            this.fallbackVideo.loop = true;
+            this.fallbackVideo.playsInline = true;
+            this.fallbackVideo.setAttribute('playsinline', '');
+            this.fallbackVideo.setAttribute('webkit-playsinline', '');
+            
+            console.log('🎬 Video espejo creado:', {
+              src: this.fallbackVideo.src,
+              muted: this.fallbackVideo.muted
+            });
+            
+            // Aplicar directamente al plano de video del espejo
+            this.videoPlane.setAttribute('material', {
+              shader: 'flat',
+              src: this.fallbackVideo,
+              side: this.data.doubleSided ? 'double' : 'front'
+            });
+            
+            // Buscar panel principal para sincronización
+            this.setupVideoSync();
+            
+            // Cargar el video
+            this.fallbackVideo.load();
+            this.updateDebugInfo('✅ Video espejo configurado');
+          }
+        },
+        
+        setupVideoSync: function() {
+          // Buscar el video principal para sincronizar
+          const findAndSync = () => {
+            const primaryPanels = document.querySelectorAll('[vr-local-video]');
+            for (let panel of primaryPanels) {
+              const component = panel.components['vr-local-video'];
+              if (component && !component.data.isMirrorPanel && component.video) {
+                this.primaryVideo = component.video;
+                console.log('🎯 Panel principal encontrado para sincronización de fallback');
+                
+                // Configurar eventos de sincronización
+                this.setupSyncEvents();
+                return true;
+              }
+            }
+            return false;
+          };
+          
+          if (!findAndSync()) {
+            // Reintentar después de un delay
+            setTimeout(findAndSync, 1000);
+          }
+        },
+        
+        setupSyncEvents: function() {
+          if (!this.primaryVideo || !this.fallbackVideo) return;
+          
+          // Sincronizar reproducción
+          this.primaryVideo.addEventListener('play', () => {
+            if (this.fallbackVideo && this.fallbackVideo.paused) {
+              this.fallbackVideo.currentTime = this.primaryVideo.currentTime;
+              this.fallbackVideo.play().catch(e => console.warn('Error al sincronizar play:', e));
+            }
+          });
+          
+          // Sincronizar pausa
+          this.primaryVideo.addEventListener('pause', () => {
+            if (this.fallbackVideo && !this.fallbackVideo.paused) {
+              this.fallbackVideo.pause();
+            }
+          });
+          
+          // Sincronizar búsqueda
+          this.primaryVideo.addEventListener('seeked', () => {
+            if (this.fallbackVideo && Math.abs(this.fallbackVideo.currentTime - this.primaryVideo.currentTime) > 0.5) {
+              this.fallbackVideo.currentTime = this.primaryVideo.currentTime;
+            }
+          });
+          
+          // Sincronización periódica más agresiva
+          this.syncInterval = setInterval(() => {
+            if (this.primaryVideo && this.fallbackVideo) {
+              const timeDiff = Math.abs(this.fallbackVideo.currentTime - this.primaryVideo.currentTime);
+              
+              // Si hay desincronización mayor a 0.2 segundos, corregir
+              if (timeDiff > 0.2) {
+                this.fallbackVideo.currentTime = this.primaryVideo.currentTime;
+              }
+              
+              // Sincronizar estado de reproducción
+              if (this.primaryVideo.paused !== this.fallbackVideo.paused) {
+                if (this.primaryVideo.paused) {
+                  this.fallbackVideo.pause();
+                } else {
+                  this.fallbackVideo.play().catch(e => console.warn('Error en sync automático:', e));
+                }
+              }
+            }
+          }, 200); // Cada 200ms
+          
+          console.log('🔄 Eventos de sincronización configurados');
         },
         
         createVideoElements: function() {
@@ -334,19 +722,9 @@ const VRLocalVideoOverlay = ({
           this.videoPlane = document.createElement('a-plane');
           this.videoPlane.setAttribute('width', this.data.width);
           this.videoPlane.setAttribute('height', this.data.height);
-          this.videoPlane.setAttribute('position', '0 0 0');
-          this.videoPlane.setAttribute('material', {
-            shader: 'flat',
-            color: '#333333' // Color temporal hasta que se cargue el video
-          });
+          this.videoPlane.setAttribute('material', 'shader: flat');
           this.videoPlane.classList.add('clickable');
           this.videoPlane.id = 'video-plane-' + Math.floor(Math.random() * 10000);
-          
-          console.log('🎬 Plano de video creado:', {
-            width: this.data.width,
-            height: this.data.height,
-            id: this.videoPlane.id
-          });
           
           // Contenedor para barra de progreso
           const progressContainer = document.createElement('a-entity');
@@ -409,10 +787,7 @@ const VRLocalVideoOverlay = ({
         },
         
         seekVideo: function(event) {
-          if (!this.video || !this.video.duration || isNaN(this.video.duration)) {
-            console.warn('seekVideo: video no disponible o duración inválida');
-            return;
-          }
+          if (!this.video || !this.video.duration) return;
           
           try {
             const mousePos = event.detail.intersection.point;
@@ -425,8 +800,6 @@ const VRLocalVideoOverlay = ({
             if (isFinite(seekTime) && !isNaN(seekTime)) {
               this.video.currentTime = seekTime;
               console.log("Seeking to", seekTime, "seconds");
-            } else {
-              console.warn('seekTime calculado es inválido:', seekTime);
             }
           } catch (error) {
             console.error("Error al buscar posición en el video:", error);
@@ -434,26 +807,15 @@ const VRLocalVideoOverlay = ({
         },
         
         togglePlay: function() {
-          if (!this.video) {
-            console.warn('togglePlay: video element no disponible');
-            return;
-          }
+          if (!this.video) return;
           
           try {
-            console.log('togglePlay: estado actual - paused:', this.video.paused, 'muted:', this.video.muted);
-            
             if (this.video.muted) {
               this.video.muted = false;
               console.log("Video unmuted");
             } else if (this.video.paused) {
               this.video.play()
-                .then(() => {
-                  console.log("Video reproduciendo exitosamente");
-                  // Asegurar que la textura se actualice durante la reproducción
-                  if (this.videoPlane.components.material) {
-                    this.videoPlane.components.material.material.map.needsUpdate = true;
-                  }
-                })
+                .then(() => console.log("Video reproduciendo"))
                 .catch(err => console.error("Error al reproducir:", err));
             } else {
               this.video.pause();
@@ -465,9 +827,8 @@ const VRLocalVideoOverlay = ({
         },
         
         attemptAutoplay: function() {
-          const isAutoplayEnabled = this.data.autoplay === true || this.data.autoplay === 'true';
-          if (!isAutoplayEnabled) {
-            console.log('Autoplay deshabilitado por configuración - Video permanece pausado:', this.data.autoplay);
+          if (!this.data.autoplay) {
+            console.log('Autoplay deshabilitado por configuración - Video permanece pausado');
             return;
           }
           console.log('Llamando video.play() para autoplay...');
@@ -495,23 +856,48 @@ const VRLocalVideoOverlay = ({
         },
 
         remove: function() {
-          // Limpiar intervalo de actualización de textura
-          if (this.textureUpdateInterval) {
-            clearInterval(this.textureUpdateInterval);
-            this.textureUpdateInterval = null;
+          // Limpiar panel espejo si existe
+          if (this.domCaptureInterval) {
+            clearInterval(this.domCaptureInterval);
+            console.log('🔄 Captura DOM detenida');
           }
           
+          if (this.mirrorInterval) {
+            clearInterval(this.mirrorInterval);
+            console.log('🔄 Bucle de espejo detenido');
+          }
+          
+          // Limpiar intervalo de sincronización
+          if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+            console.log('🔄 Sincronización detenida');
+          }
+          
+          if (this.mirrorCanvas) {
+            this.mirrorCtx = null;
+            this.mirrorCanvas = null;
+          }
+          
+          // Limpiar video de fallback
+          if (this.fallbackVideo) {
+            this.fallbackVideo.pause();
+            this.fallbackVideo.src = '';
+            this.fallbackVideo = null;
+          }
+            this.fallbackVideo.src = '';
+            this.fallbackVideo.load();
+            this.fallbackVideo = null;
+            console.log('🔄 Video fallback limpiado');
+          }
+          
+          // Limpiar video principal
           if (this.video) {
             this.video.pause();
             this.video.src = '';
             this.video.load();
-            
-            // Remover el video del DOM
-            if (this.video.parentNode) {
-              this.video.parentNode.removeChild(this.video);
-            }
             this.video = null;
           }
+          
           console.log('Componente vr-local-video removido correctamente');
         }
       });
@@ -522,10 +908,17 @@ const VRLocalVideoOverlay = ({
       AFRAME.registerComponent('voice-control', {
         schema: {
           enabled: { type: 'boolean', default: false }, // Siempre false por defecto
-          videoEntity: { type: 'string', default: '' }
+          videoEntity: { type: 'string', default: '' },
+          isMirrorPanel: { type: 'boolean', default: false } // Nueva prop
         },
 
         init: function() {
+          // Si es un panel espejo, no inicializar control de voz
+          if (this.data.isMirrorPanel) {
+            console.log('🪞 Panel espejo - Control de voz deshabilitado');
+            return;
+          }
+          
           console.log('🎤 Iniciando control de voz');
           
           this.isListening = false;

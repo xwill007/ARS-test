@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba de Optimización Estereoscópica</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        .container {
+            padding: 20px;
+        }
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .test-button:hover {
+            background: #45a049;
+        }
+        .info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Prueba de Optimización Estereoscópica</h1>
+        
+        <div class="info">
+            <h3>📋 ¿Qué vas a probar?</h3>
+            <p>Esta página te permitirá probar el sistema de panel espejo que elimina el audio duplicado en vistas estereoscópicas.</p>
+            
+            <h4>🔧 Cómo usar:</h4>
+            <ol>
+                <li>Haz clic en el botón de abajo para abrir el ejemplo</li>
+                <li>Verás dos paneles: izquierdo (principal) y derecho (espejo)</li>
+                <li>El panel izquierdo tendrá audio y controles</li>
+                <li>El panel derecho será una copia visual sin audio</li>
+            </ol>
+        </div>
+
+        <button class="test-button" onclick="openExample()">
+            🎬 Abrir Ejemplo Side-by-Side
+        </button>
+        
+        <button class="test-button" onclick="openStereoView()">
+            🥽 Abrir Vista Estereoscópica
+        </button>
+
+        <div id="example-container"></div>
+    </div>
+
+    <script>
+        function openExample() {
+            // Redireccionar a tu aplicación React con el componente de ejemplo
+            window.location.href = '/#/test-ejemplo';
+        }
+        
+        function openStereoView() {
+            // Redireccionar a la vista estereoscópica real
+            window.location.href = '/#/test-stereo';
+        }
+    </script>
+</body>
+</html>

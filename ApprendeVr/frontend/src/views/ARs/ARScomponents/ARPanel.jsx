@@ -77,38 +77,42 @@ const ARPanel = forwardRef(({
       if (overlay.length === 0) {
         if (showLogs) console.log('[ARPanel] Array de overlays vacío');
         return null;
-      }
-      
-      // Separar overlays por tipo - mejorada la detección
-      const r3fOverlays = [];
-      const htmlOverlays = [];
-      
-      overlay.forEach((singleOverlay, index) => {
-        // Verificar si es un componente R3F válido
-        const isR3FComponent = singleOverlay?.type && 
-          typeof singleOverlay.type === 'function' && 
-          !singleOverlay.type.toString().includes('iframe') &&
-          !singleOverlay.type.toString().includes('a-') &&
-          !singleOverlay.type.toString().includes('VRConeOverlay');
+      }        // Separar overlays por tipo - mejorada la detección
+        const r3fOverlays = [];
+        const htmlOverlays = [];
         
-        if (isR3FComponent) {
-          // Es un componente R3F válido - pasar showOverlayCursor si el componente lo acepta
-          const overlayProps = { key: `r3f-${index}` };
-          if (singleOverlay.type.name === 'VRLocalVideoOverlay' || 
-              singleOverlay.props?.showCursor !== undefined) {
-            overlayProps.showCursor = showOverlayCursor;
+        overlay.forEach((singleOverlay, index) => {
+          // Verificar si es un componente R3F válido
+          const isR3FComponent = singleOverlay?.type && 
+            typeof singleOverlay.type === 'function' && 
+            !singleOverlay.type.toString().includes('iframe') &&
+            !singleOverlay.type.toString().includes('a-') &&
+            !singleOverlay.type.toString().includes('VRConeOverlay');
+          
+          if (isR3FComponent) {
+            // Es un componente R3F válido - pasar props de optimización
+            const overlayProps = { 
+              key: `r3f-${index}`,
+              showCursor: showOverlayCursor,
+              // Props para optimización estereoscópica
+              isMirrorPanel: isRightPanel && optimizeStereo && mirrorRightPanel,
+              muteAudio: isRightPanel && optimizeStereo && muteRightPanel,
+              disableInteractions: isRightPanel && optimizeStereo
+            };
+            r3fOverlays.push(React.cloneElement(singleOverlay, overlayProps));
+          } else {
+            // Es HTML/A-Frame o componente con iframe - pasar props de optimización
+            const overlayProps = { 
+              key: `html-${index}`,
+              showCursor: showOverlayCursor,
+              // Props para optimización estereoscópica
+              isMirrorPanel: isRightPanel && optimizeStereo && mirrorRightPanel,
+              muteAudio: isRightPanel && optimizeStereo && muteRightPanel,
+              disableInteractions: isRightPanel && optimizeStereo
+            };
+            htmlOverlays.push(React.cloneElement(singleOverlay, overlayProps));
           }
-          r3fOverlays.push(React.cloneElement(singleOverlay, overlayProps));
-        } else {
-          // Es HTML/A-Frame o componente con iframe - pasar showOverlayCursor si el componente lo acepta
-          const overlayProps = { key: `html-${index}` };
-          if (singleOverlay.type.name === 'VRLocalVideoOverlay' || 
-              singleOverlay.props?.showCursor !== undefined) {
-            overlayProps.showCursor = showOverlayCursor;
-          }
-          htmlOverlays.push(React.cloneElement(singleOverlay, overlayProps));
-        }
-      });
+        });
       
       if (showLogs) console.log('[ARPanel] Separados - R3F:', r3fOverlays.length, 'HTML:', htmlOverlays.length);
       
@@ -154,11 +158,13 @@ const ARPanel = forwardRef(({
       
       if (isR3FComponent) {
         if (showLogs) console.log('[ARPanel] Renderizando overlay individual en Canvas (R3F)');
-        // Pasar showOverlayCursor si el componente lo acepta
-        const enhancedOverlay = (overlay.type.name === 'VRLocalVideoOverlay' || 
-                                overlay.props?.showCursor !== undefined) 
-          ? React.cloneElement(overlay, { showCursor: showOverlayCursor })
-          : overlay;
+        // Pasar props de optimización estereoscópica
+        const enhancedOverlay = React.cloneElement(overlay, { 
+          showCursor: showOverlayCursor,
+          isMirrorPanel: isRightPanel && optimizeStereo && mirrorRightPanel,
+          muteAudio: isRightPanel && optimizeStereo && muteRightPanel,
+          disableInteractions: isRightPanel && optimizeStereo
+        });
         
         return (
           <Canvas 
@@ -177,11 +183,13 @@ const ARPanel = forwardRef(({
       }
     }
     if (showLogs) console.log('[ARPanel] Renderizando overlay como HTML/A-Frame');
-    // Si es HTML/A-Frame, renderizar tal cual pero pasar showOverlayCursor si el componente lo acepta
-    if (overlay.type.name === 'VRLocalVideoOverlay' || 
-        overlay.props?.showCursor !== undefined) {
-      return React.cloneElement(overlay, { showCursor: showOverlayCursor });
-    }
+    // Si es HTML/A-Frame, renderizar tal cual pero pasar props de optimización
+    return React.cloneElement(overlay, { 
+      showCursor: showOverlayCursor,
+      isMirrorPanel: isRightPanel && optimizeStereo && mirrorRightPanel,
+      muteAudio: isRightPanel && optimizeStereo && muteRightPanel,
+      disableInteractions: isRightPanel && optimizeStereo
+    });
     return overlay;
   };
 

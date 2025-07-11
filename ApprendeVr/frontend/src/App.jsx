@@ -6,6 +6,7 @@ import VRFloor from './components/VRWorld/VRFloor';
 import VRDomo from './components/VRViews/VRDomo';
 import StereoARView from './components/VRViews/VRViewARS/StereoARView';
 import VRDisplay from './components/VRDisplay';
+import PruebaEspejoSimple from './views/ARs/examples/PruebaEspejoSimple';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Sky } from '@react-three/drei';
 import { VRLanguageProvider, useVRLanguage } from './components/VRConfig/VRLanguageContext';
@@ -31,6 +32,7 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const [showDomo, setShowDomo] = useState(false);
   const [showBoth, setShowBoth] = useState(false);
   const [showStereoAR, setShowStereoAR] = useState(false);
+  const [showTestEspejo, setShowTestEspejo] = useState(false); // Nueva opción para prueba
   const [arSeparation, setArSeparation] = useState(24); // px separación
   const [arWidth, setArWidth] = useState(380); // px ancho de cada vista
   const [arHeight, setArHeight] = useState(480); // px alto de cada vista
@@ -91,6 +93,30 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
           onShowARStereo={() => { setShowStereoAR((v) => !v); setShowDomo(false); setShowBoth(false); }}
         />
       )}
+      
+      {/* BOTÓN DE PRUEBA DEL ESPEJO - Flotante */}
+      <button 
+        onClick={() => setShowTestEspejo(!showTestEspejo)}
+        style={{ 
+          position: 'fixed', 
+          bottom: '20px', 
+          right: '20px', 
+          padding: '15px 20px',
+          background: showTestEspejo ? '#f44336' : '#FF5722',
+          color: 'white',
+          border: 'none',
+          borderRadius: '50px',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          zIndex: 3000,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          transition: 'all 0.3s ease'
+        }}
+        title={showTestEspejo ? 'Cerrar Prueba de Espejo' : 'Probar Sistema de Espejo Estereoscópico'}
+      >
+        {showTestEspejo ? '✕ Cerrar Prueba' : '🧪 Probar Espejo'}
+      </button>
       <VRConfig 
         showVRDisplay={showVRDisplay} 
         setShowVRDisplay={setShowVRDisplay} 
@@ -189,6 +215,22 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
           defaultHeight={arHeight}
           overlay={<VRDomo />}
         />
+      )}
+
+      {/* PRUEBA DEL SISTEMA DE ESPEJO */}
+      {showTestEspejo && (
+        <div style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          width: '100vw', 
+          height: '100vh', 
+          background: 'white', 
+          zIndex: 2500,
+          overflow: 'auto'
+        }}>
+          <PruebaEspejoSimple />
+        </div>
       )}
     </div>
   );

@@ -2,22 +2,32 @@ import React, { useRef, useEffect, useState } from 'react';
 import ARPanel from '../ARScomponents/ARPanel';
 import ARSConfig from '../ARScomponents/ARSConfig';
 import ARSConfigStatus from '../ARScomponents/ARSConfigStatus';
+import CuboRotatorio from '../ARScomponents/overlays/CuboRotatorio';
 import arsConfigManager from '../../../config/ARSConfigManager';
 import html2canvas from 'html2canvas';
 
 // Usar el nuevo sistema de configuración basado en archivos JSON
 const getInitialConfig = (defaults) => {
   console.log('📥 Obteniendo configuración inicial con defaults:', defaults);
-  const config = arsConfigManager.loadConfig(defaults);
-  console.log('🔧 Configuración inicial cargada:', config);
   
-  // Asegurar que cameraResolution siempre esté presente
-  if (!config.cameraResolution) {
-    console.log('⚠️ cameraResolution no encontrada, usando 720p por defecto');
-    config.cameraResolution = '720p';
+  try {
+    const config = arsConfigManager?.loadConfig ? arsConfigManager.loadConfig(defaults) : defaults;
+    console.log('🔧 Configuración inicial cargada:', config);
+    
+    // Asegurar que cameraResolution siempre esté presente
+    if (!config.cameraResolution) {
+      console.log('⚠️ cameraResolution no encontrada, usando 720p por defecto');
+      config.cameraResolution = '720p';
+    }
+    
+    return config;
+  } catch (error) {
+    console.warn('⚠️ Error cargando configuración, usando defaults:', error);
+    return {
+      ...defaults,
+      cameraResolution: '720p'
+    };
   }
-  
-  return config;
 };
 
 const detectOverlayType = (overlay) => {
@@ -81,7 +91,10 @@ const ARStereoView = ({
     optimizeStereo: false,
     mirrorRightPanel: false,
     muteRightPanel: true,
-    singleCursor: false
+    singleCursor: false,
+    // Nueva opción: modo lado a lado forzado
+    forceSideBySide: false,
+    showTestCube: false
   });
   const [arSeparation, setArSeparation] = useState(initial.arSeparation);
   const [arWidth, setArWidth] = useState(initial.arWidth);
@@ -97,11 +110,19 @@ const ARStereoView = ({
   const [mirrorRightPanel, setMirrorRightPanel] = useState(initial.mirrorRightPanel || false);
   const [muteRightPanel, setMuteRightPanel] = useState(initial.muteRightPanel || true);
   const [singleCursor, setSingleCursor] = useState(initial.singleCursor !== undefined ? initial.singleCursor : false);
+  // Nuevos estados para modo lado a lado y cubo de prueba
+  const [forceSideBySide, setForceSideBySide] = useState(initial.forceSideBySide || false);
+  const [showTestCube, setShowTestCube] = useState(initial.showTestCube || false);
   // Solo mostrar el menú si no hay configuración previa
   const [showMenu, setShowMenu] = useState(() => {
-    // Verificar si existe configuración personalizada
-    const config = arsConfigManager.config?.userConfig;
-    return !config?.customProfile;
+    try {
+      // Verificar si existe configuración personalizada
+      const config = arsConfigManager?.config?.userConfig;
+      return !config?.customProfile;
+    } catch (error) {
+      console.warn('⚠️ Error verificando configuración para menú:', error);
+      return true; // Mostrar menú por defecto si hay error
+    }
   });
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
@@ -199,20 +220,29 @@ const ARStereoView = ({
       // Nuevas opciones de optimización
       optimizeStereo,
       mirrorRightPanel,
-      muteRightPanel
+      muteRightPanel,
+      singleCursor,
+      // Nuevas opciones
+      forceSideBySide,
+      showTestCube
     };
     console.log('💾 Guardando configuración:', config);
-    const success = await arsConfigManager.saveConfig(config);
-    if (success) {
-      setShowMenu(false);
-      // Mostrar feedback visual de éxito
-      console.log('✅ Configuración guardada en config_Ars.json');
-      // Debug después de guardar
-      setTimeout(() => {
-        debugCurrentConfig();
-      }, 100);
-    } else {
-      console.error('❌ Error al guardar configuración');
+    
+    try {
+      const success = arsConfigManager?.saveConfig ? await arsConfigManager.saveConfig(config) : false;
+      if (success) {
+        setShowMenu(false);
+        // Mostrar feedback visual de éxito
+        console.log('✅ Configuración guardada en config_Ars.json');
+        // Debug después de guardar
+        setTimeout(() => {
+          debugCurrentConfig();
+        }, 100);
+      } else {
+        console.error('❌ Error al guardar configuración - arsConfigManager no disponible');
+      }
+    } catch (error) {
+      console.error('❌ Error al guardar configuración:', error);
     }
   };
 
@@ -227,6 +257,7 @@ const ARStereoView = ({
     setOffsetR(newConfig.offsetR);
     setZoom(newConfig.zoom);
     setCameraZoom(newConfig.cameraZoom || 1);
+    setCameraResolution(newConfig.cameraResolution || '720p'); // Resolución por defecto
     
     // Nuevas opciones de optimización
     setOptimizeStereo(newConfig.optimizeStereo || false);
@@ -334,49 +365,94 @@ const ARStereoView = ({
     }
   }, [cameraZoom]);
 
-  // Copiar video y overlays al canvas derecho en modo espejo
-  useEffect(() => {
-    if (mirrorRightPanel && optimizeStereo) {
-      const interval = setInterval(() => {
-        const leftPanel = leftPanelRef.current;
-        const canvas = rightCanvasRef.current;
-        const video = videoRefL.current;
-        if (canvas && video) {
-          const ctx = canvas.getContext('2d');
-          // Dibujar frame del video
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          // Dibujar overlays encima
-          if (leftPanel) {
-            // Buscar el overlay dentro del leftPanel
-            const overlays = leftPanel.querySelectorAll('[data-overlay], .ars-overlay');
-            overlays.forEach(overlayEl => {
-              html2canvas(overlayEl, {backgroundColor: null}).then(imgCanvas => {
-                // Obtener posición relativa del overlay
-                const rect = overlayEl.getBoundingClientRect();
-                const parentRect = leftPanel.getBoundingClientRect();
-                const x = rect.left - parentRect.left;
-                const y = rect.top - parentRect.top;
-                ctx.drawImage(imgCanvas, x, y, rect.width, rect.height);
-              });
-            });
-          }
-        }
-      }, 1000 / 15);
-      return () => clearInterval(interval);
-    }
-  }, [mirrorRightPanel, optimizeStereo, arWidth, arHeight]);
-
   // Determinar overlayType automáticamente si no se pasa
   const overlayType = overlayTypeProp || detectOverlayType(overlay);
 
   // Si hay múltiples overlays, usar 'mixed'
   const finalOverlayType = Array.isArray(overlay) && overlay.length > 1 ? 'mixed' : overlayType;
 
+  // Crear overlay combinado con cubo de prueba si está habilitado
+  const combinedOverlay = React.useMemo(() => {
+    if (!showTestCube && !overlay) return null;
+    
+    const overlays = [];
+    
+    // Agregar overlay original si existe
+    if (overlay) {
+      if (Array.isArray(overlay)) {
+        overlays.push(...overlay);
+      } else {
+        overlays.push(overlay);
+      }
+    }
+    
+    // Agregar cubo de prueba si está habilitado
+    if (showTestCube) {
+      try {
+        overlays.push(
+          React.createElement(CuboRotatorio, {
+            key: 'test-cube',
+            size: 60, // ✅ Tamaño optimizado para visibilidad completa
+            position: { x: 0, y: 0 }, // ✅ Centrado en el viewport
+            speed: 0.3, // ✅ Velocidad más suave para mejor captura
+            showLabel: true
+          })
+        );
+      } catch (error) {
+        console.warn('Error creando cubo rotatorio:', error);
+      }
+    }
+    
+    return overlays.length === 0 ? null : 
+           overlays.length === 1 ? overlays[0] : overlays;
+  }, [overlay, showTestCube]);
+
+  // Determinar si mostrar ambos paneles - LÓGICA SIMPLIFICADA
+  const shouldShowBothPanels = React.useMemo(() => {
+    // Si forceSideBySide está activo, SIEMPRE mostrar ambos paneles
+    if (forceSideBySide) {
+      console.log('🔧 [shouldShowBothPanels] forceSideBySide activo - MOSTRANDO AMBOS PANELES');
+      return true;
+    }
+    
+    // Si optimizeStereo está inactivo, mostrar ambos paneles normalmente
+    if (!optimizeStereo) {
+      console.log('🔧 [shouldShowBothPanels] optimizeStereo inactivo - MOSTRANDO AMBOS PANELES');
+      return true;
+    }
+    
+    // Si optimizeStereo está activo pero mirrorRightPanel está inactivo, mostrar ambos
+    if (optimizeStereo && !mirrorRightPanel) {
+      console.log('🔧 [shouldShowBothPanels] optimizeStereo activo pero sin espejo - MOSTRANDO AMBOS PANELES');
+      return true;
+    }
+    
+    // Si optimizeStereo está activo Y mirrorRightPanel está activo, usar espejo
+    console.log('🔧 [shouldShowBothPanels] optimizeStereo + mirrorRightPanel activos - USANDO ESPEJO');
+    return true; // Siempre mostrar, pero uno será espejo
+  }, [forceSideBySide, optimizeStereo, mirrorRightPanel]);
+
+  // Debug log para diagnosticar problemas de visualización
+  console.log('🔍 [ARStereoView] Debug visualización paneles:', {
+    forceSideBySide,
+    optimizeStereo,
+    mirrorRightPanel,
+    shouldShowBothPanels,
+    arWidth,
+    arSeparation,
+    'Ancho contenedor': shouldShowBothPanels ? (arWidth * 2 + arSeparation) : arWidth,
+    formula: `${forceSideBySide} || (${optimizeStereo} && !${mirrorRightPanel}) || (!${optimizeStereo})`
+  });
+
+  // Log específico para renderizado
+  console.log('🎨 [ARStereoView] Renderizando paneles:', {
+    'Panel izquierdo': 'SIEMPRE',
+    'Panel derecho': shouldShowBothPanels ? 'SÍ' : 'NO',
+    'Tipo panel derecho': (mirrorRightPanel && optimizeStereo && !forceSideBySide) ? 'ESPEJO' : 'NORMAL'
+  });
+
   // Detectar si el overlay actual tiene cursor
   const hasOverlayCursor = React.useMemo(() => {
-    if (!overlay) return false;
-    
     const checkOverlayForCursor = (singleOverlay) => {
       if (!singleOverlay) return false;
       // VRLocalVideoOverlay tiene cursor A-Frame
@@ -385,12 +461,12 @@ const ARStereoView = ({
       return false;
     };
     
-    if (Array.isArray(overlay)) {
-      return overlay.some(checkOverlayForCursor);
+    if (Array.isArray(combinedOverlay)) {
+      return combinedOverlay.some(checkOverlayForCursor);
     }
     
-    return checkOverlayForCursor(overlay);
-  }, [overlay]);
+    return checkOverlayForCursor(combinedOverlay);
+  }, [combinedOverlay]);
 
   // Lógica de cursor simplificada
   // singleCursor ahora controla si se muestran los cursores blancos en ambos paneles o en ninguno
@@ -409,6 +485,137 @@ const ARStereoView = ({
     'Panel derecho muestra overlay': !!overlay,
     'Panel derecho showOverlayCursor': showWhiteCursors && !(optimizeStereo && mirrorRightPanel)
   });
+
+  console.log('🎯 [ARStereoView] Estado final antes del render:', {
+    forceSideBySide,
+    optimizeStereo,
+    mirrorRightPanel,
+    shouldShowBothPanels,
+    'Mostrará panel espejo': mirrorRightPanel && optimizeStereo && !forceSideBySide,
+    'Mostrará panel normal': !(mirrorRightPanel && optimizeStereo && !forceSideBySide)
+  });
+
+  // Sistema de captura del panel derecho - SIEMPRE captura el panel izquierdo completo
+  useEffect(() => {
+    if (shouldShowBothPanels) {
+      console.log('📸 Iniciando captura continua del panel izquierdo completo (video + overlays)...');
+      
+      let isCapturing = false;
+      
+      const captureCompletePanel = async () => {
+        if (isCapturing || !leftPanelRef.current || !rightCanvasRef.current) return;
+        
+        isCapturing = true;
+        try {
+          const canvas = rightCanvasRef.current;
+          const ctx = canvas.getContext('2d');
+          
+          // Capturar todo el panel izquierdo como imagen
+          const capturedCanvas = await html2canvas(leftPanelRef.current, {
+            allowTaint: true,
+            useCORS: true,
+            scale: 0.75, // ✅ Optimizado para mejor rendimiento
+            width: arWidth,
+            height: arHeight,
+            backgroundColor: null,
+            logging: false,
+            removeContainer: true,
+            foreignObjectRendering: false
+          });
+          
+          // Limpiar el canvas derecho
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // ✅ NUEVO: Implementar object-fit: cover para espejo perfecto
+          const sourceWidth = capturedCanvas.width;
+          const sourceHeight = capturedCanvas.height;
+          const targetWidth = canvas.width;
+          const targetHeight = canvas.height;
+          
+          const sourceAspect = sourceWidth / sourceHeight;
+          const targetAspect = targetWidth / targetHeight;
+          
+          let drawX = 0, drawY = 0, drawWidth = targetWidth, drawHeight = targetHeight;
+          let sourceX = 0, sourceY = 0, useSourceWidth = sourceWidth, useSourceHeight = sourceHeight;
+          
+          if (sourceAspect > targetAspect) {
+            // Imagen más ancha - recortar los lados
+            useSourceWidth = sourceHeight * targetAspect;
+            sourceX = (sourceWidth - useSourceWidth) / 2;
+          } else {
+            // Imagen más alta - recortar arriba y abajo
+            useSourceHeight = sourceWidth / targetAspect;
+            sourceY = (sourceHeight - useSourceHeight) / 2;
+          }
+          
+          // Dibujar con object-fit: cover
+          ctx.drawImage(
+            capturedCanvas,
+            sourceX, sourceY, useSourceWidth, useSourceHeight,
+            drawX, drawY, drawWidth, drawHeight
+          );
+          
+        } catch (error) {
+          console.warn('Error capturando panel completo:', error);
+          // Fallback al método de video con object-fit: cover
+          const canvas = rightCanvasRef.current;
+          const video = videoRefL.current;
+          const ctx = canvas.getContext('2d');
+          
+          if (video && video.readyState >= 2) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            
+            const videoAspect = videoWidth / videoHeight;
+            const canvasAspect = canvasWidth / canvasHeight;
+            
+            let sourceX = 0, sourceY = 0, sourceWidth = videoWidth, sourceHeight = videoHeight;
+            
+            // ✅ Object-fit: cover para video fallback
+            if (videoAspect > canvasAspect) {
+              // Video más ancho - cortar los lados del video
+              sourceWidth = videoHeight * canvasAspect;
+              sourceX = (videoWidth - sourceWidth) / 2;
+            } else {
+              // Video más alto - cortar arriba y abajo del video
+              sourceHeight = videoWidth / canvasAspect;
+              sourceY = (videoHeight - sourceHeight) / 2;
+            }
+            
+            ctx.drawImage(
+              video,
+              sourceX, sourceY, sourceWidth, sourceHeight,
+              0, 0, canvasWidth, canvasHeight
+            );
+            
+            // Mensaje de fallback optimizado
+            ctx.fillStyle = 'rgba(255, 193, 7, 0.8)';
+            ctx.fillRect(8, canvas.height - 28, 180, 20);
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 9px Arial';
+            ctx.fillText('⚠️ Solo video (optimizado)', 12, canvas.height - 16);
+          }
+        }
+        
+        isCapturing = false;
+      };
+      
+      // Captura inicial más rápida
+      setTimeout(captureCompletePanel, 300); // ✅ Reducido de 500ms
+      
+      // ✅ Framerate optimizado para fluidez y rendimiento
+      const interval = setInterval(captureCompletePanel, 1000 / 30); // ✅ 30fps para mejor fluidez
+      
+      return () => {
+        clearInterval(interval);
+        console.log('📸 Captura del panel derecho detenida');
+      };
+    }
+  }, [shouldShowBothPanels, arWidth, arHeight, combinedOverlay]);
 
   return (
     <div className="ar-stereo-container">
@@ -483,7 +690,7 @@ const ARStereoView = ({
         arWidth={arWidth} setArWidth={setArWidth}
         arHeight={arHeight} setArHeight={setArHeight}
         offsetL={offsetL} setOffsetL={setOffsetL}
-        offsetR={offsetR} setOffsetR={setArWidth}
+        offsetR={offsetR} setOffsetR={setOffsetR}
         scale={zoom} setScale={setZoom}
         cameraZoom={cameraZoom} setCameraZoom={setCameraZoom}
         cameraResolution={cameraResolution} setCameraResolution={setCameraResolution}
@@ -495,6 +702,9 @@ const ARStereoView = ({
         mirrorRightPanel={mirrorRightPanel} setMirrorRightPanel={setMirrorRightPanel}
         muteRightPanel={muteRightPanel} setMuteRightPanel={setMuteRightPanel}
         singleCursor={singleCursor} setSingleCursor={setSingleCursor}
+        // Nuevas props para modo lado a lado y cubo de prueba
+        forceSideBySide={forceSideBySide} setForceSideBySide={setForceSideBySide}
+        showTestCube={showTestCube} setShowTestCube={setShowTestCube}
         position={{
           button: { 
             top: 6, 
@@ -515,15 +725,43 @@ const ARStereoView = ({
         justifyContent: 'center',
         gap: arSeparation,
         height: '100%',
-        width: '100%'
+        width: shouldShowBothPanels ? (arWidth * 2 + arSeparation) : arWidth,
+        maxWidth: '100vw',
+        margin: '0 auto'
       }}>
         {/* Vista izquierda (principal) */}
-        <div ref={leftPanelRef} style={{width: arWidth, height: arHeight}}>
+        <div ref={leftPanelRef} style={{
+          width: arWidth, 
+          height: arHeight, 
+          flexShrink: 0, 
+          flexGrow: 0,
+          position: 'relative',
+          borderRadius: '8px',
+          overflow: 'hidden'
+        }}>
+          {/* Indicador de panel izquierdo - solo en modo debug */}
+          {shouldShowBothPanels && forceSideBySide && (
+            <div style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              background: 'rgba(76, 175, 80, 0.8)',
+              color: 'white',
+              padding: '3px 6px',
+              borderRadius: '4px',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              zIndex: 15,
+              pointerEvents: 'none'
+            }}>
+              L
+            </div>
+          )}
           <ARPanel
             videoRef={videoRefL}
             width={arWidth}
             height={arHeight}
-            overlay={overlay}
+            overlay={combinedOverlay}
             overlayType={finalOverlayType}
             zoom={zoom}
             cameraZoom={cameraZoom}
@@ -535,39 +773,75 @@ const ARStereoView = ({
               optimizeStereo,
               mirrorRightPanel,
               muteRightPanel,
-              singleCursor
+              singleCursor,
+              forceSideBySide,
+              showTestCube
             }}
           />
         </div>
-        {/* Vista derecha (secundaria/optimizada) */}
-        {mirrorRightPanel && optimizeStereo ? (
-          <canvas
-            ref={rightCanvasRef}
-            width={arWidth}
-            height={arHeight}
-            style={{width: arWidth, height: arHeight, background: 'black', borderRadius: 8}}
-          />
-        ) : (
-          <ARPanel
-            videoRef={videoRefR}
-            width={arWidth}
-            height={arHeight}
-            overlay={overlay}
-            overlayType={finalOverlayType}
-            zoom={zoom}
-            cameraZoom={cameraZoom}
-            offset={offsetR}
-            isPrimaryPanel={false}
-            isRightPanel={true}
-            showCursor={false}
-            showOverlayCursor={showWhiteCursors && !(optimizeStereo && mirrorRightPanel)}
-            optimizationSettings={{
-              optimizeStereo,
-              mirrorRightPanel,
-              muteRightPanel,
-              singleCursor
-            }}
-          />
+        {/* Vista derecha (secundaria/optimizada/espejo) - SIEMPRE MOSTRAR CUANDO shouldShowBothPanels = true */}
+        {shouldShowBothPanels && (
+          <div style={{
+            width: arWidth, 
+            height: arHeight, 
+            position: 'relative',
+            flexShrink: 0, 
+            flexGrow: 0,
+            borderRadius: '8px',
+            overflow: 'hidden'
+          }}>
+            {/* Indicador de panel derecho - solo en modo debug */}
+            {forceSideBySide && (
+              <div style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                background: 'rgba(255, 87, 34, 0.8)',
+                color: 'white',
+                padding: '3px 6px',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                zIndex: 15,
+                pointerEvents: 'none'
+              }}>
+                R
+              </div>
+            )}
+            {/* Panel derecho SIEMPRE es canvas con captura del panel izquierdo */}
+            <canvas
+              ref={rightCanvasRef}
+              width={arWidth}
+              height={arHeight}
+              style={{
+                width: arWidth, 
+                height: arHeight, 
+                background: 'black', 
+                borderRadius: 8,
+                display: 'block'
+              }}
+            />
+            {/* Indicador de panel derecho */}
+            <div style={{
+              position: 'absolute',
+              bottom: 8,
+              right: 8,
+              background: (mirrorRightPanel && optimizeStereo && !forceSideBySide) 
+                ? 'rgba(76, 175, 80, 0.9)' 
+                : 'rgba(33, 150, 243, 0.9)',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              zIndex: 10,
+              pointerEvents: 'none'
+            }}>
+              {(mirrorRightPanel && optimizeStereo && !forceSideBySide) 
+                ? '🪞 ESPEJO' 
+                : '📺 COPIA'}
+            </div>
+          </div>
         )}
       </div>
       

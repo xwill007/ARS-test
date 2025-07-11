@@ -26,6 +26,8 @@ import arsConfigManager from '../../../config/ARSConfigManager';
  *  - mirrorRightPanel, setMirrorRightPanel: espejo del panel derecho
  *  - muteRightPanel, setMuteRightPanel: silenciar panel derecho
  *  - singleCursor, setSingleCursor: ocultar cursores en ambas vistas (true = ocultar, false = mostrar)
+ *  - forceSideBySide, setForceSideBySide: forzar modo lado a lado siempre
+ *  - showTestCube, setShowTestCube: mostrar cubo de prueba rotatorio
  */
 const ARSConfig = ({
   arSeparation, setArSeparation,
@@ -53,7 +55,12 @@ const ARSConfig = ({
   muteRightPanel = true, 
   setMuteRightPanel = () => {},
   singleCursor = false, // Por defecto, mostrar cursores blancos en ambas vistas
-  setSingleCursor = () => {}
+  setSingleCursor = () => {},
+  // Nuevas props para modo lado a lado y cubo de prueba
+  forceSideBySide = false,
+  setForceSideBySide = () => {},
+  showTestCube = false,
+  setShowTestCube = () => {}
 }) => {
   const [showHelp, setShowHelp] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('config'); // 'config' o 'overlays'
@@ -533,6 +540,54 @@ const ARSConfig = ({
                       }}
                     />
                     Ocultar cursores blancos
+                  </label>
+                </div>
+                
+                {/* Modo lado a lado forzado */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>📐 Lado a lado</span>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 6, 
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    flex: 1
+                  }} title="Fuerza siempre mostrar ambos paneles lado a lado, sin importar otras configuraciones">
+                    <input 
+                      type="checkbox" 
+                      checked={forceSideBySide}
+                      onChange={e => setForceSideBySide(e.target.checked)}
+                      style={{ 
+                        accentColor: '#4fc3f7',
+                        transform: 'scale(0.9)'
+                      }}
+                    />
+                    Siempre ambos paneles
+                  </label>
+                </div>
+                
+                {/* Cubo de prueba */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>🔄 Cubo test</span>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 6, 
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    flex: 1
+                  }} title="Muestra un cubo rotatorio de prueba para verificar que los overlays funcionan correctamente">
+                    <input 
+                      type="checkbox" 
+                      checked={showTestCube}
+                      onChange={e => setShowTestCube(e.target.checked)}
+                      style={{ 
+                        accentColor: '#4fc3f7',
+                        transform: 'scale(0.9)'
+                      }}
+                    />
+                    Mostrar cubo rotatorio
                   </label>
                 </div>
               </div>
