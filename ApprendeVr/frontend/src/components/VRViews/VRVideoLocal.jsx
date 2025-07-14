@@ -30,66 +30,6 @@ function VRVideoLocal({
     video.crossOrigin = 'anonymous'
     videoElementRef.current = video
 
-    // Inicializar sistema de sincronización global si no existe
-    if (!window.VRVideoSync) {
-      window.VRVideoSync = {
-        instances: [],
-        playStartTime: null,
-        pauseTime: 0,
-        isPlaying: false,
-        lastSavedTime: 0,
-        videoSrc: null,
-        
-        // Cargar tiempo guardado del localStorage
-        loadSavedTime: function(src) {
-          try {
-            const key = 'vr-video-time-' + btoa(src).slice(0, 20);
-            const saved = localStorage.getItem(key);
-            if (saved) {
-              const data = JSON.parse(saved);
-              this.pauseTime = data.currentTime || 0;
-              this.isPlaying = data.isPlaying || false;
-              this.videoSrc = src;
-              console.log('📼 Video principal: Tiempo cargado:', this.pauseTime, 'segundos');
-              return this.pauseTime;
-            }
-          } catch (error) {
-            console.warn('Error cargando tiempo guardado:', error);
-          }
-          return 0;
-        },
-        
-        // Guardar tiempo actual en localStorage
-        saveCurrentTime: function(src, currentTime, isPlaying) {
-          try {
-            const key = 'vr-video-time-' + btoa(src).slice(0, 20);
-            const data = {
-              currentTime: currentTime,
-              isPlaying: isPlaying,
-              timestamp: Date.now(),
-              src: src
-            };
-            localStorage.setItem(key, JSON.stringify(data));
-            this.lastSavedTime = currentTime;
-            console.log('📼 Video principal: Tiempo guardado:', currentTime, 'segundos');
-          } catch (error) {
-            console.warn('Error guardando tiempo:', error);
-          }
-        },
-        
-        getCurrentTime: function() {
-          if (!this.isPlaying) {
-            return this.pauseTime;
-          }
-          const now = Date.now();
-          return (now - this.playStartTime) / 1000;
-        }
-      };
-    }
-
-    // Cargar tiempo guardado al crear el video
-    const savedTime = window.VRVideoSync.loadSavedTime(videoSource);
-
     // Wait for video to be loaded before creating texture
     video.addEventListener('loadeddata', () => {
       const texture = new THREE.VideoTexture(video)
@@ -100,21 +40,7 @@ function VRVideoLocal({
       
       setVideoTexture(texture)
       setIsLoading(false)
-      
-      // Aplicar tiempo guardado
-      if (savedTime > 0) {
-        video.currentTime = savedTime;
-        window.VRVideoSync.pauseTime = savedTime;
-        console.log('📼 Video principal: Tiempo aplicado:', savedTime, 'segundos');
-      }
     })
-
-    // Guardar tiempo periódicamente
-    const saveInterval = setInterval(() => {
-      if (video && !video.paused) {
-        window.VRVideoSync.saveCurrentTime(videoSource, video.currentTime, !video.paused);
-      }
-    }, 2000);
 
     // Handle video errors
     video.addEventListener('error', (e) => {

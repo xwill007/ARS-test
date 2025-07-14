@@ -26,19 +26,13 @@ const getVoiceCommandsActivated = () => {
  * Siguiendo el patrón del VRConeOverlay
  * 
  * NUEVO: Manejo de audio para evitar eco en modo estereoscópico
- * - Panel izquierdo (primario): Audio a 1% de volumen para minimizar eco pero mantener sincronización
+ * - Panel izquierdo (primario): Audio a 5% de volumen para minimizar eco pero mantener sincronización
  * - Panel derecho: Audio a volumen completo (100%)
  * - Se pasan props isPrimaryPanel e isRightPanel para controlar el comportamiento
  * 
- * NUEVO: Sistema de sincronización entre paneles
- * - Sincronización perfecta de play/pause/seek entre ambos paneles
- * - Control de tiempo basado en timestamps para precisión máxima
- * - Comandos de voz sincronizan automáticamente ambos paneles
- * 
  * CONTROLES:
- * - Clic simple: Play/Pause sincronizado del video
+ * - Clic simple: Play/Pause del video
  * - Doble clic: Control de volumen (silenciar/restaurar)
- * - Comandos de voz: 'play', 'pause', 'stop', 'adelante', 'atrás', 'inicio'
  */
 const VRLocalVideoOverlay = ({ 
   position = [0, 5, -8], 
@@ -75,7 +69,209 @@ const VRLocalVideoOverlay = ({
     `;
   };
 
-  // Generar controles de voz
+  // Generar controles de progreso de tiempo
+  const generateProgressControls = () => {
+    return `
+      <!-- Controles de progreso - Barra pegada exactamente al borde inferior del video -->
+      <a-entity
+        id="progress-controls"
+        position="${position[0]} ${position[1] - height/2 - 0.1} ${position[2]}"
+        class="progress-controls">
+        
+        <!-- Contenedor principal de la barra de progreso -->
+        <a-entity id="progress-bar-container">
+          
+          <!-- Barra de fondo del progreso (grosor reducido a la mitad) -->
+          <a-plane
+            id="progress-bar-bg"
+            width="${width}"
+            height="0.2"
+            material="color: #222222; shader: flat; opacity: 0.9"
+            class="clickable raycastable"
+            progress-control="action: seek">
+          </a-plane>
+          
+          <!-- Barra de progreso activa -->
+          <a-plane
+            id="progress-bar"
+            width="0"
+            height="0.15"
+            position="${-width/2} 0 0.01"
+            material="color: #1565C0; shader: flat">
+          </a-plane>
+          
+          <!-- Tiempo actual en el lado izquierdo -->
+          <a-text
+            id="current-time"
+            value="0:00"
+            position="${-width/2 + 0.5} 0 0.02"
+            align="left"
+            color="white"
+            scale="0.7 0.7 0.7">
+          </a-text>
+          
+          <!-- Tiempo total en el lado derecho -->
+          <a-text
+            id="total-time"
+            value="0:00"
+            position="${width/2 - 0.5} 0 0.02"
+            align="right"
+            color="white"
+            scale="0.7 0.7 0.7">
+          </a-text>
+          
+          <!-- Indicador de progreso en porcentaje (centro) -->
+          <a-text
+            id="progress-display"
+            value="0%"
+            position="0 0 0.02"
+            align="center"
+            color="#000000"
+            scale="0.6 0.6 0.6">
+          </a-text>
+          
+          <!-- Líneas de referencia para cuartos del video -->
+          <a-plane
+            width="0.02"
+            height="0.125"
+            position="${-width/4} 0 0.015"
+            material="color: #444444; shader: flat; opacity: 0.6">
+          </a-plane>
+          
+          <a-plane
+            width="0.02"
+            height="0.125"
+            position="${width/4} 0 0.015"
+            material="color: #444444; shader: flat; opacity: 0.6">
+          </a-plane>
+          
+        </a-entity>
+        
+      </a-entity>
+    `;
+  };
+
+  // Generar controles de volumen
+  const generateVolumeControls = () => {
+    return `
+      <!-- Controles de volumen - Barra pegada exactamente al borde derecho del video -->
+      <a-entity
+        id="volume-controls"
+        position="${position[0] + width/2 + 0.125} ${position[1]} ${position[2]}"
+        class="volume-controls">
+        
+        <!-- Contenedor principal de la barra -->
+        <a-entity id="volume-bar-container">
+          
+          <!-- Barra de fondo extendida (grosor reducido a la mitad) -->
+          <a-plane
+            id="volume-bar-bg"
+            width="0.25"
+            height="${height}"
+            material="color: #222222; shader: flat; opacity: 0.9"
+            class="clickable raycastable"
+            volume-control="action: seek">
+          </a-plane>
+          
+          <!-- Barra de volumen activa -->
+          <a-plane
+            id="volume-bar"
+            width="0.2"
+            height="${height}"
+            position="0 0 0.01"
+            material="color: #000000; shader: flat">
+          </a-plane>
+          
+          <!-- Botón + integrado en la parte superior -->
+          <a-text
+            id="volume-up-btn"
+            value="+"
+            position="0 ${height/2 - 0.3} 0.02"
+            align="center"
+            color="white"
+            scale="1.2 1.2 1.2"
+            class="clickable raycastable"
+            volume-control="action: up">
+          </a-text>
+          
+          <!-- Indicador de porcentaje en el centro -->
+          <a-text
+            id="volume-display"
+            value="100%"
+            position="0 0 0.02"
+            align="center"
+            color="white"
+            scale="0.6 0.6 0.6">
+          </a-text>
+          
+          <!-- Botón - integrado en la parte inferior -->
+          <a-text
+            id="volume-down-btn"
+            value="−"
+            position="0 ${-height/2 + 0.3} 0.02"
+            align="center"
+            color="white"
+            scale="1.2 1.2 1.2"
+            class="clickable raycastable"
+            volume-control="action: down">
+          </a-text>
+          
+          <!-- Líneas de referencia opcionales -->
+          <a-plane
+            width="0.15"
+            height="0.02"
+            position="0 ${height/4} 0.015"
+            material="color: #444444; shader: flat; opacity: 0.6">
+          </a-plane>
+          
+          <a-plane
+            width="0.15"
+            height="0.02"
+            position="0 ${-height/4} 0.015"
+            material="color: #444444; shader: flat; opacity: 0.6">
+          </a-plane>
+          
+        </a-entity>
+        
+      </a-entity>
+    `;
+  };
+
+  // Generar botón para ocultar/mostrar controles
+  const generateToggleButton = () => {
+    return `
+      <!-- Botón para ocultar/mostrar controles - Esquina inferior derecha -->
+      <a-entity
+        id="toggle-controls-button"
+        position="${position[0] + width/2 + 0.125} ${position[1] - height/2 - 0.1} ${position[2] + 0.01}"
+        class="toggle-button">
+        
+        <!-- Fondo del botón cuadrado -->
+        <a-plane
+          id="toggle-button-bg"
+          width="0.25"
+          height="0.2"
+          material="color: #333333; shader: flat; opacity: 0.9"
+          class="clickable raycastable"
+          toggle-controls="action: toggle">
+        </a-plane>
+        
+        <!-- Texto X en el centro del botón -->
+        <a-text
+          id="toggle-button-text"
+          value="X"
+          position="0 0 0.02"
+          align="center"
+          color="white"
+          font="roboto"
+          scale="0.6 0.6 0.6"
+          class="clickable raycastable"
+          toggle-controls="action: toggle">
+        </a-text>
+        
+      </a-entity>
+    `;
+  };
   const generateVoiceControls = () => {
     if (!enableVoiceCommands) return '';
     
@@ -142,7 +338,7 @@ const VRLocalVideoOverlay = ({
         <!-- Texto de reconocimiento de voz -->
         <a-text
           id="voice-text"
-          value="🎤 Comandos: 'play', 'pause', 'stop', 'adelante', 'atrás', 'inicio'"
+          value="🎤 Comandos: 'play', 'pause', 'subir volumen', 'bajar volumen'"
           position="0 -2.0 0"
           align="center"
           color="white"
@@ -156,7 +352,7 @@ const VRLocalVideoOverlay = ({
           value=""
           position="0 -3.2 0"
           align="center"
-          color="#FF9800"
+          color="#000000"
           scale="1.5 1.5 1.5"
           width="6"
           visible="false">
@@ -197,186 +393,6 @@ const VRLocalVideoOverlay = ({
   // Script para cargar el componente vr-local-video
   const videoScript = `
     <script>
-      // Sistema de sincronización global para paneles estéreo
-      window.VRVideoSync = window.VRVideoSync || {
-        instances: [],
-        playStartTime: null,
-        pauseTime: 0,
-        isPlaying: false,
-        lastSavedTime: 0,
-        videoSrc: null,
-        
-        // Cargar tiempo guardado del video principal
-        loadSavedTime: function(src) {
-          try {
-            const key = 'vr-video-time-' + btoa(src).slice(0, 20);
-            const saved = localStorage.getItem(key);
-            if (saved) {
-              const data = JSON.parse(saved);
-              this.pauseTime = data.currentTime || 0;
-              this.isPlaying = data.isPlaying || false;
-              this.videoSrc = src;
-              console.log('⏱️ Tiempo cargado desde localStorage:', this.pauseTime, 'segundos, src:', src);
-              return this.pauseTime;
-            }
-          } catch (error) {
-            console.warn('Error cargando tiempo guardado:', error);
-          }
-          return 0;
-        },
-        
-        // Guardar tiempo actual en localStorage
-        saveCurrentTime: function(src, currentTime, isPlaying) {
-          try {
-            const key = 'vr-video-time-' + btoa(src).slice(0, 20);
-            const data = {
-              currentTime: currentTime,
-              isPlaying: isPlaying,
-              timestamp: Date.now(),
-              src: src
-            };
-            localStorage.setItem(key, JSON.stringify(data));
-            this.lastSavedTime = currentTime;
-            console.log('💾 Tiempo guardado en localStorage:', currentTime, 'segundos');
-          } catch (error) {
-            console.warn('Error guardando tiempo:', error);
-          }
-        },
-        
-        // Auto-guardado periódico del tiempo
-        startAutoSave: function(src) {
-          if (this.autoSaveInterval) {
-            clearInterval(this.autoSaveInterval);
-          }
-          
-          this.autoSaveInterval = setInterval(() => {
-            if (this.instances.length > 0) {
-              const currentTime = this.getCurrentTime();
-              this.saveCurrentTime(src, currentTime, this.isPlaying);
-            }
-          }, 2000); // Guardar cada 2 segundos
-        },
-        
-        register: function(instance) {
-          this.instances.push(instance);
-          console.log('📽️ Registrando instancia de video, total:', this.instances.length);
-          
-          // Cargar tiempo guardado cuando se registra la primera instancia
-          if (this.instances.length === 1 && instance.data.src) {
-            const savedTime = this.loadSavedTime(instance.data.src);
-            if (savedTime > 0) {
-              this.pauseTime = savedTime;
-              console.log('🔄 Restaurando tiempo a:', savedTime, 'segundos');
-              
-              // Aplicar el tiempo guardado a la instancia
-              setTimeout(() => {
-                if (instance.video) {
-                  instance.video.currentTime = savedTime;
-                  console.log('⏰ Tiempo aplicado a video:', savedTime);
-                }
-              }, 500);
-            }
-            
-            // Iniciar auto-guardado
-            this.startAutoSave(instance.data.src);
-          }
-        },
-        
-        unregister: function(instance) {
-          this.instances = this.instances.filter(i => i !== instance);
-          console.log('📽️ Desregistrando instancia de video, total:', this.instances.length);
-          
-          // Guardar tiempo final al desregistrar la última instancia
-          if (this.instances.length === 0) {
-            if (instance.data.src) {
-              const currentTime = this.getCurrentTime();
-              this.saveCurrentTime(instance.data.src, currentTime, this.isPlaying);
-              console.log('💾 Guardado final al cerrar ARS:', currentTime, 'segundos');
-            }
-            
-            // Detener auto-guardado
-            if (this.autoSaveInterval) {
-              clearInterval(this.autoSaveInterval);
-              this.autoSaveInterval = null;
-            }
-          }
-        },
-        
-        syncPlay: function(initiator) {
-          const now = Date.now();
-          this.playStartTime = now - (this.pauseTime * 1000);
-          this.isPlaying = true;
-          
-          console.log('🎬 Sincronizando PLAY desde panel:', initiator.data.isRightPanel ? 'derecho' : 'izquierdo');
-          console.log('⏰ Timestamp de inicio:', this.playStartTime, 'Tiempo pausado:', this.pauseTime);
-          
-          this.instances.forEach(instance => {
-            if (instance !== initiator && instance.video) {
-              try {
-                instance.video.currentTime = this.pauseTime;
-                instance.video.play().catch(err => 
-                  console.warn('Error sincronizando play:', err)
-                );
-              } catch (error) {
-                console.error('Error en sync play:', error);
-              }
-            }
-          });
-        },
-        
-        syncPause: function(initiator) {
-          const now = Date.now();
-          if (this.playStartTime) {
-            this.pauseTime = (now - this.playStartTime) / 1000;
-          }
-          this.isPlaying = false;
-          
-          console.log('⏸️ Sincronizando PAUSE desde panel:', initiator.data.isRightPanel ? 'derecho' : 'izquierdo');
-          console.log('⏰ Tiempo de pausa:', this.pauseTime, 'segundos');
-          
-          this.instances.forEach(instance => {
-            if (instance !== initiator && instance.video) {
-              try {
-                instance.video.pause();
-                instance.video.currentTime = this.pauseTime;
-              } catch (error) {
-                console.error('Error en sync pause:', error);
-              }
-            }
-          });
-        },
-        
-        syncSeek: function(initiator, seekTime) {
-          const now = Date.now();
-          this.pauseTime = seekTime;
-          
-          if (this.isPlaying) {
-            this.playStartTime = now - (seekTime * 1000);
-          }
-          
-          console.log('⏩ Sincronizando SEEK desde panel:', initiator.data.isRightPanel ? 'derecho' : 'izquierdo');
-          console.log('⏰ Nuevo tiempo:', seekTime, 'segundos');
-          
-          this.instances.forEach(instance => {
-            if (instance !== initiator && instance.video) {
-              try {
-                instance.video.currentTime = seekTime;
-              } catch (error) {
-                console.error('Error en sync seek:', error);
-              }
-            }
-          });
-        },
-        
-        getCurrentTime: function() {
-          if (!this.isPlaying) {
-            return this.pauseTime;
-          }
-          const now = Date.now();
-          return (now - this.playStartTime) / 1000;
-        }
-      };
-
       // Componente para reproducir video local con barra de progreso
       // Este componente encapsula toda la funcionalidad para reproducir videos locales en A-Frame
 
@@ -396,10 +412,6 @@ const VRLocalVideoOverlay = ({
 
         init: function() {
           console.log('Iniciando componente vr-local-video', this.data);
-          
-          // Registrar esta instancia en el sistema de sincronización
-          window.VRVideoSync.register(this);
-          
           // Crear estructura de elementos
           this.createVideoElements();
           // Crear elemento de video principal
@@ -434,8 +446,17 @@ const VRLocalVideoOverlay = ({
 
           // Configurar listeners
           this.video.addEventListener('timeupdate', this.updateProgress.bind(this));
+          this.video.addEventListener('volumechange', this.updateVolumeDisplay.bind(this));
           this.videoPlane.addEventListener('click', this.handleClick.bind(this));
-          this.progressBarBg.addEventListener('click', this.seekVideo.bind(this));
+          
+          // Configurar listener para la barra de progreso
+          setTimeout(() => {
+            const progressBarBg = document.querySelector('#progress-bar-bg');
+            if (progressBarBg) {
+              progressBarBg.addEventListener('click', this.seekVideo.bind(this));
+            }
+          }, 100);
+          
           if (this.backVideoPlane) {
             this.backVideoPlane.addEventListener('click', this.handleClick.bind(this));
           }
@@ -449,41 +470,27 @@ const VRLocalVideoOverlay = ({
             src: this.video,
             side: this.data.doubleSided ? 'double' : 'front'
           });
-          // Mostrar el primer frame y aplicar tiempo guardado
+          // Mostrar el primer frame aunque autoplay sea false
           this.video.addEventListener('loadeddata', () => {
-            console.log('Video loadeddata event - aplicando tiempo sincronizado');
-            
-            // Obtener tiempo guardado del sistema de sincronización
-            const savedTime = window.VRVideoSync.getCurrentTime();
-            this.video.currentTime = savedTime;
+            this.video.currentTime = 0;
             this.video.pause();
-            
             if (this.videoPlane.components.material) {
               this.videoPlane.components.material.material.map.needsUpdate = true;
             }
-            
-            console.log('⏰ Video inicializado en tiempo:', savedTime, 'segundos (desde localStorage)');
-            
-            // Si había reproducción en curso, continuar
-            if (window.VRVideoSync.isPlaying && this.data.autoplay) {
-              setTimeout(() => {
-                console.log('▶️ Continuando reproducción desde tiempo guardado');
-                window.VRVideoSync.syncPlay(this);
-                this.video.play().catch(err => 
-                  console.warn('Error al continuar reproducción:', err)
-                );
-              }, 100);
-            }
+            console.log('Video loadeddata: currentTime', this.video.currentTime, 'paused', this.video.paused);
           });
-          // Solo intentar reproducir automáticamente si autoplay es true Y no hay tiempo guardado
-          if (this.data.autoplay && window.VRVideoSync.pauseTime === 0) {
-            console.log('Intentando autoplay desde el inicio...');
+          // Solo intentar reproducir automáticamente si autoplay es true
+          if (this.data.autoplay) {
+            console.log('Intentando autoplay...');
             this.attemptAutoplay();
-          } else if (window.VRVideoSync.pauseTime > 0) {
-            console.log('Autoplay omitido - restaurando desde tiempo guardado:', window.VRVideoSync.pauseTime);
           } else {
             console.log('Autoplay está desactivado, no se reproduce automáticamente');
           }
+          
+          // Actualizar display de volumen inicial
+          setTimeout(() => {
+            this.updateVolumeDisplay();
+          }, 100);
         },
         
         createVideoElements: function() {
@@ -497,39 +504,7 @@ const VRLocalVideoOverlay = ({
           this.videoPlane.classList.add('clickable');
           this.videoPlane.id = 'video-plane-' + Math.floor(Math.random() * 10000);
           
-          // Contenedor para barra de progreso
-          const progressContainer = document.createElement('a-entity');
-          progressContainer.setAttribute('position', '0 ' + (-this.data.height/2 - 0.5) + ' 0.01');
-          
-          // Fondo de la barra de progreso
-          this.progressBarBg = document.createElement('a-plane');
-          this.progressBarBg.setAttribute('width', this.data.width);
-          this.progressBarBg.setAttribute('height', 0.5);
-          this.progressBarBg.setAttribute('material', 'color: #444444; shader: flat');
-          this.progressBarBg.classList.add('clickable');
-          
-          // Barra de progreso
-          this.progressBar = document.createElement('a-plane');
-          this.progressBar.setAttribute('width', 0);
-          this.progressBar.setAttribute('height', 0.5);
-          this.progressBar.setAttribute('position', (-this.data.width/2) + ' 0 0.01');
-          this.progressBar.setAttribute('material', 'color: #FF0000; shader: flat');
-          
-          // Indicador de tiempo
-          this.timeDisplay = document.createElement('a-text');
-          this.timeDisplay.setAttribute('value', '0:00 / 0:00');
-          this.timeDisplay.setAttribute('position', '0 0.7 0');
-          this.timeDisplay.setAttribute('align', 'center');
-          this.timeDisplay.setAttribute('color', 'white');
-          this.timeDisplay.setAttribute('scale', '1 1 1');
-          
-          // Ensamblar estructura
-          progressContainer.appendChild(this.progressBarBg);
-          progressContainer.appendChild(this.progressBar);
-          progressContainer.appendChild(this.timeDisplay);
-          
           el.appendChild(this.videoPlane);
-          el.appendChild(progressContainer);
         },
         
         formatTime: function(seconds) {
@@ -544,39 +519,82 @@ const VRLocalVideoOverlay = ({
             return;
           }
           
-          // Usar tiempo sincronizado en lugar del tiempo real del video
-          const currentTime = window.VRVideoSync.getCurrentTime();
-          const progress = currentTime / this.video.duration;
-          
+          const progress = this.video.currentTime / this.video.duration;
           if (isNaN(progress)) return;
           
-          const barWidth = this.data.width * progress;
-          const position = -this.data.width/2 + (barWidth / 2);
+          // Actualizar barra de progreso usando el ancho completo del video
+          const progressBar = document.querySelector('#progress-bar');
+          const currentTimeEl = document.querySelector('#current-time');
+          const totalTimeEl = document.querySelector('#total-time');
+          const progressDisplayEl = document.querySelector('#progress-display');
           
-          this.progressBar.setAttribute('width', barWidth);
-          this.progressBar.setAttribute('position', position + ' 0 0.01');
+          if (progressBar) {
+            const barWidth = this.data.width * progress; // Ancho completo del video
+            const position = -this.data.width/2 + (barWidth / 2);
+            
+            progressBar.setAttribute('width', barWidth);
+            progressBar.setAttribute('position', position + ' 0 0.01');
+          }
           
-          const timeText = this.formatTime(currentTime) + ' / ' + this.formatTime(this.video.duration);
-          this.timeDisplay.setAttribute('value', timeText);
+          // Actualizar tiempos
+          if (currentTimeEl) {
+            currentTimeEl.setAttribute('value', this.formatTime(this.video.currentTime));
+          }
+          
+          if (totalTimeEl) {
+            totalTimeEl.setAttribute('value', this.formatTime(this.video.duration));
+          }
+          
+          // Actualizar porcentaje
+          if (progressDisplayEl) {
+            const progressPercent = Math.round(progress * 100);
+            progressDisplayEl.setAttribute('value', progressPercent + '%');
+          }
         },
         
         seekVideo: function(event) {
           if (!this.video || !this.video.duration) return;
           
           try {
-            const mousePos = event.detail.intersection.point;
-            const progressWidth = this.data.width;
-            const progressStart = -this.data.width/2;
+            // Obtener información del evento
+            const intersection = event.detail.intersection;
+            const uv = intersection.uv;
+            const point = intersection.point;
             
-            const clickPos = (mousePos.x - progressStart) / progressWidth;
-            const seekTime = this.video.duration * Math.max(0, Math.min(1, clickPos));
+            console.log('📍 Clic en barra de progreso:', point);
+            
+            let seekPercent = 0.5; // Valor por defecto
+            
+            if (uv) {
+              // Usar coordenadas UV (más preciso)
+              // uv.x = 0 es el inicio, uv.x = 1 es el final
+              seekPercent = uv.x;
+              console.log('🎯 Usando coordenadas UV - X:', uv.x, 'Progreso:', Math.round(seekPercent * 100) + '%');
+            } else {
+              // Fallback: usar coordenadas del mundo
+              const progressControls = document.querySelector('#progress-controls');
+              let baseX = 0;
+              
+              if (progressControls) {
+                const pos = progressControls.getAttribute('position');
+                baseX = pos.x;
+              }
+              
+              const relativeX = point.x - baseX;
+              const barStart = -this.data.width/2;
+              const barEnd = this.data.width/2;
+              
+              seekPercent = (relativeX - barStart) / (barEnd - barStart);
+              seekPercent = Math.max(0, Math.min(1, seekPercent));
+              
+              console.log('🎯 Usando coordenadas mundiales - X relativo:', relativeX, 'Progreso:', Math.round(seekPercent * 100) + '%');
+            }
+            
+            const seekTime = this.video.duration * seekPercent;
             
             if (isFinite(seekTime) && !isNaN(seekTime)) {
-              // Usar sistema de sincronización para buscar posición
-              window.VRVideoSync.syncSeek(this, seekTime);
-              
               this.video.currentTime = seekTime;
-              console.log("🎯 Seeking sincronizado a", seekTime, "seconds");
+              console.log("⏭️ Saltando a", this.formatTime(seekTime), "(" + Math.round(seekPercent * 100) + "%)");
             }
           } catch (error) {
             console.error("Error al buscar posición en el video:", error);
@@ -615,20 +633,14 @@ const VRLocalVideoOverlay = ({
           
           try {
             if (this.video.paused) {
-              // Usar sistema de sincronización para reproducir
-              window.VRVideoSync.syncPlay(this);
-              
               this.video.play()
                 .then(() => {
                   const panelInfo = this.data.isRightPanel ? '(Panel derecho)' : '(Panel izquierdo)';
-                  const volumeInfo = this.data.isRightPanel ? 'volumen 100%' : 'volumen 1%';
+                  const volumeInfo = this.data.isRightPanel ? 'volumen 100%' : 'volumen 5%';
                   console.log('▶️ Video reproduciendo ' + panelInfo + ' - ' + volumeInfo);
                 })
                 .catch(err => console.error("Error al reproducir:", err));
             } else {
-              // Usar sistema de sincronización para pausar
-              window.VRVideoSync.syncPause(this);
-              
               this.video.pause();
               const panelInfo = this.data.isRightPanel ? '(Panel derecho)' : '(Panel izquierdo)';
               console.log("⏸️ Video pausado " + panelInfo);
@@ -636,6 +648,64 @@ const VRLocalVideoOverlay = ({
           } catch (error) {
             console.error("Error al controlar la reproducción:", error);
           }
+        },
+        
+        // Función para actualizar el display visual del volumen
+        updateVolumeDisplay: function() {
+          if (!this.video) return;
+          
+          const volumeDisplay = document.querySelector('#volume-display');
+          const volumeBar = document.querySelector('#volume-bar');
+          
+          if (volumeDisplay) {
+            const volumePercent = Math.round(this.video.volume * 100);
+            volumeDisplay.setAttribute('value', volumePercent + '%');
+          }
+          
+          if (volumeBar) {
+            // Actualizar altura de la barra según el volumen (0-100%)
+            // La altura total es solo la del video
+            const maxHeight = this.data.height; // Solo altura del video
+            const barHeight = maxHeight * this.video.volume;
+            const barPosition = (-maxHeight/2) + (barHeight / 2); // Centrar desde abajo
+            
+            volumeBar.setAttribute('height', barHeight);
+            volumeBar.setAttribute('position', '0 ' + barPosition + ' 0.01');
+            
+            // Cambiar color según el nivel de volumen
+            let color = '#000000'; // Negro para volumen normal
+            if (this.video.volume === 0) {
+              color = '#F44336'; // Rojo para silenciado
+            } else if (this.video.volume < 0.3) {
+              color = '#000000'; // Negro para volumen bajo
+            }
+            
+            volumeBar.setAttribute('material', 'color: ' + color + '; shader: flat');
+          }
+        },
+        
+        // Función para ajustar volumen
+        adjustVolume: function(direction) {
+          if (!this.video) return;
+          
+          const step = 0.1; // Incremento de 10%
+          let newVolume = this.video.volume;
+          
+          if (direction === 'up') {
+            newVolume = Math.min(1.0, this.video.volume + step);
+          } else if (direction === 'down') {
+            newVolume = Math.max(0.0, this.video.volume - step);
+          }
+          
+          this.video.volume = newVolume;
+          
+          // Log del cambio
+          const panelInfo = this.data.isRightPanel ? '(Panel derecho)' : '(Panel izquierdo)';
+          const action = direction === 'up' ? '🔊 Subiendo' : '🔉 Bajando';
+          console.log(action + ' volumen ' + panelInfo + ': ' + Math.round(newVolume * 100) + '%');
+          
+          // Actualizar display inmediatamente
+          this.updateVolumeDisplay();
         },
         
         attemptAutoplay: function() {
@@ -699,16 +769,6 @@ const VRLocalVideoOverlay = ({
         },
 
         remove: function() {
-          // Guardar tiempo actual antes de desregistrar
-          if (this.video && this.data.src) {
-            const currentTime = window.VRVideoSync.getCurrentTime();
-            window.VRVideoSync.saveCurrentTime(this.data.src, currentTime, window.VRVideoSync.isPlaying);
-            console.log('💾 Tiempo guardado al remover componente:', currentTime, 'segundos');
-          }
-          
-          // Desregistrar del sistema de sincronización
-          window.VRVideoSync.unregister(this);
-          
           if (this.video) {
             this.video.pause();
             this.video.src = '';
@@ -719,7 +779,270 @@ const VRLocalVideoOverlay = ({
         }
       });
 
+      // Componente para controles de progreso
+      AFRAME.registerComponent('progress-control', {
+        schema: {
+          action: { type: 'string', default: 'seek' }
+        },
+
+        init: function() {
+          this.el.addEventListener('click', this.handleProgressControl.bind(this));
+          this.el.addEventListener('touchstart', this.onTouchStart.bind(this));
+          this.el.addEventListener('touchend', this.onTouchEnd.bind(this));
+          this.el.classList.add('clickable', 'raycastable');
+        },
+
+        onTouchStart: function(event) {
+          event.preventDefault();
+          this.touchStarted = true;
+        },
+
+        onTouchEnd: function(event) {
+          event.preventDefault();
+          if (this.touchStarted) {
+            this.handleProgressControl(event);
+            this.touchStarted = false;
+          }
+        },
+
+        handleProgressControl: function(event) {
+          console.log('📊 Control de progreso activado');
+          
+          // Buscar el componente de video
+          const videoEntity = document.querySelector('#vr-local-video-entity');
+          if (videoEntity && videoEntity.components['vr-local-video']) {
+            const videoComponent = videoEntity.components['vr-local-video'];
+            
+            if (event && event.detail && event.detail.intersection) {
+              console.log('🎯 Clic en barra de progreso detectado');
+              videoComponent.seekVideo(event);
+              
+              // Feedback visual temporal
+              this.provideFeedback();
+            }
+          } else {
+            console.warn('⚠️ No se encontró el componente de video para progreso');
+          }
+        },
+
+        provideFeedback: function() {
+          // Feedback visual para la barra de progreso
+          const progressBar = document.querySelector('#progress-bar');
+          if (progressBar) {
+            const originalColor = '#1565C0';
+            const feedbackColor = '#FFFFFF';
+            
+            progressBar.setAttribute('material', 'color: ' + feedbackColor + '; shader: flat');
+            setTimeout(() => {
+              progressBar.setAttribute('material', 'color: ' + originalColor + '; shader: flat');
+            }, 200);
+          }
+        }
+      });
+
+      // Componente para controles de volumen
+      AFRAME.registerComponent('volume-control', {
+        schema: {
+          action: { type: 'string', default: 'up' } // 'up', 'down', o 'seek'
+        },
+
+        init: function() {
+          this.el.addEventListener('click', this.handleVolumeControl.bind(this));
+          this.el.addEventListener('touchstart', this.onTouchStart.bind(this));
+          this.el.addEventListener('touchend', this.onTouchEnd.bind(this));
+          this.el.classList.add('clickable', 'raycastable');
+        },
+
+        onTouchStart: function(event) {
+          event.preventDefault();
+          this.touchStarted = true;
+        },
+
+        onTouchEnd: function(event) {
+          event.preventDefault();
+          if (this.touchStarted) {
+            this.handleVolumeControl(event);
+            this.touchStarted = false;
+          }
+        },
+
+        handleVolumeControl: function(event) {
+          console.log('🎛️ Control de volumen activado, acción:', this.data.action);
+          
+          // Buscar el componente de video
+          const videoEntity = document.querySelector('#vr-local-video-entity');
+          if (videoEntity && videoEntity.components['vr-local-video']) {
+            const videoComponent = videoEntity.components['vr-local-video'];
+            
+            if (this.data.action === 'seek' && event && event.detail && event.detail.intersection) {
+              // Click directo en la barra para buscar posición
+              console.log('🎯 Clic en barra de volumen detectado');
+              this.seekVolume(event, videoComponent);
+            } else {
+              // Botones + y -
+              console.log('🔘 Botón de volumen presionado:', this.data.action);
+              videoComponent.adjustVolume(this.data.action);
+            }
+            
+            // Feedback visual temporal
+            this.provideFeedback();
+          } else {
+            console.warn('⚠️ No se encontró el componente de video');
+          }
+        },
+
+        seekVolume: function(event, videoComponent) {
+          try {
+            // Obtener información del evento
+            const intersection = event.detail.intersection;
+            const object = intersection.object;
+            const uv = intersection.uv;
+            const point = intersection.point;
+            
+            console.log('📍 Información del clic:');
+            console.log('- Punto mundial:', point);
+            console.log('- UV coordinates:', uv);
+            console.log('- Objeto:', object);
+            
+            // Si tenemos coordenadas UV, usarlas (más preciso)
+            let newVolume = 0.5; // Valor por defecto
+            
+            if (uv) {
+              // Las coordenadas UV van de 0 a 1
+              // uv.y = 0 es la parte inferior, uv.y = 1 es la parte superior
+              newVolume = uv.y;
+              console.log('🎯 Usando coordenadas UV - Y:', uv.y, 'Volumen:', Math.round(newVolume * 100) + '%');
+            } else {
+              // Fallback: usar coordenadas del mundo
+              const videoHeight = videoComponent.data.height;
+              const volumeControls = document.querySelector('#volume-controls');
+              
+              let baseY = 0;
+              if (volumeControls) {
+                const pos = volumeControls.getAttribute('position');
+                baseY = pos.y;
+              }
+              
+              const relativeY = point.y - baseY;
+              const barBottom = -videoHeight/2;
+              const barTop = videoHeight/2;
+              
+              newVolume = (relativeY - barBottom) / (barTop - barBottom);
+              newVolume = Math.max(0, Math.min(1, newVolume));
+              
+              console.log('🎯 Usando coordenadas mundiales - Y relativo:', relativeY, 'Volumen:', Math.round(newVolume * 100) + '%');
+            }
+            
+            // Aplicar el nuevo volumen
+            if (videoComponent.video) {
+              videoComponent.video.volume = newVolume;
+              videoComponent.updateVolumeDisplay();
+              
+              const panelInfo = videoComponent.data.isRightPanel ? '(Panel derecho)' : '(Panel izquierdo)';
+              console.log('🎚️ Volumen ajustado por clic en barra ' + panelInfo + ': ' + Math.round(newVolume * 100) + '%');
+            }
+            
+          } catch (error) {
+            console.error("Error al buscar volumen:", error);
+          }
+        },
+
+        provideFeedback: function() {
+          // Feedback visual simple para botones + y -
+          if (this.data.action === 'up' || this.data.action === 'down') {
+            const originalColor = this.data.action === 'up' ? '#2196F3' : '#FF5722';
+            const feedbackColor = '#FFFFFF';
+            
+            this.el.setAttribute('color', feedbackColor);
+            setTimeout(() => {
+              this.el.setAttribute('color', originalColor);
+            }, 150);
+          }
+        }
+      });
+
       console.log('Componente vr-local-video registrado correctamente');
+
+      // Componente para el botón de ocultar/mostrar controles
+      AFRAME.registerComponent('toggle-controls', {
+        schema: {
+          action: { type: 'string', default: 'toggle' }
+        },
+
+        init: function() {
+          this.el.addEventListener('click', this.handleToggle.bind(this));
+          this.el.addEventListener('touchstart', this.onTouchStart.bind(this));
+          this.el.addEventListener('touchend', this.onTouchEnd.bind(this));
+          this.el.classList.add('clickable', 'raycastable');
+          
+          // Estado inicial: controles visibles
+          this.controlsVisible = true;
+        },
+
+        onTouchStart: function(event) {
+          event.preventDefault();
+          this.touchStarted = true;
+        },
+
+        onTouchEnd: function(event) {
+          event.preventDefault();
+          if (this.touchStarted) {
+            this.handleToggle(event);
+            this.touchStarted = false;
+          }
+        },
+
+        handleToggle: function(event) {
+          console.log('🔘 Botón de toggle controles presionado');
+          
+          // Alternar visibilidad de los controles
+          this.controlsVisible = !this.controlsVisible;
+          
+          // Buscar los controles
+          const progressControls = document.querySelector('#progress-controls');
+          const volumeControls = document.querySelector('#volume-controls');
+          const toggleButtonText = document.querySelector('#toggle-button-text');
+          
+          if (progressControls && volumeControls) {
+            if (this.controlsVisible) {
+              // Mostrar controles
+              progressControls.setAttribute('visible', 'true');
+              volumeControls.setAttribute('visible', 'true');
+              if (toggleButtonText) {
+                toggleButtonText.setAttribute('value', 'X');
+              }
+              console.log('👁️ Controles mostrados');
+            } else {
+              // Ocultar controles
+              progressControls.setAttribute('visible', 'false');
+              volumeControls.setAttribute('visible', 'false');
+              if (toggleButtonText) {
+                toggleButtonText.setAttribute('value', '👁️');
+              }
+              console.log('🙈 Controles ocultos');
+            }
+            
+            // Feedback visual
+            this.provideFeedback();
+          } else {
+            console.warn('⚠️ No se encontraron los controles para ocultar/mostrar');
+          }
+        },
+
+        provideFeedback: function() {
+          // Feedback visual para el botón
+          const buttonBg = document.querySelector('#toggle-button-bg');
+          if (buttonBg) {
+            const originalColor = '#333333';
+            const feedbackColor = '#555555';
+            
+            buttonBg.setAttribute('material', 'color: ' + feedbackColor + '; shader: flat; opacity: 0.8');
+            setTimeout(() => {
+              buttonBg.setAttribute('material', 'color: ' + originalColor + '; shader: flat; opacity: 0.8');
+            }, 150);
+          }
+        }
+      });
 
       // Componente para controles de voz
       AFRAME.registerComponent('voice-control', {
@@ -875,9 +1198,6 @@ const VRLocalVideoOverlay = ({
             console.log('🎤 Comando: Stop');
             this.updateVoiceText('⏹️ Video detenido');
             if (this.videoComponent.video) {
-              // Usar sincronización para parar y volver al inicio
-              window.VRVideoSync.syncSeek(this.videoComponent, 0);
-              window.VRVideoSync.syncPause(this.videoComponent);
               this.videoComponent.video.pause();
               this.videoComponent.video.currentTime = 0;
             }
@@ -889,51 +1209,34 @@ const VRLocalVideoOverlay = ({
             if (this.videoComponent.video) {
               this.videoComponent.video.volume = 0;
             }
-          }
-          // Comando de activar sonido
-          else if (command.includes('unmute') || command.includes('activar sonido') || command.includes('sonido')) {
-            console.log('🎤 Comando: Unmute');
-            this.updateVoiceText('🔊 Audio activado');
-            if (this.videoComponent.video) {
-              // Restaurar volumen según el panel
-              if (this.videoComponent.data.isRightPanel) {
-                this.videoComponent.video.volume = 1.0;
-              } else {
-                this.videoComponent.video.volume = 0.05;
+          }            // Comando de activar sonido
+            else if (command.includes('unmute') || command.includes('activar sonido') || command.includes('sonido')) {
+              console.log('🎤 Comando: Unmute');
+              this.updateVoiceText('🔊 Audio activado');
+              if (this.videoComponent.video) {
+                // Restaurar volumen según el panel
+                if (this.videoComponent.data.isRightPanel) {
+                  this.videoComponent.video.volume = 1.0;
+                } else {
+                  this.videoComponent.video.volume = 0.05;
+                }
               }
             }
-          }
-          // Comando de adelantar 10 segundos
-          else if (command.includes('adelante') || command.includes('avanza') || command.includes('adelantar')) {
-            console.log('🎤 Comando: Adelantar');
-            this.updateVoiceText('⏩ Adelantando 10 segundos');
-            if (this.videoComponent.video) {
-              const currentTime = window.VRVideoSync.getCurrentTime();
-              const newTime = Math.min(currentTime + 10, this.videoComponent.video.duration);
-              window.VRVideoSync.syncSeek(this.videoComponent, newTime);
-              this.videoComponent.video.currentTime = newTime;
+            // Comandos de volumen
+            else if (command.includes('subir volumen') || command.includes('más volumen') || command.includes('volume up')) {
+              console.log('🎤 Comando: Volume Up');
+              this.updateVoiceText('🔊 Subiendo volumen');
+              if (this.videoComponent) {
+                this.videoComponent.adjustVolume('up');
+              }
             }
-          }
-          // Comando de atrasar 10 segundos
-          else if (command.includes('atrás') || command.includes('retrocede') || command.includes('atrasar')) {
-            console.log('🎤 Comando: Atrasar');
-            this.updateVoiceText('⏪ Atrasando 10 segundos');
-            if (this.videoComponent.video) {
-              const currentTime = window.VRVideoSync.getCurrentTime();
-              const newTime = Math.max(currentTime - 10, 0);
-              window.VRVideoSync.syncSeek(this.videoComponent, newTime);
-              this.videoComponent.video.currentTime = newTime;
+            else if (command.includes('bajar volumen') || command.includes('menos volumen') || command.includes('volume down')) {
+              console.log('🎤 Comando: Volume Down');
+              this.updateVoiceText('🔉 Bajando volumen');
+              if (this.videoComponent) {
+                this.videoComponent.adjustVolume('down');
+              }
             }
-          }
-          // Comando de ir al inicio
-          else if (command.includes('inicio') || command.includes('reinicia') || command.includes('restart')) {
-            console.log('🎤 Comando: Ir al inicio');
-            this.updateVoiceText('⏮️ Volviendo al inicio');
-            if (this.videoComponent.video) {
-              window.VRVideoSync.syncSeek(this.videoComponent, 0);
-              this.videoComponent.video.currentTime = 0;
-            }
-          }
         },
 
         updateVoiceText: function(text) {
@@ -1100,6 +1403,9 @@ const VRLocalVideoOverlay = ({
           style="width: 100vw; height: 100vh; background: transparent;">
           
           ${generateVideoElement()}
+          ${generateProgressControls()}
+          ${generateVolumeControls()}
+          ${generateToggleButton()}
           ${generateMarker()}
           ${generateVoiceControls()}
           
@@ -1115,7 +1421,7 @@ const VRLocalVideoOverlay = ({
               animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
               animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
               animation__mouseleave="property: scale; startEvents: mouseleave; to: 1 1 1; dur: 500"
-              raycaster="objects: .clickable, .raycastable; far: 20; interval: 1000"
+              raycaster="objects: .clickable, .raycastable; far: 30; interval: 100"
               fuse="true"
               fuse-timeout="1500">
             </a-cursor>
