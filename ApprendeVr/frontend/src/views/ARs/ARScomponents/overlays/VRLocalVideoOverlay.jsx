@@ -24,6 +24,15 @@ const getVoiceCommandsActivated = () => {
 /**
  * Overlay para video local usando A-Frame HTML en iframe
  * Siguiendo el patrón del VRConeOverlay
+ * 
+ * NUEVO: Manejo de audio para evitar eco en modo estereoscópico
+ * - Panel izquierdo (primario): Audio a 5% de volumen para minimizar eco pero mantener sincronización
+ * - Panel derecho: Audio a volumen completo (100%)
+ * - Se pasan props isPrimaryPanel e isRightPanel para controlar el comportamiento
+ * 
+ * CONTROLES:
+ * - Clic simple: Play/Pause del video
+ * - Doble clic: Control de volumen (silenciar/restaurar)
  */
 const VRLocalVideoOverlay = ({ 
   position = [0, 5, -8], 
@@ -38,6 +47,8 @@ const VRLocalVideoOverlay = ({
   enableVoiceCommands = true,
   voiceCommandsActivated = false, // Siempre false por defecto
   showCursor = true, // Nueva prop para controlar si se muestra el cursor
+  isPrimaryPanel = true, // Nueva prop para determinar si es el panel principal
+  isRightPanel = false, // Nueva prop para determinar si es el panel derecho
   ...props 
 }) => {
 
@@ -167,7 +178,9 @@ const VRLocalVideoOverlay = ({
             height: ${height};
             autoplay: ${autoplay};
             doubleSided: ${doubleSided};
-            invertBackSide: ${invertBackSide}
+            invertBackSide: ${invertBackSide};
+            isPrimaryPanel: ${isPrimaryPanel};
+            isRightPanel: ${isRightPanel}
           ">
         </a-entity>
         
@@ -190,7 +203,9 @@ const VRLocalVideoOverlay = ({
           rotation: { type: 'vec3', default: { x: 0, y: 0, z: 0 } },
           autoplay: { type: 'boolean', default: false },
           doubleSided: { type: 'boolean', default: true },
-          invertBackSide: { type: 'boolean', default: true }
+          invertBackSide: { type: 'boolean', default: true },
+          isPrimaryPanel: { type: 'boolean', default: true },
+          isRightPanel: { type: 'boolean', default: false }
         },
 
         init: function() {
@@ -204,18 +219,35 @@ const VRLocalVideoOverlay = ({
           this.video.playsInline = true;
           this.video.setAttribute('playsinline', '');
           this.video.setAttribute('webkit-playsinline', '');
-          // Solo mutear si autoplay está activado
-          if (this.data.autoplay === true || this.data.autoplay === 'true') {
-            this.video.muted = true;
-          } else {
+
+          // Variables para manejo de doble clic
+          this.lastClickTime = 0;
+          this.clickTimeout = null;
+
+          // Configurar audio según el panel para evitar eco
+          // Panel izquierdo (primario) = volumen muy bajo (5%) para evitar eco pero mantener sincronización
+          // Panel derecho = volumen normal (100%)
+          if (this.data.isPrimaryPanel && !this.data.isRightPanel) {
             this.video.muted = false;
+            this.video.volume = 0.05; // 5% del volumen para minimizar eco pero permitir reproducción
+            console.log('� Panel izquierdo: Audio a 5% de volumen para evitar eco');
+          } else if (this.data.isRightPanel) {
+            this.video.muted = false;
+            this.video.volume = 1.0; // 100% del volumen
+            console.log('🔊 Panel derecho: Audio a volumen completo');
+          } else {
+            // Fallback para casos no especificados
+            this.video.muted = false;
+            this.video.volume = 0.05; // Volumen bajo por defecto
+            console.log('� Panel no identificado: Audio a volumen bajo por defecto');
           }
+
           // Configurar listeners
           this.video.addEventListener('timeupdate', this.updateProgress.bind(this));
-          this.videoPlane.addEventListener('click', this.togglePlay.bind(this));
+          this.videoPlane.addEventListener('click', this.handleClick.bind(this));
           this.progressBarBg.addEventListener('click', this.seekVideo.bind(this));
           if (this.backVideoPlane) {
-            this.backVideoPlane.addEventListener('click', this.togglePlay.bind(this));
+            this.backVideoPlane.addEventListener('click', this.handleClick.bind(this));
           }
           // Cargar el video
           this.video.src = this.data.src;
@@ -336,20 +368,49 @@ const VRLocalVideoOverlay = ({
           }
         },
         
+        // Función para manejar clic simple y doble clic
+        handleClick: function(event) {
+          const currentTime = Date.now();
+          const timeDiff = currentTime - this.lastClickTime;
+          
+          // Si es un doble clic (menos de 300ms desde el último clic)
+          if (timeDiff < 300) {
+            // Cancelar el timeout del clic simple
+            if (this.clickTimeout) {
+              clearTimeout(this.clickTimeout);
+              this.clickTimeout = null;
+            }
+            // Ejecutar acción de doble clic (controlar volumen)
+            this.toggleVolume();
+            console.log('🖱️ Doble clic detectado - Controlando volumen');
+          } else {
+            // Es un clic simple, programar la acción con delay
+            this.clickTimeout = setTimeout(() => {
+              this.togglePlay();
+              console.log('🖱️ Clic simple - Controlando reproducción');
+              this.clickTimeout = null;
+            }, 300); // Esperar 300ms para ver si hay un segundo clic
+          }
+          
+          this.lastClickTime = currentTime;
+        },
+        
         togglePlay: function() {
           if (!this.video) return;
           
           try {
-            if (this.video.muted) {
-              this.video.muted = false;
-              console.log("Video unmuted");
-            } else if (this.video.paused) {
+            if (this.video.paused) {
               this.video.play()
-                .then(() => console.log("Video reproduciendo"))
+                .then(() => {
+                  const panelInfo = this.data.isRightPanel ? '(Panel derecho)' : '(Panel izquierdo)';
+                  const volumeInfo = this.data.isRightPanel ? 'volumen 100%' : 'volumen 5%';
+                  console.log('▶️ Video reproduciendo ' + panelInfo + ' - ' + volumeInfo);
+                })
                 .catch(err => console.error("Error al reproducir:", err));
             } else {
               this.video.pause();
-              console.log("Video pausado");
+              const panelInfo = this.data.isRightPanel ? '(Panel derecho)' : '(Panel izquierdo)';
+              console.log("⏸️ Video pausado " + panelInfo);
             }
           } catch (error) {
             console.error("Error al controlar la reproducción:", error);
@@ -366,11 +427,16 @@ const VRLocalVideoOverlay = ({
           if (playPromise !== undefined) {
             playPromise
               .then(() => {
-                console.log('Autoplay funcionando (muted)', 'paused:', this.video.paused);
+                console.log('Autoplay funcionando', 'paused:', this.video.paused);
                 setTimeout(() => {
                   if (this.video && !this.video.paused) {
-                    this.video.muted = false;
-                    console.log('Audio activado automáticamente');
+                    // Los volúmenes ya están configurados en init()
+                    // Panel izquierdo: 5%, Panel derecho: 100%
+                    if (this.data.isRightPanel) {
+                      console.log('🔊 Panel derecho reproduciendo con volumen completo');
+                    } else {
+                      console.log('� Panel izquierdo reproduciendo con volumen bajo para evitar eco');
+                    }
                   }
                 }, 2000);
               })
@@ -379,6 +445,35 @@ const VRLocalVideoOverlay = ({
               });
           } else {
             console.warn('video.play() no devolvió promesa');
+          }
+        },
+        
+        // Nueva función para alternar volumen entre bajo y normal
+        toggleVolume: function() {
+          if (!this.video) return;
+          
+          try {
+            if (this.data.isRightPanel) {
+              // Panel derecho: alternar entre volumen completo y silencio
+              if (this.video.volume > 0.5) {
+                this.video.volume = 0;
+                console.log('🔇 Panel derecho: Volumen silenciado');
+              } else {
+                this.video.volume = 1.0;
+                console.log('🔊 Panel derecho: Volumen completo');
+              }
+            } else {
+              // Panel izquierdo: alternar entre volumen bajo y silencio
+              if (this.video.volume > 0.02) {
+                this.video.volume = 0;
+                console.log('🔇 Panel izquierdo: Volumen silenciado');
+              } else {
+                this.video.volume = 0.05;
+                console.log('🔉 Panel izquierdo: Volumen bajo');
+              }
+            }
+          } catch (error) {
+            console.error("Error al controlar el volumen:", error);
           }
         },
 
@@ -558,7 +653,7 @@ const VRLocalVideoOverlay = ({
             console.log('🎤 Comando: Mute');
             this.updateVoiceText('🔇 Audio silenciado');
             if (this.videoComponent.video) {
-              this.videoComponent.video.muted = true;
+              this.videoComponent.video.volume = 0;
             }
           }
           // Comando de activar sonido
@@ -566,7 +661,12 @@ const VRLocalVideoOverlay = ({
             console.log('🎤 Comando: Unmute');
             this.updateVoiceText('🔊 Audio activado');
             if (this.videoComponent.video) {
-              this.videoComponent.video.muted = false;
+              // Restaurar volumen según el panel
+              if (this.videoComponent.data.isRightPanel) {
+                this.videoComponent.video.volume = 1.0;
+              } else {
+                this.videoComponent.video.volume = 0.05;
+              }
             }
           }
         },

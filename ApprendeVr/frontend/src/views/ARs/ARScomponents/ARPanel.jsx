@@ -97,6 +97,8 @@ const ARPanel = forwardRef(({
           if (singleOverlay.type.name === 'VRLocalVideoOverlay' || 
               singleOverlay.props?.showCursor !== undefined) {
             overlayProps.showCursor = showOverlayCursor;
+            overlayProps.isPrimaryPanel = isPrimaryPanel;
+            overlayProps.isRightPanel = isRightPanel;
           }
           r3fOverlays.push(React.cloneElement(singleOverlay, overlayProps));
         } else {
@@ -105,6 +107,8 @@ const ARPanel = forwardRef(({
           if (singleOverlay.type.name === 'VRLocalVideoOverlay' || 
               singleOverlay.props?.showCursor !== undefined) {
             overlayProps.showCursor = showOverlayCursor;
+            overlayProps.isPrimaryPanel = isPrimaryPanel;
+            overlayProps.isRightPanel = isRightPanel;
           }
           htmlOverlays.push(React.cloneElement(singleOverlay, overlayProps));
         }
@@ -157,7 +161,11 @@ const ARPanel = forwardRef(({
         // Pasar showOverlayCursor si el componente lo acepta
         const enhancedOverlay = (overlay.type.name === 'VRLocalVideoOverlay' || 
                                 overlay.props?.showCursor !== undefined) 
-          ? React.cloneElement(overlay, { showCursor: showOverlayCursor })
+          ? React.cloneElement(overlay, { 
+              showCursor: showOverlayCursor,
+              isPrimaryPanel: isPrimaryPanel,
+              isRightPanel: isRightPanel
+            })
           : overlay;
         
         return (
@@ -180,7 +188,11 @@ const ARPanel = forwardRef(({
     // Si es HTML/A-Frame, renderizar tal cual pero pasar showOverlayCursor si el componente lo acepta
     if (overlay.type.name === 'VRLocalVideoOverlay' || 
         overlay.props?.showCursor !== undefined) {
-      return React.cloneElement(overlay, { showCursor: showOverlayCursor });
+      return React.cloneElement(overlay, { 
+        showCursor: showOverlayCursor,
+        isPrimaryPanel: isPrimaryPanel,
+        isRightPanel: isRightPanel
+      });
     }
     return overlay;
   };
