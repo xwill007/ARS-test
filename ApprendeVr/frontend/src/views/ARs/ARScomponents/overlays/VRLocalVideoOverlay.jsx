@@ -26,13 +26,19 @@ const getVoiceCommandsActivated = () => {
  * Siguiendo el patrón del VRConeOverlay
  * 
  * NUEVO: Manejo de audio para evitar eco en modo estereoscópico
- * - Panel izquierdo (primario): Audio a 5% de volumen para minimizar eco pero mantener sincronización
+ * - Panel izquierdo (primario): Audio a 1% de volumen para minimizar eco pero mantener sincronización
  * - Panel derecho: Audio a volumen completo (100%)
  * - Se pasan props isPrimaryPanel e isRightPanel para controlar el comportamiento
  * 
+ * NUEVO: Sistema de sincronización entre paneles
+ * - Sincronización perfecta de play/pause/seek entre ambos paneles
+ * - Control de tiempo basado en timestamps para precisión máxima
+ * - Comandos de voz sincronizan automáticamente ambos paneles
+ * 
  * CONTROLES:
- * - Clic simple: Play/Pause del video
+ * - Clic simple: Play/Pause sincronizado del video
  * - Doble clic: Control de volumen (silenciar/restaurar)
+ * - Comandos de voz: 'play', 'pause', 'stop', 'adelante', 'atrás', 'inicio'
  */
 const VRLocalVideoOverlay = ({ 
   position = [0, 5, -8], 
@@ -136,7 +142,7 @@ const VRLocalVideoOverlay = ({
         <!-- Texto de reconocimiento de voz -->
         <a-text
           id="voice-text"
-          value="🎤 Comandos: 'play', 'pause', 'reproducir', 'pausar'"
+          value="🎤 Comandos: 'play', 'pause', 'stop', 'adelante', 'atrás', 'inicio'"
           position="0 -2.0 0"
           align="center"
           color="white"
@@ -191,6 +197,186 @@ const VRLocalVideoOverlay = ({
   // Script para cargar el componente vr-local-video
   const videoScript = `
     <script>
+      // Sistema de sincronización global para paneles estéreo
+      window.VRVideoSync = window.VRVideoSync || {
+        instances: [],
+        playStartTime: null,
+        pauseTime: 0,
+        isPlaying: false,
+        lastSavedTime: 0,
+        videoSrc: null,
+        
+        // Cargar tiempo guardado del video principal
+        loadSavedTime: function(src) {
+          try {
+            const key = 'vr-video-time-' + btoa(src).slice(0, 20);
+            const saved = localStorage.getItem(key);
+            if (saved) {
+              const data = JSON.parse(saved);
+              this.pauseTime = data.currentTime || 0;
+              this.isPlaying = data.isPlaying || false;
+              this.videoSrc = src;
+              console.log('⏱️ Tiempo cargado desde localStorage:', this.pauseTime, 'segundos, src:', src);
+              return this.pauseTime;
+            }
+          } catch (error) {
+            console.warn('Error cargando tiempo guardado:', error);
+          }
+          return 0;
+        },
+        
+        // Guardar tiempo actual en localStorage
+        saveCurrentTime: function(src, currentTime, isPlaying) {
+          try {
+            const key = 'vr-video-time-' + btoa(src).slice(0, 20);
+            const data = {
+              currentTime: currentTime,
+              isPlaying: isPlaying,
+              timestamp: Date.now(),
+              src: src
+            };
+            localStorage.setItem(key, JSON.stringify(data));
+            this.lastSavedTime = currentTime;
+            console.log('💾 Tiempo guardado en localStorage:', currentTime, 'segundos');
+          } catch (error) {
+            console.warn('Error guardando tiempo:', error);
+          }
+        },
+        
+        // Auto-guardado periódico del tiempo
+        startAutoSave: function(src) {
+          if (this.autoSaveInterval) {
+            clearInterval(this.autoSaveInterval);
+          }
+          
+          this.autoSaveInterval = setInterval(() => {
+            if (this.instances.length > 0) {
+              const currentTime = this.getCurrentTime();
+              this.saveCurrentTime(src, currentTime, this.isPlaying);
+            }
+          }, 2000); // Guardar cada 2 segundos
+        },
+        
+        register: function(instance) {
+          this.instances.push(instance);
+          console.log('📽️ Registrando instancia de video, total:', this.instances.length);
+          
+          // Cargar tiempo guardado cuando se registra la primera instancia
+          if (this.instances.length === 1 && instance.data.src) {
+            const savedTime = this.loadSavedTime(instance.data.src);
+            if (savedTime > 0) {
+              this.pauseTime = savedTime;
+              console.log('🔄 Restaurando tiempo a:', savedTime, 'segundos');
+              
+              // Aplicar el tiempo guardado a la instancia
+              setTimeout(() => {
+                if (instance.video) {
+                  instance.video.currentTime = savedTime;
+                  console.log('⏰ Tiempo aplicado a video:', savedTime);
+                }
+              }, 500);
+            }
+            
+            // Iniciar auto-guardado
+            this.startAutoSave(instance.data.src);
+          }
+        },
+        
+        unregister: function(instance) {
+          this.instances = this.instances.filter(i => i !== instance);
+          console.log('📽️ Desregistrando instancia de video, total:', this.instances.length);
+          
+          // Guardar tiempo final al desregistrar la última instancia
+          if (this.instances.length === 0) {
+            if (instance.data.src) {
+              const currentTime = this.getCurrentTime();
+              this.saveCurrentTime(instance.data.src, currentTime, this.isPlaying);
+              console.log('💾 Guardado final al cerrar ARS:', currentTime, 'segundos');
+            }
+            
+            // Detener auto-guardado
+            if (this.autoSaveInterval) {
+              clearInterval(this.autoSaveInterval);
+              this.autoSaveInterval = null;
+            }
+          }
+        },
+        
+        syncPlay: function(initiator) {
+          const now = Date.now();
+          this.playStartTime = now - (this.pauseTime * 1000);
+          this.isPlaying = true;
+          
+          console.log('🎬 Sincronizando PLAY desde panel:', initiator.data.isRightPanel ? 'derecho' : 'izquierdo');
+          console.log('⏰ Timestamp de inicio:', this.playStartTime, 'Tiempo pausado:', this.pauseTime);
+          
+          this.instances.forEach(instance => {
+            if (instance !== initiator && instance.video) {
+              try {
+                instance.video.currentTime = this.pauseTime;
+                instance.video.play().catch(err => 
+                  console.warn('Error sincronizando play:', err)
+                );
+              } catch (error) {
+                console.error('Error en sync play:', error);
+              }
+            }
+          });
+        },
+        
+        syncPause: function(initiator) {
+          const now = Date.now();
+          if (this.playStartTime) {
+            this.pauseTime = (now - this.playStartTime) / 1000;
+          }
+          this.isPlaying = false;
+          
+          console.log('⏸️ Sincronizando PAUSE desde panel:', initiator.data.isRightPanel ? 'derecho' : 'izquierdo');
+          console.log('⏰ Tiempo de pausa:', this.pauseTime, 'segundos');
+          
+          this.instances.forEach(instance => {
+            if (instance !== initiator && instance.video) {
+              try {
+                instance.video.pause();
+                instance.video.currentTime = this.pauseTime;
+              } catch (error) {
+                console.error('Error en sync pause:', error);
+              }
+            }
+          });
+        },
+        
+        syncSeek: function(initiator, seekTime) {
+          const now = Date.now();
+          this.pauseTime = seekTime;
+          
+          if (this.isPlaying) {
+            this.playStartTime = now - (seekTime * 1000);
+          }
+          
+          console.log('⏩ Sincronizando SEEK desde panel:', initiator.data.isRightPanel ? 'derecho' : 'izquierdo');
+          console.log('⏰ Nuevo tiempo:', seekTime, 'segundos');
+          
+          this.instances.forEach(instance => {
+            if (instance !== initiator && instance.video) {
+              try {
+                instance.video.currentTime = seekTime;
+              } catch (error) {
+                console.error('Error en sync seek:', error);
+              }
+            }
+          });
+        },
+        
+        getCurrentTime: function() {
+          if (!this.isPlaying) {
+            return this.pauseTime;
+          }
+          const now = Date.now();
+          return (now - this.playStartTime) / 1000;
+        }
+      };
+
       // Componente para reproducir video local con barra de progreso
       // Este componente encapsula toda la funcionalidad para reproducir videos locales en A-Frame
 
@@ -210,6 +396,10 @@ const VRLocalVideoOverlay = ({
 
         init: function() {
           console.log('Iniciando componente vr-local-video', this.data);
+          
+          // Registrar esta instancia en el sistema de sincronización
+          window.VRVideoSync.register(this);
+          
           // Crear estructura de elementos
           this.createVideoElements();
           // Crear elemento de video principal
@@ -229,8 +419,8 @@ const VRLocalVideoOverlay = ({
           // Panel derecho = volumen normal (100%)
           if (this.data.isPrimaryPanel && !this.data.isRightPanel) {
             this.video.muted = false;
-            this.video.volume = 0.05; // 5% del volumen para minimizar eco pero permitir reproducción
-            console.log('� Panel izquierdo: Audio a 5% de volumen para evitar eco');
+            this.video.volume = 0.01; // 1% del volumen para minimizar eco pero permitir reproducción
+            console.log('� Panel izquierdo: Audio a 1% de volumen para evitar eco');
           } else if (this.data.isRightPanel) {
             this.video.muted = false;
             this.video.volume = 1.0; // 100% del volumen
@@ -259,19 +449,38 @@ const VRLocalVideoOverlay = ({
             src: this.video,
             side: this.data.doubleSided ? 'double' : 'front'
           });
-          // Mostrar el primer frame aunque autoplay sea false
+          // Mostrar el primer frame y aplicar tiempo guardado
           this.video.addEventListener('loadeddata', () => {
-            this.video.currentTime = 0;
+            console.log('Video loadeddata event - aplicando tiempo sincronizado');
+            
+            // Obtener tiempo guardado del sistema de sincronización
+            const savedTime = window.VRVideoSync.getCurrentTime();
+            this.video.currentTime = savedTime;
             this.video.pause();
+            
             if (this.videoPlane.components.material) {
               this.videoPlane.components.material.material.map.needsUpdate = true;
             }
-            console.log('Video loadeddata: currentTime', this.video.currentTime, 'paused', this.video.paused);
+            
+            console.log('⏰ Video inicializado en tiempo:', savedTime, 'segundos (desde localStorage)');
+            
+            // Si había reproducción en curso, continuar
+            if (window.VRVideoSync.isPlaying && this.data.autoplay) {
+              setTimeout(() => {
+                console.log('▶️ Continuando reproducción desde tiempo guardado');
+                window.VRVideoSync.syncPlay(this);
+                this.video.play().catch(err => 
+                  console.warn('Error al continuar reproducción:', err)
+                );
+              }, 100);
+            }
           });
-          // Solo intentar reproducir automáticamente si autoplay es true
-          if (this.data.autoplay) {
-            console.log('Intentando autoplay...');
+          // Solo intentar reproducir automáticamente si autoplay es true Y no hay tiempo guardado
+          if (this.data.autoplay && window.VRVideoSync.pauseTime === 0) {
+            console.log('Intentando autoplay desde el inicio...');
             this.attemptAutoplay();
+          } else if (window.VRVideoSync.pauseTime > 0) {
+            console.log('Autoplay omitido - restaurando desde tiempo guardado:', window.VRVideoSync.pauseTime);
           } else {
             console.log('Autoplay está desactivado, no se reproduce automáticamente');
           }
@@ -335,7 +544,10 @@ const VRLocalVideoOverlay = ({
             return;
           }
           
-          const progress = this.video.currentTime / this.video.duration;
+          // Usar tiempo sincronizado en lugar del tiempo real del video
+          const currentTime = window.VRVideoSync.getCurrentTime();
+          const progress = currentTime / this.video.duration;
+          
           if (isNaN(progress)) return;
           
           const barWidth = this.data.width * progress;
@@ -344,7 +556,7 @@ const VRLocalVideoOverlay = ({
           this.progressBar.setAttribute('width', barWidth);
           this.progressBar.setAttribute('position', position + ' 0 0.01');
           
-          const timeText = this.formatTime(this.video.currentTime) + ' / ' + this.formatTime(this.video.duration);
+          const timeText = this.formatTime(currentTime) + ' / ' + this.formatTime(this.video.duration);
           this.timeDisplay.setAttribute('value', timeText);
         },
         
@@ -360,8 +572,11 @@ const VRLocalVideoOverlay = ({
             const seekTime = this.video.duration * Math.max(0, Math.min(1, clickPos));
             
             if (isFinite(seekTime) && !isNaN(seekTime)) {
+              // Usar sistema de sincronización para buscar posición
+              window.VRVideoSync.syncSeek(this, seekTime);
+              
               this.video.currentTime = seekTime;
-              console.log("Seeking to", seekTime, "seconds");
+              console.log("🎯 Seeking sincronizado a", seekTime, "seconds");
             }
           } catch (error) {
             console.error("Error al buscar posición en el video:", error);
@@ -400,14 +615,20 @@ const VRLocalVideoOverlay = ({
           
           try {
             if (this.video.paused) {
+              // Usar sistema de sincronización para reproducir
+              window.VRVideoSync.syncPlay(this);
+              
               this.video.play()
                 .then(() => {
                   const panelInfo = this.data.isRightPanel ? '(Panel derecho)' : '(Panel izquierdo)';
-                  const volumeInfo = this.data.isRightPanel ? 'volumen 100%' : 'volumen 5%';
+                  const volumeInfo = this.data.isRightPanel ? 'volumen 100%' : 'volumen 1%';
                   console.log('▶️ Video reproduciendo ' + panelInfo + ' - ' + volumeInfo);
                 })
                 .catch(err => console.error("Error al reproducir:", err));
             } else {
+              // Usar sistema de sincronización para pausar
+              window.VRVideoSync.syncPause(this);
+              
               this.video.pause();
               const panelInfo = this.data.isRightPanel ? '(Panel derecho)' : '(Panel izquierdo)';
               console.log("⏸️ Video pausado " + panelInfo);
@@ -478,6 +699,16 @@ const VRLocalVideoOverlay = ({
         },
 
         remove: function() {
+          // Guardar tiempo actual antes de desregistrar
+          if (this.video && this.data.src) {
+            const currentTime = window.VRVideoSync.getCurrentTime();
+            window.VRVideoSync.saveCurrentTime(this.data.src, currentTime, window.VRVideoSync.isPlaying);
+            console.log('💾 Tiempo guardado al remover componente:', currentTime, 'segundos');
+          }
+          
+          // Desregistrar del sistema de sincronización
+          window.VRVideoSync.unregister(this);
+          
           if (this.video) {
             this.video.pause();
             this.video.src = '';
@@ -644,6 +875,9 @@ const VRLocalVideoOverlay = ({
             console.log('🎤 Comando: Stop');
             this.updateVoiceText('⏹️ Video detenido');
             if (this.videoComponent.video) {
+              // Usar sincronización para parar y volver al inicio
+              window.VRVideoSync.syncSeek(this.videoComponent, 0);
+              window.VRVideoSync.syncPause(this.videoComponent);
               this.videoComponent.video.pause();
               this.videoComponent.video.currentTime = 0;
             }
@@ -667,6 +901,37 @@ const VRLocalVideoOverlay = ({
               } else {
                 this.videoComponent.video.volume = 0.05;
               }
+            }
+          }
+          // Comando de adelantar 10 segundos
+          else if (command.includes('adelante') || command.includes('avanza') || command.includes('adelantar')) {
+            console.log('🎤 Comando: Adelantar');
+            this.updateVoiceText('⏩ Adelantando 10 segundos');
+            if (this.videoComponent.video) {
+              const currentTime = window.VRVideoSync.getCurrentTime();
+              const newTime = Math.min(currentTime + 10, this.videoComponent.video.duration);
+              window.VRVideoSync.syncSeek(this.videoComponent, newTime);
+              this.videoComponent.video.currentTime = newTime;
+            }
+          }
+          // Comando de atrasar 10 segundos
+          else if (command.includes('atrás') || command.includes('retrocede') || command.includes('atrasar')) {
+            console.log('🎤 Comando: Atrasar');
+            this.updateVoiceText('⏪ Atrasando 10 segundos');
+            if (this.videoComponent.video) {
+              const currentTime = window.VRVideoSync.getCurrentTime();
+              const newTime = Math.max(currentTime - 10, 0);
+              window.VRVideoSync.syncSeek(this.videoComponent, newTime);
+              this.videoComponent.video.currentTime = newTime;
+            }
+          }
+          // Comando de ir al inicio
+          else if (command.includes('inicio') || command.includes('reinicia') || command.includes('restart')) {
+            console.log('🎤 Comando: Ir al inicio');
+            this.updateVoiceText('⏮️ Volviendo al inicio');
+            if (this.videoComponent.video) {
+              window.VRVideoSync.syncSeek(this.videoComponent, 0);
+              this.videoComponent.video.currentTime = 0;
             }
           }
         },
