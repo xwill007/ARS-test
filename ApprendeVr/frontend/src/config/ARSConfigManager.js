@@ -110,13 +110,23 @@ class ARSConfigManager {
 
   /**
    * Guarda la configuración (en desarrollo usamos localStorage como persistencia)
+   * Permite guardar también el tamaño del menú (menuSize)
    */
   async saveConfig(newConfig) {
     try {
-      // Actualizar la configuración en memoria
+      // Si el nuevo config incluye menuSize, guardarlo en userConfig
+      let menuSize = newConfig.menuSize;
+      if (!menuSize) {
+        // Si no viene en newConfig, intentar obtenerlo de localStorage legacy
+        try {
+          const saved = localStorage.getItem('arsMenuSize');
+          if (saved) menuSize = JSON.parse(saved);
+        } catch (e) {}
+      }
       this.config.userConfig = {
         ...this.config.userConfig,
         ...newConfig,
+        ...(menuSize ? { menuSize } : {}),
         deviceType: this.detectDeviceType(),
         customProfile: true
       };
@@ -134,6 +144,41 @@ class ARSConfigManager {
     } catch (error) {
       if (window.ShowLogs) console.error('❌ Error guardando configuración AR:', error);
       return false;
+    }
+  }
+  /**
+   * Guarda el tamaño del menú (menuSize) en la configuración persistente
+   */
+  async saveMenuSize(menuSize) {
+    try {
+      const currentConfig = this.loadPersistedConfig() || {};
+      const newConfig = {
+        ...currentConfig,
+        menuSize
+      };
+      return await this.saveConfig(newConfig);
+    } catch (error) {
+      if (window.ShowLogs) console.error('❌ Error guardando menuSize:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Obtiene el tamaño del menú (menuSize) desde la configuración persistente
+   */
+  loadMenuSize() {
+    try {
+      const config = this.loadPersistedConfig();
+      if (config && config.menuSize) {
+        if (window.ShowLogs) console.log('📏 menuSize cargado:', config.menuSize);
+        return config.menuSize;
+      }
+      // Fallback a configuración por defecto
+      if (window.ShowLogs) console.log('📏 Usando menuSize por defecto');
+      return { width: 300, height: 'calc(100vh - 120px)' };
+    } catch (error) {
+      if (window.ShowLogs) console.warn('Error cargando menuSize:', error);
+      return { width: 300, height: 'calc(100vh - 120px)' };
     }
   }
 

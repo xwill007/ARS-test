@@ -63,9 +63,20 @@ const ARSConfig = ({
   // Estados para el redimensionamiento del menú
   const [isResizing, setIsResizing] = React.useState(false);
   const isResizingRef = React.useRef(false);
-  const [menuSize, setMenuSize] = React.useState({
-    width: 300,
-    height: position.menu.maxHeight || 'calc(100vh - 120px)'
+  const [menuSize, setMenuSize] = React.useState(() => {
+    // Cargar desde configuración persistente
+    try {
+      const loaded = arsConfigManager.loadMenuSize();
+      if (loaded && loaded.width && loaded.height) {
+        return loaded;
+      }
+    } catch (e) { console.warn('No se pudo cargar menuSize:', e); }
+    // Detectar si es móvil para dar más alto por defecto
+    const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+    return {
+      width: 300,
+      height: isMobile ? Math.round(window.innerHeight * 0.8) : (position.menu.maxHeight || 'calc(100vh - 120px)')
+    };
   });
   const resizeStartRef = React.useRef({ x: 0, y: 0, width: 0, height: 0 });
 
@@ -223,12 +234,18 @@ const ARSConfig = ({
     const deltaX = clientX - resizeStartRef.current.x;
     const deltaY = clientY - resizeStartRef.current.y;
     const newWidth = Math.max(280, Math.min(600, resizeStartRef.current.width + deltaX));
-    const newHeight = Math.max(200, Math.min(window.innerHeight - 80, resizeStartRef.current.height + deltaY));
+    // Permitir más alto en móvil
+    const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+    const maxHeight = isMobile ? window.innerHeight - 40 : window.innerHeight - 80;
+    const newHeight = Math.max(200, Math.min(maxHeight, resizeStartRef.current.height + deltaY));
     console.log('[Resize] Move', { clientX, clientY, deltaX, deltaY, newWidth, newHeight });
-    setMenuSize({
+    const newMenuSize = {
       width: newWidth,
       height: `${newHeight}px`
-    });
+    };
+    setMenuSize(newMenuSize);
+    // Guardar en configuración persistente
+    arsConfigManager.saveMenuSize(newMenuSize);
   };
 
   const handleResizeEnd = () => {
