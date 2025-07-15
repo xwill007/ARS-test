@@ -33,6 +33,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
   // Obtener posiciones desde la configuración
   const mainVideoPosition = config.mainVideo?.position || [0, 5, 0];
   const mainVideoScale = config.mainVideo?.scale || [5, 4, 1];
+  const mainVideoVolume = typeof config.mainVideo?.volume === 'number' ? config.mainVideo.volume : 1;
   const radiusBase = config.labels?.radiusBase || 8;
   const height = config.labels?.height || 10;
   const yOffset = config.labels?.yOffset || -2;
@@ -51,7 +52,6 @@ const VRConeR3FVideoOverlayConfigurable = ({
   // Componente de control de posición (para modo debug)
   const PositionControl = ({ position, onUpdate, label, color = "#00ff88" }) => {
     if (!showControls) return null;
-
     return (
       <group position={position}>
         <mesh>
@@ -85,21 +85,70 @@ const VRConeR3FVideoOverlayConfigurable = ({
     );
   };
 
+  // Controlador de volumen (barra vertical)
+  const VolumeBar = ({ value, onChange, height = mainVideoScale[1], x = mainVideoScale[0]/2 + 0.1, y = -mainVideoScale[1]/2, z = 0.12 }) => {
+    // value: 0.0 - 1.0
+    return (
+      <group position={[x, y, z]}>
+        {/* Fondo barra */}
+        <mesh
+          onPointerDown={e => {
+            const localY = e.point.y;
+            let newValue = Math.max(0, Math.min(1, localY / height));
+            onChange(newValue);
+          }}
+          onPointerMove={e => {
+            if (e.buttons !== 1) return;
+            const localY = e.point.y;
+            let newValue = Math.max(0, Math.min(1, localY / height));
+            onChange(newValue);
+          }}
+        >
+          <boxGeometry args={[0.2, height, 0.1]} />
+          <meshStandardMaterial color="#222" opacity={0.7} transparent />
+        </mesh>
+        {/* Nivel actual */}
+        <mesh position={[0, -height/2 + value*height/2, 0.06]}>
+          <boxGeometry args={[0.18, value*height, 0.08]} />
+          <meshStandardMaterial color="#003366" opacity={0.9} transparent />
+        </mesh>
+        {/* Texto valor */}
+        <Text
+          position={[0, height/2 + 0.3, 0]}
+          fontSize={0.18}
+          color="#00ff88"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {`Volumen ${(value*100).toFixed(0)}%`}
+        </Text>
+      </group>
+    );
+  };
+
   return (
     <group>
       {/* Video principal */}
       <group position={mainVideoPosition}>
         <ARSVideoUniversal 
-          videoSrc={config.mainVideo?.videoSrc || "/videos/sample.mp4"}
+          videoSrc={config.mainVideo?.videoSrc || "/videos/gangstas.mp4"}
           position={[0, 0, 0]}
           scale={mainVideoScale}
           autoPlay={true}
           loop={true}
-          muted={true}
+          muted={false}
+          volume={mainVideoVolume}
           showFrame={false}
           quality={config.mainVideo?.quality || "720"}
         />
-        
+        {/* Barra de volumen a la derecha */}
+        <VolumeBar 
+          value={mainVideoVolume}
+          onChange={v => updateElementPosition('mainVideo.volume', v)}
+          x={mainVideoScale[0]/2 + 0.12}
+          y={0}
+          z={0.06}
+        />
         {/* Fondo semitransparente para mejorar visibilidad - solo si está habilitado */}
         {config.mainVideo?.showBackground && (
           <mesh position={[0, 0, -0.01]}>
@@ -111,7 +160,6 @@ const VRConeR3FVideoOverlayConfigurable = ({
             />
           </mesh>
         )}
-        
         {/* Etiqueta del video principal */}
         <Text
           position={[0, mainVideoScale[1]/2 + 0.5, 0]}
@@ -131,7 +179,6 @@ const VRConeR3FVideoOverlayConfigurable = ({
         const x = radiusBase * Math.cos(angle);
         const z = radiusBase * Math.sin(angle);
         const y = height + yOffset;
-
         return (
           <group key={i} position={[x, y, z]} rotation={[0, -angle, 0]}>
             <mesh>
