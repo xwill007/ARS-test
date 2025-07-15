@@ -5,11 +5,100 @@ import configurableOverlayManager from './ConfigurableOverlayManager';
  * OverlayConfigPanel - Panel de configuración para overlays
  * Permite ajustar posiciones y parámetros en tiempo real
  */
-const OverlayConfigPanel = ({ 
-  overlayId,
-  isVisible = false,
-  onClose
-}) => {
+const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
+  // Estado para posición del panel
+  const [panelPosition, setPanelPosition] = useState({ x: null, y: null });
+  const [dragging, setDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // Guardar y restaurar posición del panel
+  useEffect(() => {
+    if (isVisible) {
+      // Restaurar posición guardada
+      const saved = configurableOverlayManager.getOverlayConfig(overlayId)?.panelPosition;
+      if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+        setPanelPosition(saved);
+      }
+    }
+  }, [isVisible, overlayId]);
+
+  useEffect(() => {
+    // Guardar la posición cada vez que se mueve
+    if (panelPosition.x !== null && panelPosition.y !== null && overlayId) {
+      const overlayConfig = configurableOverlayManager.getOverlayConfig(overlayId) || {};
+      overlayConfig.panelPosition = { x: panelPosition.x, y: panelPosition.y };
+      configurableOverlayManager.updateOverlayConfig(overlayId, overlayConfig);
+    }
+  }, [panelPosition, overlayId]);
+
+  // Soporte para touch en móvil
+  const handleTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    setDragging(true);
+    const panel = document.getElementById('overlay-config-panel');
+    const rect = panel.getBoundingClientRect();
+    setDragOffset({
+      x: e.touches[0].clientX - rect.left,
+      y: e.touches[0].clientY - rect.top
+    });
+    e.preventDefault();
+  };
+
+  const handleTouchMove = (e) => {
+    if (!dragging || e.touches.length !== 1) return;
+    setPanelPosition({
+      x: e.touches[0].clientX - dragOffset.x,
+      y: e.touches[0].clientY - dragOffset.y
+    });
+  };
+
+  const handleTouchEnd = () => {
+    setDragging(false);
+  };
+
+  // Detecta si el panel está siendo arrastrado
+  const handleMouseDown = (e) => {
+    setDragging(true);
+    const panel = document.getElementById('overlay-config-panel');
+    const rect = panel.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e) => {
+    if (!dragging) return;
+    setPanelPosition({
+      x: e.clientX - dragOffset.x,
+      y: e.clientY - dragOffset.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setDragging(false);
+  };
+
+  useEffect(() => {
+    if (dragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchend', handleTouchEnd);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [dragging]);
   const [config, setConfig] = useState({});
   const [activeTab, setActiveTab] = useState('positions');
   const [hasChanges, setHasChanges] = useState(false);
@@ -193,9 +282,9 @@ const OverlayConfigPanel = ({
 
   const panelStyle = {
     position: 'fixed',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
+    top: panelPosition.y !== null ? panelPosition.y : '50%',
+    left: panelPosition.x !== null ? panelPosition.x : '50%',
+    transform: panelPosition.x !== null && panelPosition.y !== null ? 'none' : 'translate(-50%, -50%)',
     width: '400px',
     maxHeight: '600px',
     background: 'rgba(0, 0, 0, 0.95)',
@@ -205,19 +294,26 @@ const OverlayConfigPanel = ({
     color: 'white',
     fontSize: '14px',
     zIndex: 10000,
-    overflow: 'auto'
+    overflow: 'auto',
+    boxShadow: dragging ? '0 0 16px #007acc' : undefined
   };
 
   return (
-    <div style={panelStyle}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '20px',
-        borderBottom: '1px solid #333',
-        paddingBottom: '10px'
-      }}>
+    <div id="overlay-config-panel" style={panelStyle}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          borderBottom: '1px solid #333',
+          paddingBottom: '10px',
+          cursor: 'move',
+          userSelect: 'none'
+        }}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+      >
         <h3 style={{ margin: 0, color: '#00ff88' }}>
           Configurar Overlay: {overlayId}
         </h3>
