@@ -412,30 +412,6 @@ const ARStereoView = ({
 
   return (
     <div className="ar-stereo-container">
-      {/* Indicador de optimización activa */}
-      {optimizeStereo && (
-        <div style={{
-          position: 'absolute',
-          top: 50,
-          right: 10,
-          zIndex: 4000,
-          background: 'rgba(76, 175, 80, 0.9)',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '8px',
-          fontSize: '12px',
-          fontWeight: 'bold',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px'
-        }}>
-          ⚡ Modo Optimizado
-          <div style={{ fontSize: '10px', opacity: 0.9 }}>
-            {mirrorRightPanel && '🪞'} {muteRightPanel && '🔇'}
-          </div>
-        </div>
-      )}
       
       {/* Botón flecha atrás para salir de ARS - Mejorado */}
       <button
@@ -497,14 +473,13 @@ const ARStereoView = ({
         singleCursor={singleCursor} setSingleCursor={setSingleCursor}
         position={{
           button: { 
-            top: 6, 
-            left: 6
+            top: 3, 
+            left: 0
           },
           menu: { 
-            top: 50, 
-            left: 15,
-            maxHeight: 'calc(100vh - 80px)',
-            overflowY: 'auto'
+            top: 3, 
+            left: 3,
+            maxHeight: 'calc(100vh - 80px)'
           }
         }}
       />
@@ -571,8 +546,10 @@ const ARStereoView = ({
         )}
       </div>
       
-      {/* Estado y opciones de configuración */}
+      {/*
       <ARSConfigStatus onConfigLoaded={handleConfigLoaded} />
+      */}
+
     </div>
   );
 };

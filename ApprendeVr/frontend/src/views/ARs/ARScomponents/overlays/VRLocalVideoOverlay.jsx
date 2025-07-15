@@ -1406,7 +1406,6 @@ const VRLocalVideoOverlay = ({
           ${generateProgressControls()}
           ${generateVolumeControls()}
           ${generateToggleButton()}
-          ${generateMarker()}
           ${generateVoiceControls()}
           
           <!-- Cámara con cursor condicional -->
