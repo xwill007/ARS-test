@@ -33,7 +33,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
   // Obtener posiciones desde la configuración
   const mainVideoPosition = config.mainVideo?.position || [0, 5, 0];
   const mainVideoScale = config.mainVideo?.scale || [5, 4, 1];
-  const mainVideoVolume = typeof config.mainVideo?.volume === 'number' ? config.mainVideo.volume : 1;
+  const [mainVideoVolume, setMainVideoVolume] = useState(typeof config.mainVideo?.volume === 'number' ? config.mainVideo.volume : 1);
   const radiusBase = config.labels?.radiusBase || 8;
   const height = config.labels?.height || 10;
   const yOffset = config.labels?.yOffset || -2;
@@ -90,17 +90,29 @@ const VRConeR3FVideoOverlayConfigurable = ({
     // value: 0.0 - 1.0
     return (
       <group position={[x, y, z]}>
+        {/* Botón + para subir volumen */}
+        <mesh position={[0, height/2 + 0.25, 0]} onPointerDown={() => onChange(Math.min(1, Math.round((value + 0.05) * 100) / 100))}>
+          <boxGeometry args={[0.28, 0.28, 0.08]} />
+          <meshStandardMaterial color="#00ff88" opacity={0.8} transparent />
+        </mesh>
+        <Text position={[0, height/2 + 0.25, 0.06]} fontSize={0.18} color="#003366" anchorX="center" anchorY="middle">+</Text>
+
         {/* Fondo barra */}
         <mesh
           onPointerDown={e => {
             const localY = e.point.y;
-            let newValue = Math.max(0, Math.min(1, localY / height));
+            let newValue = Math.max(0, Math.min(1, (localY + height/2) / height));
+            // Redondear a dos decimales para mayor precisión visual
+            newValue = Math.round(newValue * 100) / 100;
+            console.log('[VolumeBar] onPointerDown', { localY, newValue });
             onChange(newValue);
           }}
           onPointerMove={e => {
             if (e.buttons !== 1) return;
             const localY = e.point.y;
-            let newValue = Math.max(0, Math.min(1, localY / height));
+            let newValue = Math.max(0, Math.min(1, (localY + height/2) / height));
+            newValue = Math.round(newValue * 100) / 100;
+            console.log('[VolumeBar] onPointerMove', { localY, newValue });
             onChange(newValue);
           }}
         >
@@ -112,7 +124,12 @@ const VRConeR3FVideoOverlayConfigurable = ({
           <boxGeometry args={[0.18, value*height, 0.08]} />
           <meshStandardMaterial color="#003366" opacity={0.9} transparent />
         </mesh>
-        {/* Texto valor */}
+        {/* Botón - para bajar volumen */}
+        <mesh position={[0, -height/2 - 0.25, 0]} onPointerDown={() => onChange(Math.max(0, Math.round((value - 0.05) * 100) / 100))}>
+          <boxGeometry args={[0.28, 0.28, 0.08]} />
+          <meshStandardMaterial color="#00ff88" opacity={0.8} transparent />
+        </mesh>
+        <Text position={[0, -height/2 - 0.25, 0.06]} fontSize={0.18} color="#003366" anchorX="center" anchorY="middle">-</Text>
         <Text
           position={[0, height/2 + 0.3, 0]}
           fontSize={0.18}
@@ -144,7 +161,11 @@ const VRConeR3FVideoOverlayConfigurable = ({
         {/* Barra de volumen a la derecha */}
         <VolumeBar 
           value={mainVideoVolume}
-          onChange={v => updateElementPosition('mainVideo.volume', v)}
+          onChange={v => {
+            setMainVideoVolume(v);
+            updateElementPosition('mainVideo.volume', v);
+            console.log('[VolumeBar] setMainVideoVolume', v);
+          }}
           x={mainVideoScale[0]/2 + 0.12}
           y={0}
           z={0.06}

@@ -20,7 +20,8 @@ const ARSVideoLocal = ({
   autoPlay = true,
   loop = true,
   muted = true,
-  showFrame = false
+  showFrame = false,
+  volume = 1
 }) => {
   const meshRef = useRef();
   const videoRef = useRef();
@@ -28,7 +29,7 @@ const ARSVideoLocal = ({
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
-    // Crear elemento video
+    // Crear elemento video solo cuando cambia la fuente
     const video = document.createElement('video');
     video.src = videoSrc;
     video.crossOrigin = 'anonymous';
@@ -100,6 +101,12 @@ const ARSVideoLocal = ({
       }
     };
   }, [videoSrc, autoPlay, loop, muted]);
+  // Actualizar volumen cuando cambie el prop
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = volume;
+    }
+  }, [volume]);
 
   // Actualizar texture en cada frame
   useFrame(() => {
