@@ -144,16 +144,50 @@ class ConfigurableOverlayManager {
   }
 
   /**
-   * Resetea la configuración de un overlay a los valores por defecto
+   * Reinicia la configuración de un overlay a los valores por defecto
    */
   resetOverlayConfig(overlayId) {
-    const currentUserSettings = { ...this.userOverlaySettings };
-    delete currentUserSettings[overlayId];
+    console.log(`Resetting overlay config for: ${overlayId}`);
     
-    this.userOverlaySettings = currentUserSettings;
-    localStorage.setItem('ars-overlay-settings', JSON.stringify(this.userOverlaySettings));
+    // Eliminar configuración de usuario específica
+    if (this.userOverlaySettings[overlayId]) {
+      delete this.userOverlaySettings[overlayId];
+      this.saveUserSettings(this.userOverlaySettings);
+    }
     
-    return this.getOverlayConfig(overlayId);
+    // Eliminar de localStorage también
+    const key = `overlayConfig_${overlayId}`;
+    localStorage.removeItem(key);
+    
+    // Obtener configuración base limpia
+    const baseConfig = this.config.overlays?.[overlayId] || {};
+    
+    // Notificar a los listeners
+    this.notifyListeners(overlayId, baseConfig);
+    
+    console.log(`Reset complete for ${overlayId}:`, baseConfig);
+    return baseConfig;
+  }
+
+  /**
+   * Fuerza la recarga de la configuración desde el archivo base
+   */
+  forceReloadConfig() {
+    console.log('Force reloading overlay configuration...');
+    
+    // Recargar configuración base
+    import('../../../config/config_Ars.js').then((module) => {
+      this.config = { ...module.default };
+      console.log('Base config reloaded:', this.config);
+      
+      // Notificar a todos los listeners
+      this.listeners.forEach((callbacks, overlayId) => {
+        const newConfig = this.getOverlayConfig(overlayId);
+        this.notifyListeners(overlayId, newConfig);
+      });
+    }).catch(error => {
+      console.error('Error reloading config:', error);
+    });
   }
 
   /**

@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
+import OptimizedOverlayWrapper from './overlays/OptimizedOverlayWrapper';
 
 /**
  * ARPanel
@@ -10,10 +11,53 @@ import { Canvas } from '@react-three/fiber';
  *  - overlay: componente React a superponer (ej: <VRDomo /> o R3F)
  *  - overlayType: 'r3f' | 'html' (opcional, para forzar Canvas)
  *  - style: estilos extra
+ *  - isPrimaryPanel: si es el panel principal (para optimizaciones)
+ *  - isRightPanel: si es el panel derecho
+ *  - optimizationSettings: configuraciones de optimización
  */
 const showLogs = true; // Cambia a false para desactivar logs
 
-const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, style = {}, zoom = 1, cameraZoom = 1, offset = 0 }, ref) => {
+const ARPanel = forwardRef(({ 
+  videoRef, 
+  width, 
+  height, 
+  overlay, 
+  overlayType, 
+  style = {}, 
+  zoom = 1, 
+  cameraZoom = 1, 
+  offset = 0,
+  isPrimaryPanel = false,
+  isRightPanel = false,
+  showCursor = true, // Cursor del panel (div visual)
+  showOverlayCursor = true, // Cursor de los overlays (A-Frame/R3F)
+  optimizationSettings = {}
+}, ref) => {
+  const { optimizeStereo = false, mirrorRightPanel = false, muteRightPanel = true } = optimizationSettings;
+  
+  if (showLogs) console.log('[ARPanel] Configuración:', {
+    isPrimaryPanel,
+    isRightPanel,
+    showCursor,
+    showOverlayCursor,
+    optimizeStereo,
+    mirrorRightPanel,
+    muteRightPanel,
+    overlayType,
+    overlay: !!overlay
+  });
+  
+  // Lógica de optimización para panel derecho
+  // En modo espejo, NO omitir el overlay - queremos mostrarlo igual que el izquierdo
+  const shouldSkipOverlay = false; // Deshabilitado: queremos que el espejo muestre el contenido
+  const shouldMuteAudio = isRightPanel && optimizeStereo && muteRightPanel;
+  
+  if (showLogs && isRightPanel && optimizeStereo) {
+    console.log('[ARPanel] Panel derecho optimizado:', {
+      skipOverlay: shouldSkipOverlay,
+      muteAudio: shouldMuteAudio
+    });
+  }
   if (showLogs) console.log('[ARPanel] overlayType:', overlayType, 'overlay:', overlay);
   // Si overlayType es 'r3f', renderizar overlay dentro de un Canvas embebido
   const renderOverlay = () => {
@@ -48,11 +92,25 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
           !singleOverlay.type.toString().includes('VRConeOverlay');
         
         if (isR3FComponent) {
-          // Es un componente R3F válido
-          r3fOverlays.push(React.cloneElement(singleOverlay, { key: `r3f-${index}` }));
+          // Es un componente R3F válido - pasar showOverlayCursor si el componente lo acepta
+          const overlayProps = { key: `r3f-${index}` };
+          if (singleOverlay.type.name === 'VRLocalVideoOverlay' || 
+              singleOverlay.props?.showCursor !== undefined) {
+            overlayProps.showCursor = showOverlayCursor;
+            overlayProps.isPrimaryPanel = isPrimaryPanel;
+            overlayProps.isRightPanel = isRightPanel;
+          }
+          r3fOverlays.push(React.cloneElement(singleOverlay, overlayProps));
         } else {
-          // Es HTML/A-Frame o componente con iframe
-          htmlOverlays.push(React.cloneElement(singleOverlay, { key: `html-${index}` }));
+          // Es HTML/A-Frame o componente con iframe - pasar showOverlayCursor si el componente lo acepta
+          const overlayProps = { key: `html-${index}` };
+          if (singleOverlay.type.name === 'VRLocalVideoOverlay' || 
+              singleOverlay.props?.showCursor !== undefined) {
+            overlayProps.showCursor = showOverlayCursor;
+            overlayProps.isPrimaryPanel = isPrimaryPanel;
+            overlayProps.isRightPanel = isRightPanel;
+          }
+          htmlOverlays.push(React.cloneElement(singleOverlay, overlayProps));
         }
       });
       
@@ -100,6 +158,16 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
       
       if (isR3FComponent) {
         if (showLogs) console.log('[ARPanel] Renderizando overlay individual en Canvas (R3F)');
+        // Pasar showOverlayCursor si el componente lo acepta
+        const enhancedOverlay = (overlay.type.name === 'VRLocalVideoOverlay' || 
+                                overlay.props?.showCursor !== undefined) 
+          ? React.cloneElement(overlay, { 
+              showCursor: showOverlayCursor,
+              isPrimaryPanel: isPrimaryPanel,
+              isRightPanel: isRightPanel
+            })
+          : overlay;
+        
         return (
           <Canvas 
             style={{ width: '100%', height: '100%', pointerEvents: 'none', background: 'transparent' }} 
@@ -111,13 +179,21 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
           >
             <ambientLight intensity={0.7} />
             <pointLight position={[2, 2, 2]} />
-            {overlay}
+            {enhancedOverlay}
           </Canvas>
         );
       }
     }
     if (showLogs) console.log('[ARPanel] Renderizando overlay como HTML/A-Frame');
-    // Si es HTML/A-Frame, renderizar tal cual
+    // Si es HTML/A-Frame, renderizar tal cual pero pasar showOverlayCursor si el componente lo acepta
+    if (overlay.type.name === 'VRLocalVideoOverlay' || 
+        overlay.props?.showCursor !== undefined) {
+      return React.cloneElement(overlay, { 
+        showCursor: showOverlayCursor,
+        isPrimaryPanel: isPrimaryPanel,
+        isRightPanel: isRightPanel
+      });
+    }
     return overlay;
   };
 
@@ -135,7 +211,7 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
         ref={videoRef}
         autoPlay
         playsInline
-        muted
+        muted={shouldMuteAudio} // Silenciar si está en modo optimización
         className="ar-video"
         style={{
           position: 'absolute',
@@ -149,33 +225,49 @@ const ARPanel = forwardRef(({ videoRef, width, height, overlay, overlayType, sty
       />
       {/* Overlay 3D/A-Frame/R3F */}
       <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
-        {renderOverlay()}
+        <OptimizedOverlayWrapper 
+          isPrimaryPanel={isPrimaryPanel}
+          optimizationSettings={optimizationSettings}
+        >
+          {renderOverlay()}
+        </OptimizedOverlayWrapper>
       </div>
-      {/* Cursor central visual mejorado */}
+      {/* Punto mínimo de referencia visual (siempre visible) */}
       <div
         style={{
           position: 'absolute',
           top: '50%',
           left: '50%',
-          width: 20,
-          height: 20,
+          width: 4,
+          height: 4,
+          background: 'rgba(255, 255, 255, 0.3)',
+          borderRadius: '50%',
+          transform: 'translate(-50%, -50%)',
           pointerEvents: 'none',
           zIndex: 3,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
         }}
-      >
-        <div className="ar-cursor" style={{
-          width: 16,
-          height: 16,
-          borderRadius: '50%',
+      />
+      
+      {/* Indicador de modo espejo (solo en panel derecho) */}
+      {isRightPanel && optimizeStereo && mirrorRightPanel && (
+        <div style={{
           position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-        }} />
-      </div>
+          top: 8,
+          right: 8,
+          background: 'rgba(76, 175, 80, 0.8)',
+          color: 'white',
+          padding: '2px 6px',
+          borderRadius: '8px',
+          fontSize: '10px',
+          fontWeight: 'bold',
+          zIndex: 4,
+          pointerEvents: 'none'
+        }}>
+          🪞
+        </div>
+      )}
+      
+      {/* Cursor central visual eliminado - solo usamos el cursor del overlay */}
     </div>
   );
 });

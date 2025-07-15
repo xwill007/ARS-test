@@ -24,6 +24,8 @@ import TestR3FOverlay from '../ARStest/TestR3FOverlay';
 import VRConeR3FOverlay from '../ARStest/VRConeR3FOverlay';
 import VRConeR3FVideoOverlayConfigurable from '../ARStest/VRConeR3FVideoOverlayConfigurable';
 import VRConeR3FVideoOverlay from '../ARStest/VRConeR3FVideoOverlay';
+import VRLocalVideoOverlay from './VRLocalVideoOverlay';
+import CombinedAFrameOverlay from './CombinedAFrameOverlay';
 
 // Registrar overlay básico de texto
 overlayRegistry.register('simpleText', {
@@ -116,6 +118,44 @@ overlayRegistry.register('vrConeOverlay', {
     },
     lookAtTarget: true,
     targetPosition: [0, 0.15, 0]
+  }
+});
+
+// Registrar VRLocalVideoOverlay (video local A-Frame)
+overlayRegistry.register('vrLocalVideoOverlay', {
+  component: VRLocalVideoOverlay,
+  type: 'html',
+  label: 'Video Local A-Frame',
+  description: 'Reproductor de video local con controles usando A-Frame',
+  category: 'video',
+  configurable: true,
+  defaultProps: {
+    position: [0, 5, -8],
+    rotation: [0, 0, 0],
+    videoSrc: '/videos/gangstas.mp4',
+    width: 8,
+    height: 4.5,
+    autoplay: true,
+    doubleSided: true,
+    invertBackSide: true,
+    showMarker: true,
+    enableVoiceCommands: true,
+    voiceCommandsActivated: true
+  }
+});
+
+// Registrar overlay combinado de A-Frame (Cono de Palabras + Video Local)
+overlayRegistry.register('combinedAFrame', {
+  component: CombinedAFrameOverlay,
+  type: 'html',
+  label: 'Cono de Palabras + Video Local (A-Frame)',
+  description: 'Muestra ambos overlays de A-Frame juntos en una sola escena',
+  category: 'combinado',
+  configurable: true,
+  defaultProps: {
+    coneProps: {},
+    videoProps: {},
+    showCursor: true
   }
 });
 

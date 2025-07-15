@@ -70,13 +70,15 @@ const configArs = {
         "position": [0, 5, 0],
         "scale": [5, 4, 1],
         "videoSrc": "/videos/sample.mp4",
-        "showBackground": false
+        "showBackground": false,
+        "quality": "720"
       },
       "secondaryVideo": {
         "position": [6, 5, 0],
         "scale": [3, 2, 1],
-        "videoSrc": "/videos/gangstas.mp4",
-        "showBackground": false
+        "videoSrc": "https://youtu.be/dQw4w9WgXcQ",
+        "showBackground": true,
+        "quality": "720"
       },
       "labels": {
         "radiusBase": 8,

@@ -3,6 +3,7 @@ import ARPanel from '../ARScomponents/ARPanel';
 import ARSConfig from '../ARScomponents/ARSConfig';
 import ARSConfigStatus from '../ARScomponents/ARSConfigStatus';
 import arsConfigManager from '../../../config/ARSConfigManager';
+import html2canvas from 'html2canvas';
 
 // Usar el nuevo sistema de configuración basado en archivos JSON
 const getInitialConfig = (defaults) => {
@@ -75,7 +76,12 @@ const ARStereoView = ({
     offsetR: 0,
     zoom: 1,
     cameraZoom: 1,
-    cameraResolution: '720p'
+    cameraResolution: '720p',
+    // Nuevas opciones de optimización
+    optimizeStereo: false,
+    mirrorRightPanel: false,
+    muteRightPanel: true,
+    singleCursor: false
   });
   const [arSeparation, setArSeparation] = useState(initial.arSeparation);
   const [arWidth, setArWidth] = useState(initial.arWidth);
@@ -85,6 +91,12 @@ const ARStereoView = ({
   const [zoom, setZoom] = useState(initial.zoom);
   const [cameraZoom, setCameraZoom] = useState(initial.cameraZoom || 1);
   const [cameraResolution, setCameraResolution] = useState(initial.cameraResolution || '720p'); // Resolución por defecto
+  
+  // Nuevos estados para optimización estereoscópica
+  const [optimizeStereo, setOptimizeStereo] = useState(initial.optimizeStereo || false);
+  const [mirrorRightPanel, setMirrorRightPanel] = useState(initial.mirrorRightPanel || false);
+  const [muteRightPanel, setMuteRightPanel] = useState(initial.muteRightPanel || true);
+  const [singleCursor, setSingleCursor] = useState(initial.singleCursor !== undefined ? initial.singleCursor : false);
   // Solo mostrar el menú si no hay configuración previa
   const [showMenu, setShowMenu] = useState(() => {
     // Verificar si existe configuración personalizada
@@ -94,6 +106,8 @@ const ARStereoView = ({
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
   const streamRef = useRef(null);
+  const leftPanelRef = useRef(null);
+  const rightCanvasRef = useRef(null);
 
   // Función para obtener las dimensiones de la resolución
   const getResolutionDimensions = (resolution) => {
@@ -181,7 +195,11 @@ const ARStereoView = ({
       offsetR, 
       zoom, 
       cameraZoom,
-      cameraResolution 
+      cameraResolution,
+      // Nuevas opciones de optimización
+      optimizeStereo,
+      mirrorRightPanel,
+      muteRightPanel
     };
     console.log('💾 Guardando configuración:', config);
     const success = await arsConfigManager.saveConfig(config);
@@ -210,6 +228,11 @@ const ARStereoView = ({
     setZoom(newConfig.zoom);
     setCameraZoom(newConfig.cameraZoom || 1);
     
+    // Nuevas opciones de optimización
+    setOptimizeStereo(newConfig.optimizeStereo || false);
+    setMirrorRightPanel(newConfig.mirrorRightPanel || false);
+    setMuteRightPanel(newConfig.muteRightPanel !== undefined ? newConfig.muteRightPanel : true);
+    
     // Actualizar resolución de cámara si está en la configuración
     if (newConfig.cameraResolution) {
       console.log(`📹 Actualizando resolución de cámara a: ${newConfig.cameraResolution}`);
@@ -223,6 +246,13 @@ const ARStereoView = ({
     if (newConfig.cameraZoom) {
       console.log(`🔍 Actualizando zoom de cámara a: ${newConfig.cameraZoom}x`);
       applyCameraZoom(newConfig.cameraZoom);
+    }
+    
+    // Log de optimización
+    if (newConfig.optimizeStereo) {
+      console.log('⚡ Modo optimización estereoscópica activado:');
+      console.log('  🪞 Espejo panel derecho:', newConfig.mirrorRightPanel);
+      console.log('  🔇 Silenciar panel derecho:', newConfig.muteRightPanel);
     }
   };
 
@@ -304,14 +334,85 @@ const ARStereoView = ({
     }
   }, [cameraZoom]);
 
+  // Copiar video y overlays al canvas derecho en modo espejo
+  useEffect(() => {
+    if (mirrorRightPanel && optimizeStereo) {
+      const interval = setInterval(() => {
+        const leftPanel = leftPanelRef.current;
+        const canvas = rightCanvasRef.current;
+        const video = videoRefL.current;
+        if (canvas && video) {
+          const ctx = canvas.getContext('2d');
+          // Dibujar frame del video
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // Dibujar overlays encima
+          if (leftPanel) {
+            // Buscar el overlay dentro del leftPanel
+            const overlays = leftPanel.querySelectorAll('[data-overlay], .ars-overlay');
+            overlays.forEach(overlayEl => {
+              html2canvas(overlayEl, {backgroundColor: null}).then(imgCanvas => {
+                // Obtener posición relativa del overlay
+                const rect = overlayEl.getBoundingClientRect();
+                const parentRect = leftPanel.getBoundingClientRect();
+                const x = rect.left - parentRect.left;
+                const y = rect.top - parentRect.top;
+                ctx.drawImage(imgCanvas, x, y, rect.width, rect.height);
+              });
+            });
+          }
+        }
+      }, 1000 / 15);
+      return () => clearInterval(interval);
+    }
+  }, [mirrorRightPanel, optimizeStereo, arWidth, arHeight]);
+
   // Determinar overlayType automáticamente si no se pasa
   const overlayType = overlayTypeProp || detectOverlayType(overlay);
 
   // Si hay múltiples overlays, usar 'mixed'
   const finalOverlayType = Array.isArray(overlay) && overlay.length > 1 ? 'mixed' : overlayType;
 
+  // Detectar si el overlay actual tiene cursor
+  const hasOverlayCursor = React.useMemo(() => {
+    if (!overlay) return false;
+    
+    const checkOverlayForCursor = (singleOverlay) => {
+      if (!singleOverlay) return false;
+      // VRLocalVideoOverlay tiene cursor A-Frame
+      if (singleOverlay.type?.name === 'VRLocalVideoOverlay') return true;
+      // Otros overlays que podrían tener cursor...
+      return false;
+    };
+    
+    if (Array.isArray(overlay)) {
+      return overlay.some(checkOverlayForCursor);
+    }
+    
+    return checkOverlayForCursor(overlay);
+  }, [overlay]);
+
+  // Lógica de cursor simplificada
+  // singleCursor ahora controla si se muestran los cursores blancos en ambos paneles o en ninguno
+  const showWhiteCursors = !singleCursor; // Cuando singleCursor es false, mostrar cursores blancos en ambos
+
+  console.log('🎯 [ARStereoView] Lógica de cursor simplificada:', {
+    singleCursor,
+    showWhiteCursors,
+    overlayType: finalOverlayType
+  });
+
+  console.log('🪞 [ARStereoView] Estado del modo espejo:', {
+    optimizeStereo,
+    mirrorRightPanel,
+    muteRightPanel,
+    'Panel derecho muestra overlay': !!overlay,
+    'Panel derecho showOverlayCursor': showWhiteCursors && !(optimizeStereo && mirrorRightPanel)
+  });
+
   return (
     <div className="ar-stereo-container">
+      
       {/* Botón flecha atrás para salir de ARS - Mejorado */}
       <button
         style={{
@@ -365,16 +466,20 @@ const ARStereoView = ({
         onCameraResolutionChange={handleCameraResolutionChange}
         showMenu={showMenu} setShowMenu={setShowMenu}
         onSave={saveConfig}
+        // Nuevas props para optimización estereoscópica
+        optimizeStereo={optimizeStereo} setOptimizeStereo={setOptimizeStereo}
+        mirrorRightPanel={mirrorRightPanel} setMirrorRightPanel={setMirrorRightPanel}
+        muteRightPanel={muteRightPanel} setMuteRightPanel={setMuteRightPanel}
+        singleCursor={singleCursor} setSingleCursor={setSingleCursor}
         position={{
           button: { 
-            top: 6, 
-            left: 6
+            top: 3, 
+            left: 0
           },
           menu: { 
-            top: 50, 
-            left: 15,
-            maxHeight: 'calc(100vh - 80px)',
-            overflowY: 'auto'
+            top: 3, 
+            left: 3,
+            maxHeight: 'calc(100vh - 80px)'
           }
         }}
       />
@@ -387,32 +492,64 @@ const ARStereoView = ({
         height: '100%',
         width: '100%'
       }}>
-        {/* Vista izquierda */}
-        <ARPanel
-          videoRef={videoRefL}
-          width={arWidth}
-          height={arHeight}
-          overlay={overlay}
-          overlayType={finalOverlayType}
-          zoom={zoom}
-          cameraZoom={cameraZoom}
-          offset={offsetL}
-        />
-        {/* Vista derecha */}
-        <ARPanel
-          videoRef={videoRefR}
-          width={arWidth}
-          height={arHeight}
-          overlay={overlay}
-          overlayType={finalOverlayType}
-          zoom={zoom}
-          cameraZoom={cameraZoom}
-          offset={offsetR}
-        />
+        {/* Vista izquierda (principal) */}
+        <div ref={leftPanelRef} style={{width: arWidth, height: arHeight}}>
+          <ARPanel
+            videoRef={videoRefL}
+            width={arWidth}
+            height={arHeight}
+            overlay={overlay}
+            overlayType={finalOverlayType}
+            zoom={zoom}
+            cameraZoom={cameraZoom}
+            offset={offsetL}
+            isPrimaryPanel={true}
+            showCursor={false}
+            showOverlayCursor={showWhiteCursors}
+            optimizationSettings={{
+              optimizeStereo,
+              mirrorRightPanel,
+              muteRightPanel,
+              singleCursor
+            }}
+          />
+        </div>
+        {/* Vista derecha (secundaria/optimizada) */}
+        {mirrorRightPanel && optimizeStereo ? (
+          <canvas
+            ref={rightCanvasRef}
+            width={arWidth}
+            height={arHeight}
+            style={{width: arWidth, height: arHeight, background: 'black', borderRadius: 8}}
+          />
+        ) : (
+          <ARPanel
+            videoRef={videoRefR}
+            width={arWidth}
+            height={arHeight}
+            overlay={overlay}
+            overlayType={finalOverlayType}
+            zoom={zoom}
+            cameraZoom={cameraZoom}
+            offset={offsetR}
+            isPrimaryPanel={false}
+            isRightPanel={true}
+            showCursor={false}
+            showOverlayCursor={showWhiteCursors && !(optimizeStereo && mirrorRightPanel)}
+            optimizationSettings={{
+              optimizeStereo,
+              mirrorRightPanel,
+              muteRightPanel,
+              singleCursor
+            }}
+          />
+        )}
       </div>
       
-      {/* Estado y opciones de configuración */}
+      {/*
       <ARSConfigStatus onConfigLoaded={handleConfigLoaded} />
+      */}
+
     </div>
   );
 };
