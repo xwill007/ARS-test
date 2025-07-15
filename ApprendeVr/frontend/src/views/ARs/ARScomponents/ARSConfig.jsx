@@ -1,4 +1,5 @@
 import React from 'react';
+import OverlayConfigPanel from './OverlayConfigPanel';
 import ARSoverlayList from './ARSoverlayList';
 import ARSHelpTooltip from './ARSHelpTooltip';
 import OverlayDropdownMenu from './OverlayDropdownMenu';
@@ -924,64 +925,11 @@ const ARSConfig = ({
       
       {/* Panel de configuración de overlay específico */}
       {overlayConfigPanelOpen && (
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 4000,
-          background: 'rgba(20,20,20,0.98)',
-          color: 'white',
-          borderRadius: 12,
-          padding: 20,
-          border: '2px solid #4fc3f7',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
-          minWidth: 300,
-          maxWidth: 500
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: 16,
-            borderBottom: '1px solid rgba(79,195,247,0.3)',
-            paddingBottom: 8
-          }}>
-            <h3 style={{ margin: 0, color: '#4fc3f7' }}>
-              ⚙️ Configurar: {overlayConfigPanelOpen}
-            </h3>
-            <button
-              onClick={() => setOverlayConfigPanelOpen(null)}
-              style={{
-                background: 'transparent',
-                border: '1px solid #ff4444',
-                borderRadius: '50%',
-                width: 24,
-                height: 24,
-                color: '#ff4444',
-                cursor: 'pointer',
-                fontSize: 14
-              }}
-            >
-              ✕
-            </button>
-          </div>
-          
-          <div style={{ color: '#bbb', fontSize: 14 }}>
-            Panel de configuración para el overlay <strong>{overlayConfigPanelOpen}</strong>
-          </div>
-          
-          <div style={{ 
-            marginTop: 16,
-            padding: 12,
-            background: 'rgba(79,195,247,0.1)',
-            borderRadius: 6,
-            fontSize: 12,
-            color: '#4fc3f7'
-          }}>
-            <strong>💡 Próximamente:</strong> Configuración de posición, tamaño, transparencia y otros parámetros específicos del overlay.
-          </div>
-        </div>
+        <OverlayConfigPanel
+          overlayId={overlayConfigPanelOpen}
+          isVisible={!!overlayConfigPanelOpen}
+          onClose={() => setOverlayConfigPanelOpen(null)}
+        />
       )}
     </>
   );
