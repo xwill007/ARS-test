@@ -6,18 +6,26 @@ import configurableOverlayManager from './ConfigurableOverlayManager';
  * Permite ajustar posiciones y parámetros en tiempo real
  */
 const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
-  // Estado para posición del panel
+  // Estado para posición y tamaño del panel
   const [panelPosition, setPanelPosition] = useState({ x: null, y: null });
+  const [panelSize, setPanelSize] = useState({ width: 400, height: 600 });
   const [dragging, setDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [resizing, setResizing] = useState(false);
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 400, height: 600 });
 
-  // Guardar y restaurar posición del panel
+  // Guardar y restaurar posición y tamaño del panel
   useEffect(() => {
     if (isVisible) {
-      // Restaurar posición guardada
-      const saved = configurableOverlayManager.getOverlayConfig(overlayId)?.panelPosition;
-      if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
-        setPanelPosition(saved);
+      // Restaurar posición y tamaño guardados
+      const savedConfig = configurableOverlayManager.getOverlayConfig(overlayId);
+      const savedPos = savedConfig?.panelPosition;
+      const savedSize = savedConfig?.panelSize;
+      if (savedPos && typeof savedPos.x === 'number' && typeof savedPos.y === 'number') {
+        setPanelPosition(savedPos);
+      }
+      if (savedSize && typeof savedSize.width === 'number' && typeof savedSize.height === 'number') {
+        setPanelSize(savedSize);
       }
     }
   }, [isVisible, overlayId]);
@@ -30,6 +38,69 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
       configurableOverlayManager.updateOverlayConfig(overlayId, overlayConfig);
     }
   }, [panelPosition, overlayId]);
+
+  useEffect(() => {
+    // Guardar el tamaño cada vez que se cambia
+    if (panelSize.width && panelSize.height && overlayId) {
+      const overlayConfig = configurableOverlayManager.getOverlayConfig(overlayId) || {};
+      overlayConfig.panelSize = { width: panelSize.width, height: panelSize.height };
+      configurableOverlayManager.updateOverlayConfig(overlayId, overlayConfig);
+    }
+  }, [panelSize, overlayId]);
+  // Redimensionar con mouse
+  const handleResizeMouseDown = (e) => {
+    setResizing(true);
+    setResizeStart({
+      x: e.clientX,
+      y: e.clientY,
+      width: panelSize.width,
+      height: panelSize.height
+    });
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleResizeMouseMove = (e) => {
+    if (!resizing) return;
+    const dx = e.clientX - resizeStart.x;
+    const dy = e.clientY - resizeStart.y;
+    setPanelSize({
+      width: Math.max(300, resizeStart.width + dx),
+      height: Math.max(300, resizeStart.height + dy)
+    });
+  };
+
+  const handleResizeMouseUp = () => {
+    setResizing(false);
+  };
+
+  // Redimensionar con touch
+  const handleResizeTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    setResizing(true);
+    setResizeStart({
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      width: panelSize.width,
+      height: panelSize.height
+    });
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleResizeTouchMove = (e) => {
+    if (!resizing || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - resizeStart.x;
+    const dy = e.touches[0].clientY - resizeStart.y;
+    setPanelSize({
+      width: Math.max(300, resizeStart.width + dx),
+      height: Math.max(300, resizeStart.height + dy)
+    });
+  };
+
+  const handleResizeTouchEnd = () => {
+    setResizing(false);
+  };
 
   // Soporte para touch en móvil
   const handleTouchStart = (e) => {
@@ -92,13 +163,28 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     }
+    if (resizing) {
+      window.addEventListener('mousemove', handleResizeMouseMove);
+      window.addEventListener('mouseup', handleResizeMouseUp);
+      window.addEventListener('touchmove', handleResizeTouchMove);
+      window.addEventListener('touchend', handleResizeTouchEnd);
+    } else {
+      window.removeEventListener('mousemove', handleResizeMouseMove);
+      window.removeEventListener('mouseup', handleResizeMouseUp);
+      window.removeEventListener('touchmove', handleResizeTouchMove);
+      window.removeEventListener('touchend', handleResizeTouchEnd);
+    }
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('mousemove', handleResizeMouseMove);
+      window.removeEventListener('mouseup', handleResizeMouseUp);
+      window.removeEventListener('touchmove', handleResizeTouchMove);
+      window.removeEventListener('touchend', handleResizeTouchEnd);
     };
-  }, [dragging]);
+  }, [dragging, resizing]);
   const [config, setConfig] = useState({});
   const [activeTab, setActiveTab] = useState('positions');
   const [hasChanges, setHasChanges] = useState(false);
@@ -285,8 +371,10 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
     top: panelPosition.y !== null ? panelPosition.y : '50%',
     left: panelPosition.x !== null ? panelPosition.x : '50%',
     transform: panelPosition.x !== null && panelPosition.y !== null ? 'none' : 'translate(-50%, -50%)',
-    width: '400px',
-    maxHeight: '600px',
+    width: panelSize.width + 'px',
+    maxHeight: panelSize.height + 'px',
+    minWidth: '300px',
+    minHeight: '300px',
     background: 'rgba(0, 0, 0, 0.95)',
     border: '2px solid #007acc',
     borderRadius: '8px',
@@ -295,7 +383,8 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
     fontSize: '14px',
     zIndex: 10000,
     overflow: 'auto',
-    boxShadow: dragging ? '0 0 16px #007acc' : undefined
+    boxShadow: dragging ? '0 0 16px #007acc' : undefined,
+    transition: resizing ? 'none' : 'width 0.1s, height 0.1s',
   };
 
   return (
@@ -800,6 +889,27 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
         >
           {hasChanges ? 'Guardar' : 'Guardado'}
         </button>
+      </div>
+
+      {/* Triángulo de reescalado funcional */}
+      <div
+        style={{
+          position: 'absolute',
+          right: '8px',
+          bottom: '8px',
+          width: '24px',
+          height: '24px',
+          zIndex: 10001,
+          cursor: 'nwse-resize',
+          touchAction: 'none',
+        }}
+        onMouseDown={handleResizeMouseDown}
+        onTouchStart={handleResizeTouchStart}
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <polygon points="0,24 24,24 24,0" fill="#007acc" opacity="0.7" />
+          <polyline points="6,24 24,24 24,6" stroke="#fff" strokeWidth="2" fill="none" />
+        </svg>
       </div>
     </div>
   );
