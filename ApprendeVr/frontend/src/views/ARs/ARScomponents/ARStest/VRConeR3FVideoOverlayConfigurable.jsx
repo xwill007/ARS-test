@@ -32,9 +32,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
 
   // Obtener posiciones desde la configuración
   const mainVideoPosition = config.mainVideo?.position || [0, 5, 0];
-  const secondaryVideoPosition = config.secondaryVideo?.position || [6, 5, 0];
   const mainVideoScale = config.mainVideo?.scale || [5, 4, 1];
-  const secondaryVideoScale = config.secondaryVideo?.scale || [3, 2, 1];
   const radiusBase = config.labels?.radiusBase || 8;
   const height = config.labels?.height || 10;
   const yOffset = config.labels?.yOffset || -2;
@@ -126,42 +124,6 @@ const VRConeR3FVideoOverlayConfigurable = ({
         </Text>
       </group>
 
-      {/* Video secundario */}
-      <group position={secondaryVideoPosition}>
-        <ARSVideoUniversal 
-          videoSrc={config.secondaryVideo?.videoSrc || "/videos/gangstas.mp4"}
-          position={[0, 0, 0]}
-          scale={secondaryVideoScale}
-          autoPlay={true}
-          loop={true}
-          muted={true}
-          showFrame={false}
-          quality={config.secondaryVideo?.quality || "720"}
-        />
-        
-        {/* Fondo semitransparente para el video secundario - solo si está habilitado */}
-        {config.secondaryVideo?.showBackground && (
-          <mesh position={[0, 0, -0.01]}>
-            <planeGeometry args={[secondaryVideoScale[0] + 0.3, secondaryVideoScale[1] + 0.3]} />
-            <meshStandardMaterial 
-              color="#000000" 
-              opacity={0.15} 
-              transparent 
-            />
-          </mesh>
-        )}
-        
-        {/* Etiqueta del video secundario */}
-        <Text
-          position={[0, secondaryVideoScale[1]/2 + 0.3, 0]}
-          fontSize={0.2}
-          color="#ff8800"
-          anchorX="center"
-          anchorY="middle"
-        >
-          VIDEO SECUNDARIO
-        </Text>
-      </group>
 
       {/* Etiquetas informativas en círculo */}
       {videoLabels.map((label, i) => {
@@ -194,30 +156,6 @@ const VRConeR3FVideoOverlayConfigurable = ({
         );
       })}
       
-      {/* Marcador central */}
-      {config.centerMarker?.visible && (
-        <group position={centerMarkerPosition}>
-          <mesh>
-            <sphereGeometry args={[0.3]} />
-            <meshStandardMaterial 
-              color={config.centerMarker?.color || "#00ff88"} 
-              opacity={0.8} 
-              transparent 
-            />
-          </mesh>
-          
-          <Text
-            position={[0, -1, 0]}
-            fontSize={0.3}
-            color={config.centerMarker?.color || "#00ff88"}
-            anchorX="center"
-            anchorY="middle"
-          >
-            R3F VIDEO TEST
-          </Text>
-        </group>
-      )}
-
       {/* Controles de posición (solo en modo debug) */}
       <PositionControl 
         position={mainVideoPosition} 
@@ -225,12 +163,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
         color="#00ff88"
         onUpdate={(pos) => updateElementPosition('mainVideo', pos)}
       />
-      <PositionControl 
-        position={secondaryVideoPosition} 
-        label="Secondary Video" 
-        color="#ff8800"
-        onUpdate={(pos) => updateElementPosition('secondaryVideo', pos)}
-      />
+      // ...existing code...
       <PositionControl 
         position={centerMarkerPosition} 
         label="Center Marker" 
