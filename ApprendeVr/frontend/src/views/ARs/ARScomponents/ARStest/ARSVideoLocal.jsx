@@ -106,11 +106,14 @@ const ARSVideoLocal = ({
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.volume = volume;
+      console.log('[ARSVideoLocal] volume prop:', volume, 'video.volume:', videoRef.current.volume, 'muted:', videoRef.current.muted);
       // Si el volumen es 0 y sigue sonando, forzar mute
       if (volume === 0 && !videoRef.current.muted) {
         videoRef.current.muted = true;
+        console.log('[ARSVideoLocal] Forzando mute por volumen 0');
       } else if (volume > 0 && videoRef.current.muted) {
         videoRef.current.muted = false;
+        console.log('[ARSVideoLocal] Desmuteando por volumen > 0');
       }
     }
   }, [volume]);

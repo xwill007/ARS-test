@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Text } from '@react-three/drei';
 import ARSVideoUniversal from './ARSVideoUniversal';
 import useOverlayConfig from '../useOverlayConfig';
@@ -7,22 +7,17 @@ import useOverlayConfig from '../useOverlayConfig';
  * VRConeR3FVideoOverlayConfigurable - Overlay R3F configurable para video
  * Permite ajustar posiciones y parámetros desde la configuración
  */
-const VRConeR3FVideoOverlayConfigurable = ({ 
+const VRConeR3FVideoOverlayConfigurable = ({
   onPositionChange,
   showControls = false,
   renderKey = 0 // Clave para forzar re-render
 }) => {
+  // Reconocimiento de voz para comandos
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
+
   const overlayId = 'vrConeR3FVideoOverlay';
   const { config, updatePosition } = useOverlayConfig(overlayId, renderKey);
-  
-  const [isDragging, setIsDragging] = useState(null);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  const videoLabels = [
-    "Video R3F", "React Three Fiber", "WebGL Rendering", "Performance Test"
-  ];
-
-  // Función para actualizar posición de elementos
   const updateElementPosition = useCallback((elementKey, newPosition) => {
     updatePosition(elementKey, newPosition);
     if (onPositionChange) {
@@ -30,10 +25,80 @@ const VRConeR3FVideoOverlayConfigurable = ({
     }
   }, [overlayId, onPositionChange, updatePosition]);
 
+  React.useEffect(() => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      console.warn('API de reconocimiento de voz no soportada');
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognitionRef.current = recognition;
+
+    recognition.onresult = (event) => {
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          const transcript = event.results[i][0].transcript.trim().toLowerCase();
+          console.log('[Voice] transcript:', transcript);
+          if (transcript.includes('subir volumen')) {
+            setMainVideoVolume(v => Math.min(1, Math.round((v + 0.1) * 100) / 100));
+          } else if (transcript.includes('bajar volumen')) {
+            setMainVideoVolume(v => Math.max(0, Math.round((v - 0.1) * 100) / 100));
+          } else if (transcript.includes('play') || transcript.includes('reproducir')) {
+            updateElementPosition('mainVideo.autoPlay', true);
+          } else if (transcript.includes('pause') || transcript.includes('detener')) {
+            updateElementPosition('mainVideo.autoPlay', false);
+          } else if (transcript.includes('stop') || transcript.includes('parar')) {
+            updateElementPosition('mainVideo.autoPlay', false);
+            updateElementPosition('mainVideo.position', [0, 5, 0]); // Reinicia posición (puedes ajustar)
+          } else if (transcript.includes('reiniciar')) {
+            updateElementPosition('mainVideo.autoPlay', false);
+            setTimeout(() => updateElementPosition('mainVideo.autoPlay', true), 500);
+          }
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('[Voice] error:', event.error);
+    };
+
+    if (listening) {
+      recognition.start();
+    } else {
+      recognition.stop();
+    }
+
+    return () => {
+      recognition.stop();
+    };
+  }, [listening, updateElementPosition]);
+  // const overlayId = 'vrConeR3FVideoOverlay'; // Eliminada declaración duplicada
+  const [isDragging, setIsDragging] = useState(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const videoLabels = [
+    "Video R3F", "React Three Fiber", "WebGL Rendering", "Performance Test"
+  ];
+
   // Obtener posiciones desde la configuración
   const mainVideoPosition = config.mainVideo?.position || [0, 5, 0];
   const mainVideoScale = config.mainVideo?.scale || [5, 4, 1];
   const [mainVideoVolume, setMainVideoVolume] = useState(typeof config.mainVideo?.volume === 'number' ? config.mainVideo.volume : 1);
+  // Log inicialización de volumen
+  console.log('[INIT] mainVideoVolume:', mainVideoVolume, 'config.mainVideo?.volume:', config.mainVideo?.volume);
+
+  // Sincroniza el volumen local con la configuración global
+  React.useEffect(() => {
+    if (typeof config.mainVideo?.volume === 'number' && config.mainVideo.volume !== mainVideoVolume) {
+      console.log('[useEffect] Sync mainVideoVolume from config:', config.mainVideo.volume, 'local:', mainVideoVolume);
+      setMainVideoVolume(config.mainVideo.volume);
+    } else {
+      console.log('[useEffect] No sync needed:', config.mainVideo?.volume, mainVideoVolume);
+    }
+  }, [config.mainVideo?.volume, mainVideoVolume]);
   const radiusBase = config.labels?.radiusBase || 8;
   const height = config.labels?.height || 10;
   const yOffset = config.labels?.yOffset || -2;
@@ -145,8 +210,28 @@ const VRConeR3FVideoOverlayConfigurable = ({
 
   return (
     <group>
+      {/* Botón para activar/desactivar reconocimiento de voz */}
+      <group position={[mainVideoPosition[0] + mainVideoScale[0]/2 + 1, mainVideoPosition[1], mainVideoPosition[2] + 0.2]}>
+        <mesh onClick={() => setListening(l => !l)}>
+          <boxGeometry args={[0.5, 0.5, 0.1]} />
+          <meshStandardMaterial color={listening ? '#ff0088' : '#00ff88'} opacity={0.8} transparent />
+        </mesh>
+        <Text position={[0, 0.4, 0.06]} fontSize={0.18} color="#003366" anchorX="center" anchorY="middle">
+          {listening ? 'Voz ON' : 'Voz OFF'}
+        </Text>
+        <Text position={[0, -0.4, 0.06]} fontSize={0.13} color="#888888" anchorX="center" anchorY="middle">
+          Comandos: subir/bajar volumen, play, pause, stop, reiniciar
+        </Text>
+      </group>
       {/* Video principal */}
       <group position={mainVideoPosition}>
+        {/* LOG: Volumen actual que se pasa al video */}
+        {console.log('[VRConeR3FVideoOverlayConfigurable] Render ARSVideoUniversal', {
+          mainVideoVolume,
+          configVolume: config.mainVideo?.volume,
+          autoPlay: !!config.mainVideo?.autoPlay,
+          videoSrc: config.mainVideo?.videoSrc
+        })}
         <ARSVideoUniversal 
           videoSrc={config.mainVideo?.videoSrc || "/videos/gangstas.mp4"}
           position={[0, 0, 0]}
@@ -158,13 +243,15 @@ const VRConeR3FVideoOverlayConfigurable = ({
           showFrame={false}
           quality={config.mainVideo?.quality || "720"}
         />
+        {console.log('[RENDER] ARSVideoUniversal volume prop:', mainVideoVolume)}
         {/* Barra de volumen a la derecha */}
         <VolumeBar 
           value={mainVideoVolume}
           onChange={v => {
+            console.log('[VolumeBar] onChange called with:', v);
             setMainVideoVolume(v);
             updateElementPosition('mainVideo.volume', v);
-            console.log('[VolumeBar] setMainVideoVolume', v);
+            console.log('[VolumeBar] setMainVideoVolume', v, 'config.mainVideo?.volume:', config.mainVideo?.volume);
           }}
           x={mainVideoScale[0]/2 + 0.12}
           y={0}

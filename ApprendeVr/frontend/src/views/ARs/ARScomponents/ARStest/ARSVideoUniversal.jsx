@@ -24,7 +24,8 @@ const ARSVideoUniversal = ({
   loop = true,
   muted = true,
   showFrame = false,
-  quality = '720'
+  quality = '720',
+  volume = 1
 }) => {
   
   // Función para detectar si es un URL de YouTube
@@ -59,7 +60,8 @@ const ARSVideoUniversal = ({
     autoPlay,
     loop,
     muted,
-    showFrame
+    showFrame,
+    volume // <-- Se agrega el prop volume
   };
 
   if (isYoutube) {
