@@ -11,7 +11,13 @@ window.ShowLogs = false;
 class ARSConfigManager {
   constructor() {
     this.configPath = '/src/config/config_Ars.json';
-    this.config = configArs;
+    // Siempre inicializa desde el JSON
+    this.config = JSON.parse(JSON.stringify(configArs));
+    // Si hay config persistente, sincroniza memoria
+    const persisted = this.loadPersistedConfig();
+    if (persisted) {
+      this.config.userConfig = { ...this.config.userConfig, ...persisted };
+    }
   }
 
   /**
@@ -60,14 +66,14 @@ class ARSConfigManager {
 
       if (window.ShowLogs) console.log('🔍 Cargando configuración AR con defaults:', defaultsWithCamera);
 
-      // Primero intentar cargar configuración persistente
+      // Siempre inicializa desde el JSON
+      this.config = JSON.parse(JSON.stringify(configArs));
+
+      // Si hay config persistente, sincroniza memoria
       const persistedConfig = this.loadPersistedConfig();
       if (persistedConfig) {
         if (window.ShowLogs) console.log('📂 Configuración persistente encontrada:', persistedConfig);
-        const deviceDefaults = this.getDeviceDefaults();
-        const finalConfig = { ...defaultsWithCamera, ...deviceDefaults, ...persistedConfig };
-        if (window.ShowLogs) console.log('✅ Configuración final cargada:', finalConfig);
-        return finalConfig;
+        this.config.userConfig = { ...this.config.userConfig, ...persistedConfig };
       }
 
       // Si no hay configuración persistente, intentar localStorage legacy
@@ -78,23 +84,15 @@ class ARSConfigManager {
         // Migrar a nuevo sistema
         this.saveConfig(parsed);
         localStorage.removeItem('arsconfig-user'); // Limpiar old key
-        return { ...defaultsWithCamera, ...this.getDeviceDefaults(), ...parsed };
+        this.config.userConfig = { ...this.config.userConfig, ...parsed };
       }
 
-      // Usar configuración del archivo JSON por defecto
-      const userConfig = this.config.userConfig;
       const deviceDefaults = this.getDeviceDefaults();
-      
-      if (window.ShowLogs) console.log('📄 Usando configuración por defecto del archivo JSON');
-      if (window.ShowLogs) console.log('👤 UserConfig:', userConfig);
-      if (window.ShowLogs) console.log('📱 DeviceDefaults:', deviceDefaults);
-      
       const finalConfig = {
         ...defaultsWithCamera,
         ...deviceDefaults,
-        ...userConfig
+        ...this.config.userConfig
       };
-      
       if (window.ShowLogs) console.log('✅ Configuración final (defaults):', finalConfig);
       return finalConfig;
     } catch (error) {

@@ -77,6 +77,24 @@
       "selectedOverlays": ["vrConeR3FVideoOverlay"]
     }
   },
+  "voiceCommands": {
+    "en": {
+      "volumeUp": ["volume up", "increase volume", "raise volume"],
+      "volumeDown": ["volume down", "decrease volume", "lower volume"],
+      "play": ["play", "start"],
+      "pause": ["pause", "hold"],
+      "stop": ["stop", "end", "terminate"],
+      "restart": ["restart", "replay", "begin again"]
+    },
+    "es": {
+      "volumeUp": ["subir volumen", "aumentar volumen"],
+      "volumeDown": ["bajar volumen", "disminuir volumen"],
+      "play": ["play", "reproducir"],
+      "pause": ["pause", "pausar", "detener"],
+      "stop": ["stop", "parar", "detener"],
+      "restart": ["reiniciar", "volver a empezar"]
+    }
+  },
   "overlays": {
     "vrConeR3FVideoOverlay": {
       "mainVideo": {

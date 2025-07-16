@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import configArs from '../../../../config/config_Ars.json';
 import { Text } from '@react-three/drei';
 import ARSVideoUniversal from './ARSVideoUniversal';
 import useOverlayConfig from '../useOverlayConfig';
@@ -25,6 +26,11 @@ const VRConeR3FVideoOverlayConfigurable = ({
     }
   }, [overlayId, onPositionChange, updatePosition]);
 
+  // Detectar idioma del navegador, default en
+  const browserLang = (navigator.language || 'en').split('-')[0];
+  const voiceLang = configArs.voiceCommands[browserLang] ? browserLang : 'en';
+  const voiceCommands = configArs.voiceCommands[voiceLang];
+
   React.useEffect(() => {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       console.warn('API de reconocimiento de voz no soportada');
@@ -32,7 +38,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
     }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.lang = 'es-ES';
+    recognition.lang = browserLang + '-' + browserLang.toUpperCase();
     recognition.continuous = true;
     recognition.interimResults = false;
     recognitionRef.current = recognition;
@@ -42,18 +48,18 @@ const VRConeR3FVideoOverlayConfigurable = ({
         if (event.results[i].isFinal) {
           const transcript = event.results[i][0].transcript.trim().toLowerCase();
           console.log('[Voice] transcript:', transcript);
-          if (transcript.includes('subir volumen')) {
+          if (voiceCommands.volumeUp.some(cmd => transcript.includes(cmd))) {
             setMainVideoVolume(v => Math.min(1, Math.round((v + 0.1) * 100) / 100));
-          } else if (transcript.includes('bajar volumen')) {
+          } else if (voiceCommands.volumeDown.some(cmd => transcript.includes(cmd))) {
             setMainVideoVolume(v => Math.max(0, Math.round((v - 0.1) * 100) / 100));
-          } else if (transcript.includes('play') || transcript.includes('reproducir')) {
+          } else if (voiceCommands.play.some(cmd => transcript.includes(cmd))) {
             updateElementPosition('mainVideo.autoPlay', true);
-          } else if (transcript.includes('pause') || transcript.includes('detener')) {
+          } else if (voiceCommands.pause.some(cmd => transcript.includes(cmd))) {
             updateElementPosition('mainVideo.autoPlay', false);
-          } else if (transcript.includes('stop') || transcript.includes('parar')) {
+          } else if (voiceCommands.stop.some(cmd => transcript.includes(cmd))) {
             updateElementPosition('mainVideo.autoPlay', false);
-            updateElementPosition('mainVideo.position', [0, 5, 0]); // Reinicia posición (puedes ajustar)
-          } else if (transcript.includes('reiniciar')) {
+            updateElementPosition('mainVideo.position', [0, 5, 0]);
+          } else if (voiceCommands.restart.some(cmd => transcript.includes(cmd))) {
             updateElementPosition('mainVideo.autoPlay', false);
             setTimeout(() => updateElementPosition('mainVideo.autoPlay', true), 500);
           }
