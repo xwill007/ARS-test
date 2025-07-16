@@ -19,7 +19,7 @@ const ARSVideoLocal = ({
   scale = [4, 3, 1],
   autoPlay = true,
   loop = true,
-  muted = true,
+  muted = false,
   showFrame = false,
   volume = 1
 }) => {
@@ -51,6 +51,7 @@ const ARSVideoLocal = ({
       console.log('Video can play');
       if (autoPlay) {
         video.play().then(() => {
+          video.volume = volume; // Forzar volumen al reproducir
           console.log('Video started playing');
           setIsPlaying(true);
         }).catch(err => {
@@ -105,6 +106,12 @@ const ARSVideoLocal = ({
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.volume = volume;
+      // Si el volumen es 0 y sigue sonando, forzar mute
+      if (volume === 0 && !videoRef.current.muted) {
+        videoRef.current.muted = true;
+      } else if (volume > 0 && videoRef.current.muted) {
+        videoRef.current.muted = false;
+      }
     }
   }, [volume]);
 
@@ -151,7 +158,13 @@ const ARSVideoLocal = ({
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial map={videoTexture} side={2} />
       </mesh>
-      
+      {/* Botón para desmutear si el video está muteado y el volumen es mayor a 0 */}
+      {videoRef.current && videoRef.current.muted && volume > 0 && (
+        <mesh position={[position[0], position[1] + 0.5, position[2] + 0.02]} onClick={() => { videoRef.current.muted = false; }}>
+          <planeGeometry args={[0.6, 0.3]} />
+          <meshBasicMaterial color="#ff0088" transparent opacity={0.7} />
+        </mesh>
+      )}
       {/* Frame border - solo si está habilitado */}
       {showFrame && (
         <mesh position={[position[0], position[1], position[2] - 0.02]} scale={[scale[0] * 1.02, scale[1] * 1.02, 1]}>
@@ -159,7 +172,6 @@ const ARSVideoLocal = ({
           <meshBasicMaterial color="#000000" transparent opacity={0.1} />
         </mesh>
       )}
-      
       {/* Play/Pause indicator */}
       {!isPlaying && (
         <mesh position={[position[0], position[1], position[2] + 0.01]}>
