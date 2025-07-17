@@ -210,7 +210,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
         <Text position={[0, -height/2 - 0.25, 0.06]} fontSize={0.18} color="#003366" anchorX="center" anchorY="middle">-</Text>
         <Text
           position={[0, height/2 + 0.3, 0]}
-          fontSize={0.18}
+          fontSize={0.12}
           color="#00ff88"
           anchorX="center"
           anchorY="middle"
