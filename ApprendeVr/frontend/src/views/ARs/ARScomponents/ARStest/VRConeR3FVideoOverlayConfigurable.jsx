@@ -172,20 +172,20 @@ const VRConeR3FVideoOverlayConfigurable = ({
     // value: 0.0 - 1.0
     // Click y drag en la barra para ajustar el volumen exactamente donde se da click o se arrastra
     const handleBarPointer = (e) => {
-      // Usar la lógica de ProgressBar: la barra va de -height/2 (abajo) a +height/2 (arriba)
+      // Igual que la barra de tiempo: la barra va de -height/2 (abajo) a +height/2 (arriba)
       const localY = e.point.y;
       let percent = (localY + height/2) / height;
       percent = Math.max(0, Math.min(1, percent));
       onChange(percent);
     };
     return (
-      <group position={[x, y, z]}>
+      <group position={[x, 0, z]}>
         {/* Botón + para subir volumen */}
-        <mesh position={[0, height/2 + 0.25, 0]} onPointerDown={() => onChange(Math.min(1, Math.round((value + 0.05) * 100) / 100))}>
-          <boxGeometry args={[0.28, 0.28, 0.08]} />
-          <meshStandardMaterial color="#00ff88" opacity={0.8} transparent />
+        <mesh position={[0, height/2 - 0.10, 0]} onPointerDown={() => onChange(Math.min(1, Math.round((value + 0.05) * 100) / 100))}>
+          <boxGeometry args={[0.2, 0.2, 0.03]} />
+          <meshStandardMaterial color="#000000" opacity={0.8} transparent />
         </mesh>
-        <Text position={[0, height/2 + 0.25, 0.06]} fontSize={0.18} color="#003366" anchorX="center" anchorY="middle">+</Text>
+        <Text position={[0, height/2 - 0.15, 0.1]} fontSize={0.18} color="#cccccc" anchorX="center" anchorY="middle">+</Text>
 
         {/* Fondo barra (clickeable y arrastrable, área original) */}
         <mesh
@@ -200,22 +200,24 @@ const VRConeR3FVideoOverlayConfigurable = ({
         {/* Nivel actual */}
         <mesh position={[0, -height/2 + value*height/2, 0.06]}>
           <boxGeometry args={[0.18, value*height, 0.08]} />
-          <meshStandardMaterial color="#003366" opacity={0.9} transparent />
+          <meshStandardMaterial color="#000000" opacity={0.9} transparent />
         </mesh>
+
         {/* Botón - para bajar volumen */}
-        <mesh position={[0, -height/2 - 0.25, 0]} onPointerDown={() => onChange(Math.max(0, Math.round((value - 0.05) * 100) / 100))}>
-          <boxGeometry args={[0.28, 0.28, 0.08]} />
-          <meshStandardMaterial color="#00ff88" opacity={0.8} transparent />
+        <mesh position={[0, -height/2 + 0.1, 0]} onPointerDown={() => onChange(Math.max(0, Math.round((value - 0.05) * 100) / 100))}>
+          <boxGeometry args={[0.2, 0.2, 0.03]} />
+          <meshStandardMaterial color="#000000" opacity={0.8}  />
         </mesh>
-        <Text position={[0, -height/2 - 0.25, 0.06]} fontSize={0.18} color="#003366" anchorX="center" anchorY="middle">-</Text>
+        <Text position={[0, -height/2 + 0.15, 0.1]} fontSize={0.18} color="#cccccc" anchorX="center" anchorY="middle">-</Text>
+        {/* Porcentaje de volumen en el centro de la barra */}
         <Text
-          position={[0, height/2 + 0.3, 0]}
+          position={[0, 0, 0.13]}
           fontSize={0.12}
           color="#00ff88"
           anchorX="center"
           anchorY="middle"
         >
-          {`Volumen ${(value*100).toFixed(0)}%`}
+          {`${Math.round(value * 100)}%`}
         </Text>
       </group>
     );
