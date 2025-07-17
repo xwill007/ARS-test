@@ -50,7 +50,8 @@ const ARSVideoLocal = forwardRef(({
         videoRef.current.play();
         setIsPlaying(true);
       }
-    }
+    },
+    videoRef: videoRef
   }), []);
   const meshRef = useRef();
   const videoRef = useRef();

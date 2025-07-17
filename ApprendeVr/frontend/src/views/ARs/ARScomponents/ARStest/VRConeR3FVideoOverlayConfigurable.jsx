@@ -14,7 +14,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
   renderKey = 0 // Clave para forzar re-render
 }) => {
   // Reconocimiento de voz para comandos
-  const [listening, setListening] = useState(false);
+  const [listening, setListening] = useState(true);
   const recognitionRef = useRef(null);
   // Referencia al video principal
   const mainVideoRef = useRef(null);
@@ -168,6 +168,14 @@ const VRConeR3FVideoOverlayConfigurable = ({
   // Controlador de volumen (barra vertical)
   const VolumeBar = ({ value, onChange, height = mainVideoScale[1], x = mainVideoScale[0]/2 + 0.1, y = -mainVideoScale[1]/2, z = 0.12 }) => {
     // value: 0.0 - 1.0
+    // Click y drag en la barra para ajustar el volumen exactamente donde se da click o se arrastra
+    const handleBarPointer = (e) => {
+      // Usar la lógica de ProgressBar: la barra va de -height/2 (abajo) a +height/2 (arriba)
+      const localY = e.point.y;
+      let percent = (localY + height/2) / height;
+      percent = Math.max(0, Math.min(1, percent));
+      onChange(percent);
+    };
     return (
       <group position={[x, y, z]}>
         {/* Botón + para subir volumen */}
@@ -177,23 +185,11 @@ const VRConeR3FVideoOverlayConfigurable = ({
         </mesh>
         <Text position={[0, height/2 + 0.25, 0.06]} fontSize={0.18} color="#003366" anchorX="center" anchorY="middle">+</Text>
 
-        {/* Fondo barra */}
+        {/* Fondo barra (clickeable y arrastrable, área original) */}
         <mesh
-          onPointerDown={e => {
-            const localY = e.point.y;
-            let newValue = Math.max(0, Math.min(1, (localY + height/2) / height));
-            // Redondear a dos decimales para mayor precisión visual
-            newValue = Math.round(newValue * 100) / 100;
-            console.log('[VolumeBar] onPointerDown', { localY, newValue });
-            onChange(newValue);
-          }}
+          onPointerDown={handleBarPointer}
           onPointerMove={e => {
-            if (e.buttons !== 1) return;
-            const localY = e.point.y;
-            let newValue = Math.max(0, Math.min(1, (localY + height/2) / height));
-            newValue = Math.round(newValue * 100) / 100;
-            console.log('[VolumeBar] onPointerMove', { localY, newValue });
-            onChange(newValue);
+            if (e.buttons === 1) handleBarPointer(e);
           }}
         >
           <boxGeometry args={[0.2, height, 0.1]} />
@@ -223,15 +219,100 @@ const VRConeR3FVideoOverlayConfigurable = ({
     );
   };
 
+  // Barra de progreso inferior
+  const [videoProgress, setVideoProgress] = useState(0); // 0.0 - 1.0
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+
+  React.useEffect(() => {
+    let video = null;
+    if (mainVideoRef.current && mainVideoRef.current.videoRef) {
+      video = mainVideoRef.current.videoRef.current;
+    }
+    if (!video) return;
+    const updateProgress = () => {
+      setVideoCurrentTime(video.currentTime);
+      setVideoDuration(video.duration || 0);
+      setVideoProgress(video.duration ? video.currentTime / video.duration : 0);
+    };
+    video.addEventListener('timeupdate', updateProgress);
+    video.addEventListener('loadedmetadata', updateProgress);
+    updateProgress(); // Inicializa valores
+    return () => {
+      video.removeEventListener('timeupdate', updateProgress);
+      video.removeEventListener('loadedmetadata', updateProgress);
+    };
+  }, [mainVideoRef.current && mainVideoRef.current.videoRef, renderKey]);
+
+  const ProgressBar = ({ value, current, duration, width = mainVideoScale[0], y = -mainVideoScale[1]/2 - 0.12, z = 0.07 }) => {
+    // value: 0.0 - 1.0
+    // current: segundos
+    // duration: segundos
+    const formatTime = (t) => {
+      if (!isFinite(t)) return '0:00';
+      const min = Math.floor(t / 60);
+      const sec = Math.floor(t % 60);
+      return `${min}:${sec.toString().padStart(2, '0')}`;
+    };
+    // Click en la barra para saltar a tiempo
+    const handleBarClick = (e) => {
+      if (!duration || !mainVideoRef.current) return;
+      // e.point.x está en coordenadas locales del mesh
+      const localX = e.point.x;
+      // La barra va de -width/2 a +width/2
+      let percent = (localX + width/2) / width;
+      percent = Math.max(0, Math.min(1, percent));
+      const newTime = percent * duration;
+      // Saltar en el video
+      const video = mainVideoRef.current.videoRef ? mainVideoRef.current.videoRef.current : null;
+      if (video) {
+        video.currentTime = newTime;
+      }
+    };
+    return (
+      <group position={[0, y, z]}>
+        {/* Tiempo actual y duración por encima de la barra (blanco) */}
+        <Text
+          position={[-width/2 + 0.5, 0, 0.18]}
+          fontSize={0.16}
+          color="#ffffff"
+          anchorX="left"
+          anchorY="middle"
+        >
+          {formatTime(current)}
+        </Text>
+        <Text
+          position={[width/2 - 0.5, 0, 0.18]}
+          fontSize={0.16}
+          color="#ffffff"
+          anchorX="right"
+          anchorY="middle"
+        >
+          {formatTime(duration)}
+        </Text>
+        {/* Fondo barra (gris, clickable) */}
+        <mesh onPointerDown={handleBarClick}>
+          <boxGeometry args={[width, 0.18, 0.08]} />
+          <meshStandardMaterial color="#888888" opacity={0.7} transparent />
+        </mesh>
+        {/* Progreso actual (negro) */}
+        <mesh position={[-width/2 + value*width/2, 0, 0.06]}>
+          <boxGeometry args={[value*width, 0.14, 0.08]} />
+          <meshStandardMaterial color="#000000" opacity={0.95} transparent />
+        </mesh>
+      </group>
+    );
+  };
+
   return (
     <group>
       {/* Botón para activar/desactivar reconocimiento de voz */}
-      <group position={[mainVideoPosition[0] + mainVideoScale[0]/2 + 1, mainVideoPosition[1], mainVideoPosition[2] + 0.2]}>
+      <group position={[mainVideoPosition[0] + mainVideoScale[0]/2 - (3.5), mainVideoPosition[1] - (2.5), mainVideoPosition[2] + 0.2]}>
         <mesh onClick={() => setListening(l => !l)}>
           <boxGeometry args={[0.5, 0.5, 0.1]} />
           <meshStandardMaterial color={listening ? '#ff0088' : '#00ff88'} opacity={0.8} transparent />
         </mesh>
-        <Text position={[0, 0.4, 0.06]} fontSize={0.18} color="#003366" anchorX="center" anchorY="middle">
+        <Text position={[0, 0.0, 0.06]} fontSize={0.12} color="#616364ff" anchorX="center" anchorY="middle">
           {listening ? 'Voz ON' : 'Voz OFF'}
         </Text>
         <Text position={[0, -0.4, 0.06]} fontSize={0.13} color="#888888" anchorX="center" anchorY="middle">
@@ -272,6 +353,15 @@ const VRConeR3FVideoOverlayConfigurable = ({
           x={mainVideoScale[0]/2 + 0.12}
           y={0}
           z={0.06}
+        />
+        {/* Barra de progreso inferior pegada al video */}
+        <ProgressBar 
+          value={videoProgress}
+          current={videoCurrentTime}
+          duration={videoDuration}
+          width={mainVideoScale[0]}
+          y={-mainVideoScale[1]/2 - 0.12}
+          z={0.07}
         />
         {/* Fondo semitransparente para mejorar visibilidad - solo si está habilitado */}
         {config.mainVideo?.showBackground && (
