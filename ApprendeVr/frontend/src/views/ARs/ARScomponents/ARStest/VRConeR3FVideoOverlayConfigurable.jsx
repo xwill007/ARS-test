@@ -1,3 +1,5 @@
+// Fallback para isPaused si no está definido
+  const safeIsPaused = typeof isPaused !== 'undefined' ? isPaused : false;
 import React, { useState, useCallback, useRef } from 'react';
 import configArs from '../../../../config/config_Ars.json';
 import { Text } from '@react-three/drei';
@@ -130,7 +132,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
   });
 
   // Componente de control de posición (para modo debug)
-  const PositionControl = ({ position, onUpdate, label, color = "#00ff88" }) => {
+  const PositionControl = ({ position, onUpdate, label, color = "#ffffff" }) => {
     if (!showControls) return null;
     return (
       <group position={position}>
@@ -257,7 +259,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
     // Click en la barra para saltar a tiempo
     const handleBarClick = (e) => {
       if (!duration || !mainVideoRef.current) return;
-      // e.point.x está en coordenadas locales del mesh
+      // e.point.x está en coordendenadas locales del mesh
       const localX = e.point.x;
       // La barra va de -width/2 a +width/2
       let percent = (localX + width/2) / width;
@@ -329,13 +331,13 @@ const VRConeR3FVideoOverlayConfigurable = ({
       </group>
       {/* Video principal */}
       <group position={mainVideoPosition}>
-        {/* LOG: Volumen actual que se pasa al video */}
-        {console.log('[VRConeR3FVideoOverlayConfigurable] Render ARSVideoUniversal', {
-          mainVideoVolume,
-          configVolume: config.mainVideo?.volume,
-          autoPlay: !!config.mainVideo?.autoPlay,
-          videoSrc: config.mainVideo?.videoSrc
-        })}
+        {/* Indicador de pausa: cuadro blanco puro */}
+        {safeIsPaused && (
+          <mesh position={[0, 0, 0.15]}>
+            <boxGeometry args={[0.3, 0.3, 0.01]} />
+            <meshBasicMaterial color="#ffffff" opacity={0.98} transparent />
+          </mesh>
+        )}
         <ARSVideoUniversal 
           ref={mainVideoRef}
           videoSrc={config.mainVideo?.videoSrc || "/videos/gangstas.mp4"}
@@ -348,7 +350,6 @@ const VRConeR3FVideoOverlayConfigurable = ({
           showFrame={false}
           quality={config.mainVideo?.quality || "720"}
         />
-        {console.log('[RENDER] ARSVideoUniversal volume prop:', mainVideoVolume)}
         {/* Barra de volumen a la derecha */}
         <VolumeBar 
           value={mainVideoVolume}
@@ -382,16 +383,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
             />
           </mesh>
         )}
-        {/* Etiqueta del video principal */}
-        <Text
-          position={[0, mainVideoScale[1]/2 + 0.5, 0]}
-          fontSize={0.3}
-          color="#00ff88"
-          anchorX="center"
-          anchorY="middle"
-        >
-          VIDEO PRINCIPAL
-        </Text>
+        
       </group>
 
 
@@ -414,7 +406,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
             <Text
               position={[0, 0, 0.06]}
               fontSize={0.25}
-              color="#00ff88"
+              color="#ffffffff"
               anchorX="center"
               anchorY="middle"
               maxWidth={2.8}
@@ -429,10 +421,9 @@ const VRConeR3FVideoOverlayConfigurable = ({
       <PositionControl 
         position={mainVideoPosition} 
         label="Main Video" 
-        color="#00ff88"
+        color="#ffffffff"
         onUpdate={(pos) => updateElementPosition('mainVideo', pos)}
       />
-      // ...existing code...
       <PositionControl 
         position={centerMarkerPosition} 
         label="Center Marker" 

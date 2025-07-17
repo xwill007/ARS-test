@@ -206,11 +206,20 @@ const ARSVideoLocal = forwardRef(({
         </mesh>
       )}
       {/* Play/Pause indicator */}
+      {/* Indicador de pausa: dos rectángulos verticales */}
       {!isPlaying && (
-        <mesh position={[position[0], position[1], position[2] + 0.01]}>
-          <planeGeometry args={[0.5, 0.5]} />
-          <meshBasicMaterial color="#00ff00" transparent opacity={0.7} />
-        </mesh>
+        <group>
+          {/* Rectángulo izquierdo */}
+          <mesh position={[position[0] - 0.13, position[1], position[2] + 0.01]}>
+            <planeGeometry args={[0.15, 0.5]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.85} />
+          </mesh>
+          {/* Rectángulo derecho */}
+          <mesh position={[position[0] + 0.13, position[1], position[2] + 0.01]}>
+            <planeGeometry args={[0.15, 0.5]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.85} />
+          </mesh>
+        </group>
       )}
     </group>
   );
