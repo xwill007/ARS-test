@@ -309,8 +309,16 @@ const VRConeR3FVideoOverlayConfigurable = ({
       {/* Botón para activar/desactivar reconocimiento de voz */}
       <group position={[mainVideoPosition[0] + mainVideoScale[0]/2 - (3.5), mainVideoPosition[1] - (2.5), mainVideoPosition[2] + 0.2]}>
         <mesh onClick={() => setListening(l => !l)}>
-          <boxGeometry args={[0.5, 0.5, 0.1]} />
-          <meshStandardMaterial color={listening ? '#ff0088' : '#00ff88'} opacity={0.8} transparent />
+          <circleGeometry args={[0.25, 64]} />
+          <meshStandardMaterial 
+            color={listening ? '#0050FF' : '#111111'} 
+            metalness={listening ? 1 : 0.2} 
+            roughness={listening ? 0.1 : 0.8} 
+            opacity={0.92} 
+            transparent 
+            emissive={listening ? '#0050FF' : '#000000'}
+            emissiveIntensity={listening ? 0.25 : 0}
+          />
         </mesh>
         <Text position={[0, 0.0, 0.06]} fontSize={0.12} color="#616364ff" anchorX="center" anchorY="middle">
           {listening ? 'Voz ON' : 'Voz OFF'}
