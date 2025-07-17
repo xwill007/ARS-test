@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { VideoTexture, TextureLoader } from 'three';
 
@@ -13,7 +13,7 @@ import { VideoTexture, TextureLoader } from 'three';
  * - muted: silenciar video (default: true)
  * - showFrame: mostrar marco alrededor del video (default: false)
  */
-const ARSVideoLocal = ({ 
+const ARSVideoLocal = forwardRef(({ 
   videoSrc = '/videos/sample.mp4', 
   position = [0, 0, 0], 
   scale = [4, 3, 1],
@@ -22,7 +22,36 @@ const ARSVideoLocal = ({
   muted = false,
   showFrame = false,
   volume = 1
-}) => {
+}, ref) => {
+  // Métodos para control externo
+  useImperativeHandle(ref, () => ({
+    playVideo: () => {
+      if (videoRef.current) {
+        videoRef.current.play();
+        setIsPlaying(true);
+      }
+    },
+    pauseVideo: () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    },
+    stopVideo: () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+        setIsPlaying(false);
+      }
+    },
+    restartVideo: () => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.play();
+        setIsPlaying(true);
+      }
+    }
+  }), []);
   const meshRef = useRef();
   const videoRef = useRef();
   const [videoTexture, setVideoTexture] = useState(null);
@@ -184,6 +213,6 @@ const ARSVideoLocal = ({
       )}
     </group>
   );
-};
+});
 
 export default ARSVideoLocal;

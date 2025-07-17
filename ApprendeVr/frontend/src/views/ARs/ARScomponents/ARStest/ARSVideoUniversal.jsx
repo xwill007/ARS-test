@@ -16,7 +16,7 @@ import ARSVideoYoutube from './ARSVideoYoutube';
  * - showFrame: mostrar marco alrededor del video (default: false)
  * - quality: calidad del video YouTube ('480', '720', '1080', 'default') (default: '720')
  */
-const ARSVideoUniversal = ({ 
+const ARSVideoUniversal = React.forwardRef(({ 
   videoSrc = '', 
   position = [0, 0, 0], 
   scale = [4, 3, 1],
@@ -26,7 +26,7 @@ const ARSVideoUniversal = ({
   showFrame = false,
   quality = '720',
   volume = 1
-}) => {
+}, ref) => {
   
   // Función para detectar si es un URL de YouTube
   const isYouTubeUrl = (url) => {
@@ -67,6 +67,7 @@ const ARSVideoUniversal = ({
   if (isYoutube) {
     return (
       <ARSVideoYoutube 
+        ref={ref}
         {...commonProps}
         youtubeUrl={videoSrc}
         quality={quality}
@@ -76,10 +77,11 @@ const ARSVideoUniversal = ({
 
   return (
     <ARSVideoLocal 
+      ref={ref}
       {...commonProps}
       videoSrc={videoSrc}
     />
   );
-};
+});
 
 export default ARSVideoUniversal;

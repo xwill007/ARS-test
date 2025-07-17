@@ -16,6 +16,8 @@ const VRConeR3FVideoOverlayConfigurable = ({
   // Reconocimiento de voz para comandos
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef(null);
+  // Referencia al video principal
+  const mainVideoRef = useRef(null);
 
   const overlayId = 'vrConeR3FVideoOverlay';
   const { config, updatePosition } = useOverlayConfig(overlayId, renderKey);
@@ -54,14 +56,21 @@ const VRConeR3FVideoOverlayConfigurable = ({
             setMainVideoVolume(v => Math.max(0, Math.round((v - 0.1) * 100) / 100));
           } else if (voiceCommands.play.some(cmd => transcript.includes(cmd))) {
             updateElementPosition('mainVideo.autoPlay', true);
+            if (mainVideoRef.current && mainVideoRef.current.playVideo) mainVideoRef.current.playVideo();
           } else if (voiceCommands.pause.some(cmd => transcript.includes(cmd))) {
             updateElementPosition('mainVideo.autoPlay', false);
+            if (mainVideoRef.current && mainVideoRef.current.pauseVideo) mainVideoRef.current.pauseVideo();
           } else if (voiceCommands.stop.some(cmd => transcript.includes(cmd))) {
             updateElementPosition('mainVideo.autoPlay', false);
             updateElementPosition('mainVideo.position', [0, 5, 0]);
+            if (mainVideoRef.current && mainVideoRef.current.stopVideo) mainVideoRef.current.stopVideo();
           } else if (voiceCommands.restart.some(cmd => transcript.includes(cmd))) {
             updateElementPosition('mainVideo.autoPlay', false);
-            setTimeout(() => updateElementPosition('mainVideo.autoPlay', true), 500);
+            if (mainVideoRef.current && mainVideoRef.current.restartVideo) mainVideoRef.current.restartVideo();
+            setTimeout(() => {
+              updateElementPosition('mainVideo.autoPlay', true);
+              if (mainVideoRef.current && mainVideoRef.current.playVideo) mainVideoRef.current.playVideo();
+            }, 500);
           }
         }
       }
@@ -239,6 +248,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
           videoSrc: config.mainVideo?.videoSrc
         })}
         <ARSVideoUniversal 
+          ref={mainVideoRef}
           videoSrc={config.mainVideo?.videoSrc || "/videos/gangstas.mp4"}
           position={[0, 0, 0]}
           scale={mainVideoScale}

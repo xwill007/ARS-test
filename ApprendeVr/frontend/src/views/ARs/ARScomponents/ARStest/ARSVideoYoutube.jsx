@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { VideoTexture } from 'three';
 
@@ -14,7 +14,7 @@ import { VideoTexture } from 'three';
  * - showFrame: mostrar marco alrededor del video (default: false)
  * - quality: calidad del video ('480', '720', '1080', 'default') (default: '720')
  */
-const ARSVideoYoutube = ({ 
+const ARSVideoYoutube = forwardRef(({ 
   youtubeUrl = '', 
   position = [0, 0, 0], 
   scale = [4, 3, 1],
@@ -23,7 +23,36 @@ const ARSVideoYoutube = ({
   muted = true,
   showFrame = false,
   quality = '720'
-}) => {
+}, ref) => {
+  // Métodos para control externo
+  useImperativeHandle(ref, () => ({
+    playVideo: () => {
+      if (videoRef.current) {
+        videoRef.current.play();
+        setIsPlaying(true);
+      }
+    },
+    pauseVideo: () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    },
+    stopVideo: () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+        setIsPlaying(false);
+      }
+    },
+    restartVideo: () => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.play();
+        setIsPlaying(true);
+      }
+    }
+  }), []);
   const meshRef = useRef();
   const videoRef = useRef();
   const iframeRef = useRef();
@@ -316,6 +345,6 @@ const ARSVideoYoutube = ({
       )}
     </group>
   );
-};
+});
 
 export default ARSVideoYoutube;
