@@ -4,7 +4,7 @@ import VRPlaneArs from './VRPlaneArs';
 
 const FLOOR_SIZE = 10;
 
-const VRWorldArs = ({ children }) => {
+const VRWorldArs = ({ children, floorPosition = [0, 0, 0], floorSize = 10, floorScale = [1, 1, 1] }) => {
   const { camera } = useThree();
 
   useFrame(() => {
@@ -21,7 +21,7 @@ const VRWorldArs = ({ children }) => {
 
   return (
     <>
-      <VRPlaneArs size={FLOOR_SIZE} />
+      <VRPlaneArs size={floorSize} position={floorPosition} scale={floorScale} />
       {children}
     </>
   );

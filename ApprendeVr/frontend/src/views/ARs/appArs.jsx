@@ -54,8 +54,10 @@ const ARSApp = () => {
         />
         
         <ambientLight intensity={0.5} />
+
         <pointLight position={[10, 10, 10]} />
-        <VRWorldArs>
+
+        <VRWorldArs floorPosition={[0, -2, 0]} floorSize={300} floorScale={[3, 3, 1]}>
           <VRUserArs 
             mode="first"
             initialPosition={[0, 0, 3]}
