@@ -22,7 +22,7 @@ import RotatingCubeOverlay from './RotatingCubeOverlay';
 import VRConeOverlayWrapper from '../a-frame-components-ars/VRConeOverlayWrapper';
 import TestR3FOverlay from '../ARStest/TestR3FOverlay';
 import VRConeR3FOverlay from '../ARStest/VRConeR3FOverlay';
-import VRConeR3FVideoOverlayConfigurable from '../ARStest/VRConeR3FVideoOverlayConfigurable';
+import VRConeR3FVideoOverlayConfigurable from '../ARStest/VR3FVideoOverlayConfigurable';
 import VRConeR3FVideoOverlay from '../ARStest/VRConeR3FVideoOverlay';
 import VRLocalVideoOverlay from './VRLocalVideoOverlay';
 import CombinedAFrameOverlay from './CombinedAFrameOverlay';
@@ -78,7 +78,7 @@ overlayRegistry.register('vrConeR3FOverlay', {
 overlayRegistry.register('vrConeR3FVideoOverlay', {
   component: VRConeR3FVideoOverlayConfigurable,
   type: 'r3f',
-  label: 'Video Cono R3F',
+  label: 'Video Configurable R3F',
   description: 'Video proyectado en cono R3F - Configurable',
   category: 'video',
   configurable: true,

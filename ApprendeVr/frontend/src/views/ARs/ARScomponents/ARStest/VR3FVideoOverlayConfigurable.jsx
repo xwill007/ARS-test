@@ -96,9 +96,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
   const [isDragging, setIsDragging] = useState(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  const videoLabels = [
-    "Video R3F", "React Three Fiber", "WebGL Rendering", "Performance Test"
-  ];
+  // Paneles de etiquetas informativas eliminados
 
   // Obtener posiciones desde la configuración
   const mainVideoPosition = config.mainVideo?.position || [0, 5, 0];
@@ -389,35 +387,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
       </group>
 
 
-      {/* Etiquetas informativas en círculo */}
-      {videoLabels.map((label, i) => {
-        const angle = (i * 2 * Math.PI) / videoLabels.length;
-        const x = radiusBase * Math.cos(angle);
-        const z = radiusBase * Math.sin(angle);
-        const y = height + yOffset;
-        return (
-          <group key={i} position={[x, y, z]} rotation={[0, -angle, 0]}>
-            <mesh>
-              <boxGeometry args={[3, 0.8, 0.1]} />
-              <meshStandardMaterial 
-                color="#1a1a1a" 
-                opacity={0.9} 
-                transparent 
-              />
-            </mesh>
-            <Text
-              position={[0, 0, 0.06]}
-              fontSize={0.25}
-              color="#ffffffff"
-              anchorX="center"
-              anchorY="middle"
-              maxWidth={2.8}
-            >
-              {label}
-            </Text>
-          </group>
-        );
-      })}
+      {/* Paneles de etiquetas informativas eliminados */}
       
       {/* Controles de posición (solo en modo debug) */}
       <PositionControl 
