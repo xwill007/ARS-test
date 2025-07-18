@@ -1,3 +1,20 @@
+// Hook para cargar palabras desde JSON o localStorage
+function useConeWords() {
+  const [words, setWords] = React.useState([]);
+  React.useEffect(() => {
+    // Permitir edición local temporal
+    const local = localStorage.getItem('cone_words_edit');
+    if (local) {
+      setWords(JSON.parse(local));
+      return;
+    }
+    fetch('/config/cone_words.json')
+      .then(res => res.json())
+      .then(setWords)
+      .catch(() => setWords([]));
+  }, []);
+  return words;
+}
 import React, { useState, useEffect } from 'react';
 
 // Lista de palabras (100 palabras)
@@ -163,23 +180,6 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
       
       // Ajustar tamaño del panel según el radio
       const panelHeight = level.radius > 2 ? 0.6 : 0.4;
-// Hook para cargar palabras desde JSON o localStorage
-function useConeWords() {
-  const [words, setWords] = useState([]);
-  useEffect(() => {
-    // Permitir edición local temporal
-    const local = localStorage.getItem('cone_words_edit');
-    if (local) {
-      setWords(JSON.parse(local));
-      return;
-    }
-    fetch('/config/cone_words.json')
-      .then(res => res.json())
-      .then(setWords)
-      .catch(() => setWords([]));
-  }, []);
-  return words;
-}
       const panelDepth = level.radius > 2 ? 0.1 : 0.06;
       const textWidth = level.radius > 2 ? 8.0 : 6.0;
 
@@ -205,7 +205,6 @@ function useConeWords() {
           </a-text>
         </a-box>
       `;
-  const coneWords = useConeWords();
       
       currentWordIndex++;
     }
@@ -273,7 +272,6 @@ function useConeWords() {
 const VRConeOverlay = ({ 
   radiusBase = 6, 
   height = 3,
-  palabras = listaPalabras,
   showUserMarker = true,
   targetObjectId = "user-marker",
   targetObjectType = "sphere",
@@ -288,6 +286,8 @@ const VRConeOverlay = ({
   spiralSpacing = 0.0 // Nueva variable para espaciado entre espirales
 }) => {
   const [font, setFont] = useState(ULTRA_MSDF);
+  const coneWords = useConeWords();
+  const palabras = coneWords && coneWords.length > 0 ? coneWords : listaPalabras;
   const panelsHTML = generateConeSpiralHTML(font.font, font.image, palabras, radiusBase, height, `#${targetObjectId}`, lookAtTarget, panelSpacing, spiralSpacing);
   
   // Función para generar el objeto objetivo
