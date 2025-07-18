@@ -31,6 +31,21 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const [showDomo, setShowDomo] = useState(false);
   const [showBoth, setShowBoth] = useState(false);
   const [showStereoAR, setShowStereoAR] = useState(false);
+  const [showARFrameStereo, setShowARFrameStereo] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+  const log = (...args) => {
+    if (showLogs) {
+      if (typeof require === 'function') {
+        try {
+          require('./src/tools/showLogs.js').default(...args);
+        } catch (e) {
+          console.log('[ShowLogs fallback]', ...args);
+        }
+      } else {
+        console.log('[ShowLogs fallback]', ...args);
+      }
+    }
+  };
   const [arSeparation, setArSeparation] = useState(24); // px separación
   const [arWidth, setArWidth] = useState(380); // px ancho de cada vista
   const [arHeight, setArHeight] = useState(480); // px alto de cada vista
@@ -130,6 +145,22 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
             text="VR-AR STEREO"
             navigateTo={baseUrl + '/src/views/ARs/index.html'}
           />
+          <VRButton
+            position={[2.2, 1, 0]}
+            scale={0.9}
+            text="A-FRAME AR VOZ"
+            onClick={() => {
+              log('[AR VOZ] Click en botón, estado previo:', showARFrameStereo, showLogs);
+              setShowARFrameStereo((prev) => {
+                log('[AR VOZ] Cambiando showARFrameStereo a', !prev);
+                return !prev;
+              });
+              setShowLogs((prev) => {
+                log('[AR VOZ] Cambiando showLogs a', !prev);
+                return !prev;
+              });
+            }}
+          />
         </Canvas>
       )}
       {(showDomo || showBoth) && (
@@ -189,6 +220,21 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
           defaultHeight={arHeight}
           overlay={<VRDomo />}
         />
+      )}
+
+      {showARFrameStereo && (
+        <React.Suspense fallback={<div>Cargando ARFrame...</div>}>
+          {log('[AR VOZ] Renderizando ARFrameStereoWrapper, showARFrameStereo:', showARFrameStereo)}
+          {React.createElement(require('./views/A-frame/views/ARFrameStereoWrapper.jsx').default, {
+            onClose: () => {
+              log('[AR VOZ] Cierre solicitado desde ARFrameStereoWrapper');
+              setShowARFrameStereo(false);
+              log('[AR VOZ] Cerrando ARFrameStereoWrapper, showARFrameStereo:', false);
+            },
+            log: log,
+            showLogs: showLogs
+          })}
+        </React.Suspense>
       )}
     </div>
   );
