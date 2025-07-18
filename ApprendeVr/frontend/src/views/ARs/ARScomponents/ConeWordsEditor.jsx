@@ -1,8 +1,22 @@
 import React, { useEffect, useState } from 'react';
 
-const CONE_WORDS_PATH = '/config/cone_words.json';
+
+const WORD_FILES = [
+  'cone_words.json',
+  'cone_words_gangsta.json'
+];
+const FONT_OPTIONS = [
+  { value: 'Roboto-msdf', label: 'Roboto-msdf' },
+  { value: 'Ultra-msdf', label: 'Ultra-msdf' },
+  { value: 'test', label: 'Test MSDF' },
+  { value: 'test2', label: 'Test2 MSDF' },
+  { value: 'mozillavr', label: 'MozillaVR (bitmap)' },
+  { value: 'dejavu', label: 'DejaVu (bitmap)' }
+];
 
 const ConeWordsEditor = () => {
+  const [wordFile, setWordFile] = useState(() => localStorage.getItem('cone_words_file') || 'cone_words.json');
+  const [fontName, setFontName] = useState(() => localStorage.getItem('cone_words_font') || 'Roboto-msdf');
   const [words, setWords] = useState([]);
   const [editingIndex, setEditingIndex] = useState(null);
   const [newWord, setNewWord] = useState({ es: '', en: '' });
@@ -11,6 +25,8 @@ const ConeWordsEditor = () => {
 
   // Cargar palabras desde el archivo JSON o localStorage
   useEffect(() => {
+    localStorage.setItem('cone_words_file', wordFile);
+    localStorage.setItem('cone_words_font', fontName);
     const local = localStorage.getItem('cone_words_edit');
     if (local && local !== '[]') {
       try {
@@ -21,14 +37,14 @@ const ConeWordsEditor = () => {
         }
       } catch {}
     }
-    fetch(CONE_WORDS_PATH)
+    fetch(`/config/${wordFile}`)
       .then(res => res.json())
       .then(data => {
         setWords(data);
         localStorage.setItem('cone_words_edit', JSON.stringify(data));
       })
       .catch(() => setWords([]));
-  }, []);
+  }, [wordFile]);
 
   // Guardar palabras en localStorage (simulación de persistencia)
   const saveWords = (updated) => {
@@ -168,6 +184,20 @@ const ConeWordsEditor = () => {
 
   return (
     <div style={{ padding: 10 }}>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 10 }}>
+        <label>
+          Archivo:
+          <select value={wordFile} onChange={e => setWordFile(e.target.value)} style={{ marginLeft: 6 }}>
+            {WORD_FILES.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </label>
+        <label>
+          Fuente:
+          <select value={fontName} onChange={e => setFontName(e.target.value)} style={{ marginLeft: 6 }}>
+            {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+        </label>
+      </div>
       <h4>Palabras del Cono</h4>
       <div style={{ marginBottom: 10 }}>
         <input

@@ -3,7 +3,7 @@ import VRLanguages from './VRLanguages';
 import { useVRLanguage } from './VRLanguageContext';
 import { useVRTheme } from './VRThemeContext';
 
-const VRConfig = ({ showVRDisplay, setShowVRDisplay }) => {
+const VRConfig = ({ showVRDisplay, setShowVRDisplay, wordFile, setWordFile, fontName, setFontName, wordFiles, fontOptions }) => {
   const [open, setOpen] = useState(false);
   const { t } = useVRLanguage();
   const { themeName, setThemeName, themeList } = useVRTheme();
@@ -45,7 +45,7 @@ const VRConfig = ({ showVRDisplay, setShowVRDisplay }) => {
             color: 'white',
             borderRadius: 12,
             padding: '24px 32px 18px 32px',
-            minWidth: 240,
+            minWidth: 260,
             boxShadow: '0 4px 24px #000a',
             border: '2px solid #444',
             display: 'flex',
@@ -54,6 +54,36 @@ const VRConfig = ({ showVRDisplay, setShowVRDisplay }) => {
             gap: 0
           }}
         >
+          {/* Selector de archivo de palabras */}
+          <div style={{marginTop: 18, textAlign: 'center'}}>
+            <label style={{ color: '#90caf9', fontWeight: 'bold', fontSize: 14 }}>
+              Archivo de palabras:
+              <select
+                value={wordFile}
+                onChange={e => setWordFile(e.target.value)}
+                style={{ marginLeft: 8, fontSize: 14, borderRadius: 4, padding: '2px 8px' }}
+              >
+                {wordFiles.map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {/* Selector de fuente MSDF */}
+          <div style={{marginTop: 12, textAlign: 'center'}}>
+            <label style={{ color: '#90caf9', fontWeight: 'bold', fontSize: 14 }}>
+              Fuente MSDF:
+              <select
+                value={fontName}
+                onChange={e => setFontName(e.target.value)}
+                style={{ marginLeft: 8, fontSize: 14, borderRadius: 4, padding: '2px 8px' }}
+              >
+                {fontOptions.map(f => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
           {/* Botón X para cerrar en la esquina superior derecha */}
           <button
             style={{
