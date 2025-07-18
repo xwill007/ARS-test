@@ -40,19 +40,23 @@ const FONT_PRESETS = {
   }
 };
 
-function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiusBase = 6, height = 3, targetObject = "#user-marker", lookAtTarget = false, panelSpacing = 0.1, spiralSpacing = 0.3) {
+function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiusBase = 6, height = 3, targetObject = "#user-marker", lookAtTarget = false, panelSpacing = 0.08, spiralSpacing = 0.3) {
   const numPanels = palabras.length;
   let panels = '';
 
   // Dividir las palabras en niveles según el radio
   const levels = [];
   const totalLevels = 10; // Número de niveles en el cono
+  // Variable fija para separación entre paneles
+  const panelGap = 0.03; // Ajusta este valor para más o menos separación
+  // Construir niveles de abajo (más bajo) a arriba (más alto)
   for (let level = 0; level < totalLevels; level++) {
     const currentRadius = radiusBase - (level * (radiusBase / totalLevels));
     if (currentRadius <= 0.3) break;
     const panelWidth = currentRadius > 2 ? 2.0 : 1.5;
     const circumference = 2 * Math.PI * currentRadius;
-    const maxPanelsInLevel = Math.floor(circumference / (panelWidth + spiralSpacing));
+    const maxPanelsInLevel = Math.floor(circumference / (panelWidth + panelGap));
+    // Altura normal: el nivel 0 es el más bajo
     const levelHeight = (level * height) / totalLevels + 0.25;
     levels.push({
       radius: currentRadius,
@@ -62,83 +66,58 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
     });
   }
   let currentWordIndex = 0;
-  for (let levelIndex = 0; levelIndex < levels.length && currentWordIndex < numPanels; levelIndex++) {
-    const level = levels[levelIndex];
-    const wordsInThisLevel = Math.min(level.maxPanels, numPanels - currentWordIndex);
-    for (let i = 0; i < wordsInThisLevel; i++) {
-      if (currentWordIndex >= numPanels) break;
-      const spiralOffset = levelIndex * 0.2;
-      const angle = (i * 2 * Math.PI) / wordsInThisLevel + spiralOffset;
-      const x = level.radius * Math.cos(angle);
-      const z = level.radius * Math.sin(angle);
-      const y = level.height;
-      const palabra = palabras[currentWordIndex];
-      const lookAtAttribute = lookAtTarget ? `look-at="${targetObject}"` : '';
-      const panelHeight = level.radius > 2 ? 0.6 : 0.4;
-      const panelDepth = level.radius > 2 ? 0.1 : 0.06;
-      const textWidth = level.radius > 2 ? 8.0 : 6.0;
-      panels += `
-        <a-box
-          position="${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}"
-          width="${level.panelWidth}"
-          height="${panelHeight}"
-          depth="${panelDepth}"
-          color="#222"
-          ${lookAtAttribute}
-          data-panel="true">
-          <a-text
-            value="${palabra.en}"
-            color="#FFCC00"
-            align="center"
-            width="${textWidth}"
-            font="${font}"
-            font-image="${fontImage}"
-            shader="msdf"
-            position="0 0.35 0.06">
-          </a-text>
-        </a-box>
-      `;
-      currentWordIndex++;
-    }
+  // Espiral continua: avanza por todos los niveles y palabras, incrementando ángulo y altura progresivamente
+  let spiralAngle = 0;
+  let spiralY = 0.25; // base del cono
+  let spiralLevel = 0;
+  let spiralRadius = radiusBase;
+  let spiralHeightStep = height / (numPanels > 1 ? numPanels - 1 : 1);
+  for (let idx = 0; idx < numPanels; idx++) {
+    // Calcular el nivel actual según la altura
+    spiralLevel = Math.floor((spiralY - 0.25) / (height / levels.length));
+    if (spiralLevel >= levels.length) spiralLevel = levels.length - 1;
+    const level = levels[spiralLevel];
+    spiralRadius = level.radius;
+    const palabra = palabras[idx];
+    const wordLen = palabra.en ? palabra.en.length : 1;
+    const sizePerLetter = 0.22;
+    const minPanelWidth = 1.2;
+    const maxPanelWidth = 4.0;
+    const panelWidth = Math.max(minPanelWidth, Math.min(wordLen * sizePerLetter, maxPanelWidth));
+    const arcLength = panelWidth + panelSpacing;
+    const angleDelta = arcLength / spiralRadius;
+    const x = spiralRadius * Math.cos(spiralAngle);
+    const z = spiralRadius * Math.sin(spiralAngle);
+    const y = spiralY;
+    const lookAtAttribute = lookAtTarget ? `look-at="${targetObject}"` : '';
+    const panelHeight = spiralRadius > 2 ? 0.6 : 0.4;
+    const panelDepth = spiralRadius > 2 ? 0.1 : 0.06;
+    const textWidth = spiralRadius > 2 ? 8.0 : 6.0;
+    panels += `
+      <a-box
+        position="${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}"
+        width="${panelWidth.toFixed(2)}"
+        height="${panelHeight}"
+        depth="${panelDepth}"
+        color="#222"
+        ${lookAtAttribute}
+        data-panel="true">
+        <a-text
+          value="${palabra.en}"
+          color="#FFCC00"
+          align="center"
+          width="${textWidth}"
+          font="${font}"
+          font-image="${fontImage}"
+          shader="msdf"
+          position="0 0.35 0.06">
+        </a-text>
+      </a-box>
+    `;
+    spiralAngle += angleDelta;
+    spiralY += spiralHeightStep;
   }
-  if (currentWordIndex < numPanels) {
-    const remainingWords = numPanels - currentWordIndex;
-    const tipRadius = 0.8;
-    const wordsPerRing = 6;
-    for (let i = 0; i < remainingWords; i++) {
-      const wordInRing = i % wordsPerRing;
-      const currentRing = Math.floor(i / wordsPerRing);
-      const currentTipRadius = tipRadius + (currentRing * (0.3 + spiralSpacing));
-      const angle = (wordInRing * 2 * Math.PI) / wordsPerRing;
-      const x = currentTipRadius * Math.cos(angle);
-      const z = currentTipRadius * Math.sin(angle);
-      const y = height - 0.5 + (currentRing * (0.2 + spiralSpacing));
-      const palabra = palabras[currentWordIndex + i];
-      const lookAtAttribute = lookAtTarget ? `look-at="${targetObject}"` : '';
-      panels += `
-        <a-box
-          position="${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}"
-          width="1.2"
-          height="0.3"
-          depth="0.05"
-          color="#222"
-          opacity="0.85"
-          ${lookAtAttribute}
-          data-panel="true">
-          <a-text
-            value="${palabra.en}"
-            color="#FFCC00"
-            align="center"
-            width="5.0"
-            font="${font}"
-            font-image="${fontImage}"
-            shader="msdf"
-            position="0 0 0.001">
-          </a-text>
-        </a-box>
-      `;
-    }
-  }
+  // Si hay más palabras que paneles posibles en los niveles del cono, las palabras extra NO se muestran ni se agregan arriba.
   panels += `
     <a-plane 
       position="0 0 0" 
@@ -174,6 +153,7 @@ const VRConeOverlay = ({
   const font = FONT_PRESETS[fontName] || FONT_PRESETS['Roboto-msdf'];
   const coneWords = useConeWords(wordFile);
   const palabras = coneWords && coneWords.length > 0 ? coneWords : listaPalabras;
+  // panelSpacing configurable
   const panelsHTML = generateConeSpiralHTML(font.font, font.image, palabras, radiusBase, height, `#${targetObjectId}`, lookAtTarget, panelSpacing, spiralSpacing);
   
   // Función para generar el objeto objetivo
@@ -267,8 +247,11 @@ const VRConeOverlay = ({
     </html>
   `;
   
+  // Forzar rerender también si cambian las palabras o el archivo de palabras
+  const key = `${panelSpacing}-${palabras.length}-${wordFile}`;
   return (
     <iframe
+      key={key}
       title="VRCone Overlay"
       srcDoc={srcDoc}
       style={{ 

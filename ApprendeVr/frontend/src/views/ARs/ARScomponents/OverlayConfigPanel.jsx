@@ -487,7 +487,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
           <div>
             <h4 style={{ color: '#00e0ff', marginTop: 0 }}>Palabras del Cono</h4>
             {/* Editor de palabras del cono */}
-            <ConeWordsEditor />
+            <ConeWordsEditor panelSpacing={config.panelSpacing ?? 0.08} setPanelSpacing={val => updateConfig('panelSpacing', val)} />
           </div>
         )}
       </div>

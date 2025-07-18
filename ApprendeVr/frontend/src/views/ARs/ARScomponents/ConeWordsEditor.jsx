@@ -14,7 +14,7 @@ const FONT_OPTIONS = [
   { value: 'dejavu', label: 'DejaVu (bitmap)' }
 ];
 
-const ConeWordsEditor = () => {
+const ConeWordsEditor = ({ panelSpacing, setPanelSpacing }) => {
   const [wordFile, setWordFile] = useState(() => localStorage.getItem('cone_words_file') || 'cone_words.json');
   const [fontName, setFontName] = useState(() => localStorage.getItem('cone_words_font') || 'Roboto-msdf');
   const [words, setWords] = useState([]);
@@ -199,6 +199,20 @@ const ConeWordsEditor = () => {
         </label>
       </div>
       <h4>Palabras del Cono</h4>
+      <div style={{ marginBottom: 10 }}>
+        <label>
+          Separación entre paneles:
+          <input
+            type="number"
+            min="0.01"
+            max="1"
+            step="0.01"
+            value={panelSpacing}
+            onChange={e => setPanelSpacing(parseFloat(e.target.value) || 0.01)}
+            style={{ marginLeft: 6, width: 60 }}
+          />
+        </label>
+      </div>
       <div style={{ marginBottom: 10 }}>
         <input
           placeholder="Español"
