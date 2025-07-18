@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Lista de palabras (100 palabras)
 const listaPalabras = [
@@ -99,8 +99,8 @@ const listaPalabras = [
   { es: "creacion", en: "creation" },
   { es: "evolucion", en: "evolution" },
   { es: "naturaleza", en: "nature" },
-  { es: "tecnologia", en: "technology" },
-  { es: "humanidad", en: "humanity" }
+  { es: "tecnologia", en: "technologys" },
+  { es: "humanidad", en: "humanitys" }
 ];
 
 // Fuentes MSDF
@@ -163,6 +163,23 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
       
       // Ajustar tamaño del panel según el radio
       const panelHeight = level.radius > 2 ? 0.6 : 0.4;
+// Hook para cargar palabras desde JSON o localStorage
+function useConeWords() {
+  const [words, setWords] = useState([]);
+  useEffect(() => {
+    // Permitir edición local temporal
+    const local = localStorage.getItem('cone_words_edit');
+    if (local) {
+      setWords(JSON.parse(local));
+      return;
+    }
+    fetch('/config/cone_words.json')
+      .then(res => res.json())
+      .then(setWords)
+      .catch(() => setWords([]));
+  }, []);
+  return words;
+}
       const panelDepth = level.radius > 2 ? 0.1 : 0.06;
       const textWidth = level.radius > 2 ? 8.0 : 6.0;
 
@@ -173,7 +190,7 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
           height="${panelHeight}"
           depth="${panelDepth}"
           color="#222"
-          opacity="0.85"
+  palabras,
           ${lookAtAttribute}
           data-panel="true">
           <a-text
@@ -188,6 +205,7 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
           </a-text>
         </a-box>
       `;
+  const coneWords = useConeWords();
       
       currentWordIndex++;
     }
