@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import overlayRegistry from './overlays/index'; // Auto-registro de overlays
+import configurableOverlayManager from './ConfigurableOverlayManager';
 import OverlayDropdownMenu from './OverlayDropdownMenu';
 import ARSOverlayCounter from './ARSOverlayCounter';
 import OverlayConfigPanel from './OverlayConfigPanel';
@@ -70,23 +71,24 @@ const AROverlayController = ({
 
     overlayKeys.forEach((overlayKey, index) => {
       const overlayConfig = overlayRegistry.get(overlayKey);
-      
       if (!overlayConfig) {
         console.warn(`Overlay "${overlayKey}" not found in registry`);
         return;
       }
-      
+      // Obtener configuración de usuario (si existe)
+      let userConfig = {};
+      try {
+        userConfig = configurableOverlayManager.getOverlayConfig(overlayKey) || {};
+      } catch {}
       // Usar key estable basada en el overlayKey, no en el renderKey
       const stableKey = `${overlayKey}-component`;
       const Component = overlayConfig.component;
       const props = {
         key: stableKey,
-        // Solo pasar renderKey para overlays que realmente lo necesiten para reconfiguracion
         ...(overlayConfig.needsRenderKey ? { renderKey } : {}),
-        ...overlayConfig.defaultProps
+        ...overlayConfig.defaultProps,
+        ...userConfig // userConfig sobrescribe defaultProps
       };
-      
-      // Renderizar según el tipo
       if (overlayConfig.type === 'r3f') {
         overlayComponents.r3f.push(
           <Component {...props} />
@@ -97,7 +99,6 @@ const AROverlayController = ({
         );
       }
     });
-
     return overlayComponents;
   };
 

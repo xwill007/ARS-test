@@ -14,7 +14,23 @@ const FONT_OPTIONS = [
   { value: 'dejavu', label: 'DejaVu (bitmap)' }
 ];
 
-const ConeWordsEditor = ({ panelSpacing, setPanelSpacing }) => {
+const ConeWordsEditor = ({ panelSpacing, setPanelSpacing, radiusBase, setRadiusBase, coneHeight, setConeHeight, spiralSpacing, setSpiralSpacing }) => {
+  // Handler para spiralSpacing
+  const handleSpiralSpacingChange = (e) => {
+    const val = parseFloat(e.target.value) || 0;
+    setSpiralSpacing(val);
+  };
+  // ...existing code...
+
+  // Handlers para radio base y altura
+  const handleRadiusBaseChange = (e) => {
+    const val = parseFloat(e.target.value) || 1;
+    setRadiusBase(val);
+  };
+  const handleConeHeightChange = (e) => {
+    const val = parseFloat(e.target.value) || 1;
+    setConeHeight(val);
+  };
   const [wordFile, setWordFile] = useState(() => localStorage.getItem('cone_words_file') || 'cone_words.json');
   const [fontName, setFontName] = useState(() => localStorage.getItem('cone_words_font') || 'Roboto-msdf');
   const [words, setWords] = useState([]);
@@ -199,7 +215,32 @@ const ConeWordsEditor = ({ panelSpacing, setPanelSpacing }) => {
         </label>
       </div>
       <h4>Palabras del Cono</h4>
-      <div style={{ marginBottom: 10 }}>
+
+      <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
+        <label>
+          Radio base:
+          <input
+            type="number"
+            min="1"
+            max="20"
+            step="0.1"
+            value={radiusBase}
+            onChange={handleRadiusBaseChange}
+            style={{ marginLeft: 6, width: 60 }}
+          />
+        </label>
+        <label>
+          Altura:
+          <input
+            type="number"
+            min="1"
+            max="20"
+            step="0.1"
+            value={coneHeight}
+            onChange={handleConeHeightChange}
+            style={{ marginLeft: 6, width: 60 }}
+          />
+        </label>
         <label>
           Separación entre paneles:
           <input
@@ -209,6 +250,18 @@ const ConeWordsEditor = ({ panelSpacing, setPanelSpacing }) => {
             step="0.01"
             value={panelSpacing}
             onChange={e => setPanelSpacing(parseFloat(e.target.value) || 0.01)}
+            style={{ marginLeft: 6, width: 60 }}
+          />
+        </label>
+        <label>
+          Distancia entre espirales:
+          <input
+            type="number"
+            min="0.01"
+            max="2"
+            step="0.01"
+            value={spiralSpacing}
+            onChange={handleSpiralSpacingChange}
             style={{ marginLeft: 6, width: 60 }}
           />
         </label>

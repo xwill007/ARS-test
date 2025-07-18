@@ -40,15 +40,15 @@ const FONT_PRESETS = {
   }
 };
 
-function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiusBase = 6, height = 3, targetObject = "#user-marker", lookAtTarget = false, panelSpacing = 0.08, spiralSpacing = 0.3) {
+function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiusBase = 6, height = 3, targetObject = "#user-marker", lookAtTarget = false, panelSpacing = 0.08, spiralSpacing = 0.12) {
   const numPanels = palabras.length;
   let panels = '';
 
   // Dividir las palabras en niveles según el radio
   const levels = [];
   const totalLevels = 10; // Número de niveles en el cono
-  // Variable fija para separación entre paneles
-  const panelGap = 0.03; // Ajusta este valor para más o menos separación
+  // Usar el parámetro panelSpacing en vez de un valor fijo
+  const panelGap = panelSpacing; // Ahora configurable desde la UI
   // Construir niveles de abajo (más bajo) a arriba (más alto)
   for (let level = 0; level < totalLevels; level++) {
     const currentRadius = radiusBase - (level * (radiusBase / totalLevels));
@@ -71,7 +71,8 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
   let spiralY = 0.25; // base del cono
   let spiralLevel = 0;
   let spiralRadius = radiusBase;
-  let spiralHeightStep = height / (numPanels > 1 ? numPanels - 1 : 1);
+  // Usar spiralSpacing si está definido, si no, usar el cálculo clásico
+  let spiralHeightStep = spiralSpacing > 0 ? spiralSpacing : height / (numPanels > 1 ? numPanels - 1 : 1);
   for (let idx = 0; idx < numPanels; idx++) {
     // Calcular el nivel actual según la altura
     spiralLevel = Math.floor((spiralY - 0.25) / (height / levels.length));

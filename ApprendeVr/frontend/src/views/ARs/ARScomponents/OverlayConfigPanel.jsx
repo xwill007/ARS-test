@@ -487,7 +487,16 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
           <div>
             <h4 style={{ color: '#00e0ff', marginTop: 0 }}>Palabras del Cono</h4>
             {/* Editor de palabras del cono */}
-            <ConeWordsEditor panelSpacing={config.panelSpacing ?? 0.08} setPanelSpacing={val => updateConfig('panelSpacing', val)} />
+            <ConeWordsEditor 
+              panelSpacing={config.panelSpacing ?? 0.08}
+              setPanelSpacing={val => updateConfig('panelSpacing', val)}
+              radiusBase={config.radiusBase ?? 6}
+              setRadiusBase={val => updateConfig('radiusBase', val)}
+              coneHeight={config.height ?? 3}
+              setConeHeight={val => updateConfig('height', val)}
+              spiralSpacing={config.spiralSpacing ?? 0.12}
+              setSpiralSpacing={val => updateConfig('spiralSpacing', val)}
+            />
           </div>
         )}
       </div>
