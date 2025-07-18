@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 // Hook para cargar palabras desde JSON o localStorage
 function useConeWords(wordFile) {
   const [words, setWords] = React.useState([]);
@@ -14,7 +15,6 @@ function useConeWords(wordFile) {
   }, [wordFile]);
   return words;
 }
-import React, { useState, useEffect } from 'react';
 
 // Lista de palabras (100 palabras)
 const listaPalabras = [];
@@ -71,10 +71,9 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
   let spiralY = 0.25; // base del cono
   let spiralLevel = 0;
   let spiralRadius = radiusBase;
-  // Usar spiralSpacing si está definido, si no, usar el cálculo clásico
   let spiralHeightStep = spiralSpacing > 0 ? spiralSpacing : height / (numPanels > 1 ? numPanels - 1 : 1);
+  let prevPanelWidth = null;
   for (let idx = 0; idx < numPanels; idx++) {
-    // Calcular el nivel actual según la altura
     spiralLevel = Math.floor((spiralY - 0.25) / (height / levels.length));
     if (spiralLevel >= levels.length) spiralLevel = levels.length - 1;
     const level = levels[spiralLevel];
@@ -85,8 +84,21 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
     const minPanelWidth = 1.2;
     const maxPanelWidth = 4.0;
     const panelWidth = Math.max(minPanelWidth, Math.min(wordLen * sizePerLetter, maxPanelWidth));
-    const arcLength = panelWidth + panelSpacing;
-    const angleDelta = arcLength / spiralRadius;
+    // Calcular el ángulo de separación teniendo en cuenta la mitad del panel anterior y la mitad del actual
+    let angleDelta;
+    if (prevPanelWidth === null) {
+      // Primer panel: solo la mitad de su ancho + separación
+      angleDelta = (panelWidth / 2 + panelSpacing / 2) / spiralRadius;
+    } else {
+      // Siguiente panel: mitad anterior + mitad actual + separación
+      angleDelta = ((prevPanelWidth / 2) + (panelWidth / 2) + panelSpacing) / spiralRadius;
+    }
+    // Para el primer panel, no rotar antes de colocar
+    if (idx === 0) {
+      spiralAngle = 0;
+    } else {
+      spiralAngle += angleDelta;
+    }
     const x = spiralRadius * Math.cos(spiralAngle);
     const z = spiralRadius * Math.sin(spiralAngle);
     const y = spiralY;
@@ -94,28 +106,17 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
     const panelHeight = spiralRadius > 2 ? 0.6 : 0.4;
     const panelDepth = spiralRadius > 2 ? 0.1 : 0.06;
     const textWidth = spiralRadius > 2 ? 8.0 : 6.0;
+    const theta = Math.atan2(x, z) * 180 / Math.PI;
     panels += `
-      <a-box
-        position="${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}"
-        width="${panelWidth.toFixed(2)}"
-        height="${panelHeight}"
-        depth="${panelDepth}"
-        color="#222"
-        ${lookAtAttribute}
-        data-panel="true">
-        <a-text
-          value="${palabra.en}"
-          color="#FFCC00"
-          align="center"
-          width="${textWidth}"
-          font="${font}"
-          font-image="${fontImage}"
-          shader="msdf"
-          position="0 0.35 0.06">
-        </a-text>
-      </a-box>
+      <a-entity position="${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}" rotation="0 ${theta.toFixed(2)} 0" panel-flip ${lookAtAttribute}>
+        <a-box width="${panelWidth.toFixed(2)}" height="${panelHeight}" depth="${panelDepth}" color="#222" opacity="0.0"></a-box>
+        <!-- Cara frontal: palabra en inglés -->
+        <a-text value="${palabra.en}" color="#FFCC00" align="center" width="${textWidth}" font="${font}" font-image="${fontImage}" shader="msdf" position="0 0.35 ${panelDepth/2 + 0.01}"></a-text>
+        <!-- Cara trasera: traducción -->
+        <a-text value="${palabra.es || ''}" color="#00CCFF" align="center" width="${textWidth}" font="${font}" font-image="${fontImage}" shader="msdf" position="0 0.35 -${panelDepth/2 + 0.01}" rotation="0 180 0"></a-text>
+      </a-entity>
     `;
-    spiralAngle += angleDelta;
+    prevPanelWidth = panelWidth;
     spiralY += spiralHeightStep;
   }
   // Si hay más palabras que paneles posibles en los niveles del cono, las palabras extra NO se muestran ni se agregan arriba.
@@ -232,6 +233,23 @@ const VRConeOverlay = ({
     <html>
       <head>
         <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+        <script>
+          AFRAME.registerComponent('panel-flip', {
+            schema: {},
+            init: function () {
+              this.flipped = false;
+              this.el.addEventListener('click', () => {
+                this.flipped = !this.flipped;
+                this.el.setAttribute('animation__flip', {
+                  property: 'rotation.y',
+                  to: this.flipped ? 180 : 0,
+                  dur: 400,
+                  easing: 'easeInOutQuad'
+                });
+              });
+            }
+          });
+        </script>
         ${lookAtScript}
       </head>
       <body style="margin:0; background:transparent;">

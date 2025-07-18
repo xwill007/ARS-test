@@ -178,10 +178,15 @@ const ConeWordsEditor = ({ panelSpacing, setPanelSpacing, radiusBase, setRadiusB
         if (file.name.endsWith('.json')) {
           imported = JSON.parse(ev.target.result);
         } else if (file.name.endsWith('.txt')) {
-          imported = ev.target.result.split(/\r?\n/).map(line => {
-            const [es, en] = line.split(/\t|,/);
-            return es && en ? { es: es.trim(), en: en.trim() } : null;
-          }).filter(Boolean);
+          imported = ev.target.result
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(line => line && (line.includes('\t') || line.includes(',')))
+            .map((line, idx) => {
+              const [es, en] = line.split(/\t|,/).map(s => s.trim());
+              return es && en ? { id: idx + 1, es, en } : null;
+            })
+            .filter(Boolean);
         }
         if (Array.isArray(imported) && imported.length > 0) {
           setWords(imported);

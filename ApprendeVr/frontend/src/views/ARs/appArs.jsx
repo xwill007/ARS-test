@@ -38,8 +38,8 @@ const ARSApp = () => {
       {/* Panel de configuración */}
       <ConfigPanel />
       
-      {/* Panel de debug */}
-      <DebugPanel />
+      {/* Panel de debug desactivado */}
+      {/* <DebugPanel /> */}
       
       {/* Canvas con el mundo 3D en el fondo - Sin renderKey para evitar reseteos */}
       <Canvas 
