@@ -103,8 +103,8 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
     const z = spiralRadius * Math.sin(spiralAngle);
     const y = spiralY;
     const lookAtAttribute = lookAtTarget ? `look-at="${targetObject}"` : '';
-    const panelHeight = spiralRadius > 2 ? 0.6 : 0.4;
-    const panelDepth = spiralRadius > 2 ? 0.1 : 0.06;
+    const panelHeight = spiralRadius > 2 ? 0.1 : 0.22; // Reducido el alto del panel
+    const panelDepth = spiralRadius > 2 ? 0.01 : 0.06;
     const textWidth = spiralRadius > 2 ? 8.0 : 6.0;
     const theta = Math.atan2(x, z) * 180 / Math.PI;
     panels += `
