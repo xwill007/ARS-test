@@ -109,6 +109,10 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
     const theta = Math.atan2(x, z) * 180 / Math.PI;
     panels += `
       <a-entity class="clickable" panel-flip position="${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}" rotation="0 ${theta.toFixed(2)} 0" ${lookAtAttribute}>
+        <a-box class="clickable"
+          width="${panelWidth.toFixed(2)}" height="${panelHeight}" depth="${panelDepth}" color="#222" opacity="0.0"
+          event-set__1="_event: click; _target: ..; click: true"
+        ></a-box>
         <!-- Cara frontal: palabra en inglés -->
         <a-text class="clickable"
           value="${palabra.en}" color="#FFCC00" align="center" width="${textWidth}" font="${font}" font-image="${fontImage}" shader="msdf"
@@ -290,17 +294,6 @@ const VRConeOverlay = ({
                 }
               });
             }, 3000);
-          });
-          AFRAME.registerComponent('cursor-color-change', {
-            init: function () {
-              var el = this.el;
-              el.addEventListener('mouseenter', function () {
-                el.setAttribute('material', 'color', '#2196f3'); // azul
-              });
-              el.addEventListener('mouseleave', function () {
-                el.setAttribute('material', 'color', 'white');
-              });
-            }
           });
         </script>
         ${lookAtScript}
