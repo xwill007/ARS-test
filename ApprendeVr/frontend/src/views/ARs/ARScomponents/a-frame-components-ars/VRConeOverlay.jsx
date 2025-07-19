@@ -108,12 +108,23 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
     const textWidth = spiralRadius > 2 ? 8.0 : 6.0;
     const theta = Math.atan2(x, z) * 180 / Math.PI;
     panels += `
-      <a-entity position="${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}" rotation="0 ${theta.toFixed(2)} 0" panel-flip ${lookAtAttribute}>
-        <a-box width="${panelWidth.toFixed(2)}" height="${panelHeight}" depth="${panelDepth}" color="#222" opacity="0.0"></a-box>
+      <a-entity class="clickable" panel-flip position="${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}" rotation="0 ${theta.toFixed(2)} 0" ${lookAtAttribute}>
+        <a-box class="clickable"
+          width="${panelWidth.toFixed(2)}" height="${panelHeight}" depth="${panelDepth}" color="#222" opacity="0.0"
+          event-set__1="_event: click; _target: ..; click: true"
+        ></a-box>
         <!-- Cara frontal: palabra en inglés -->
-        <a-text value="${palabra.en}" color="#FFCC00" align="center" width="${textWidth}" font="${font}" font-image="${fontImage}" shader="msdf" position="0 0.35 ${panelDepth/2 + 0.01}"></a-text>
+        <a-text class="clickable"
+          value="${palabra.en}" color="#FFCC00" align="center" width="${textWidth}" font="${font}" font-image="${fontImage}" shader="msdf"
+          position="0 0.35 ${panelDepth/2 + 0.01}"
+          event-set__2="_event: click; _target: ..; click: true"
+        ></a-text>
         <!-- Cara trasera: traducción -->
-        <a-text value="${palabra.es || ''}" color="#00CCFF" align="center" width="${textWidth}" font="${font}" font-image="${fontImage}" shader="msdf" position="0 0.35 -${panelDepth/2 + 0.01}" rotation="0 180 0"></a-text>
+        <a-text class="clickable"
+          value="${palabra.es || ''}" color="#00CCFF" align="center" width="${textWidth}" font="${font}" font-image="${fontImage}" shader="msdf"
+          position="0 0.35 -${panelDepth/2 + 0.01}" rotation="0 180 0"
+          event-set__3="_event: click; _target: ..; click: true"
+        ></a-text>
       </a-entity>
     `;
     prevPanelWidth = panelWidth;
@@ -229,16 +240,21 @@ const VRConeOverlay = ({
     </script>
   ` : '';
   
+  const showLogs = true; // Cambia a false para desactivar logs
+
   const srcDoc = `
     <html>
       <head>
         <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
         <script>
+          var showLogs = ${showLogs};
           AFRAME.registerComponent('panel-flip', {
             schema: {},
             init: function () {
               this.flipped = false;
-              this.el.addEventListener('click', () => {
+              if (showLogs) console.log('[panel-flip] init for', this.el);
+              this.el.addEventListener('click', (e) => {
+                if (showLogs) console.log('[panel-flip] click event', e, 'on', this.el);
                 this.flipped = !this.flipped;
                 this.el.setAttribute('animation__flip', {
                   property: 'rotation.y',
@@ -246,8 +262,38 @@ const VRConeOverlay = ({
                   dur: 400,
                   easing: 'easeInOutQuad'
                 });
+                if (showLogs) console.log('[panel-flip] flipped:', this.flipped);
               });
             }
+          });
+          // Click automático en el primer panel tras 3 segundos
+          document.addEventListener('DOMContentLoaded', function() {
+            if (showLogs) console.log('[auto-flip] DOMContentLoaded');
+            setTimeout(function() {
+              var scene = document.querySelector('a-scene');
+              if (!scene) {
+                if (showLogs) console.warn('[auto-flip] No scene found');
+                return;
+              }
+              scene.addEventListener('loaded', function() {
+                if (showLogs) console.log('[auto-flip] Scene loaded');
+                var panel = document.querySelector('.clickable[panel-flip]');
+                if (showLogs) console.log('[auto-flip] Found panel:', panel);
+                if(panel) {
+                  panel.emit('mousedown');
+                  panel.emit('click');
+                  if (showLogs) console.log('[auto-flip] Emitted mousedown and click on panel');
+                  var cursor = document.querySelector('[cursor]');
+                  if(cursor) {
+                    cursor.emit('mousedown');
+                    setTimeout(() => cursor.emit('mouseup'), 120);
+                    if (showLogs) console.log('[auto-flip] Emitted mousedown/mouseup on cursor');
+                  }
+                } else {
+                  if (showLogs) console.warn('[auto-flip] No panel found for auto-flip');
+                }
+              });
+            }, 3000);
           });
         </script>
         ${lookAtScript}
@@ -259,8 +305,18 @@ const VRConeOverlay = ({
           <!-- Objeto objetivo configurable -->
           ${generateTargetObject()}
           ` : ''}
-          <!-- Cámara a altura de persona -->
-          <a-camera position="0 1.8 0" rotation="0 0 0"></a-camera>
+          <!-- Cámara a altura de persona con cursor -->
+          <a-camera position="0 1.8 0" rotation="0 0 0">
+            <a-entity 
+              cursor="fuse: false; rayOrigin: mouse" 
+              raycaster="objects: .clickable"
+              material="color: white; shader: flat"
+              geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.015"
+              position="0 0 -1"
+              animation__click="property: scale; startEvents: mousedown; to: 0.7 0.7 0.7; dur: 100; easing: easeOutQuad"
+              animation__unclick="property: scale; startEvents: mouseup; to: 1 1 1; dur: 100; easing: easeOutQuad"
+            ></a-entity>
+          </a-camera>
         </a-scene>
       </body>
     </html>
