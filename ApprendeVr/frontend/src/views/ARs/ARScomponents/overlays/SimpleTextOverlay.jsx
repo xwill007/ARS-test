@@ -29,11 +29,11 @@ const SimpleTextOverlay = ({
     // Detectar si estamos en modo ARS
     const arsCheck = document.querySelector('.ars-container') !== null || 
                     document.querySelector('.ar-panel') !== null ||
+                    document.querySelector('.ar-stereo-container') !== null ||
                     window.location.href.includes('ARs');
     
-    // Detectar si estamos en modo estéreo (buscar paneles izquierdo y derecho)
-    const stereoCheck = document.querySelector('.ar-panel-left') !== null && 
-                       document.querySelector('.ar-panel-right') !== null;
+    // Detectar si estamos en modo estéreo (buscar contenedor de paneles ARS)
+    const stereoCheck = document.querySelector('.ar-stereo-container') !== null;
     
     setIsIOS(iosCheck);
     setIsMobile(mobileCheck);
@@ -65,14 +65,18 @@ const SimpleTextOverlay = ({
 
     // En modo estéreo, crear video en cada panel
     if (isStereoMode) {
-      const leftPanel = document.querySelector('.ar-panel-left');
-      const rightPanel = document.querySelector('.ar-panel-right');
-      
-      if (leftPanel) {
-        createVideoInContainer(leftPanel, videoId, 'left');
-      }
-      if (rightPanel) {
-        createVideoInContainer(rightPanel, videoId, 'right');
+      // Buscar los paneles ARS específicos
+      const arsContainer = document.querySelector('.ar-stereo-container');
+      if (arsContainer) {
+        // Buscar TODOS los divs dentro del contenedor (menos restrictivo)
+        const allDivs = arsContainer.querySelectorAll('div');
+        const panelsNodeList = Array.from(allDivs);
+        console.log('Todos los divs encontrados:', panelsNodeList.length);
+        
+        // Crear videos en los primeros 3 divs (o más si es necesario)
+        panelsNodeList.slice(0, 3).forEach((panel, index) => {
+          createVideoInContainer(panel, videoId, `panel-${index}`);
+        });
       }
     } else {
       // En modo normal, crear en el contenedor principal
@@ -118,8 +122,8 @@ const SimpleTextOverlay = ({
     // Ajustar estilo según el modo
     if (isARSMode) {
       videoContainer.style.zIndex = '9999';
-      videoContainer.style.width = '250px';
-      videoContainer.style.height = '141px';
+      videoContainer.style.width = '200px';
+      videoContainer.style.height = '113px';
       videoContainer.style.border = '3px solid #ff6b6b';
       videoContainer.style.boxShadow = '0 0 20px rgba(255, 107, 107, 0.5)';
     } else {
@@ -140,7 +144,7 @@ const SimpleTextOverlay = ({
     videoContainer.appendChild(iframe);
     container.appendChild(videoContainer);
 
-    console.log(`Video container created in ${position}:`, container.className || container.tagName);
+    console.log(`Video container created in ${position}:`, container.className || container.tagName, 'Container style:', container.style.cssText);
   };
 
   // Componente de video simplificado que funciona en todas las plataformas
