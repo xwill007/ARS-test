@@ -73,9 +73,9 @@ const SimpleTextOverlay = ({
         const panelsNodeList = Array.from(allDivs);
         console.log('Todos los divs encontrados:', panelsNodeList.length);
         
-        // Crear videos en los primeros 3 divs (o más si es necesario)
-        panelsNodeList.slice(0, 3).forEach((panel, index) => {
-          createVideoInContainer(panel, videoId, `panel-${index}`);
+        // Crear videos solo en los primeros 2 divs (panel izquierdo y derecho)
+        panelsNodeList.slice(0, 2).forEach((panel, index) => {
+          createVideoInContainer(panel, videoId, `panel-${index}`, index);
         });
       }
     } else {
@@ -89,7 +89,7 @@ const SimpleTextOverlay = ({
           targetContainer = arsContainer;
         }
       }
-      createVideoInContainer(targetContainer, videoId, 'center');
+      createVideoInContainer(targetContainer, videoId, 'center', 0);
     }
 
     // Cleanup
@@ -106,18 +106,40 @@ const SimpleTextOverlay = ({
   }, [showVideo, videoId, isARSMode, isStereoMode]);
 
   // Función para crear video en un contenedor específico
-  const createVideoInContainer = (container, videoId, position) => {
+  const createVideoInContainer = (container, videoId, position, index) => {
     const videoContainer = document.createElement('div');
     videoContainer.id = `video-overlay-${videoId}-${position}`;
     videoContainer.style.position = 'absolute';
-    videoContainer.style.top = '50%';
-    videoContainer.style.left = '50%';
-    videoContainer.style.transform = 'translate(-50%, -50%)';
     videoContainer.style.zIndex = '1000';
     videoContainer.style.pointerEvents = 'auto';
     videoContainer.style.border = '2px solid #333';
     videoContainer.style.borderRadius = '8px';
     videoContainer.style.backgroundColor = '#000';
+
+    // Ajustar posición según el índice del panel
+    if (isARSMode && isStereoMode) {
+      if (index === 0) {
+        // Panel izquierdo - video más a la izquierda
+        videoContainer.style.left = '25%';
+        videoContainer.style.top = '50%';
+        videoContainer.style.transform = 'translate(-50%, -50%)';
+      } else if (index === 1) {
+        // Panel derecho - video más a la derecha
+        videoContainer.style.left = '75%';
+        videoContainer.style.top = '50%';
+        videoContainer.style.transform = 'translate(-50%, -50%)';
+      } else {
+        // Otros paneles - centro
+        videoContainer.style.left = '50%';
+        videoContainer.style.top = '50%';
+        videoContainer.style.transform = 'translate(-50%, -50%)';
+      }
+    } else {
+      // Modo normal - centro
+      videoContainer.style.left = '50%';
+      videoContainer.style.top = '50%';
+      videoContainer.style.transform = 'translate(-50%, -50%)';
+    }
 
     // Ajustar estilo según el modo
     if (isARSMode) {
