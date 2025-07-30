@@ -391,7 +391,8 @@ const OverlayDropdownMenu = ({
                         fontSize: '9px', 
                         color: '#888', 
                         marginTop: '2px',
-                        fontStyle: 'italic'
+                        fontStyle: 'italic',
+                        wordBreak: 'break-all'
                       }}>
                         📁 {category}
                       </div>

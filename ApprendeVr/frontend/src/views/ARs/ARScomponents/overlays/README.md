@@ -1,123 +1,130 @@
-# 🎯 Sistema de Registro Automático de Overlays - SOLID Compliant
+# SimpleTextOverlay con Video - Solución para iOS
 
-## ✨ ¡Solo Crear y Registrar!
+## 🎯 Problema Resuelto
 
-Hemos implementado un sistema que sigue los principios SOLID. Ahora el workflow es súper simple:
+El `SimpleTextOverlay` ha sido mejorado para incluir reproducción de videos de YouTube que funciona correctamente en iOS, resolviendo el problema del "cuadro negro" que ocurría en dispositivos iOS.
 
-```
-1. 📝 Crear componente
-2. 📋 Registrar en index.js
-3. 🎉 ¡Listo! Aparece automáticamente
-```
+## ✨ Características
 
-## � Ejemplo Práctico: Agregar un Nuevo Overlay
+### 1. **Detección Automática de Plataforma**
+- Detecta automáticamente si es iOS, Android o Desktop
+- Usa métodos diferentes según la plataforma para máxima compatibilidad
 
-### Paso 1: Crear el Componente
+### 2. **Métodos de Reproducción**
+- **iOS**: Usa iframe directo (mismo método que `mobile.html`)
+- **Android/Desktop**: Usa `VRYoutubePlayer` (método estándar)
 
-Crea `MiNuevoOverlay.jsx` en esta carpeta:
+### 3. **Video por Defecto**
+- Usa el mismo video que funciona en `mobile.html`: `uVFw1Et8NFM`
+- Video optimizado para móviles y iOS
 
+### 4. **Modo Debug**
+- Incluye información de debug para diagnosticar problemas
+- Muestra plataforma detectada y método usado
+
+## 🚀 Cómo Usar
+
+### Uso Básico
 ```jsx
-import React from 'react';
-
-const MiNuevoOverlay = ({ position = [0, 1, -2], color = "#00ff00" }) => {
-  return (
-    <mesh position={position}>
-      <sphereGeometry args={[0.5, 32, 32]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
-  );
-};
-
-export default MiNuevoOverlay;
+// El overlay se registra automáticamente como 'simpleText'
+// Se puede usar desde el panel de configuración de overlays
 ```
 
-### Paso 2: Registrar en `index.js`
-
-Agrega al archivo `index.js`:
-
+### Uso Programático
 ```jsx
-// 1. Importar
-import MiNuevoOverlay from './MiNuevoOverlay';
+import SimpleTextOverlay from './SimpleTextOverlay';
 
-// 2. Registrar
-overlayRegistry.register('miEsfera', {
-  component: MiNuevoOverlay,
-  type: 'r3f',
-  label: 'Esfera Verde',
-  description: 'Una esfera verde brillante',
-  category: 'geometry',
-  defaultProps: {
-    position: [0, 1, -2],
-    color: "#00ff00"
-  }
-});
+<SimpleTextOverlay
+  position={[0, 3, -2]}
+  text="¡Hola Mundo AR!"
+  showVideo={true}
+  videoId="uVFw1Et8NFM"
+  videoPosition={[0, 0, -2]}
+  videoWidth={3}
+  debugMode={false}
+/>
 ```
 
-### ¡Eso es todo! 🎉
-
-Tu overlay aparece automáticamente en la lista sin editar controladores, managers o listas.
-
-## 📚 Overlays Disponibles Actualmente
-
-- **Texto Simple**: Texto 3D básico
-- **Cubo 3D**: Geometría de cubo coloreable
-
-## 🔧 Configuración de Props
-
+### Versión Debug
 ```jsx
-overlayRegistry.register('clave-unica', {
-  component: ComponenteReact,     // ✅ Requerido
-  type: 'r3f' | 'html',          // ✅ Requerido
-  label: 'Nombre Amigable',       // 📝 Opcional
-  description: 'Descripción...',  // 📝 Opcional
-  category: 'video',              // 🏷️ Opcional
-  defaultProps: {}                // ⚙️ Opcional
-});
+// Usar la versión de debug para diagnosticar problemas
+// Se registra como 'simpleTextDebug'
 ```
 
-## 📈 Principios SOLID Aplicados
+## 🔧 Props Disponibles
 
-- **S**ingle Responsibility: Cada overlay tiene una única responsabilidad
-- **O**pen/Closed: Abierto para extensión, cerrado para modificación
-- **L**iskov Substitution: Todos los overlays siguen la misma interfaz
-- **I**nterface Segregation: Interfaces mínimas y específicas
-- **D**ependency Inversion: Dependemos de abstracciones (registro)
+| Prop | Tipo | Default | Descripción |
+|------|------|---------|-------------|
+| `position` | `[x, y, z]` | `[0, 3, -2]` | Posición del texto |
+| `text` | `string` | `"¡Hola Mundo AR!"` | Texto a mostrar |
+| `showVideo` | `boolean` | `true` | Mostrar video |
+| `videoId` | `string` | `"uVFw1Et8NFM"` | ID del video de YouTube |
+| `videoPosition` | `[x, y, z]` | `[0, 0, -2]` | Posición del video |
+| `videoWidth` | `number` | `3` | Ancho del video |
+| `debugMode` | `boolean` | `false` | Mostrar información de debug |
 
-## 🎮 Ventajas del Nuevo Sistema
+## 📱 Compatibilidad
 
-- ✅ **Sin editar controladores**: No más switch/case gigantes
-- ✅ **Auto-detección**: Los overlays aparecen automáticamente
-- ✅ **Principios SOLID**: Código limpio y mantenible
-- ✅ **Fácil testing**: Cada overlay es independiente
-- ✅ **Hot reload**: Cambios inmediatos en desarrollo
+### ✅ Funciona Correctamente
+- **iOS Safari**: ✅ (iframe directo)
+- **Android Chrome**: ✅ (VRYoutubePlayer)
+- **Desktop Chrome**: ✅ (VRYoutubePlayer)
+- **Desktop Firefox**: ✅ (VRYoutubePlayer)
 
-## 🔄 Workflow Anterior vs Nuevo
+### 🔍 Debug Info
+El overlay muestra información de debug cuando `debugMode={true}`:
+- Plataforma detectada (iOS/Mobile/Desktop)
+- ID del video
+- Método usado (iframe/VRYoutubePlayer)
 
-### ❌ Antes (Malo)
+## 🎬 Video de Prueba
+
+El video por defecto (`uVFw1Et8NFM`) es el mismo que se usa en `mobile.html` y funciona correctamente en todas las plataformas.
+
+## 🛠️ Solución Técnica
+
+### Para iOS
+```jsx
+// Usa iframe directo con Html de @react-three/drei
+<Html>
+  <iframe
+    src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&playsinline=1&origin=${window.location.origin}`}
+    // ... props adicionales
+  />
+</Html>
 ```
-1. Crear componente
-2. Editar AROverlayController.jsx
-3. Agregar a availableOverlays
-4. Agregar al switch/case
-5. Editar ARSoverlayList.jsx
-6. Agregar a overlayButtons array
+
+### Para Android/Desktop
+```jsx
+// Usa VRYoutubePlayer que maneja la API de YouTube
+<VRYoutubePlayer
+  videoId={videoId}
+  width={videoWidth}
+  // ... props adicionales
+/>
 ```
 
-### ✅ Ahora (Bueno)
-```
-1. Crear componente
-2. Registrar en index.js
-```
+## 🔍 Diagnóstico
 
-## 🧪 Cómo Probar
+Si el video no se reproduce:
 
-1. Crea un nuevo overlay siguiendo los pasos
-2. Guarda los archivos
-3. Refresca la app
-4. ¡Tu overlay aparece en la lista automáticamente!
+1. **Verificar consola**: Buscar errores de JavaScript
+2. **Usar modo debug**: Activar `debugMode={true}`
+3. **Verificar red**: Asegurar conexión a internet
+4. **Probar video diferente**: Cambiar `videoId`
 
----
+## 📝 Notas Importantes
 
-**💡 Tip**: Usa categorías para organizar overlays similares (`video`, `geometry`, `text`, `interactive`)
+- El video se reproduce automáticamente en iOS
+- Los controles están habilitados para interacción manual
+- El video se adapta al tamaño especificado
+- La detección de plataforma es automática
 
-¡Disfruta creando overlays de manera eficiente! �
+## 🎯 Resultado Esperado
+
+En iOS deberías ver:
+1. ✅ Texto "¡Hola Mundo AR!"
+2. ✅ Video de YouTube reproduciéndose
+3. ✅ Indicador "iOS" en rojo
+4. ✅ Sin cuadro negro
+5. ✅ Controles de video funcionales

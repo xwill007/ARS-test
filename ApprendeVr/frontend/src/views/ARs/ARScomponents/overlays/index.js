@@ -17,7 +17,7 @@ overlayRegistry.register('vrConeR3FOverlay', {
 import overlayRegistry from '../OverlayRegistry';
 
 // Importar overlays existentes
-import SimpleTextOverlay from './SimpleTextOverlay';
+import SimpleTextOverlay, { SimpleTextOverlayDebug } from './SimpleTextOverlay';
 import RotatingCubeOverlay from './RotatingCubeOverlay';
 import VRConeOverlayWrapper from '../a-frame-components-ars/VRConeOverlayWrapper';
 import TestR3FOverlay from '../ARStest/TestR3FOverlay';
@@ -26,17 +26,41 @@ import VRConeR3FVideoOverlayConfigurable from '../ARStest/VR3FVideoOverlayConfig
 import VRConeR3FVideoOverlay from '../ARStest/VRConeR3FVideoOverlay';
 import VRLocalVideoOverlay from './VRLocalVideoOverlay';
 import CombinedAFrameOverlay from './CombinedAFrameOverlay';
+import ARSConeAFrameVideoOverlay from '../a-frame-components-ars/ARSConeAFrameVideoOverlay';
 
-// Registrar overlay básico de texto
+// Registrar overlay básico de texto con video
 overlayRegistry.register('simpleText', {
   component: SimpleTextOverlay,
   type: 'r3f',
-  label: 'Texto Simple',
-  description: 'Overlay de texto 3D simple',
+  label: 'Texto Simple con Video',
+  description: 'Overlay de texto 3D con video de YouTube (iOS compatible)',
   category: 'text',
   defaultProps: {
     position: [0, 3, -2],
-    text: "¡Hola Mundo AR!"
+    text: "¡Hola Mundo AR!",
+    showVideo: true,
+    videoId: "uVFw1Et8NFM",
+    videoPosition: [0, 0, -2],
+    videoWidth: 3,
+    debugMode: false
+  }
+});
+
+// Registrar versión de debug del overlay
+overlayRegistry.register('simpleTextDebug', {
+  component: SimpleTextOverlayDebug,
+  type: 'r3f',
+  label: 'Texto Simple con Video (Debug)',
+  description: 'Overlay de texto 3D con video de YouTube - Modo debug para iOS',
+  category: 'debug',
+  defaultProps: {
+    position: [0, 3, -2],
+    text: "¡Hola Mundo AR! (Debug)",
+    showVideo: true,
+    videoId: "uVFw1Et8NFM",
+    videoPosition: [0, 0, -2],
+    videoWidth: 3,
+    debugMode: true
   }
 });
 
@@ -156,6 +180,19 @@ overlayRegistry.register('combinedAFrame', {
     coneProps: {},
     videoProps: {},
     showCursor: true
+  }
+});
+
+// Registrar ARSConeAFrameVideoOverlay (overlay combinado de A-Frame)
+overlayRegistry.register('arsConeAFrameVideoOverlay', {
+  component: ARSConeAFrameVideoOverlay,
+  type: 'html',
+  label: 'Cono + Video Local A-frame (Combinado)',
+  description: 'Overlay combinado: Cono de palabras y video local en una sola escena',
+  category: 'a-frame-components-ars/ARSConeAFrameVideoOverlay.jsx',
+  configurable: true,
+  defaultProps: {
+    // Puedes agregar props por defecto aquí si lo deseas
   }
 });
 

@@ -1,16 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 
 /**
- * ARSVideoLocalAFrame - Componente para mostrar video local en A-Frame
- * Props:
- * - videoSrc: ruta del video (default: '/videos/sample.mp4')
- * - position: posición "x y z" (default: "0 0 0")
- * - scale: escala "x y z" (default: "4 3 1")
- * - autoPlay: reproducir automáticamente (default: true)
- * - loop: repetir video (default: true)
- * - muted: silenciar video (default: true)
+ * ARSVideoLocalAFrameIOS - Versión específica para iOS que evita el problema del cuadro negro
+ * Usa un enfoque diferente para manejar videos en iOS
  */
-const ARSVideoLocalAFrame = ({ 
+const ARSVideoLocalAFrameIOS = ({ 
   videoSrc = '/videos/sample.mp4', 
   position = "0 0 0", 
   scale = "4 3 1",
@@ -19,26 +13,23 @@ const ARSVideoLocalAFrame = ({
   muted = true
 }) => {
   const sceneRef = useRef();
-  const videoId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const videoId = `video-ios-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoElement, setVideoElement] = useState(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
-  const [textureReady, setTextureReady] = useState(false);
+  const [useAlternativeMethod, setUseAlternativeMethod] = useState(false);
 
   useEffect(() => {
-    // Detectar si es dispositivo móvil
-    const mobileCheck = /iPhone|iPad|iPod|Android|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    // Detectar iOS específicamente
     const iosCheck = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    setIsMobile(mobileCheck);
     setIsIOS(iosCheck);
     
-    console.log('ARSVideoLocalAFrame - Detected mobile:', mobileCheck, 'iOS:', iosCheck);
+    console.log('ARSVideoLocalAFrameIOS - iOS detected:', iosCheck);
   }, []);
 
   useEffect(() => {
-    // Crear elemento video dinámicamente
+    // Crear elemento video con configuración específica para iOS
     const video = document.createElement('video');
     video.id = videoId;
     video.src = videoSrc;
@@ -46,7 +37,7 @@ const ARSVideoLocalAFrame = ({
     video.loop = loop;
     video.muted = muted;
     
-    // Atributos específicos para móviles/iOS
+    // Configuración específica para iOS
     video.playsInline = true;
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
@@ -54,77 +45,54 @@ const ARSVideoLocalAFrame = ({
     video.setAttribute('x5-video-player-type', 'h5');
     video.setAttribute('x5-video-player-fullscreen', 'false');
     video.setAttribute('x5-video-orientation', 'portraint');
+    video.setAttribute('preload', 'auto');
+    video.setAttribute('autobuffer', '');
     
-    // Configuración específica para iOS
-    if (isMobile) {
-      video.setAttribute('preload', 'auto');
-      video.setAttribute('autobuffer', '');
-      video.setAttribute('webkit-playsinline', 'true');
-      video.setAttribute('playsinline', 'true');
-      // Para iOS, es crucial que el video esté visible inicialmente
-      video.style.position = 'absolute';
-      video.style.top = '-9999px';
-      video.style.left = '-9999px';
-      video.style.width = '1px';
-      video.style.height = '1px';
-      video.style.opacity = '0.01';
-    } else {
-      video.preload = 'metadata';
-      video.style.display = 'none';
-    }
+    // Para iOS, hacer el video visible pero muy pequeño
+    video.style.position = 'absolute';
+    video.style.top = '-9999px';
+    video.style.left = '-9999px';
+    video.style.width = '320px';  // Tamaño mínimo para iOS
+    video.style.height = '240px';
+    video.style.opacity = '0.01';
 
     // Eventos del video
     video.addEventListener('loadedmetadata', () => {
-      console.log('A-Frame Video metadata loaded:', {
+      console.log('iOS Video metadata loaded:', {
         duration: video.duration,
         videoWidth: video.videoWidth,
         videoHeight: video.videoHeight,
-        isMobile: isMobile,
-        isIOS: isIOS,
         readyState: video.readyState
       });
       setVideoLoaded(true);
     });
 
     video.addEventListener('canplay', () => {
-      console.log('A-Frame Video can play - readyState:', video.readyState);
-      if (autoPlay && !isMobile) {
-        video.play().then(() => {
-          console.log('A-Frame Video started playing');
-          setIsPlaying(true);
-        }).catch(err => {
-          console.error('Error playing A-Frame video:', err);
-        });
-      }
-    });
-
-    video.addEventListener('canplaythrough', () => {
-      console.log('A-Frame Video can play through');
+      console.log('iOS Video can play - readyState:', video.readyState);
+      // En iOS, no autoplay - esperar interacción del usuario
     });
 
     video.addEventListener('loadeddata', () => {
-      console.log('A-Frame Video data loaded');
-      setTextureReady(true);
+      console.log('iOS Video data loaded');
     });
 
     video.addEventListener('playing', () => {
-      console.log('A-Frame Video is playing');
+      console.log('iOS Video is playing');
       setIsPlaying(true);
     });
 
     video.addEventListener('pause', () => {
-      console.log('A-Frame Video paused');
+      console.log('iOS Video paused');
       setIsPlaying(false);
     });
 
     video.addEventListener('error', (e) => {
-      console.error('A-Frame Video error:', e);
+      console.error('iOS Video error:', e);
       console.error('Video error details:', {
         error: video.error,
         networkState: video.networkState,
         readyState: video.readyState,
-        src: video.src,
-        currentSrc: video.currentSrc
+        src: video.src
       });
     });
 
@@ -143,42 +111,54 @@ const ARSVideoLocalAFrame = ({
         }
       }
     };
-  }, [videoSrc, autoPlay, loop, muted, videoId, isMobile, isIOS]);
+  }, [videoSrc, autoPlay, loop, muted, videoId]);
 
   const handleClick = () => {
-    console.log('Video clicked - isPlaying:', isPlaying, 'readyState:', videoElement?.readyState);
+    console.log('iOS Video clicked - isPlaying:', isPlaying, 'readyState:', videoElement?.readyState);
     if (videoElement) {
       if (isPlaying) {
         videoElement.pause();
         setIsPlaying(false);
       } else {
-        // En móviles, asegurar que el video esté listo antes de reproducir
-        if (isMobile && videoElement.readyState < 2) {
-          console.log('Video not ready on mobile, waiting...');
+        // En iOS, asegurar que el video esté listo
+        if (videoElement.readyState < 2) {
+          console.log('iOS Video not ready, waiting...');
           videoElement.addEventListener('canplay', () => {
             videoElement.play().then(() => {
               setIsPlaying(true);
             }).catch(err => {
-              console.error('Error playing A-Frame video on mobile:', err);
+              console.error('Error playing iOS video:', err);
             });
           }, { once: true });
         } else {
           videoElement.play().then(() => {
             setIsPlaying(true);
           }).catch(err => {
-            console.error('Error playing A-Frame video:', err);
+            console.error('Error playing iOS video:', err);
           });
         }
       }
     }
   };
 
-  // Función para forzar la actualización de la textura
-  const forceTextureUpdate = () => {
-    if (videoElement && videoElement.readyState >= 2) {
-      // Forzar un frame del video para actualizar la textura
-      videoElement.currentTime = videoElement.currentTime;
-    }
+  // Método alternativo para iOS: usar canvas como textura
+  const createCanvasTexture = () => {
+    if (!videoElement || !isIOS) return null;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 240;
+    const ctx = canvas.getContext('2d');
+    
+    const updateCanvas = () => {
+      if (videoElement.readyState >= 2) {
+        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+      }
+      requestAnimationFrame(updateCanvas);
+    };
+    
+    updateCanvas();
+    return canvas;
   };
 
   return (
@@ -191,7 +171,7 @@ const ARSVideoLocalAFrame = ({
         cursor="rayOrigin: mouse"
         raycaster="objects: .clickable"
       >
-        {/* Assets - CRUCIAL: El video debe estar aquí para que A-Frame lo reconozca */}
+        {/* Assets - Método estándar */}
         <a-assets>
           <video 
             id={videoId}
@@ -200,12 +180,12 @@ const ARSVideoLocalAFrame = ({
             loop={loop}
             muted={muted}
             playsInline
-            preload={isMobile ? "auto" : "metadata"}
+            preload="auto"
             style={{ display: 'none' }}
           />
         </a-assets>
 
-        {/* Video plane */}
+        {/* Video plane - Método estándar */}
         <a-plane
           position={position}
           scale={scale}
@@ -233,19 +213,19 @@ const ARSVideoLocalAFrame = ({
         {/* Debug info for iOS */}
         {isIOS && (
           <a-text
-            value={`iOS Debug: ${videoLoaded ? 'Video Loaded' : 'Loading...'} | ReadyState: ${videoElement?.readyState || 'N/A'} | Texture: ${textureReady ? 'Ready' : 'Loading'}`}
+            value={`iOS Video Debug: ${videoLoaded ? 'Loaded' : 'Loading'} | ReadyState: ${videoElement?.readyState || 'N/A'} | Playing: ${isPlaying ? 'Yes' : 'No'}`}
             position="0 2 0"
             color="red"
             width="4"
           />
         )}
 
-        {/* Fallback plane for black screen issue */}
-        {isIOS && !textureReady && (
+        {/* Alternative debug plane for iOS */}
+        {isIOS && !videoLoaded && (
           <a-plane
             position={position}
             scale={scale}
-            material="color: #ff0000; transparent: true; opacity: 0.3"
+            material="color: #ff0000; transparent: true; opacity: 0.5"
           />
         )}
 
@@ -263,4 +243,4 @@ const ARSVideoLocalAFrame = ({
   );
 };
 
-export default ARSVideoLocalAFrame;
+export default ARSVideoLocalAFrameIOS; 
