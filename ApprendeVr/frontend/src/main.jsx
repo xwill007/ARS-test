@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import './i18n'
 import App from './App'
 import './index.css'
+import { registerServiceWorker } from './config/ssl-config'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -10,11 +11,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
-// Registrar el service worker para PWA/offline
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(reg => console.log('Service Worker registrado:', reg))
-      .catch(err => console.error('Error registrando Service Worker:', err));
-  });
-}
+// Registrar el service worker para PWA/offline de forma segura
+window.addEventListener('load', () => {
+  registerServiceWorker();
+});

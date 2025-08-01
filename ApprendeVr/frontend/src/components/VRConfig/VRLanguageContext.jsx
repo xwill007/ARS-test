@@ -1,54 +1,31 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const VRLanguageContext = createContext();
 
 export const VRLanguageProvider = ({ children, defaultLang = 'en' }) => {
+  const { t, i18n } = useTranslation();
   const [currentLang, setCurrentLang] = useState(defaultLang);
-  const [translations, setTranslations] = useState({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [availableLanguages, setAvailableLanguages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [availableLanguages, setAvailableLanguages] = useState(['en', 'es', 'br']);
 
-  // Cargar traducciones y lista de idiomas
+  // Cambiar idioma en i18next cuando cambie currentLang
   useEffect(() => {
-    const loadLanguages = async () => {
-      try {
-        const files = import.meta.glob('../../locales/*.json', { eager: true });
-        const langs = [];
-        const loadedTranslations = {};
-        for (const path in files) {
-          const langCode = path.match(/([\w-]+)\.json$/)[1];
-          langs.push(langCode);
-          loadedTranslations[langCode] = files[path].default.translation;
-        }
-        setAvailableLanguages(langs);
-        setTranslations(loadedTranslations);
-      } catch (e) {
-        console.error('Error loading languages:', e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadLanguages();
-  }, []);
-
-  // Función de traducción mejorada para claves anidadas
-  const t = (key) => {
-    const keys = key.split('.');
-    let value = translations[currentLang];
-    for (let k of keys) {
-      if (value && typeof value === 'object' && k in value) {
-        value = value[k];
-      } else {
-        return key; // Si no existe la clave, retorna la key
-      }
+    if (currentLang !== i18n.language) {
+      i18n.changeLanguage(currentLang);
     }
-    return value;
+  }, [currentLang, i18n]);
+
+  // Función para cambiar idioma
+  const changeLanguage = (lang) => {
+    setCurrentLang(lang);
+    i18n.changeLanguage(lang);
   };
 
   return (
     <VRLanguageContext.Provider value={{
       currentLang,
-      setCurrentLang,
+      setCurrentLang: changeLanguage,
       availableLanguages,
       t,
       isLoading

@@ -2,7 +2,7 @@
   "translation": {
     "appName": "Apprende English",
     "greeting": "Hola mundo!",
-    "welcomeMessage": "Welcome to ApprendeVr!",
+    "welcomeMessage": "Click on ⚙️ to access the configuration menu",
     "vrButtonText": "Enter VR",
     
     "button": {
@@ -17,7 +17,11 @@
       "viewMode": "View Mode",
       "theme": "Theme",
       "theme_light": "Light",
-      "theme_dark": "Dark"
+      "theme_dark": "Dark",
+      "navigation": "VR Navigation",
+      "showVRDisplay": "Show VRDisplay Menu",
+      "wordFile": "Word File",
+      "msdfFont": "MSDF Font"
     }
   }
 }

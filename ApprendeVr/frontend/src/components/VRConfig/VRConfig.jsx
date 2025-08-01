@@ -3,7 +3,17 @@ import VRLanguages from './VRLanguages';
 import { useVRLanguage } from './VRLanguageContext';
 import { useVRTheme } from './VRThemeContext';
 
-const VRConfig = ({ showVRDisplay, setShowVRDisplay, wordFile, setWordFile, fontName, setFontName, wordFiles, fontOptions }) => {
+const VRConfig = ({ 
+  showVRDisplay, 
+  setShowVRDisplay, 
+  wordFile = "cone_words.json", 
+  setWordFile = () => {}, 
+  fontName = "Roboto", 
+  setFontName = () => {}, 
+  wordFiles = [], 
+  fontOptions = [],
+  onNavigateTo
+}) => {
   const [open, setOpen] = useState(false);
   const { t } = useVRLanguage();
   const { themeName, setThemeName, themeList } = useVRTheme();
@@ -57,13 +67,13 @@ const VRConfig = ({ showVRDisplay, setShowVRDisplay, wordFile, setWordFile, font
           {/* Selector de archivo de palabras */}
           <div style={{marginTop: 18, textAlign: 'center'}}>
             <label style={{ color: '#90caf9', fontWeight: 'bold', fontSize: 14 }}>
-              Archivo de palabras:
+              {t('menu.wordFile')}:
               <select
                 value={wordFile}
                 onChange={e => setWordFile(e.target.value)}
                 style={{ marginLeft: 8, fontSize: 14, borderRadius: 4, padding: '2px 8px' }}
               >
-                {wordFiles.map(f => (
+                {(wordFiles || []).map(f => (
                   <option key={f} value={f}>{f}</option>
                 ))}
               </select>
@@ -72,13 +82,13 @@ const VRConfig = ({ showVRDisplay, setShowVRDisplay, wordFile, setWordFile, font
           {/* Selector de fuente MSDF */}
           <div style={{marginTop: 12, textAlign: 'center'}}>
             <label style={{ color: '#90caf9', fontWeight: 'bold', fontSize: 14 }}>
-              Fuente MSDF:
+              {t('menu.msdfFont')}:
               <select
                 value={fontName}
                 onChange={e => setFontName(e.target.value)}
                 style={{ marginLeft: 8, fontSize: 14, borderRadius: 4, padding: '2px 8px' }}
               >
-                {fontOptions.map(f => (
+                {(fontOptions || []).map(f => (
                   <option key={f.value} value={f.value}>{f.label}</option>
                 ))}
               </select>
@@ -158,7 +168,7 @@ const VRConfig = ({ showVRDisplay, setShowVRDisplay, wordFile, setWordFile, font
           <div style={{borderTop: '1px solid #444', margin: '12px -32px 0 -32px'}} />
           <div style={{marginTop: 18, textAlign: 'center'}}>
             <label style={{ color: '#90caf9', fontWeight: 'bold', fontSize: 14 }}>
-              Mostrar menú VRDisplay
+              {t('menu.showVRDisplay')}
               <input
                 type="checkbox"
                 checked={showVRDisplay}
@@ -166,6 +176,110 @@ const VRConfig = ({ showVRDisplay, setShowVRDisplay, wordFile, setWordFile, font
                 style={{ marginLeft: 8 }}
               />
             </label>
+          </div>
+          
+          {/* Sección de Navegación */}
+          <div style={{height: 12}} />
+          <div style={{borderTop: '1px solid #444', margin: '12px -32px 0 -32px'}} />
+          <div style={{marginTop: 18}}>
+            <div style={{ 
+              color: '#90caf9', 
+              fontWeight: 'bold', 
+              fontSize: 14, 
+              textAlign: 'center',
+              marginBottom: 12
+            }}>
+              {t('menu.navigation')}
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 8,
+              marginBottom: 8
+            }}>
+              <button
+                onClick={() => onNavigateTo && onNavigateTo('mobile')}
+                style={{
+                  background: 'linear-gradient(135deg, #547a54, #4a6b4a)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '10px 12px',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                VR-R3F
+              </button>
+              <button
+                onClick={() => onNavigateTo && onNavigateTo('aframe')}
+                style={{
+                  background: 'linear-gradient(135deg, #547a54, #4a6b4a)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '10px 12px',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                A-FRAME
+              </button>
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 8
+            }}>
+              <button
+                onClick={() => onNavigateTo && onNavigateTo('ar-stereo')}
+                style={{
+                  background: 'linear-gradient(135deg, #547a54, #4a6b4a)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '10px 12px',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                VR-AR STEREO
+              </button>
+              <button
+                onClick={() => onNavigateTo && onNavigateTo('aframe-voice')}
+                style={{
+                  background: 'linear-gradient(135deg, #547a54, #4a6b4a)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '10px 12px',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                A-FRAME AR VOZ
+              </button>
+            </div>
           </div>
         </div>
       )}

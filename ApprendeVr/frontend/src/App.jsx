@@ -11,18 +11,21 @@ import { OrbitControls, Sky } from '@react-three/drei';
 import { VRLanguageProvider, useVRLanguage } from './components/VRConfig/VRLanguageContext';
 import { VRThemeProvider } from './components/VRConfig/VRThemeContext';
 import { useRef, useState as useStateReact, useEffect } from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const [showVRDisplay, setShowVRDisplay] = useStateReact(true);
   return (
-    <VRThemeProvider>
-      <VRLanguageProvider>
-        <div className="canvas-container">
-          {/* UI y R3F */}
-          <AppContent showVRDisplay={showVRDisplay} setShowVRDisplay={setShowVRDisplay} />
-        </div>
-      </VRLanguageProvider>
-    </VRThemeProvider>
+    <ErrorBoundary>
+      <VRThemeProvider>
+        <VRLanguageProvider>
+          <div className="canvas-container">
+            {/* UI y R3F */}
+            <AppContent showVRDisplay={showVRDisplay} setShowVRDisplay={setShowVRDisplay} />
+          </div>
+        </VRLanguageProvider>
+      </VRThemeProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -106,9 +109,76 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
           onShowARStereo={() => { setShowStereoAR((v) => !v); setShowDomo(false); setShowBoth(false); }}
         />
       )}
+      
+      {/* Overlay de bienvenida */}
+      {(!showDomo && !showBoth && !showStereoAR && !showARFrameStereo) && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1000,
+          textAlign: 'center',
+          color: 'white',
+          textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
+          pointerEvents: 'none'
+        }}>
+          <h1 style={{ 
+            fontSize: '3rem', 
+            marginBottom: '1rem',
+            color: '#90caf9',
+            fontWeight: 'bold'
+          }}>
+            {t('appName')}
+          </h1>
+          <p style={{ 
+            fontSize: '1.2rem',
+            opacity: 0.9
+          }}>
+            {t('welcomeMessage')}
+          </p>
+        </div>
+      )}
       <VRConfig 
         showVRDisplay={showVRDisplay} 
-        setShowVRDisplay={setShowVRDisplay} 
+        setShowVRDisplay={setShowVRDisplay}
+        wordFile="cone_words.json"
+        setWordFile={() => {}}
+        fontName="Roboto"
+        setFontName={() => {}}
+        wordFiles={["cone_words.json", "cone_words_gangsta.json", "gangsta.json"]}
+        fontOptions={[
+          { value: "Roboto", label: "Roboto" },
+          { value: "Aclonica", label: "Aclonica" },
+          { value: "RockSalt", label: "RockSalt" },
+          { value: "Ultra", label: "Ultra" }
+        ]}
+        onNavigateTo={(destination) => {
+          switch(destination) {
+            case 'mobile':
+              window.open(mobileUrl, '_blank');
+              break;
+            case 'aframe':
+              window.open(aframeUrl, '_blank');
+              break;
+            case 'ar-stereo':
+              window.open(baseUrl + '/src/views/ARs/index.html', '_blank');
+              break;
+            case 'aframe-voice':
+              log('[AR VOZ] Click en botón, estado previo:', showARFrameStereo, showLogs);
+              setShowARFrameStereo((prev) => {
+                log('[AR VOZ] Cambiando showARFrameStereo a', !prev);
+                return !prev;
+              });
+              setShowLogs((prev) => {
+                log('[AR VOZ] Cambiando showLogs a', !prev);
+                return !prev;
+              });
+              break;
+            default:
+              console.log('Destino no reconocido:', destination);
+          }
+        }}
       />
       {(!showDomo || showBoth) && (
         <Canvas camera={{ position: [0, 2, 5] }}>
@@ -127,40 +197,6 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
           />
           <ambientLight intensity={0.5} />
           <pointLight position={[10, 10, 10]} />
-          <VRButton
-            position={[-1, 2, 0]}
-            scale={0.9}
-            text="VR-R3F"
-            navigateTo={mobileUrl}
-          />
-          <VRButton
-            position={[1, 2, 0]}
-            scale={0.9}
-            text="A-FRAME"
-            navigateTo={aframeUrl}
-          />
-          <VRButton
-            position={[0, 0.8, 0]}
-            scale={0.9}
-            text="VR-AR STEREO"
-            navigateTo={baseUrl + '/src/views/ARs/index.html'}
-          />
-          <VRButton
-            position={[2.2, 1, 0]}
-            scale={0.9}
-            text="A-FRAME AR VOZ"
-            onClick={() => {
-              log('[AR VOZ] Click en botón, estado previo:', showARFrameStereo, showLogs);
-              setShowARFrameStereo((prev) => {
-                log('[AR VOZ] Cambiando showARFrameStereo a', !prev);
-                return !prev;
-              });
-              setShowLogs((prev) => {
-                log('[AR VOZ] Cambiando showLogs a', !prev);
-                return !prev;
-              });
-            }}
-          />
         </Canvas>
       )}
       {(showDomo || showBoth) && (

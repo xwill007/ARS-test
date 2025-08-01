@@ -2,7 +2,7 @@
   "translation": {
     "appName": "Apprende Brasileño",
     "greeting": "Hola mundiño!",
-    "welcomeMessage": "Bienvenidiño to ApprendeVr!",
+    "welcomeMessage": "Haz clic en ⚙️ para acceder al menú de configuración",
     "vrButtonText": "Ver VRsiño",
     
     "button": {
@@ -17,7 +17,11 @@
       "viewMode": "Modo de Vistiña",
       "theme": "Temiño",
       "theme_light": "Clarito",
-      "theme_dark": "Oscurito"
+      "theme_dark": "Oscurito",
+      "navigation": "Navegación VR",
+      "showVRDisplay": "Mostrar menú VRDisplay",
+      "wordFile": "Archivo de palabras",
+      "msdfFont": "Fuente MSDF"
     }
   }
 }
