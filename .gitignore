@@ -1,0 +1,5 @@
+# Vite cache
+.vite/
+
+# Dependencies
+node_modules/

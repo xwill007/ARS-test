@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Generated SSL certificates (generate-ssl.bat)
+ssl/*
+public/ca.crt
+public/ca.pem
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
