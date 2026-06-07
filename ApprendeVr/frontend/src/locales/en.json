@@ -1,16 +1,16 @@
 {
   "translation": {
-    "appName": "Apprende English",
-    "greeting": "Hola mundo!",
+    "appName": "Apprende VR English",
+    "greeting": "Hello world!",
     "welcomeMessage": "Welcome to ApprendeVr!",
     "vrButtonText": "Enter VR",
     "installCert": "Install CA Certificate",
 
     "button": {
-      "submit": "enviar"
+      "submit": "submit"
     },
     "error": {
-      "notFound": "no encontrado"
+      "notFound": "not found"
     },
     "menu": {
       "title": "Configuration Menu",
@@ -22,7 +22,8 @@
       "showDomo": "Show Dome",
       "showBothViews": "Both Views",
       "showARStereo": "AR Stereo",
-      "close": "Close"
+      "close": "Close",
+      "showVRDisplay": "Show VRDisplay menu"
     }
   }
 }

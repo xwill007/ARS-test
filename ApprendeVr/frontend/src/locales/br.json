@@ -1,28 +1,29 @@
 {
   "translation": {
-    "appName": "Apprende Brasileño",
-    "greeting": "Hola mundiño!",
-    "welcomeMessage": "Bienvenidiño to ApprendeVr!",
-    "vrButtonText": "Ver VRsiño",
-    "installCert": "Instalar Certificadiño CA",
+    "appName": "Apprende VR Brasileño",
+    "greeting": "Olá mundo!",
+    "welcomeMessage": "Bem-vindo ao ApprendeVr!",
+    "vrButtonText": "Entrar em VR",
+    "installCert": "Instalar Certificado CA",
 
     "button": {
       "submit": "enviar"
     },
     "error": {
-      "notFound": "no encontradiño"
+      "notFound": "não encontrado"
     },
     "menu": {
-      "title": "Menu Configuracionciña",
-      "language": "Idiomiño",
-      "viewMode": "Modo de Vistiña",
-      "theme": "Temiño",
-      "theme_light": "Clarito",
-      "theme_dark": "Oscurito",
-      "showDomo": "Mostrar Domiño",
-      "showBothViews": "Ambas Vistiñas",
+      "title": "Menu de Configuração",
+      "language": "Idioma",
+      "viewMode": "Modo de Visão",
+      "theme": "Tema",
+      "theme_light": "Claro",
+      "theme_dark": "Escuro",
+      "showDomo": "Mostrar Domo",
+      "showBothViews": "Ambas as Visões",
       "showARStereo": "AR Stereo",
-      "close": "Fechar"
+      "close": "Fechar",
+      "showVRDisplay": "Mostrar menu VRDisplay"
     }
   }
 }

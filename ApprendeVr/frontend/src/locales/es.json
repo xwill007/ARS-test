@@ -1,6 +1,6 @@
 {
   "translation": {
-    "appName": "Apprende Español",
+    "appName": "Apprende VR Español",
     "greeting": "Hola mundo!",
     "welcomeMessage": "Bienvenido a ApprendeVr!",
     "vrButtonText": "Entrar en VR",
@@ -22,7 +22,8 @@
       "showDomo": "Mostrar Domo",
       "showBothViews": "Ambas Vistas",
       "showARStereo": "AR Stereo",
-      "close": "Cerrar"
+      "close": "Cerrar",
+      "showVRDisplay": "Mostrar menú VRDisplay"
     }
   }
 }

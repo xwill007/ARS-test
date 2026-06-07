@@ -128,7 +128,7 @@ const VRConfig = ({ showVRDisplay, setShowVRDisplay }) => {
           <div style={{borderTop: '1px solid #444', margin: '12px -32px 0 -32px'}} />
           <div style={{marginTop: 18, textAlign: 'center'}}>
             <label style={{ color: '#90caf9', fontWeight: 'bold', fontSize: 14 }}>
-              Mostrar menú VRDisplay
+              {t('menu.showVRDisplay')}
               <input
                 type="checkbox"
                 checked={showVRDisplay}
