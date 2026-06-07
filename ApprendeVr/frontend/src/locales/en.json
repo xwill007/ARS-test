@@ -18,7 +18,11 @@
       "viewMode": "View Mode",
       "theme": "Theme",
       "theme_light": "Light",
-      "theme_dark": "Dark"
+      "theme_dark": "Dark",
+      "showDomo": "Show Dome",
+      "showBothViews": "Both Views",
+      "showARStereo": "AR Stereo",
+      "close": "Close"
     }
   }
 }

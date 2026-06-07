@@ -18,7 +18,11 @@
       "viewMode": "Modo de Vista",
       "theme": "Tema",
       "theme_light": "Claro",
-      "theme_dark": "Oscuro"
+      "theme_dark": "Oscuro",
+      "showDomo": "Mostrar Domo",
+      "showBothViews": "Ambas Vistas",
+      "showARStereo": "AR Stereo",
+      "close": "Cerrar"
     }
   }
 }

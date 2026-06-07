@@ -18,7 +18,11 @@
       "viewMode": "Modo de Vistiña",
       "theme": "Temiño",
       "theme_light": "Clarito",
-      "theme_dark": "Oscurito"
+      "theme_dark": "Oscurito",
+      "showDomo": "Mostrar Domiño",
+      "showBothViews": "Ambas Vistiñas",
+      "showARStereo": "AR Stereo",
+      "close": "Fechar"
     }
   }
 }

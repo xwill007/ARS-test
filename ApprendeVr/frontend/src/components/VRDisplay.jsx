@@ -54,19 +54,19 @@ const VRDisplay = ({ onShowDomo, onShowBothViews, onShowARStereo }) => {
         style={buttonStyle}
         onClick={onShowDomo}
       >
-        Mostrar Domo
+        {t('menu.showDomo')}
       </button>
       <button
         style={buttonStyle}
         onClick={onShowBothViews}
       >
-        Ambas Vistas
+        {t('menu.showBothViews')}
       </button>
       <button
         style={buttonStyle}
         onClick={onShowARStereo}
       >
-        AR Stereo
+        {t('menu.showARStereo')}
       </button>
       {!caInstalled && (
         <a
