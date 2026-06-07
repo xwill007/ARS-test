@@ -3,12 +3,15 @@ import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
 
-const useHttps = process.env.VITE_USE_HTTPS === 'true'
+const httpsCertDir = path.resolve(__dirname, 'ssl')
+const certPath = path.join(httpsCertDir, 'cert.pem')
+const keyPath = path.join(httpsCertDir, 'key.pem')
+const useHttps = process.env.VITE_USE_HTTPS === 'true' && fs.existsSync(certPath) && fs.existsSync(keyPath)
 
 const httpsConfig = useHttps
   ? {
-      key: fs.readFileSync(path.resolve(__dirname, 'ssl/key.pem')),
-      cert: fs.readFileSync(path.resolve(__dirname, 'ssl/cert.pem')),
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
     }
   : undefined
 
