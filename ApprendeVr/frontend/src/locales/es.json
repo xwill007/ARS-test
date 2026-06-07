@@ -4,8 +4,8 @@
     "greeting": "Hola mundo!",
     "welcomeMessage": "Bienvenido a ApprendeVr!",
     "vrButtonText": "Entrar en VR",
-    
-    
+    "installCert": "Instalar Certificado CA",
+
     "button": {
       "submit": "enviar"
     },

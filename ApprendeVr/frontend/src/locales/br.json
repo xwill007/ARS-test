@@ -4,7 +4,8 @@
     "greeting": "Hola mundiño!",
     "welcomeMessage": "Bienvenidiño to ApprendeVr!",
     "vrButtonText": "Ver VRsiño",
-    
+    "installCert": "Instalar Certificadiño CA",
+
     "button": {
       "submit": "enviar"
     },
