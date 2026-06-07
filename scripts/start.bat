@@ -6,10 +6,10 @@ echo              INICIO RÁPIDO DEL PROYECTO VR
 echo ===================================================
 
 REM Cambiar al directorio del proyecto
-cd /d "%~dp0"
+cd /d "%~dp0..\"
 
 REM Cargar configuración del .env
-if exist ".env" (
+if exist "%~dp0..\.env" (
     echo Cargando configuración desde .env...
     call :loadEnv
 ) else (
@@ -18,7 +18,9 @@ if exist ".env" (
 )
 
 REM Cambiar al directorio del frontend
-cd /d "%~dp0ApprendeVr\frontend"
+cd /d "%~dp0..\ApprendeVr\frontend"
+
+call :setNetworkDefaults
 
 REM Verificar si existen las dependencias
 if not exist "node_modules" (
@@ -36,7 +38,7 @@ goto :eof
 
 :: Función para cargar variables del archivo .env
 :loadEnv
-for /f "usebackq tokens=1,2 delims==" %%a in ("%~dp0.env") do (
+for /f "usebackq tokens=1,2 delims==" %%a in ("%~dp0..\.env") do (
     set "line=%%a"
     if not "!line:~0,1!"=="#" if not "!line!"=="" (
         set "%%a=%%b"
@@ -61,6 +63,19 @@ set "CLEAR_SCREEN=false"
 set "IGNORE_CERT_ERRORS=true"
 goto :eof
 
+:: Función para ajustar red local y bind seguro
+:setNetworkDefaults
+set "VITE_BIND_HOST=0.0.0.0"
+set "VITE_FRONT_IP="
+
+for /f "tokens=2 delims=:" %%i in ('ipconfig ^| findstr /R /C:"192\.168\."') do (
+    if not defined VITE_FRONT_IP set "VITE_FRONT_IP=%%i"
+)
+
+if defined VITE_FRONT_IP set "VITE_FRONT_IP=%VITE_FRONT_IP: =%"
+if not defined VITE_FRONT_IP set "VITE_FRONT_IP=localhost"
+goto :eof
+
 :: Función para instalar dependencias
 :installDependencies
 set "NPM_FLAGS="
@@ -77,7 +92,7 @@ goto :eof
 :: Determinar navegador a usar
 call :getBrowser
 
-set "VITE_FLAGS=--host %VITE_FRONT_IP% --port %VITE_PORT%"
+set "VITE_FLAGS=--host %VITE_BIND_HOST% --port %VITE_PORT%"
 if /i "%CLEAR_SCREEN%"=="false" set "VITE_FLAGS=!VITE_FLAGS! --clearScreen false"
 
 if /i "%AUTO_OPEN_BROWSER%"=="true" if not "%BROWSER_PATH%"=="" (

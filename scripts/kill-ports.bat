@@ -1,6 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
+cd /d "%~dp0..\"
+
 echo ===================================================
 echo        LIBERACIÓN FORZADA DE PUERTOS
 echo ===================================================

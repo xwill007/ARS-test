@@ -37,9 +37,9 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
 
-  const protocol = import.meta.env.VITE_HTTPS === 'true' ? 'https' : 'http'
-  const host = import.meta.env.VITE_FRONT_IP
-  const port = import.meta.env.VITE_PORT
+  const protocol = window.location.protocol.replace(':', '')
+  const host = window.location.hostname
+  const port = window.location.port
   const baseUrl = `${protocol}://${host}:${port}`
   const mobileUrl = `${baseUrl}/src/views/mobile/mobile.html`
   const aframeUrl = `${baseUrl}/src/views/A-frame/index.html`  // Corregido para usar la ruta real del archivo

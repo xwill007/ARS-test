@@ -7,7 +7,7 @@ echo ===================================================
 
 :: Cargar configuración del .env
 echo Navegando al directorio del proyecto...
-cd /d "%~dp0"
+cd /d "%~dp0..\"
 if exist ".env" (
     echo Cargando configuración desde .env...
     call :loadEnv
@@ -17,7 +17,7 @@ if exist ".env" (
 )
 
 echo Navegando al directorio del frontend...
-cd /d "%~dp0ApprendeVr\frontend"
+cd /d "%~dp0..\ApprendeVr\frontend"
 
 echo Deteniendo procesos de Node.js si están en ejecución...
 taskkill /F /IM node.exe >nul 2>&1
@@ -135,7 +135,7 @@ pause
 
 :: Función para cargar variables del archivo .env
 :loadEnv
-for /f "usebackq tokens=1,2 delims==" %%a in ("%~dp0.env") do (
+for /f "usebackq tokens=1,2 delims==" %%a in ("%~dp0..\.env") do (
     set "line=%%a"
     if not "!line:~0,1!"=="#" if not "!line!"=="" (
         set "%%a=%%b"

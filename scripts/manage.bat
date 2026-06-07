@@ -38,7 +38,7 @@ goto menu
 :start_server
 echo.
 echo Iniciando servidor...
-call start.bat --no-pause
+call "%~dp0start.bat" --no-pause
 echo.
 echo Presiona cualquier tecla para volver al menú...
 pause >nul
@@ -47,7 +47,7 @@ goto menu
 :restart_server
 echo.
 echo Reiniciando servidor con instalación completa...
-call restart.bat --no-pause
+call "%~dp0restart.bat" --no-pause
 echo.
 echo Presiona cualquier tecla para volver al menú...
 pause >nul
@@ -56,7 +56,7 @@ goto menu
 :stop_server
 echo.
 echo Deteniendo servidor...
-call stop.bat --no-pause
+call "%~dp0stop.bat" --no-pause
 echo.
 echo Presiona cualquier tecla para volver al menú...
 pause >nul
@@ -65,7 +65,7 @@ goto menu
 :status_server
 echo.
 echo Verificando estado del servidor...
-call status.bat
+call "%~dp0status.bat"
 echo.
 echo Presiona cualquier tecla para volver al menú...
 pause >nul
@@ -74,7 +74,7 @@ goto menu
 :kill_ports
 echo.
 echo Liberando puertos forzadamente...
-call kill-ports.bat
+call "%~dp0kill-ports.bat"
 echo.
 echo Presiona cualquier tecla para volver al menú...
 pause >nul
@@ -83,7 +83,7 @@ goto menu
 :clean_cache
 echo.
 echo Limpiando caché y dependencias...
-cd /d "%~dp0ApprendeVr\frontend"
+cd /d "%~dp0..\ApprendeVr\frontend"
 echo Limpiando caché de npm...
 npm cache clean --force
 echo Eliminando node_modules...
@@ -100,13 +100,13 @@ goto menu
 :configure_env
 echo.
 echo Abriendo archivo .env para edición...
-if exist ".env" (
-    notepad.exe ".env"
+if exist "%~dp0..\.env" (
+    notepad.exe "%~dp0..\.env"
 ) else (
     echo Archivo .env no encontrado. Creando uno nuevo...
-    copy ".env.example" ".env" 2>nul
-    if exist ".env" (
-        notepad.exe ".env"
+    copy "%~dp0..\.env.example" "%~dp0..\.env" 2>nul
+    if exist "%~dp0..\.env" (
+        notepad.exe "%~dp0..\.env"
     ) else (
         echo No se pudo crear el archivo .env
     )
@@ -119,7 +119,7 @@ goto menu
 :show_logs
 echo.
 echo Mostrando logs de npm...
-cd /d "%~dp0ApprendeVr\frontend"
+cd /d "%~dp0..\ApprendeVr\frontend"
 if exist "npm-debug.log" (
     type npm-debug.log
 ) else if exist ".npm/_logs" (

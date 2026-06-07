@@ -3,15 +3,22 @@ import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    host: '0.0.0.0', // Permite conexiones desde cualquier IP
-    port: 3000,
-    https: {
+const useHttps = process.env.VITE_USE_HTTPS === 'true'
+
+const httpsConfig = useHttps
+  ? {
       key: fs.readFileSync(path.resolve(__dirname, 'ssl/key.pem')),
       cert: fs.readFileSync(path.resolve(__dirname, 'ssl/cert.pem')),
     }
+  : undefined
+
+export default defineConfig({
+  plugins: [react()],
+  envDir: path.resolve(__dirname, '../..'), // Carga .env desde la raíz del proyecto
+  server: {
+    host: '0.0.0.0', // Permite conexiones desde cualquier IP
+    port: 3000,
+    https: httpsConfig,
   },
   build: {
     rollupOptions: {

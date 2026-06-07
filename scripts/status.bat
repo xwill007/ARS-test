@@ -1,6 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
+cd /d "%~dp0..\"
+
 echo ===================================================
 echo        VERIFICADOR DE ESTADO DEL SERVIDOR
 echo ===================================================
@@ -19,10 +21,19 @@ if exist ".env" (
     set "VITE_PORT=3000"
 )
 
+set "DETECTED_IP="
+for /f "tokens=2 delims=:" %%i in ('ipconfig ^| findstr /R /C:"192\.168\."') do (
+    if not defined DETECTED_IP set "DETECTED_IP=%%i"
+)
+if defined DETECTED_IP set "DETECTED_IP=%DETECTED_IP: =%"
+if not defined DETECTED_IP set "DETECTED_IP=localhost"
+
 echo Configuración actual:
 echo   IP: %VITE_FRONT_IP%
 echo   Puerto: %VITE_PORT%
-echo   URL: https://%VITE_FRONT_IP%:%VITE_PORT%
+echo   Bind: 0.0.0.0
+echo   URL local: https://localhost:%VITE_PORT%
+echo   URL red: https://%DETECTED_IP%:%VITE_PORT%
 echo.
 
 :: Verificar si el servidor está corriendo
@@ -79,11 +90,11 @@ for %%p in (3000 3001 3002 5173 5174 8080 8081) do (
 echo.
 echo ===================================================
 echo Comandos disponibles:
-echo   start.bat      - Iniciar servidor
-echo   stop.bat       - Detener servidor
-echo   restart.bat    - Reiniciar con instalación completa
-echo   kill-ports.bat - Forzar liberación de puertos
-echo   status.bat     - Ver este estado (actual)
+echo   scripts\start.bat      - Iniciar servidor
+echo   scripts\stop.bat       - Detener servidor
+echo   scripts\restart.bat    - Reiniciar con instalación completa
+echo   scripts\kill-ports.bat - Forzar liberación de puertos
+echo   scripts\status.bat     - Ver este estado (actual)
 echo ===================================================
 echo.
 pause

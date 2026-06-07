@@ -7,7 +7,7 @@ echo ===================================================
 echo.
 
 :: Cargar configuración desde .env
-cd /d "%~dp0"
+cd /d "%~dp0..\"
 if exist ".env" (
     echo Cargando configuración desde .env...
     for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
@@ -98,7 +98,7 @@ if %errorlevel%==0 (
 if "%1"=="--clean-cache" (
     echo.
     echo Limpiando caché de npm...
-    cd /d "%~dp0ApprendeVr\frontend"
+    cd /d "%~dp0..\ApprendeVr\frontend"
     npm cache clean --force >nul 2>&1
     echo    ✓ Caché limpiado
 )
@@ -117,11 +117,11 @@ if "%1"=="--clean-cache" (
     echo.
 )
 echo Para reiniciar el servidor, ejecuta:
-echo   start.bat    - Inicio rápido
-echo   restart.bat  - Instalación completa
+echo   scripts\start.bat    - Inicio rápido
+echo   scripts\restart.bat  - Instalación completa
 echo.
 echo Para limpiar caché en la próxima parada:
-echo   stop.bat --clean-cache
+echo   scripts\stop.bat --clean-cache
 echo ===================================================
 
 :: Pausa opcional

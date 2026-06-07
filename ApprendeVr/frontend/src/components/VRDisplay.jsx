@@ -1,8 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVRLanguage } from './VRConfig/VRLanguageContext';
+
+const STORAGE_KEY = 'caCertInstalled';
 
 const VRDisplay = ({ onShowDomo, onShowBothViews, onShowARStereo }) => {
   const { t, isLoading } = useVRLanguage();
+  const [caInstalled, setCaInstalled] = useState(() =>
+    localStorage.getItem(STORAGE_KEY) === 'true'
+  );
+  const [justDownloaded, setJustDownloaded] = useState(false);
+
+  useEffect(() => {
+    if (justDownloaded) {
+      const timer = setTimeout(() => setJustDownloaded(false), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [justDownloaded]);
+
+  const handleInstallClick = (e) => {
+    if (caInstalled) {
+      e.preventDefault();
+      return;
+    }
+    localStorage.setItem(STORAGE_KEY, 'true');
+    setCaInstalled(true);
+    setJustDownloaded(true);
+  };
+
   return (
     <div style={{
       position: 'absolute',
@@ -44,6 +68,22 @@ const VRDisplay = ({ onShowDomo, onShowBothViews, onShowARStereo }) => {
       >
         AR Stereo
       </button>
+      {!caInstalled && (
+        <a
+          href="/ca.pem"
+          download="ca.pem"
+          style={certButtonStyle}
+          title="Instalar certificado CA para HTTPS en el celular"
+          onClick={handleInstallClick}
+        >
+          {isLoading ? '...' : t('installCert')}
+        </a>
+      )}
+      {justDownloaded && (
+        <span style={toastStyle}>
+          ✅ Descargado. Instalalo desde ajustes de tu celular.
+        </span>
+      )}
     </div>
   );
 };
@@ -59,6 +99,25 @@ const buttonStyle = {
   cursor: 'pointer',
   boxShadow: '0 2px 8px #0003',
   transition: 'background 0.2s',
+};
+
+const certButtonStyle = {
+  ...buttonStyle,
+  background: '#2e7d32',
+  textDecoration: 'none',
+  display: 'inline-block',
+  marginTop: 8,
+};
+
+const toastStyle = {
+  background: '#1b5e20',
+  color: 'white',
+  padding: '8px 14px',
+  borderRadius: 8,
+  fontSize: 13,
+  lineHeight: 1.4,
+  maxWidth: 260,
+  boxShadow: '0 2px 8px #0003',
 };
 
 export default VRDisplay;
