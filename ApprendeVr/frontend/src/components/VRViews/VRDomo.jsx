@@ -574,6 +574,7 @@ const VRDomo = ({ position = posicionDomo, numPalabras = numWords }) => {
         font="/fonts/Ultra-msdf/Ultra-msdf.json"
         font-image="/fonts/Ultra-msdf/Ultra-msdf.png"
         shader="msdf"
+        negate="false"
         geometry="primitive: plane; width: 2.1; height: 0.7"
         material="color: #333333; opacity: 0.7; side: double"
       ></a-text>

@@ -184,6 +184,7 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
             font="${font}"
             font-image="${fontImage}"
             shader="msdf"
+            negate="false"
             position="0 0 ${(panelDepth + 0.02).toFixed(2)}">
           </a-text>
         </a-box>
@@ -230,6 +231,7 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
             font="${font}"
             font-image="${fontImage}"
             shader="msdf"
+            negate="false"
             position="0 0 0.04">
           </a-text>
         </a-box>
