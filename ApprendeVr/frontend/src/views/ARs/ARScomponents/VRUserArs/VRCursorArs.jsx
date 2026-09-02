@@ -3,8 +3,15 @@ import { useThree, useFrame } from '@react-three/fiber';
 import { Vector3, Raycaster, SphereGeometry, MeshBasicMaterial, Mesh, RingGeometry } from 'three';
 
 const DWELL_SECONDS = 3;
+const SPHERE_SCALE_FACTOR = 0.5; // la esfera central mide la mitad de pointerScale
+const RING_OUTER_START = 2.1; // radio exterior inicial del anillo, en múltiplos de pointerScale
+const RING_INNER_START = 1.8;
+// Escala a la que el radio exterior del anillo (RING_OUTER_START * pointerScale * escala)
+// coincide exactamente con el radio de la esfera central (pointerScale * SPHERE_SCALE_FACTOR):
+// así el click se dispara justo cuando el anillo visualmente se funde con el reticle, no antes.
+const RING_END_SCALE = SPHERE_SCALE_FACTOR / RING_OUTER_START;
 
-const VRCursorArs = ({ userPosition, pointerColor = '#2196f3', pointerScale = 0.05, enabled = true }) => {
+const VRCursorArs = ({ userPosition, pointerColor = '#ffffff', pointerScale = 0.03, enabled = true }) => {
   const { scene, camera } = useThree();
   const pointer = useRef(null);
   const progressRing = useRef(null);
@@ -15,7 +22,7 @@ const VRCursorArs = ({ userPosition, pointerColor = '#2196f3', pointerScale = 0.
     if (!enabled) return;
 
     // Cursor 3D (reticle en el punto apuntado)
-    const geometry = new SphereGeometry(pointerScale, 16, 16);
+    const geometry = new SphereGeometry(pointerScale * SPHERE_SCALE_FACTOR, 16, 16);
     const material = new MeshBasicMaterial({
       color: pointerColor,
       transparent: true,
@@ -27,7 +34,7 @@ const VRCursorArs = ({ userPosition, pointerColor = '#2196f3', pointerScale = 0.
 
     // Anillo de cuenta regresiva: se dibuja alrededor del reticle y se va cerrando
     // (encogiendo) mientras el usuario mantiene la mirada sobre un objeto interactivo.
-    const ringGeometry = new RingGeometry(pointerScale * 2.2, pointerScale * 3, 32);
+    const ringGeometry = new RingGeometry(pointerScale * RING_INNER_START, pointerScale * RING_OUTER_START, 32);
     const ringMaterial = new MeshBasicMaterial({
       color: pointerColor,
       transparent: true,
@@ -98,7 +105,9 @@ const VRCursorArs = ({ userPosition, pointerColor = '#2196f3', pointerScale = 0.
         ring.visible = true;
         ring.position.copy(targetPoint);
         ring.quaternion.copy(camera.quaternion); // billboard: siempre mirando al usuario
-        const shrink = 2.5 - progress * 1.5; // el anillo se va cerrando hacia el reticle
+        // El anillo empieza a tamaño completo (escala 1) y se encoge hasta RING_END_SCALE,
+        // punto en el que su borde exterior coincide exactamente con la esfera central.
+        const shrink = 1 - (1 - RING_END_SCALE) * progress;
         ring.scale.setScalar(shrink);
         ring.material.color.set(pointerColor);
       }
