@@ -9,7 +9,7 @@ const SimpleTextOverlay = ({ position = [0, 3, -2], text = "¡Hola Mundo!" }) =>
     <Text
       position={position}
       fontSize={0.5}
-      color="#ffffff"
+      color="#000000"
       anchorX="center"
       anchorY="middle"
     >
