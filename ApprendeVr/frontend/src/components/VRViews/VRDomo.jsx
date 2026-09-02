@@ -256,8 +256,7 @@ const registerPanelFlipComponent = () => {
             color: textColor,
             align: 'center',
             width: 5,
-            wrapCount: 10,
-            font: 'mozillavr'
+            wrapCount: 10
           });
         } else {
           console.error('No hay elemento de texto para actualizar en panel:', el.id);
@@ -487,9 +486,10 @@ const generateDomeElements = (geometryData) => {
             align="center"
             width="5"
             wrap-count="10"
-            //font="/fonts/Ultra-msdf/Ultra-msdf.json"
-            //font-image="/fonts/Ultra-msdf/Ultra-msdf.png"
+            font="/fonts/Ultra-msdf/Ultra-msdf.json"
+            font-image="/fonts/Ultra-msdf/Ultra-msdf.png"
             shader="msdf"
+            negate="false"
             position="0 0 0.11"
           ></a-text>
         </a-box>
@@ -564,7 +564,7 @@ const VRDomo = ({ position = posicionDomo, numPalabras = numWords }) => {
       {/* Panel grande para mostrar la palabra seleccionada */}
       <a-text
         id="palabra-actual"
-        position="0 0 -1.5"
+        position="0 1 -1.5"
         value="Selecciona una palabra"
         color="white"
         align="center"
