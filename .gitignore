@@ -1,1 +1,5 @@
 .DS_Store
+
+# Certificados SSL de desarrollo local (autofirmados, regenerados por generate-ssl.sh /
+# start-mobile.sh según la IP de cada máquina — no deben compartirse por git)
+ApprendeVr/frontend/ssl/*.pem
