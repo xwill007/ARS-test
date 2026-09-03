@@ -84,14 +84,16 @@ validación y qué mejora quedó documentada para el próximo intento.
 Este flujo tiene skills que automatizan crear y mover requerimientos, compartidas entre las
 herramientas de IA usadas en este repo:
 
-- **Fuente única de verdad:** `.agents/skills/{crear-requerimiento,promover-requerimiento}/SKILL.md`,
-  en la raíz del repo (fuera de `ApprendeVr/`) — es un nombre neutral, no atado a ningún vendor en
-  particular.
-- **Claude Code:** `ApprendeVr/.claude/skills` es un symlink a `../../.agents/skills`.
-- **opencode:** `ApprendeVr/.opencode/skills` es un symlink a `../../.agents/skills`. Ambos
+- **Fuente única de verdad:** `.agents/skills/{crear-requerimiento,promover-requerimiento,confirmar-antes-de-commit}/SKILL.md`,
+  en la raíz del repo — nombre neutral, no atado a ningún vendor en particular.
+- **Claude Code:** `.claude/skills` (raíz del repo) es un symlink a `../.agents/skills`.
+- **opencode:** `.opencode/skills` (raíz del repo) es un symlink a `../.agents/skills`. Ambos
   symlinks apuntan al mismo `SKILL.md` real — mismo formato exacto para ambas herramientas, cero
   duplicación. Requiere `git config core.symlinks true` al clonar en sistemas donde los symlinks
   no estén habilitados por defecto (típicamente Windows).
+  `.claude/` y `.opencode/` viven en la raíz del repo (no dentro de `ApprendeVr/`) porque ambas
+  herramientas buscan esas carpetas como hermanas del directorio desde el que se invocan, no
+  dentro de subcarpetas anidadas — no pueden vivir dentro de `.agents/` ni de `ApprendeVr/`.
 - **GitHub Copilot** no tiene un formato de "skill" propio; su equivalente son *prompt files* en
   `.github/prompts/` (a nivel raíz del repo, por convención de GitHub). `crear-requerimiento.prompt.md`
   y `promover-requerimiento.prompt.md` ahí son punteros delgados que le indican a Copilot que lea y

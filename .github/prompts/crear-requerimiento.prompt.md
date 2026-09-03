@@ -5,8 +5,8 @@ description: Crea un nuevo requerimiento de ApprendeVr en Documentation/Requerim
 
 Este proyecto (`ApprendeVr`) define su procedimiento canónico para crear requerimientos en
 `.agents/skills/crear-requerimiento/SKILL.md` (raíz del repo). Ese archivo es la fuente de verdad
-— Claude Code y opencode lo leen vía symlink desde `ApprendeVr/.claude/skills/` y
-`ApprendeVr/.opencode/skills/` respectivamente, así que no lo dupliques aquí.
+— Claude Code y opencode lo leen vía symlink desde `.claude/skills/` y `.opencode/skills/` (raíz
+del repo) respectivamente, así que no lo dupliques aquí.
 
 Antes de hacer nada:
 

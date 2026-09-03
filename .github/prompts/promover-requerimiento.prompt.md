@@ -5,8 +5,8 @@ description: Mueve un requerimiento de ApprendeVr entre las carpetas de estado (
 
 Este proyecto (`ApprendeVr`) define su procedimiento canónico para mover requerimientos entre
 estados en `.agents/skills/promover-requerimiento/SKILL.md` (raíz del repo). Ese archivo es la
-fuente de verdad — Claude Code y opencode lo leen vía symlink desde `ApprendeVr/.claude/skills/` y
-`ApprendeVr/.opencode/skills/` respectivamente, así que no lo dupliques aquí.
+fuente de verdad — Claude Code y opencode lo leen vía symlink desde `.claude/skills/` y `.opencode/skills/` (raíz
+del repo) respectivamente, así que no lo dupliques aquí.
 
 Antes de hacer nada:
 
