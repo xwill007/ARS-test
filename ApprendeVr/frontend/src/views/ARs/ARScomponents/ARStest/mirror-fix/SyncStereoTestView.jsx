@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import CameraOverlaySync from './CameraOverlaySync';
 import VRLocalVideoOverlaySync from './VRLocalVideoOverlaySync';
 import VRConeOverlaySync from './VRConeOverlaySync';
 import SyncConfigMenu from './SyncConfigMenu';
@@ -34,21 +35,32 @@ const menuButtonStyle = {
   opacity: 0.85,
 };
 
-const OVERLAY_COMPONENTS = {
+// Overlays sincronizables por postMessage (todos menos 'camera', que no necesita sync — ver
+// CameraOverlaySync.jsx). Cada uno se renderiza apilado (position absolute) sobre la cámara.
+const SYNCABLE_OVERLAYS = {
   video: VRLocalVideoOverlaySync,
   cone: VRConeOverlaySync,
 };
 
+const layerStyle = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' };
+
 /**
  * SyncStereoTestView — Requerimiento 002, enfoque alternativo al espejo por captura de píxeles:
- * dos instancias reales e independientes de un overlay *Sync (copia de un componente real de
- * producción con un puente de sincronización agregado), sincronizadas en tiempo real vía
- * postMessage. Este componente es el relay: escucha mensajes de CUALQUIERA de los dos iframes y
- * los reenvía al otro (nunca al que lo emitió, para no generar eco).
+ * dos instancias reales e independientes de cada overlay seleccionado, sincronizadas en tiempo
+ * real vía postMessage. Este componente es el relay: escucha mensajes de CUALQUIERA de los
+ * iframes y los reenvía únicamente a su contraparte del MISMO tipo de overlay en el otro panel
+ * (nunca al que lo emitió, y nunca a un overlay de otro tipo si hay varios apilados a la vez).
+ *
+ * Los overlays seleccionados se apilan dentro de cada panel: la cámara (si está marcada) va de
+ * fondo, sin necesitar sincronización — cada panel pide su propia cámara en vivo, y como ambos
+ * leen el mismo dispositivo físico ya están "sincronizados" sin ningún esfuerzo extra. Los demás
+ * overlays (video, cono) tienen fondo transparente en su `<a-scene>`, así que se ven compuestos
+ * sobre la cámara, igual que en el flujo real de producción (video/overlay con zIndex 2 sobre el
+ * `<video>` con zIndex 1, ver ARPanel.jsx).
  *
  * Incluye el mismo tipo de menú de configuración que la vista de espejo por captura (ARSConfig,
  * botón ☰) — ver SyncConfigMenu.jsx — para ajustar separación/ancho/alto de los paneles y elegir
- * qué overlay mostrar en ambos.
+ * qué overlays mostrar (selección múltiple, como el menú "Overlays" real de producción).
  *
  * No reutiliza ARStereoView.jsx a propósito — ese componente está pensado para el mecanismo de
  * espejo por captura (Intentos 1-6), no para sincronización de estado. Mantenerlos separados
@@ -57,34 +69,46 @@ const OVERLAY_COMPONENTS = {
  * Componente de prueba aislado, no se usa desde ningún archivo de producción.
  */
 const SyncStereoTestView = ({ onClose }) => {
-  const leftRef = useRef(null);
-  const rightRef = useRef(null);
+  // Un ref por tipo de overlay sincronizable, por panel — se crean todos de una, se usen o no,
+  // así el relay siempre tiene dónde mirar sin tener que crear/destruir refs dinámicamente.
+  const leftRefs = useRef({ video: React.createRef(), cone: React.createRef() });
+  const rightRefs = useRef({ video: React.createRef(), cone: React.createRef() });
 
   const [showMenu, setShowMenu] = useState(false);
   const [separation, setSeparation] = useState(24);
   const [panelWidth, setPanelWidth] = useState(380);
   const [panelHeight, setPanelHeight] = useState(480);
-  const [overlayKey, setOverlayKey] = useState('video');
+  const [selectedOverlays, setSelectedOverlays] = useState(['camera', 'video']);
+
+  const toggleOverlay = (key) => {
+    setSelectedOverlays((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
 
   useEffect(() => {
     const handleMessage = (ev) => {
       const msg = ev.data;
       if (!msg || msg.source !== 'ars-sync-test') return;
-      const leftWindow = leftRef.current?.contentWindow;
-      const rightWindow = rightRef.current?.contentWindow;
-      // Reenviar al que NO fue la fuente del mensaje.
-      if (ev.source === leftWindow && rightWindow) {
-        rightWindow.postMessage(msg, '*');
-      } else if (ev.source === rightWindow && leftWindow) {
-        leftWindow.postMessage(msg, '*');
+      for (const key of Object.keys(SYNCABLE_OVERLAYS)) {
+        const leftWindow = leftRefs.current[key].current?.contentWindow;
+        const rightWindow = rightRefs.current[key].current?.contentWindow;
+        if (ev.source === leftWindow && rightWindow) {
+          rightWindow.postMessage(msg, '*');
+          return;
+        }
+        if (ev.source === rightWindow && leftWindow) {
+          leftWindow.postMessage(msg, '*');
+          return;
+        }
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  const OverlayComponent = OVERLAY_COMPONENTS[overlayKey];
   const panelStyle = {
+    position: 'relative',
     width: panelWidth,
     height: panelHeight,
     background: '#111',
@@ -92,6 +116,28 @@ const SyncStereoTestView = ({ onClose }) => {
     overflow: 'hidden',
     border: '1px solid rgba(79,195,247,0.2)',
   };
+
+  const renderPanel = (side, refs) => (
+    <div style={panelStyle}>
+      {selectedOverlays.includes('camera') && (
+        <div style={layerStyle}><CameraOverlaySync /></div>
+      )}
+      {selectedOverlays
+        .filter((key) => SYNCABLE_OVERLAYS[key])
+        .map((key) => {
+          const OverlayComponent = SYNCABLE_OVERLAYS[key];
+          return (
+            <div key={key} style={layerStyle}>
+              <OverlayComponent
+                ref={refs.current[key]}
+                isPrimaryPanel={side === 'left'}
+                isRightPanel={side === 'right'}
+              />
+            </div>
+          );
+        })}
+    </div>
+  );
 
   return (
     <div
@@ -118,18 +164,12 @@ const SyncStereoTestView = ({ onClose }) => {
           separation={separation} onSeparationChange={setSeparation}
           width={panelWidth} onWidthChange={setPanelWidth}
           height={panelHeight} onHeightChange={setPanelHeight}
-          overlayKey={overlayKey} onOverlayChange={setOverlayKey}
+          selectedOverlays={selectedOverlays} onToggleOverlay={toggleOverlay}
         />
       )}
 
-      {/* key={overlayKey}: al cambiar de overlay se remonta todo de cero (iframes nuevos, estado
-          de sync limpio) en vez de intentar reusar los iframes existentes con otro contenido. */}
-      <div style={panelStyle}>
-        <OverlayComponent key={overlayKey + '-left'} ref={leftRef} isPrimaryPanel={true} isRightPanel={false} />
-      </div>
-      <div style={panelStyle}>
-        <OverlayComponent key={overlayKey + '-right'} ref={rightRef} isPrimaryPanel={false} isRightPanel={true} />
-      </div>
+      {renderPanel('left', leftRefs)}
+      {renderPanel('right', rightRefs)}
     </div>
   );
 };

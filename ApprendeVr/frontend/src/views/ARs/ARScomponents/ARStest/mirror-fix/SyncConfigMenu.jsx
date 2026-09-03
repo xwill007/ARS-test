@@ -10,9 +10,9 @@ import React, { useState } from 'react';
  *
  * Dos pestañas:
  *  - Configuración: separación entre paneles, ancho, alto de cada uno.
- *  - Overlays: elegir qué overlay se muestra en ambos paneles (lista fija de los overlays que ya
- *    tienen su copia *Sync con puente de sincronización — ver VRLocalVideoOverlaySync.jsx y
- *    VRConeOverlaySync.jsx).
+ *  - Overlays: selección MÚLTIPLE (checkboxes, igual que el menú "Overlays" real de producción —
+ *    OverlayDropdownMenu con multiSelect={true}) de qué overlays se apilan en ambos paneles. Ver
+ *    CameraOverlaySync.jsx, VRLocalVideoOverlaySync.jsx y VRConeOverlaySync.jsx.
  *
  * Componente de prueba aislado, no se usa desde ningún archivo de producción.
  */
@@ -63,8 +63,9 @@ const overlayOptionStyle = (active) => ({
 });
 
 export const OVERLAY_OPTIONS = [
+  { key: 'camera', label: 'Cámara (fondo, sin sincronizar — cada panel lee su propia cámara en vivo)' },
   { key: 'video', label: 'Video local (play/pause/seek + voz)' },
-  { key: 'cone', label: 'Cono de palabras (solo cámara)' },
+  { key: 'cone', label: 'Cono de palabras' },
 ];
 
 const SyncConfigMenu = ({
@@ -72,7 +73,7 @@ const SyncConfigMenu = ({
   separation, onSeparationChange,
   width, onWidthChange,
   height, onHeightChange,
-  overlayKey, onOverlayChange,
+  selectedOverlays, onToggleOverlay,
 }) => {
   const [tab, setTab] = useState('config');
 
@@ -121,18 +122,22 @@ const SyncConfigMenu = ({
       {tab === 'overlays' && (
         <div style={bodyStyle}>
           <p style={{ fontSize: 12, color: '#999', marginTop: 0 }}>
-            Se aplica a ambos paneles (sincronizados).
+            Selección múltiple — se apilan en ambos paneles (cámara al fondo si está marcada).
           </p>
-          {OVERLAY_OPTIONS.map((opt) => (
-            <div
-              key={opt.key}
-              style={overlayOptionStyle(overlayKey === opt.key)}
-              onClick={() => onOverlayChange(opt.key)}
-            >
-              <input type="radio" checked={overlayKey === opt.key} onChange={() => onOverlayChange(opt.key)} />
-              <span style={{ fontSize: 13 }}>{opt.label}</span>
-            </div>
-          ))}
+          {OVERLAY_OPTIONS.map((opt) => {
+            const active = selectedOverlays.includes(opt.key);
+            return (
+              // <label> en vez de <div onClick> + <input onChange>: con ambos, un click en el
+              // checkbox disparaba los dos handlers (el evento burbujea del input al div),
+              // alternando el estado dos veces y dejándolo sin cambios. <label> asociado al
+              // input es la forma correcta en HTML de que todo el renglón sea clickeable sin
+              // duplicar el evento.
+              <label key={opt.key} style={overlayOptionStyle(active)}>
+                <input type="checkbox" checked={active} onChange={() => onToggleOverlay(opt.key)} />
+                <span style={{ fontSize: 13 }}>{opt.label}</span>
+              </label>
+            );
+          })}
         </div>
       )}
     </div>
