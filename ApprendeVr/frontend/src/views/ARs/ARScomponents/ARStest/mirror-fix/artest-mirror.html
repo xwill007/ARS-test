@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>AR Test — Espejo overlay (Requerimiento 002)</title>
+    <style>
+      /* Reset mínimo, propio de esta página de prueba (no importa index.css de producción).
+         .ar-panel necesita position:relative para que el <video>/<iframe> internos
+         (position:absolute) se ajusten a los 380x480 del panel en vez de a toda la pantalla. */
+      html, body, #root { margin: 0; height: 100%; width: 100%; }
+      .ar-panel { position: relative; overflow: hidden; background: #111; border-radius: 8px; }
+    </style>
+  </head>
+  <body style="margin:0; background:#000;">
+    <div id="root"></div>
+    <script type="module" src="./artest-mirror.jsx"></script>
+  </body>
+</html>
