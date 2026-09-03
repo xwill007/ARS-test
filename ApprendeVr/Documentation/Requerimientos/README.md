@@ -79,7 +79,30 @@ Cuando un requerimiento pasa por `4-Rejected` rumbo a `1-Pending`, se agrega ade
 (por ejemplo al final de "Antecedentes y estado actual") explicando qué problema se encontró en la
 validación y qué mejora quedó documentada para el próximo intento.
 
-## 5. Migración de requerimientos existentes
+## 5. Automatización multi-IA (Claude Code, opencode, Copilot)
+
+Este flujo tiene skills que automatizan crear y mover requerimientos, compartidas entre las
+herramientas de IA usadas en este repo:
+
+- **Fuente única de verdad:** `.agents/skills/{crear-requerimiento,promover-requerimiento}/SKILL.md`,
+  en la raíz del repo (fuera de `ApprendeVr/`) — es un nombre neutral, no atado a ningún vendor en
+  particular.
+- **Claude Code:** `ApprendeVr/.claude/skills` es un symlink a `../../.agents/skills`.
+- **opencode:** `ApprendeVr/.opencode/skills` es un symlink a `../../.agents/skills`. Ambos
+  symlinks apuntan al mismo `SKILL.md` real — mismo formato exacto para ambas herramientas, cero
+  duplicación. Requiere `git config core.symlinks true` al clonar en sistemas donde los symlinks
+  no estén habilitados por defecto (típicamente Windows).
+- **GitHub Copilot** no tiene un formato de "skill" propio; su equivalente son *prompt files* en
+  `.github/prompts/` (a nivel raíz del repo, por convención de GitHub). `crear-requerimiento.prompt.md`
+  y `promover-requerimiento.prompt.md` ahí son punteros delgados que le indican a Copilot que lea y
+  siga el `SKILL.md` correspondiente en `.agents/skills/` — no repiten el contenido, para que no
+  queden desincronizados si el `SKILL.md` cambia.
+
+Si se agrega o edita una skill, el único archivo que hay que tocar es el `SKILL.md` en
+`.agents/skills/` — Claude Code y opencode lo reciben automáticamente por symlink, y Copilot lo lee
+al vuelo por la referencia en su prompt file.
+
+## 6. Migración de requerimientos existentes
 
 `001-fix-fuente-msdf-negate.md` era anterior a esta convención (vivía en la raíz de
 `Requerimientos/`) y ya fue movido a `5-Accepted/`. El movimiento se hizo con `mv` normal, no
