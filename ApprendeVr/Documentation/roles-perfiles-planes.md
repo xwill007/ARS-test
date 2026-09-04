@@ -46,7 +46,7 @@ Se adoptan los siguientes patrones probados (adaptados al alcance menor de `Appr
 
 | Patrón (proyectos anteriores) | Cómo se adopta acá |
 |---|---|
-| `hierarchyLevel` en rol + jerarquía acumulativa (superadmin 60 > owner 50 > admin 40 > operator 30 > agent 20 > viewer 10) | `roles.hierarchy_level`; un rol superior hereda los permisos de los inferiores. |
+| `hierarchyLevel` en rol + jerarquía acumulativa (superadmin > admin > player1) | `roles.hierarchy_level`; un rol superior hereda los permisos de los inferiores. |
 | `isSystem` en roles (no editables/borrables) | `roles.is_system`; solo se editan desde la administración global. |
 | `RolePermission(roleId, resource, action)` + sub-recursos `parent:child` | `role_permissions` + clave `module.subjectType.subjectKey.action`, con sub-recursos (`songs:delete`, `evaluations:edit`). |
 | Fallback a rol de sistema cuando el usuario no tiene perfil custom | Un usuario sin `profile_id` usa su `role` de sistema (compatibilidad). |
@@ -136,9 +136,9 @@ de renombrado de `backend-nestjs.md`).
 | `permissions` | Catálogo de permisos granulares | `id`, `module`, `subject_type`, `subject_key`, `action`, `key` (único), `description` |
 | `role_permissions` | Relación rol ↔ permiso (M:N) | `role_id`, `permission_id` |
 
-- `hierarchy_level`: número que define la jerarquía acumulativa (mayor = más privilegios). Roles
-  de sistema propuestos: `superadmin` 60, `owner` 50, `admin` 40, `editor` 30, `player` 20,
-  `viewer` 10. Un rol superior hereda los permisos de los inferiores (§4).
+- `hierarchy_level`: número que define la jerarquía acumulativa (mayor = más privilegios). Los
+  **tres roles por defecto** (seed) son: `superadmin` 60, `admin` 40, `player1` 20 (§7.1). Un rol
+  superior hereda los permisos de los inferiores (§4); la escala es extensible a más niveles.
 - `is_system`: roles fijos no editables/borrables desde la UI de un plan; solo desde la
   administración global.
 
@@ -318,6 +318,35 @@ complejidad, o la eliminación de evaluaciones — pero no puede otorgar un mód
 incluye).
 
 ## 7. Ejemplo concreto de uso
+
+### 7.1 Roles y planes por defecto (seed)
+
+El sistema arranca con **tres roles por defecto**, cada uno ligado a un plan con su propio
+vencimiento. Son seeds de contrato (Fase 0 del requerimiento 005):
+
+| Rol | Jerarquía | Plan | Vencimiento | Qué ve |
+|---|---|---|---|---|
+| `superadmin` | 60 | `ilimitado` | sin vencimiento (`end_at = null`) | todo, incluido `config:*` y `plans:manage` |
+| `admin` | 40 | `anual` (365 días) | `+1 año` | todo **menos** `config:*` (no ve el menú "Configuración de inicio") |
+| `player1` | 20 | `free` (30 días) | `+1 mes` | solo `app:read` + `ars:mirror` (vista `artest-mirror.html`), **sin** `ars:arTest` (no ve el elemento "AR-TEST") |
+
+El **`superadmin` se crea por seed directamente en la base de datos** (no existe flujo de registro
+ni vista para darlo de alta en el sistema). Sus credenciales vienen de `.env`
+(`SEED_SUPERADMIN_EMAIL` / `SEED_SUPERADMIN_PASSWORD`) y su contraseña se hashea con bcrypt en el
+seed; es obligatorio cambiarla en el primer login.
+
+### 7.2 Granularidad aplicada a la app actual
+
+Los tres roles ejercen los tres niveles de granularidad sobre vistas/elementos reales:
+
+| Clave | Tipo | Recurso UI | player1 | admin | superadmin |
+|---|---|---|---|---|---|
+| `app:read` | módulo | menú principal (`VRDisplay`) | sí | sí | sí |
+| `config:read` | menú | "Configuración de inicio" (`VRConfig.jsx` ⚙️) | no | **no** | sí |
+| `ars:mirror` | vista | `…/ARStest/mirror-fix/artest-mirror.html` | sí | sí | sí |
+| `ars:arTest` | elemento | botón "AR-TEST" (`ARTestMirrorButton.jsx:64`) | **no** | sí | sí |
+
+### 7.3 Escenario avanzado (perfil que restringe sobre un plan)
 
 Escenario: plan **Familiar** (acceso a los módulos `songs` y `evaluations`, pero no a `config`).
 

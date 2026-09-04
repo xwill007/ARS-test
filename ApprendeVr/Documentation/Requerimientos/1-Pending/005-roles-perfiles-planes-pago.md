@@ -124,7 +124,13 @@ El modelo de datos, la clave canónica de permisos y el algoritmo de resolución
 - [ ] La migración crea las tablas RBAC + billing y `users.profile_id`/`users.role_id` sin romper
       la data existente.
 - [ ] El catálogo `permissions` y `modules` se seedea con las claves granulares de los módulos
-      actuales (`songs`, `words`, `phrases`, `evaluations`, `users`, `videos`, `config`).
+      actuales (`app`, `config`, `ars`, `songs`, `words`, `phrases`, `evaluations`, `users`,
+      `videos`, `plans`), según la Fase 0.
+- [ ] Los 3 roles default quedan sembrados: `superadmin` (todo, plan ilimitado sin vencimiento),
+      `admin` (todo menos `config:*`, plan anual 365 días) y `player1` (solo `app:read` +
+      `ars:mirror`, sin `ars:arTest`, plan free 30 días).
+- [ ] El usuario `superadmin` se crea por seed (no hay flujo de registro para darlo de alta), con
+      contraseña bcrypt tomada de `.env`, y puede hacer login en el primer arranque.
 - [ ] `GET /auth/me` devuelve la lista **plana** de permisos efectivos calculada según
       `(P_perfil con deny) ∩ M_plan`.
 - [ ] La jerarquía de roles es acumulativa: un rol superior hereda los permisos de los inferiores.
@@ -146,6 +152,89 @@ El modelo de datos, la clave canónica de permisos y el algoritmo de resolución
 
 ## 7. Checklist de ejecución (paso a paso)
 
+### Fase 0 — Seeds y catálogos de contrato (definir ANTES de la BD)
+
+Estos datos son de **contrato**, no de negocio: el backend (`@RequirePermission`, `PlanGuard`) y
+el frontend (`<Can>`, sidebar) referencian claves que deben existir en BD desde el día uno.
+Se definen antes de escribir la migración para que ésta y el seed queden alineados.
+
+- [ ] 0.1 Catálogo `modules` (tabla `modules`, `resource_id` único). Incluye los dominios de
+      contenido y las vistas/UI de la app actual:
+
+| `resource_id` | Nombre (es) | `is_transversal` | Notas |
+|---|---|---|---|
+| `app` | Aplicación / Inicio | sí | menú principal (`VRDisplay`) |
+| `config` | Configuración de inicio | no | panel ⚙️ (`VRConfig`): idioma, tema, visibilidad |
+| `ars` | Realidad aumentada (AR) | no | vistas `ARs/`, incluye `artest-mirror.html` |
+| `aframe` | A-Frame | no | vista `A-frame/index.html` |
+| `mobile` | Móvil | no | vista `mobile/mobile.html` |
+| `songs` | Canciones | no | core |
+| `words` | Palabras (Nivel 1/2) | no | — |
+| `phrases` | Frases (Nivel 3) | no | — |
+| `evaluations` | Evaluaciones | no | — |
+| `users` | Usuarios | no | administración |
+| `videos` | Videos (streaming) | no | — |
+| `plans` | Planes / roles / perfiles | no | administración de RBAC y billing |
+
+- [ ] 0.2 Catálogo `permissions` (clave canónica `module.subjectType.subjectKey.action`, con
+      forma corta `resource:action`). Lista mínima inicial:
+
+| Recurso | Acciones (seed) |
+|---|---|
+| `app` | `app:read` |
+| `config` | `config:read`, `config:update` |
+| `ars` | `ars:read`, `ars:mirror` (vista `artest-mirror.html`), `ars:arTest` (elemento "AR-TEST") |
+| `aframe` | `aframe:read` |
+| `mobile` | `mobile:read` |
+| `songs` | `songs:read`, `songs:create`, `songs:update`, `songs:delete` |
+| `words` | `words:read`, `words:create`, `words:update`, `words:delete` |
+| `phrases` | `phrases:read`, `phrases:create`, `phrases:update`, `phrases:delete` |
+| `evaluations` | `evaluations:read`, `evaluations:create`, `evaluations:update`, `evaluations:delete` |
+| `users` | `users:read`, `users:create`, `users:update`, `users:delete`, `users:manage` |
+| `videos` | `videos:read`, `videos:export` |
+| `plans` | `plans:read`, `plans:manage` |
+
+  Mapeo de granularidad concreta (vista/elemento) usado por los roles default:
+
+| Clave | Tipo | Recurso UI real |
+|---|---|---|
+| `ars:mirror` | view | `src/views/ARs/ARScomponents/ARStest/mirror-fix/artest-mirror.html` |
+| `ars:arTest` | component/element | botón "AR-TEST" en `ARTestMirrorButton.jsx:64` |
+| `config:read` | module/menu | panel "Configuración de inicio" (`VRConfig.jsx`, botón ⚙️) |
+
+- [ ] 0.3 Roles base `roles` (con `is_system` y `hierarchy_level`). **Tres roles por defecto:**
+
+| Rol | `hierarchy_level` | `is_system` | Permisos seed |
+|---|---|---|---|
+| `superadmin` | 60 | sí | todos (acceso total, incluye `plans:manage` y `config:*`) |
+| `admin` | 40 | sí | todo **menos** `config:*` (no ve el menú "Configuración de inicio") |
+| `player1` | 20 | sí | solo `app:read` + `ars:mirror`; **sin** `ars:arTest` (no ve el elemento "AR-TEST") |
+
+- [ ] 0.4 Planes iniciales `plans` + `plan_modules` + `plan_prices`:
+
+| Plan | `plan_duration_days` | `is_fixed` | `plan_modules` (pool) |
+|---|---|---|---|
+| `ilimitado` | `null` (sin vencimiento) | sí | todos los módulos |
+| `anual` | `365` | sí | todos **menos** `config` |
+| `free` | `30` | sí | solo `app` + `ars` (vista `artest-mirror.html`) |
+
+- [ ] 0.5 Usuarios seed `users` (con contraseña bcrypt) + suscripciones `subscriptions`:
+
+  **El `superadmin` se crea directamente por seed en la BD** — no existe flujo de registro ni UI
+  para darlo de alta en el sistema, por lo que debe nacer como dato de contrato. Su contraseña se
+  fija vía `.env` (`SEED_SUPERADMIN_EMAIL`, `SEED_SUPERADMIN_PASSWORD`) y se hashea con bcrypt en
+  el seed (nunca en claro). Es obligatorio cambiarla en el primer login.
+
+| Usuario seed | Rol | Plan | `status` | `end_at` | Credenciales |
+|---|---|---|---|---|---|
+| superadmin (plataforma) | `superadmin` | `ilimitado` | `active` | `null` (sin vencimiento) | `SEED_SUPERADMIN_EMAIL` / `SEED_SUPERADMIN_PASSWORD` |
+| admin (ej. dueño) | `admin` | `anual` | `active` | `+1 año` | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` |
+| player1 | `player1` | `free` | `active` | `+1 mes` | `SEED_PLAYER1_EMAIL` / `SEED_PLAYER1_PASSWORD` |
+
+- [ ] 0.6 Mapeo de los usuarios existentes del dump `english_vr`: asignar `role_id = player1` y
+      suscripción `free` (30 días) a todos, para no romper el login histórico. Los tres usuarios
+      seed anteriores (superadmin/admin/player1) se crean aparte para demostrar el sistema.
+
 ### Fase 1 — Modelo de datos (migración + entidades)
 
 - [ ] 1.1 Crear migración TypeORM con las tablas `roles`, `permissions`, `role_permissions`,
@@ -155,8 +244,9 @@ El modelo de datos, la clave canónica de permisos y el algoritmo de resolución
       perder data.
 - [ ] 1.3 Definir las entidades TypeORM (`Role`, `Permission`, `Profile`, `Module`, `Plan`,
       `Subscription`) mapeadas a las tablas, con relaciones M:N.
-- [ ] 1.4 Seed de permisos + módulos + roles base (`superadmin` con `is_system = true` y
-      `hierarchy_level` 60; `free`/`player` default).
+- [ ] 1.4 Implementar el seed de la Fase 0 (módulos, permisos, 3 roles base, 3 planes, 3 usuarios
+      con contraseña bcrypt desde `.env`, y sus suscripciones) como runner idempotente (no duplica
+      al re-ejecutar).
 
 ### Fase 2 — Resolución de permisos (backend, función pura)
 
