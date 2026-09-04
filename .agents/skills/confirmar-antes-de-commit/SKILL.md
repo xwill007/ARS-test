@@ -22,6 +22,18 @@ razonable parezca el commit, o cuánto trabajo se haya hecho antes.
 - Una autorización de commit vale para ese commit puntual, no para futuros commits en la misma
   sesión. Cada commit necesita su propia autorización explícita.
 
+## Idioma del mensaje de commit
+
+- **Todo mensaje de commit se escribe en inglés**, incluidos el sujeto y el cuerpo, sin importar
+  en qué idioma hable el usuario. El resto de la conversación puede ir en el idioma del usuario;
+  solo el mensaje de commit va en inglés.
+- El sujeto usa el prefijo de conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`,
+  `chore:`, `test:`, `delete:`, `build:`, `ci:`, `perf:`, `style:`, `revert:`) y va en minúscula.
+- Escribir un sujeto corto y descriptivo (≤ ~72 caracteres) y, si hace falta detalle, un cuerpo
+  separado por una línea en blanco con bullets `- `.
+- Usar imperativo presente ("add", "fix", "update", "remove"), no pasado ("added", "fixed").
+- No incluir la referencia a la tarea/issue en el título a menos que el usuario lo pida.
+
 ## Por qué
 
 El usuario ya tuvo que corregir esto una vez en este repo: se interpretó un "si" ambiguo (que
