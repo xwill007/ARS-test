@@ -196,6 +196,14 @@
       "combinedAFrame": "Cono de Palabras + Video Local (A-Frame)",
       "combinedAFrameDesc": "Muestra ambos overlays de A-Frame juntos en una sola escena"
     },
+    "syncConfig": {
+      "selectMultipleHint": "Selección múltiple — se apilan en ambos paneles (cámara al fondo si está marcada).",
+      "overlay": {
+        "camera": "Cámara (fondo, sin sincronizar — cada panel lee su propia cámara en vivo)",
+        "video": "Video local (play/pause/seek + voz)",
+        "cone": "Cono de palabras"
+      }
+    },
     "voice": {
       "off": "OFF",
       "on": "ON",

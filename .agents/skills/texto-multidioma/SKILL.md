@@ -45,10 +45,33 @@ const MiVista = () => {
 };
 ```
 
+## Verificación (obligatoria antes de terminar)
+
+Tras agregar o modificar textos, correr el validador para garantizar integridad entre código y
+locales:
+
+```bash
+cd ApprendeVr/frontend
+npm run check:i18n            # parse JSON + claves usadas en los 3 idiomas + simetría es/en/br
+npm run check:i18n:hardcoded  # además, heurística de strings visibles hardcodeados en JSX
+```
+
+El validador (`scripts/check-i18n.mjs`) chequea:
+
+1. Que `es.json`, `en.json` y `br.json` sean JSON válido con raíz `translation`.
+2. Que **toda clave** usada en código vía `t('clave')` / `t("clave")` exista en los **tres**
+   idiomas (detecta typos y claves que faltan en un idioma).
+3. Que las claves de los tres locales sean **simétricas** (misma estructura, sin drift).
+4. `--hardcoded`: heurística de strings visibles en JSX que se escaparon de `t()`.
+
+Sale con código 1 si hay errores (no continuar sin corregirlos). Las advertencias de
+`--hardcoded` son heurísticas: revisar cada una y decidir si es texto visible (migrar) o valor
+técnico/comentario (ignorar).
+
 ## Gotchas
 
 - **`t()` devuelve la clave si no la encuentra**: un typo en la clave o una clave que falta en un
-  idioma se muestra tal cual en la UI. Verificar siempre las tres traducciones.
+  idioma se muestra tal cual en la UI. El validador (`npm run check:i18n`) lo atrapa antes.
 - **`src/i18n.js` (i18next) es legado y NO es el flujo activo**: solo registra `en` y no se usa en
   el flujo real. El mecanismo vivo es `VRLanguageContext`. No agregar textos ahí ni usar
   `react-i18next` para strings nuevos.

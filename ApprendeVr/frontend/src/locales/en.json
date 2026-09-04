@@ -196,6 +196,14 @@
       "combinedAFrame": "Words Cone + Local Video (A-Frame)",
       "combinedAFrameDesc": "Shows both A-Frame overlays together in a single scene"
     },
+    "syncConfig": {
+      "selectMultipleHint": "Multiple selection — they stack on both panels (camera at the back if checked).",
+      "overlay": {
+        "camera": "Camera (background, not synchronized — each panel reads its own live camera)",
+        "video": "Local video (play/pause/seek + voice)",
+        "cone": "Words cone"
+      }
+    },
     "voice": {
       "off": "OFF",
       "on": "ON",

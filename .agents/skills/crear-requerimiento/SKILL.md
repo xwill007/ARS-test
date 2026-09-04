@@ -5,9 +5,19 @@ description: Crea un nuevo requerimiento de ApprendeVr en Documentation/Requerim
 
 # Crear un nuevo requerimiento
 
-Este skill crea un archivo de requerimiento nuevo en
-`ApprendeVr/Documentation/Requerimientos/1-Pending/`, siguiendo la convención documentada en
-`ApprendeVr/Documentation/Requerimientos/README.md`.
+Este skill crea un requerimiento nuevo en `ApprendeVr/Documentation/Requerimientos/1-Pending/`,
+siguiendo la convención documentada en `ApprendeVr/Documentation/Requerimientos/README.md`.
+
+Un requerimiento es una **carpeta** `NNN-slug/` con cuatro archivos Markdown, uno por
+preocupación:
+
+```
+1-Pending/NNN-slug/
+├── requerimiento.md        # objetivo, alcance, diseño técnico, archivos, criterios de aceptación
+├── checklist.md            # checklist de ejecución por fases
+├── problems_solutions.md   # incidentes/problemas y soluciones (crece con el tiempo)
+└── tests.md                # estrategia y casos de test
+```
 
 ## Pasos
 
@@ -20,35 +30,42 @@ Este skill crea un archivo de requerimiento nuevo en
    modificar que no puedas fundamentar en el código real o en lo que el usuario indicó.
 
 3. **Calcular el siguiente número correlativo.** Buscar el número más alto usado en cualquiera de
-   las carpetas de estado, incluida `4-Rejected/Discarded`:
+   las carpetas de estado, incluida `4-Rejected/Discarded`. El número puede estar en una carpeta
+   (formato nuevo) o en un archivo (formato viejo, en migración):
    ```
-   find ApprendeVr/Documentation/Requerimientos -name '[0-9][0-9][0-9]-*.md' \
+   find ApprendeVr/Documentation/Requerimientos -type d -name '[0-9][0-9][0-9]-*' \
      -exec basename {} \; | sort -n | tail -1
+   find ApprendeVr/Documentation/Requerimientos -name '[0-9][0-9][0-9]-*.md' \
+     -exec basename {} \; | sed 's/\.md$//' | sort -n | tail -1
    ```
-   El nuevo requerimiento usa ese número + 1, con padding de 3 dígitos (`NNN`).
+   El nuevo requerimiento usa el mayor de ambos resultados + 1, con padding de 3 dígitos (`NNN`).
 
 4. **Elegir el slug.** Título corto en minúsculas, en español, separado por guiones, sin acentos
    ni caracteres especiales (ej. `agregar-modo-offline`).
 
-5. **Redactar el archivo** en
-   `ApprendeVr/Documentation/Requerimientos/1-Pending/NNN-slug.md` con esta estructura (ver
-   `5-Accepted/001-fix-fuente-msdf-negate.md` como ejemplo extenso de referencia):
+5. **Crear la carpeta** `ApprendeVr/Documentation/Requerimientos/1-Pending/NNN-slug/` y dentro los
+   cuatro archivos:
 
-   1. `# Requerimiento NNN — Título`
-   2. `## 1. Objetivo`
-   3. `## 2. Antecedentes y estado actual`
-   4. `## 3. Alcance` (subsecciones `### Incluido` / `### No incluido`)
-   5. `## 4. Diseño técnico` (opciones consideradas + decisión)
-   6. `## 5. Archivos a modificar` (tabla)
-   7. `## 6. Criterios de aceptación` (checklist `- [ ]`)
-   8. `## 7. Checklist de ejecución` (fases con tareas `- [ ]`)
-   9. `## 8. Referencias`
+   - **`requerimiento.md`** con esta estructura (ver `5-Accepted/001-fix-fuente-msdf-negate.md`
+     como referencia extensa del formato viejo):
+     1. `# Requerimiento NNN — Título`
+     2. `## 1. Objetivo`
+     3. `## 2. Antecedentes y estado actual`
+     4. `## 3. Alcance` (subsecciones `### Incluido` / `### No incluido`)
+     5. `## 4. Diseño técnico` (opciones consideradas + decisión)
+     6. `## 5. Archivos a modificar` (tabla)
+     7. `## 6. Criterios de aceptación` (checklist `- [ ]`)
+     8. `## 7. Referencias`
+   - **`checklist.md`** con el `## Checklist de ejecución` por fases (`- [ ]`).
+   - **`problems_solutions.md`** con un encabezado y una entrada inicial "Sin incidentes
+     registrados" (se irá llenando).
+   - **`tests.md`** con la estrategia de testing y tabla de casos (unitarios/integración/e2e).
 
    Cada sección debe basarse en investigación real del código (usa Grep/Read/Explore para
    confirmar rutas de archivo, líneas y comportamiento actual) — no completar secciones con
    contenido genérico o inventado.
 
-6. **Confirmar el resultado al usuario**: ruta del archivo creado, número asignado, y un resumen
-   de 1-2 líneas del objetivo. No lo muevas de `1-Pending` — ese es siempre el estado inicial,
+6. **Confirmar el resultado al usuario**: ruta de la carpeta creada, número asignado, y un resumen
+   de 1-2 líneas del objetivo. No la muevas de `1-Pending` — ese es siempre el estado inicial,
    salvo que este requerimiento sea el resultado de reencolar uno rechazado (ver skill
    `promover-requerimiento`), en cuyo caso quien reencola es quien lo mueve, no quien lo crea.

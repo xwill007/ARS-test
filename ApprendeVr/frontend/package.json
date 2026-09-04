@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "check:i18n:hardcoded": "node scripts/check-i18n.mjs --hardcoded"
   },
   "dependencies": {
     "@react-three/drei": "^9.78.1",

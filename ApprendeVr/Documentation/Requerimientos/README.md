@@ -1,8 +1,9 @@
 # Flujo de estados de los Requerimientos
 
 Este directorio organiza los requerimientos de `ApprendeVr` en carpetas que representan su
-estado. Un requerimiento es un único archivo Markdown que **se mueve de carpeta en carpeta** a
-medida que avanza — nunca se duplica ni se reescribe su número.
+estado. Un requerimiento es una **carpeta** (con el número y slug en el nombre) que **se mueve de
+carpeta de estado en carpeta de estado** a medida que avanza — nunca se duplica ni se reescribe su
+número.
 
 ```
 Requerimientos/
@@ -13,6 +14,31 @@ Requerimientos/
 │   └── Discarded/        # Descartado definitivamente — estado final negativo
 └── 5-Accepted/           # Validado y aceptado — estado final positivo
 ```
+
+### Estructura interna de un requerimiento
+
+Cada requerimiento es una **carpeta** `NNN-slug/` que contiene varios archivos Markdown, uno por
+preocupación. Esto mantiene cada documento corto y navegable, y separa los ciclos de vida
+(distintos) de cada pieza:
+
+```
+NNN-slug/
+├── requerimiento.md        # Contrato: objetivo, antecedentes, alcance, diseño técnico,
+│                           # archivos a modificar, criterios de aceptación, referencias.
+├── checklist.md            # Checklist de ejecución por fases (lo que se marca al desarrollar).
+├── problems_solutions.md   # Incidentes/problemas encontrados y cómo se resolvieron (crece con el tiempo).
+└── tests.md                # Estrategia y casos de test del requerimiento.
+```
+
+| Archivo | Qué contiene | Cuándo se edita |
+|---|---|---|
+| `requerimiento.md` | Objetivo, antecedentes, alcance, diseño técnico, archivos a modificar, **criterios de aceptación**, referencias. | Al crearlo; se actualiza si cambia el alcance/diseño (p. ej. al reencolar desde `4-Rejected`). |
+| `checklist.md` | Checklist de ejecución por fases. | Se marcan los items `- [x]` a medida que se desarrolla. |
+| `problems_solutions.md` | Problemas/incidentes y su solución, con fecha. | Se agregan entradas cuando surge y se resuelve un problema. |
+| `tests.md` | Estrategia de testing y casos de test (unitarios, integración, e2e). | Se define al planificar y se completa al verificar. |
+
+La **carpeta completa** es lo que se mueve entre estados. El número y el slug **no cambian**;
+solo cambia la carpeta de estado que la contiene.
 
 ## 1. Significado de cada carpeta
 
@@ -51,33 +77,55 @@ en cambio a `4-Rejected/Discarded`, no se deja en la cola de `4-Rejected`.
 
 ## 3. Convención de nombres y numeración
 
-- Formato de archivo: `NNN-slug-en-minusculas-con-guiones.md`, por ejemplo
-  `001-fix-fuente-msdf-negate.md`.
+- Formato de carpeta: `NNN-slug-en-minusculas-con-guiones/`, por ejemplo
+  `001-fix-fuente-msdf-negate/`.
 - `NNN` es un correlativo de 3 dígitos **único y global** para todo el proyecto — no se reinicia
   por carpeta ni al pasar por `4-Rejected` o `4-Rejected/Discarded`. El siguiente número a usar es
   `(el número más alto encontrado en cualquiera de las carpetas, incluida `Discarded`) + 1`.
-- El número y el nombre del archivo **no cambian** al moverlo entre carpetas; solo cambia su
+- El número y el nombre de la carpeta **no cambian** al moverla entre estados; solo cambia su
   ubicación.
+- Para ubicar el número más alto se busca en los nombres de carpeta y de archivo (conviven ambos
+  formatos durante la migración):
+  ```
+  find ApprendeVr/Documentation/Requerimientos -type d -name '[0-9][0-9][0-9]-*' \
+    -exec basename {} \; | sort -n | tail -1
+  find ApprendeVr/Documentation/Requerimientos -name '[0-9][0-9][0-9]-*.md' \
+    -exec basename {} \; | sed 's/\.md$//' | sort -n | tail -1
+  ```
+  (Usar el mayor de ambos resultados.)
 
 ## 4. Template de contenido
 
-Todo requerimiento nuevo sigue la misma estructura (ver `5-Accepted/001-fix-fuente-msdf-negate.md`
-como referencia completa):
+Todo requerimiento nuevo es una **carpeta** `NNN-slug/` con los cuatro archivos de la tabla de
+arriba. La distribución del template clásico queda así:
+
+### `requerimiento.md`
 
 1. **Objetivo** — qué problema resuelve o qué feature agrega, en 1-2 párrafos.
 2. **Antecedentes y estado actual** — contexto necesario para entender el porqué.
-3. **Alcance** — qué incluye y qué explícitamente no incluye.
+3. **Alcance** — qué incluye y qué explícitamente no incluye (subsecciones `Incluido` / `No incluido`).
 4. **Diseño técnico** — opciones consideradas y decisión tomada.
 5. **Archivos a modificar** — tabla archivo → cambio.
 6. **Criterios de aceptación** — checklist verificable; es lo que se revisa para mover el
    requerimiento de `3-Completed` a `5-Accepted` (o a `4-Rejected` si no se cumple).
-7. **Checklist de ejecución** — fases y tareas; es lo que se marca para mover el requerimiento de
-   `2-Developing` a `3-Completed`.
-8. **Referencias** — enlaces o commits relacionados.
+7. **Referencias** — enlaces o commits relacionados.
+
+### `checklist.md`
+
+El **checklist de ejecución** por fases (es lo que se marca para mover el requerimiento de
+`2-Developing` a `3-Completed`).
+
+### `problems_solutions.md`
+
+Registro de incidentes: fecha, problema, causa y solución. Empieza con un encabezado y va creciendo.
+
+### `tests.md`
+
+Estrategia de testing y tabla de casos (unitarios, integración, e2e) con su estado.
 
 Cuando un requerimiento pasa por `4-Rejected` rumbo a `1-Pending`, se agrega además una nota breve
-(por ejemplo al final de "Antecedentes y estado actual") explicando qué problema se encontró en la
-validación y qué mejora quedó documentada para el próximo intento.
+(por ejemplo al final de "Antecedentes y estado actual" en `requerimiento.md`) explicando qué
+problema se encontró en la validación y qué mejora quedó documentada para el próximo intento.
 
 ## 5. Automatización multi-IA (Claude Code, opencode, Copilot)
 
@@ -106,8 +154,12 @@ al vuelo por la referencia en su prompt file.
 
 ## 6. Migración de requerimientos existentes
 
-`001-fix-fuente-msdf-negate.md` era anterior a esta convención (vivía en la raíz de
-`Requerimientos/`) y ya fue movido a `5-Accepted/`. El movimiento se hizo con `mv` normal, no
-`git mv`, así que en git aparece como archivo eliminado en la ruta vieja + archivo nuevo sin
-trackear en `5-Accepted/` en vez de como un rename — al hacer commit, `git add` de ambas rutas
-para que git lo detecte como rename y no se pierda el historial del archivo.
+Los requerimientos `001`–`005` fueron migrados del formato viejo (un único archivo `NNN-slug.md`)
+al formato nuevo (carpeta `NNN-slug/` con `requerimiento.md`, `checklist.md`,
+`problems_solutions.md`, `tests.md`). El contenido se conservó: el cuerpo del requerimiento quedó en
+`requerimiento.md` (secciones 1–6 + Referencias) y el checklist de ejecución se movió a
+`checklist.md`. `problems_solutions.md` y `tests.md` arrancan como plantillas a completar.
+
+El historial se preservó con `git mv` (el rename se ve en git como archivo movido, no borrado).
+A partir de ahora, **todos** los requerimientos nuevos se crean directamente como carpeta
+(skill `crear-requerimiento`).

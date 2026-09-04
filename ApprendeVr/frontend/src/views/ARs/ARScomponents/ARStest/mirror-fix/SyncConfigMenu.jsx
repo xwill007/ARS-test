@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 
 /**
  * SyncConfigMenu — Requerimiento 002, menú de configuración para la vista "AR-SYNC"
@@ -63,9 +64,9 @@ const overlayOptionStyle = (active) => ({
 });
 
 export const OVERLAY_OPTIONS = [
-  { key: 'camera', label: 'Cámara (fondo, sin sincronizar — cada panel lee su propia cámara en vivo)' },
-  { key: 'video', label: 'Video local (play/pause/seek + voz)' },
-  { key: 'cone', label: 'Cono de palabras' },
+  { key: 'camera', labelKey: 'syncConfig.overlay.camera' },
+  { key: 'video', labelKey: 'syncConfig.overlay.video' },
+  { key: 'cone', labelKey: 'syncConfig.overlay.cone' },
 ];
 
 const SyncConfigMenu = ({
@@ -76,12 +77,13 @@ const SyncConfigMenu = ({
   selectedOverlays, onToggleOverlay,
 }) => {
   const [tab, setTab] = useState('config');
+  const { t } = useVRLanguage();
 
   return (
     <div style={menuStyle}>
       <div style={tabBarStyle}>
-        <div style={tabStyle(tab === 'config')} onClick={() => setTab('config')}>🎛️ Configuración</div>
-        <div style={tabStyle(tab === 'overlays')} onClick={() => setTab('overlays')}>📋 Overlays</div>
+        <div style={tabStyle(tab === 'config')} onClick={() => setTab('config')}>{t('arsConfig.tab.config')}</div>
+        <div style={tabStyle(tab === 'overlays')} onClick={() => setTab('overlays')}>{t('arsConfig.tab.overlays')}</div>
         <div
           style={{ padding: '10px 12px', cursor: 'pointer', color: '#aaa' }}
           onClick={onClose}
@@ -93,7 +95,7 @@ const SyncConfigMenu = ({
       {tab === 'config' && (
         <div style={bodyStyle}>
           <div style={rowStyle}>
-            <label style={labelStyle}>Separación: {separation}px</label>
+            <label style={labelStyle}>{t('config.separation')}: {separation}px</label>
             <input
               type="range" min={0} max={100} value={separation}
               onChange={(e) => onSeparationChange(Number(e.target.value))}
@@ -101,7 +103,7 @@ const SyncConfigMenu = ({
             />
           </div>
           <div style={rowStyle}>
-            <label style={labelStyle}>Ancho: {width}px</label>
+            <label style={labelStyle}>{t('config.width')}: {width}px</label>
             <input
               type="range" min={200} max={700} value={width}
               onChange={(e) => onWidthChange(Number(e.target.value))}
@@ -109,7 +111,7 @@ const SyncConfigMenu = ({
             />
           </div>
           <div style={rowStyle}>
-            <label style={labelStyle}>Alto: {height}px</label>
+            <label style={labelStyle}>{t('config.height')}: {height}px</label>
             <input
               type="range" min={200} max={900} value={height}
               onChange={(e) => onHeightChange(Number(e.target.value))}
@@ -122,7 +124,7 @@ const SyncConfigMenu = ({
       {tab === 'overlays' && (
         <div style={bodyStyle}>
           <p style={{ fontSize: 12, color: '#999', marginTop: 0 }}>
-            Selección múltiple — se apilan en ambos paneles (cámara al fondo si está marcada).
+            {t('syncConfig.selectMultipleHint')}
           </p>
           {OVERLAY_OPTIONS.map((opt) => {
             const active = selectedOverlays.includes(opt.key);
@@ -134,7 +136,7 @@ const SyncConfigMenu = ({
               // duplicar el evento.
               <label key={opt.key} style={overlayOptionStyle(active)}>
                 <input type="checkbox" checked={active} onChange={() => onToggleOverlay(opt.key)} />
-                <span style={{ fontSize: 13 }}>{opt.label}</span>
+                <span style={{ fontSize: 13 }}>{t(opt.labelKey)}</span>
               </label>
             );
           })}

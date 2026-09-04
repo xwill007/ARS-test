@@ -157,55 +157,17 @@ convivir con la Opción A si en el futuro **todos** los `<a-text>` de una instan
 
 ## 6. Criterios de aceptación
 
-- [ ] Los 5 `<a-text>` listados en la sección 5 tienen `negate="false"` explícito.
-- [ ] Al abrir `src/views/A-frame/index.html` directamente, ambos textos ("á é í ó ú ñ" y
+- [x] Los 5 `<a-text>` listados en la sección 5 tienen `negate="false"` explícito.
+- [x] Al abrir `src/views/A-frame/index.html` directamente, ambos textos ("á é í ó ú ñ" y
       "msdf-ultra á,é,í,ó,ú,ñ") se ven sin recuadro blanco.
-- [ ] En la app principal (`App.jsx`), el panel `id="palabra-actual"` del domo VR muestra la
+- [x] En la app principal (`App.jsx`), el panel `id="palabra-actual"` del domo VR muestra la
       palabra seleccionada sin recuadro blanco.
-- [ ] En `src/views/ARs/index.html`, con el overlay `vrConeOverlay` activo, los paneles en espiral
+- [x] En `src/views/ARs/index.html`, con el overlay `vrConeOverlay` activo, los paneles en espiral
       muestran las palabras sin recuadro blanco.
-- [ ] Los `<a-text>` con fuente roboto por defecto (p. ej. `VRLocalVideoOverlay.jsx`,
-      `VRVoiceController.jsx`, panel individual de palabra en `VRDomo.jsx`) no cambian visualmente
-      respecto a antes del fix (no regresión).
-
-## 7. Checklist de ejecución
-
-### Fase 1 — Preparación
-
-- [ ] 1.1 Confirmar con `npm run dev` (o el script equivalente del frontend) que se puede levantar
-      la app y navegar tanto a `src/views/A-frame/index.html` como a `src/views/ARs/index.html`.
-- [ ] 1.2 Capturar screenshot "antes" de cada uno de los 3 contextos (standalone, domo VR, overlay
-      de cono) para comparar contra el "después".
-
-### Fase 2 — Fix en `src/views/A-frame/index.html`
-
-- [ ] 2.1 Agregar `negate="false"` al `<a-text>` de línea 71-79.
-- [ ] 2.2 Agregar `negate="false"` al `<a-text>` de línea 87-95.
-- [ ] 2.3 Verificar visualmente (recarga directa del archivo servido por Vite/dev server).
-
-### Fase 3 — Fix en `VRDomo.jsx`
-
-- [ ] 3.1 Agregar `negate="false"` al `<a-text id="palabra-actual">` (línea 565-579).
-- [ ] 3.2 Verificar en la app principal: seleccionar una palabra en el domo y confirmar que el
-      panel grande se ve limpio.
-- [ ] 3.3 Confirmar que el panel individual de palabra (línea 483-494, fuente roboto) no cambió.
-
-### Fase 4 — Fix en `VRConeOverlay.jsx`
-
-- [ ] 4.1 Agregar `negate="false"` a la plantilla del `<a-text>` en `generateConeSpiralHTML`
-      (línea ~179-188).
-- [ ] 4.2 Agregar `negate="false"` a la plantilla del `<a-text>` en la segunda función generadora
-      (línea ~225-234).
-- [ ] 4.3 Verificar en `src/views/ARs/index.html` con el overlay de cono/espiral activo.
-
-### Fase 5 — Validación cruzada y cierre
-
-- [ ] 5.1 Revisar que ningún otro `<a-text>` sin `Ultra-msdf` haya cambiado de apariencia
-      (comparar contra screenshots "antes" de la Fase 1).
-- [ ] 5.2 `grep -rn "font-image.*Ultra-msdf" src/` y confirmar que cada resultado tiene
-      `negate="false"` en el mismo bloque — asegura que no quedó ningún `<a-text>` con la fuente
-      sin el atributo.
-- [ ] 5.3 Marcar los criterios de la sección 6 como cumplidos.
+- [x] Los `<a-text>` con fuente roboto por defecto (p. ej. `VRLocalVideoOverlaySync.jsx`,
+      `VRVoiceController.jsx`) no cambian visualmente respecto a antes del fix (no regresión). El
+      panel individual de palabra en `VRDomo.jsx` ya no aplica como ejemplo: evolucionó a
+      Ultra-msdf con `negate="false"`.
 
 ## 8. Referencias
 
