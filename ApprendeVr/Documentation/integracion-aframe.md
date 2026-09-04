@@ -76,7 +76,7 @@ de evaluación de pronunciación. Esto amplía lo que hay que portar:
 - **`english-vr/VR/scripts/server.js` + `start_dev.bat`**: servidor Node HTTPS de desarrollo *del propio repo
   A-Frame* (sirve estáticos + hace de proxy de las rutas `.php` hacia Apache/XAMPP, y soporta `Range` para
   video). Es infraestructura específica para correr la demo A-Frame en Windows con XAMPP; no reemplaza al
-  backend PHP y no aplica directamente a `ARS-test` (que ya tiene su propio flujo con `start-mobile.sh` +
+  backend PHP y no aplica directamente a `ARS-test` (que ya tiene su propio flujo con `scripts/start-mobile.sh` +
   Vite), pero es una referencia útil si en algún punto se necesita servir video con soporte `Range` desde
   Nest.
 - **`Requerimientos/001, 002, 003`** (carpeta nueva `english-vr/VR/Requerimientos/`): specs en texto plano de
@@ -169,7 +169,7 @@ de sesión cross-origin entre el dev server de Vite y el de Nest.
 ### 7.4 CORS y dev server
 
 Habilitar CORS en Nest (`app.enableCors(...)`) restringido al origin de Vite (`VITE_FRONT_IP:VITE_PORT`, mismas
-variables que ya usa `start-mobile.sh`), o usar el proxy de Vite (`server.proxy` en `vite.config.js`) hacia el
+variables que ya usa `scripts/start-mobile.sh`), o usar el proxy de Vite (`server.proxy` en `vite.config.js`) hacia el
 puerto del backend Nest para evitar CORS en desarrollo.
 
 ## 8. Endpoints de referencia (contrato PHP a preservar como rutas Nest)

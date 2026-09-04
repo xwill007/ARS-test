@@ -2,7 +2,7 @@
 set -e
 
 echo "Navegando al directorio del proyecto..."
-cd "$(dirname "$0")/ApprendeVr/frontend"
+cd "$(dirname "$0")/../ApprendeVr/frontend"
 
 # Detectar la IP local automáticamente (Wi-Fi en0, o Ethernet en1 como respaldo)
 DETECTED_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo 127.0.0.1)"
