@@ -17,6 +17,25 @@ const buttonStyle = (bottom) => ({
   cursor: 'pointer',
 });
 
+const inicioButtonStyle = {
+  position: 'fixed',
+  top: 16,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  zIndex: 5000,
+  background: 'rgba(30,30,30,0.92)',
+  color: 'white',
+  border: '1px solid #555',
+  borderRadius: 8,
+  padding: '8px 16px',
+  fontWeight: 'bold',
+  cursor: 'pointer',
+};
+
+const goHome = () => {
+  window.location.href = '/';
+};
+
 /**
  * ARTestMirrorButton — Requerimiento 002, botones de prueba aislados, SIN tocar ni integrarse al
  * flujo real de "AR" (ARSExperience/AROverlayController/appArs):
@@ -37,6 +56,7 @@ const ARTestMirrorButton = () => {
 
   return (
     <>
+      <button style={inicioButtonStyle} onClick={goHome} title="Volver al inicio">← Inicio</button>
       {!open && (
         <>
           <button style={buttonStyle(32)} onClick={() => setOpen('mirror')}>AR-TEST</button>
