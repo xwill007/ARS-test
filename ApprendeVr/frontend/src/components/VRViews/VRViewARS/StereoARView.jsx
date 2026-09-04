@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import StereoARPanel from './StereoARPanel';
+import { useVRLanguage } from '../../VRConfig/VRLanguageContext';
 
 /**
  * StereoARView
@@ -21,6 +22,7 @@ const StereoARView = ({
   const [arHeight, setArHeight] = useState(defaultHeight);
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
+  const { t } = useVRLanguage();
 
   useEffect(() => {
     // Pantalla completa al entrar
@@ -86,13 +88,13 @@ const StereoARView = ({
         }}
         onClick={onClose}
       >
-        Volver
+        {t('home.back')}
       </button>
       {/* Controles de separación y tamaño */}
       <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 3100, color: 'white', background: '#222b', padding: 12, borderRadius: 8 }}>
-        <label>Separación: <input type="range" min={0} max={100} value={arSeparation} onChange={e => setArSeparation(Number(e.target.value))} /></label> {arSeparation} px<br/>
-        <label>Ancho: <input type="range" min={200} max={700} value={arWidth} onChange={e => setArWidth(Number(e.target.value))} /></label> {arWidth} px<br/>
-        <label>Alto: <input type="range" min={200} max={900} value={arHeight} onChange={e => setArHeight(Number(e.target.value))} /></label> {arHeight} px<br/>
+        <label>{t('config.separation')}: <input type="range" min={0} max={100} value={arSeparation} onChange={e => setArSeparation(Number(e.target.value))} /></label> {arSeparation} px<br/>
+        <label>{t('config.width')}: <input type="range" min={200} max={700} value={arWidth} onChange={e => setArWidth(Number(e.target.value))} /></label> {arWidth} px<br/>
+        <label>{t('config.height')}: <input type="range" min={200} max={900} value={arHeight} onChange={e => setArHeight(Number(e.target.value))} /></label> {arHeight} px<br/>
       </div>
       {/* Vista izquierda */}
       <StereoARPanel

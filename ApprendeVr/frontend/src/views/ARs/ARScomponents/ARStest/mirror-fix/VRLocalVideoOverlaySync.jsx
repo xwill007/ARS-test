@@ -1,4 +1,5 @@
 import React from 'react';
+import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 
 // Función para leer la configuración de autoinicio de voz
 const getVoiceCommandsActivated = () => {
@@ -62,6 +63,7 @@ const VRLocalVideoOverlaySyncInner = ({
   isRightPanel = false, // Nueva prop para determinar si es el panel derecho
   ...props 
 }) => {
+  const { t } = useVRLanguage();
 
   // Generar el marcador visual (opcional)
   const generateMarker = () => {
@@ -337,7 +339,7 @@ const VRLocalVideoOverlaySyncInner = ({
           <!-- Indicador de estado (tamaño grande) -->
           <a-text
             id="mic-status"
-            value="OFF"
+            value="${t('voice.off')}"
             position="0 -0.5 0.03"
             align="center"
             color="#FFB3B3"
@@ -349,7 +351,7 @@ const VRLocalVideoOverlaySyncInner = ({
         <!-- Texto de reconocimiento de voz -->
         <a-text
           id="voice-text"
-          value="🎤 Comandos: 'play', 'pause', 'subir volumen', 'bajar volumen'"
+          value="${t('voice.commandsHint')}"
           position="0 -2.0 0"
           align="center"
           color="white"

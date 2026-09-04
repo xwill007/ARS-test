@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 /**
  * ARSHelpTooltip
  * Componente de ayuda que muestra información sobre los controles AR estereoscópicos
  */
 const ARSHelpTooltip = ({ show, onClose }) => {
+  const { t } = useVRLanguage();
   if (!show) return null;
 
   return (
@@ -48,7 +50,7 @@ const ARSHelpTooltip = ({ show, onClose }) => {
             fontSize: 18,
             fontWeight: 'bold'
           }}>
-            🥽 Guía de Controles AR Estereoscópicos
+            {t('help.title')}
           </h3>
           <button
             onClick={onClose}
@@ -68,35 +70,35 @@ const ARSHelpTooltip = ({ show, onClose }) => {
         {/* Contenido de ayuda */}
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>
           <div style={{ marginBottom: 16 }}>
-            <h4 style={{ color: '#66bb6a', margin: '0 0 8px 0' }}>📐 Separación</h4>
+            <h4 style={{ color: '#66bb6a', margin: '0 0 8px 0' }}>{t('help.separation')}</h4>
             <p style={{ margin: 0, color: '#ccc' }}>
-              Controla la distancia entre los dos paneles. Ajusta según el ancho de tus ojos y la distancia de visualización.
+              {t('help.separationDesc')}
             </p>
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <h4 style={{ color: '#66bb6a', margin: '0 0 8px 0' }}>📏 Ancho y Alto</h4>
+            <h4 style={{ color: '#66bb6a', margin: '0 0 8px 0' }}>{t('help.widthHeight')}</h4>
             <p style={{ margin: 0, color: '#ccc' }}>
-              Define el tamaño de cada panel de visualización. Ajusta según el tamaño de tu dispositivo y comodidad visual.
+              {t('help.widthHeightDesc')}
             </p>
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <h4 style={{ color: '#66bb6a', margin: '0 0 8px 0' }}>⬅️➡️ Offset Izquierdo/Derecho</h4>
+            <h4 style={{ color: '#66bb6a', margin: '0 0 8px 0' }}>{t('help.offset')}</h4>
             <p style={{ margin: 0, color: '#ccc' }}>
-              Ajusta la posición horizontal del video en cada ojo para corregir la alineación estereoscópica.
+              {t('help.offsetDesc')}
             </p>
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <h4 style={{ color: '#66bb6a', margin: '0 0 8px 0' }}>🔍 Zoom</h4>
+            <h4 style={{ color: '#66bb6a', margin: '0 0 8px 0' }}>{t('help.zoom')}</h4>
             <p style={{ margin: 0, color: '#ccc' }}>
-              Amplía o reduce la imagen de la cámara. Útil para ajustar el campo de visión según tus necesidades.
+              {t('help.zoomDesc')}
             </p>
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <h4 style={{ color: '#4fc3f7', margin: '0 0 8px 0' }}>⚡ Presets Rápidos</h4>
+            <h4 style={{ color: '#4fc3f7', margin: '0 0 8px 0' }}>{t('help.presets')}</h4>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ 
                 background: '#4fc3f7', 
@@ -104,24 +106,24 @@ const ARSHelpTooltip = ({ show, onClose }) => {
                 padding: '2px 8px', 
                 borderRadius: 4, 
                 fontSize: 12 
-              }}>📱 Móvil</span>
+              }}>{t('arsConfig.presets.mobile')}</span>
               <span style={{ 
                 background: '#66bb6a', 
                 color: 'white', 
                 padding: '2px 8px', 
                 borderRadius: 4, 
                 fontSize: 12 
-              }}>💻 Desktop</span>
+              }}>{t('arsConfig.presets.desktop')}</span>
               <span style={{ 
                 background: '#ff7043', 
                 color: 'white', 
                 padding: '2px 8px', 
                 borderRadius: 4, 
                 fontSize: 12 
-              }}>🥽 VR</span>
+              }}>{t('arsConfig.presets.vr')}</span>
             </div>
             <p style={{ margin: '8px 0 0 0', color: '#ccc', fontSize: 13 }}>
-              Configuraciones optimizadas para diferentes tipos de dispositivos y experiencias.
+              {t('help.presetsDesc')}
             </p>
           </div>
 
@@ -132,12 +134,12 @@ const ARSHelpTooltip = ({ show, onClose }) => {
             padding: 12,
             marginTop: 16
           }}>
-            <h4 style={{ color: '#4fc3f7', margin: '0 0 8px 0', fontSize: 14 }}>💡 Consejos</h4>
+            <h4 style={{ color: '#4fc3f7', margin: '0 0 8px 0', fontSize: 14 }}>{t('help.tips.title')}</h4>
             <ul style={{ margin: 0, paddingLeft: 16, color: '#ccc', fontSize: 13 }}>
-              <li>Mantén la separación entre 20-60px para mayor comodidad</li>
-              <li>Los offsets pequeños (-20 a +20px) suelen ser suficientes</li>
-              <li>Guarda tu configuración para uso futuro</li>
-              <li>Prueba los presets antes de ajustar manualmente</li>
+              <li>{t('help.tips.1')}</li>
+              <li>{t('help.tips.2')}</li>
+              <li>{t('help.tips.3')}</li>
+              <li>{t('help.tips.4')}</li>
             </ul>
           </div>
         </div>

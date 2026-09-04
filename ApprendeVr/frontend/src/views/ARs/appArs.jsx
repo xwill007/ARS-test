@@ -6,9 +6,11 @@ import ARSExperience from './ARScomponents/ARSExperience';
 import VRUserArs from './ARScomponents/VRUserArs/VRUserArs';
 import AROverlayController from './ARScomponents/AROverlayController';
 import VRButton from '../../components/VRViews/VRButton';
+import { useVRLanguage } from '../../components/VRConfig/VRLanguageContext';
 
 const ARSApp = () => {
   const [isARActive, setIsARActive] = useState(false);
+  const { t } = useVRLanguage();
 
   // Usar el controlador de overlays - ahora reacciona automáticamente a cambios en la configuración
   const overlayController = AROverlayController({ 
@@ -70,7 +72,7 @@ const ARSApp = () => {
           <VRButton
             position={[2.5, 3.0, -1.5]}
             scale={0.5}
-            text="Volver a inicio"
+            text={t('home.backToHome')}
             navigateTo="/"
           />
         </VRWorldArs>

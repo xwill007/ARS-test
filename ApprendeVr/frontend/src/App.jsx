@@ -37,6 +37,10 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
 
+  useEffect(() => {
+    document.title = t('titles.main');
+  }, [currentLang]);
+
   const protocol = import.meta.env.VITE_HTTPS === 'true' ? 'https' : 'http'
   const host = import.meta.env.VITE_FRONT_IP
   const port = import.meta.env.VITE_PORT
@@ -115,19 +119,19 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
           <VRButton
             position={[-1, 2, 0]}
             scale={0.9}
-            text="VR-R3F"
+            text={t('buttons.vrR3f')}
             navigateTo={mobileUrl}
           />
           <VRButton
             position={[1, 2, 0]}
             scale={0.9}
-            text="A-FRAME"
+            text={t('buttons.aFrame')}
             navigateTo={aframeUrl}
           />
           <VRButton
             position={[0, 0.8, 0]}
             scale={0.9}
-            text="VR-AR STEREO"
+            text={t('buttons.arStereo')}
             navigateTo={baseUrl + '/src/views/ARs/index.html'}
           />
           {/* Temporal — Requerimiento 002: botón de prueba aislado del espejo de overlay en modo
@@ -135,7 +139,7 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
           <VRButton
             position={[-2.4, 0.8, 0]}
             scale={0.9}
-            text="AR-mirror"
+            text={t('buttons.arMirror')}
             navigateTo={baseUrl + '/src/views/ARs/ARScomponents/ARStest/mirror-fix/artest-mirror.html'}
           />
         </Canvas>
@@ -182,7 +186,7 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
             }}
             onClick={() => { setShowDomo(false); setShowBoth(false); }}
           >
-            Volver
+            {t('home.back')}
           </button>
           <a-scene embedded vr-mode-ui="enabled: true">
             <VRDomo />

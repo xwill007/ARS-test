@@ -3,6 +3,7 @@ import CameraOverlaySync from './CameraOverlaySync';
 import VRLocalVideoOverlaySync from './VRLocalVideoOverlaySync';
 import VRConeOverlaySync from './VRConeOverlaySync';
 import SyncConfigMenu from './SyncConfigMenu';
+import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 
 const closeButtonStyle = {
   position: 'fixed',
@@ -69,6 +70,7 @@ const layerStyle = { position: 'absolute', top: 0, left: 0, width: '100%', heigh
  * Componente de prueba aislado, no se usa desde ningún archivo de producción.
  */
 const SyncStereoTestView = ({ onClose }) => {
+  const { t } = useVRLanguage();
   // Un ref por tipo de overlay sincronizable, por panel — se crean todos de una, se usen o no,
   // así el relay siempre tiene dónde mirar sin tener que crear/destruir refs dinámicamente.
   const leftRefs = useRef({ video: React.createRef(), cone: React.createRef() });
@@ -156,7 +158,7 @@ const SyncStereoTestView = ({ onClose }) => {
       }}
     >
       <button style={menuButtonStyle} onClick={() => setShowMenu((v) => !v)}>☰</button>
-      <button style={closeButtonStyle} onClick={onClose}>Volver</button>
+      <button style={closeButtonStyle} onClick={onClose}>{t('home.back')}</button>
 
       {showMenu && (
         <SyncConfigMenu

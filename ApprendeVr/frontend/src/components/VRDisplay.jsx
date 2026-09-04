@@ -24,25 +24,25 @@ const VRDisplay = ({ onShowDomo, onShowBothViews, onShowARStereo }) => {
         fontWeight: 'bold',
         letterSpacing: 1
       }}>
-        {isLoading ? 'Loading...' : t('appName')}
+        {isLoading ? t('common.loading') : t('appName')}
       </h1>
       <button
         style={buttonStyle}
         onClick={onShowDomo}
       >
-        Mostrar Domo
+        {t('display.showDomo')}
       </button>
       <button
         style={buttonStyle}
         onClick={onShowBothViews}
       >
-        Ambas Vistas
+        {t('display.bothViews')}
       </button>
       <button
         style={buttonStyle}
         onClick={onShowARStereo}
       >
-        AR Stereo
+        {t('display.arStereo')}
       </button>
     </div>
   );

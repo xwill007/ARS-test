@@ -1,4 +1,5 @@
 import React from 'react';
+import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 
 /**
  * TestOverlayAR2 — Requerimiento 002, Intento 4 del checklist de la sección 4.3
@@ -19,7 +20,7 @@ import React from 'react';
  * (ARSExperience, ARStereoView, appArs, etc. quedan intactos). Solo lo monta el botón de prueba
  * temporal — ver ARTestMirrorButton.jsx en esta misma carpeta.
  */
-const srcDoc = `
+const getSrcDoc = (t) => `
     <html>
       <head>
         <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -28,7 +29,7 @@ const srcDoc = `
         <canvas id="ars-frame-capture"></canvas>
         <a-scene embedded vr-mode-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
           <a-box position="0 1.6 -3" rotation="0 45 0" color="#EF2D5E" animation="property: rotation; to: 0 405 0; loop: true; dur: 4000"></a-box>
-          <a-text value="AR-TEST: espejo overlay" position="-1.5 2.6 -3" color="#FFFFFF" width="4"></a-text>
+          <a-text value="${t('overlays.mirrorTest')}" position="-1.5 2.6 -3" color="#FFFFFF" width="4"></a-text>
           <a-camera position="0 1.8 0"></a-camera>
         </a-scene>
         <script>
@@ -71,12 +72,15 @@ const srcDoc = `
     </html>
   `;
 
-const TestOverlayAR2 = () => (
-  <iframe
-    title="Test Overlay AR2 (espejo)"
-    srcDoc={srcDoc}
-    style={{ width: '100%', height: '100%', border: 'none', background: 'transparent', pointerEvents: 'auto' }}
-  />
-);
+const TestOverlayAR2 = () => {
+  const { t } = useVRLanguage();
+  return (
+    <iframe
+      title="Test Overlay AR2 (espejo)"
+      srcDoc={getSrcDoc(t)}
+      style={{ width: '100%', height: '100%', border: 'none', background: 'transparent', pointerEvents: 'auto' }}
+    />
+  );
+};
 
 export default TestOverlayAR2;

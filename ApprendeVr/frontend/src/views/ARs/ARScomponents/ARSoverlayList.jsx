@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import overlayRegistry from './overlays/index'; // Auto-registro de overlays
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 /**
  * ARSoverlayList
@@ -25,6 +26,8 @@ const ARSoverlayList = ({
       category: config.category
     }));
   }, []);
+
+  const { t } = useVRLanguage();
 
   const handleOverlayChange = (overlayKey) => {
     console.log('Button clicked:', overlayKey);
@@ -104,7 +107,7 @@ const ARSoverlayList = ({
           textAlign: 'center',
           fontStyle: 'italic' 
         }}>
-          Haz clic para activar/desactivar overlays
+          {t('overlays.clickHint')}
         </div>
       )}
       {overlayButtons.map(({ key, label }) => (
@@ -121,7 +124,7 @@ const ARSoverlayList = ({
             e.target.style.opacity = '1';
           }}
         >
-          {label}
+          {t(label)}
           {multiSelect && isSelected(key) && (
             <span style={{ 
               position: 'absolute', 

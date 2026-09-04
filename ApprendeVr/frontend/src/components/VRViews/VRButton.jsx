@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Text } from '@react-three/drei'
 import { RoundedBox } from '@react-three/drei'
 import { useVRTheme } from '../VRConfig/VRThemeContext';
+import { useVRLanguage } from '../VRConfig/VRLanguageContext';
 
 const TextLabel = ({ text, rotationY = 0 }) => {
   const { theme } = useVRTheme();
@@ -28,7 +29,7 @@ function VRButton({
   position = [0, 1.5, -2],
   rotation = [0, 0, 0],
   scale = 0.5,
-  text = "VR",
+  text = null,
   navigateTo = null,
   // Si es false, el click directo del mouse/touch sobre el botón no hace nada: solo se
   // activa vía userData.onClick (p. ej. el raycaster de mirada con temporizador de VRCursorArs).
@@ -36,9 +37,12 @@ function VRButton({
 }) {
   const [hovered, setHovered] = useState(false)
   const { theme } = useVRTheme();
+  const { t } = useVRLanguage();
   const colors = theme?.colors || {};
   const fonts = theme?.fonts || {};
   const groupRef = useRef(null)
+
+  const label = text || t('buttons.vr');
 
   const handleClick = () => {
     if (navigateTo) {
@@ -87,8 +91,8 @@ function VRButton({
           emissiveIntensity={0.2}
         />
       </RoundedBox>
-      <group position={[0, 0, 0.051]}><TextLabel text={text} /></group>
-      <group position={[0, 0, -0.051]}><TextLabel text={text} rotationY={Math.PI} /></group>
+      <group position={[0, 0, 0.051]}><TextLabel text={label} /></group>
+      <group position={[0, 0, -0.051]}><TextLabel text={label} rotationY={Math.PI} /></group>
     </group>
   )
 }

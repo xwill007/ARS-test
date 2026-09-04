@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ARStereoView from '../../../ARSviews/ARStereoView';
 import TestOverlayAR2 from './TestOverlayAR2';
 import SyncStereoTestView from './SyncStereoTestView';
+import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 
 const buttonStyle = (bottom) => ({
   position: 'fixed',
@@ -53,10 +54,11 @@ const goHome = () => {
  */
 const ARTestMirrorButton = () => {
   const [open, setOpen] = useState(null); // null | 'mirror' | 'sync'
+  const { t } = useVRLanguage();
 
   return (
     <>
-      <button style={inicioButtonStyle} onClick={goHome} title="Volver al inicio">← Inicio</button>
+      <button style={inicioButtonStyle} onClick={goHome} title={t('home.backToHome')}>← {t('home.backToHome')}</button>
       {!open && (
         <>
           <button style={buttonStyle(32)} onClick={() => setOpen('mirror')}>AR-TEST</button>

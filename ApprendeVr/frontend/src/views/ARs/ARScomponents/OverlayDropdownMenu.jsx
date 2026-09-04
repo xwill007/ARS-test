@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import overlayRegistry from './overlays/index';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 import './OverlayDropdownMenu.css';
 
 /**
@@ -19,6 +20,7 @@ const OverlayDropdownMenu = ({
   const [isResizing, setIsResizing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [startSize, setStartSize] = useState({ width: 0, height: 0 });
+  const { t } = useVRLanguage();
 
   // Obtener overlays dinámicamente del registro
   const overlayList = useMemo(() => {
@@ -292,7 +294,7 @@ const OverlayDropdownMenu = ({
         }}
       >
         <span>
-          📋 OVERLAYS
+          {t('overlays.title')}
           {selectedCount > 0 && (
             <span className="overlay-count-badge" style={badgeStyle}>{selectedCount}</span>
           )}
@@ -319,7 +321,7 @@ const OverlayDropdownMenu = ({
             fontSize: '12px',
             color: '#ccc'
           }}>
-            {multiSelect ? 'Selecciona múltiples overlays' : 'Selecciona un overlay'}
+            {multiSelect ? t('overlays.selectMultiple') : t('overlays.selectOne')}
           </div>
 
           {/* Contenedor con scroll para la lista de overlays */}
@@ -369,7 +371,7 @@ const OverlayDropdownMenu = ({
                       <span style={{ color: getTypeColor(type) }}>
                         {getTypeIcon(type)}
                       </span>
-                      <strong style={{ color: 'white' }}>{label}</strong>
+                      <strong style={{ color: 'white' }}>{t(label)}</strong>
                       <span style={{ 
                         fontSize: '8px', 
                         color: '#999',
@@ -387,7 +389,7 @@ const OverlayDropdownMenu = ({
                       marginTop: '2px',
                       lineHeight: '1.2'
                     }}>
-                      {description}
+                      {t(description)}
                     </div>
                     {category && (
                       <div style={{ 
@@ -429,7 +431,7 @@ const OverlayDropdownMenu = ({
                       e.target.style.background = 'rgba(0, 122, 204, 0.3)';
                       e.target.style.color = '#007acc';
                     }}
-                    title="Configurar posición y parámetros"
+                    title={t('overlays.configure')}
                   >
                     ⚙️
                   </button>
@@ -453,7 +455,7 @@ const OverlayDropdownMenu = ({
                   e.target.style.background = '#ff4444';
                 }}
               >
-                🗑️ Limpiar todo ({selectedCount})
+                {t('overlays.cleanAll').replace('{count}', selectedCount)}
               </button>
             )}
 
@@ -471,9 +473,9 @@ const OverlayDropdownMenu = ({
                 e.target.style.borderColor = '#007acc';
                 e.target.style.color = 'white';
               }}
-              title="Resetear a la configuración por defecto del dispositivo"
+              title={t('overlays.resetHint')}
             >
-              🔄 Resetear a Defaults
+              {t('overlays.resetDefaults')}
             </button>
           </div>
 
@@ -486,7 +488,7 @@ const OverlayDropdownMenu = ({
             color: '#888',
             textAlign: 'center'
           }}>
-            {overlayList.length} overlays disponibles • {selectedCount} activos
+            {t('overlays.footer').replace('{total}', overlayList.length).replace('{active}', selectedCount)}
           </div>
 
           {/* Handle de redimensionamiento */}
@@ -506,7 +508,7 @@ const OverlayDropdownMenu = ({
                 e.target.style.transform = 'scale(1)';
               }
             }}
-            title="Arrastrar para redimensionar"
+            title={t('overlays.dragResize')}
           >
             ◢
           </div>

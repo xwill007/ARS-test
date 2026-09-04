@@ -1,4 +1,5 @@
 import React from 'react';
+import { useVRLanguage } from '../../../../components/VRConfig/VRLanguageContext';
 
 /**
  * VRVoiceController - Componente reutilizable para controles de voz
@@ -18,6 +19,7 @@ const VRVoiceController = ({
   textScale = 1,
   ...props 
 }) => {
+  const { t } = useVRLanguage();
 
   // Generar controles de voz
   const generateVoiceControls = () => {
@@ -78,7 +80,7 @@ const VRVoiceController = ({
           <!-- Estado del micrófono -->
           <a-text
             id="mic-status"
-            value="ON"
+            value="${t('voice.on')}"
             position="0 ${-micIconSize * 0.8} 0.01"
             align="center"
             color="#4CAF50"
@@ -92,7 +94,7 @@ const VRVoiceController = ({
         <!-- Texto de reconocimiento de voz -->
         <a-text
           id="voice-text"
-          value="Listo para comandos de voz"
+          value="${t('voice.ready')}"
           position="0 ${-1.5 * textScale} 0"
           align="center"
           color="white"

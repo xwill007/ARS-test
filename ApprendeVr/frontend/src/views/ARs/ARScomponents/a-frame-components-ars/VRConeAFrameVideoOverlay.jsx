@@ -1,19 +1,19 @@
 import React from 'react';
+import { useVRLanguage } from '../../../../components/VRConfig/VRLanguageContext';
 
 /**
  * VRConeAFrameVideoOverlay - Overlay A-Frame optimizado para mostrar video
  * Versión simplificada enfocada en el rendimiento del video
  */
+
 const VRConeAFrameVideoOverlay = ({
-  radiusBase = 8,
-  height = 10,
+  videoLabels = [],
+  radiusBase = 6,
+  height = 6,
   showUserMarker = true,
-  targetObjectId = "user-marker",
-  targetObjectType = "sphere",
-  targetObjectProps = {},
-  lookAtTarget = false,
-  targetPosition = [0, 0.15, 0]
+  ...props
 }) => {
+  const { t } = useVRLanguage();
   
   const generateTargetObject = () => {
     const position = `${targetPosition[0]} ${targetPosition[1]} ${targetPosition[2]}`;
@@ -104,7 +104,7 @@ const VRConeAFrameVideoOverlay = ({
           
           <!-- Información de rendimiento -->
           <a-text
-            value="A-FRAME VIDEO TEST"
+            value="${t('overlays.aframeVideoTest')}"
             position="0 -1 0"
             color="#00ff88"
             align="center"

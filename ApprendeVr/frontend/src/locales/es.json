@@ -4,8 +4,10 @@
     "greeting": "Hola mundo!",
     "welcomeMessage": "Bienvenido a ApprendeVr!",
     "vrButtonText": "Entrar en VR",
-    
-    
+    "close": "Cerrar",
+    "common": {
+      "loading": "Cargando..."
+    },
     "button": {
       "submit": "enviar"
     },
@@ -19,6 +21,191 @@
       "theme": "Tema",
       "theme_light": "Claro",
       "theme_dark": "Oscuro"
+    },
+    "home": {
+      "back": "Volver",
+      "backToHome": "Volver a inicio"
+    },
+    "buttons": {
+      "vr": "VR",
+      "vrR3f": "VR-R3F",
+      "aFrame": "A-FRAME",
+      "arStereo": "VR-AR STEREO",
+      "arMirror": "AR-mirror",
+      "enterVr": "ENTER VR"
+    },
+    "display": {
+      "showDomo": "Mostrar Domo",
+      "bothViews": "Ambas Vistas",
+      "arStereo": "AR Stereo"
+    },
+    "config": {
+      "showVrDisplay": "Mostrar menú VRDisplay",
+      "separation": "Separación",
+      "width": "Ancho",
+      "height": "Alto",
+      "options": "Opciones de configuración",
+      "help": "Ayuda",
+      "arsConfig": "Configuración AR",
+      "settingsButton": "⚙️ Config",
+      "export": "📥 Exportar Config",
+      "import": "📤 Importar Config",
+      "reset": "🔄 Resetear",
+      "persistent": "Guardado persistente en localStorage"
+    },
+    "domo": {
+      "selectWord": "Selecciona una palabra"
+    },
+    "ars": {
+      "activate": "Activar modo ARS"
+    },
+    "arsConfig": {
+      "hideMenu": "Ocultar menú",
+      "showMenu": "Mostrar menú",
+      "tab": {
+        "config": "🎛️ Configuración",
+        "overlays": "📋 Overlays"
+      },
+      "title": "Configuración Estereoscópica AR",
+      "resolution": "📹 Resolución",
+      "separation": "📐 Separación",
+      "width": "📏 Ancho",
+      "height": "📐 Alto",
+      "offsetLeft": "⬅️ Offset I",
+      "offsetRight": "➡️ Offset D",
+      "scale": "🎮 Escala",
+      "cameraZoom": "🔍 Zoom Cámara",
+      "optimization": "🔧 Optimización Estereoscópica",
+      "optimize": "⚡ Optimizar",
+      "efficientMode": "Modo eficiente",
+      "mirrorRight": "🪞 Espejo D",
+      "mirrorPanelLabel": "Panel derecho = izquierdo",
+      "muteRight": "🔇 Silenciar D",
+      "mutePanelLabel": "Sin audio en panel derecho",
+      "hideCursors": "🎯 Ocultar cursores",
+      "hideCursorsHint": "Oculta los cursores blancos en ambas vistas. Deja un punto mínimo para referencia.",
+      "hideCursorsLabel": "Ocultar cursores blancos",
+      "presets": {
+        "mobile": "📱 Móvil",
+        "desktop": "💻 Desktop",
+        "vr": "🥽 VR"
+      },
+      "save": "💾 Guardar Configuración",
+      "saved": "✓ Guardado",
+      "overlaySelection": "🎛️ Selección de Overlays",
+      "overlaySelectionHint": "Activa/desactiva los overlays para tu experiencia AR"
+    },
+    "help": {
+      "title": "🥽 Guía de Controles AR Estereoscópicos",
+      "separation": "📐 Separación",
+      "separationDesc": "Controla la distancia entre los dos paneles. Ajusta según el ancho de tus ojos y la distancia de visualización.",
+      "widthHeight": "📏 Ancho y Alto",
+      "widthHeightDesc": "Define el tamaño de cada panel de visualización. Ajusta según el tamaño de tu dispositivo y comodidad visual.",
+      "offset": "⬅️➡️ Offset Izquierdo/Derecho",
+      "offsetDesc": "Ajusta la posición horizontal del video en cada ojo para corregir la alineación estereoscópica.",
+      "zoom": "🔍 Zoom",
+      "zoomDesc": "Amplía o reduce la imagen de la cámara. Útil para ajustar el campo de visión según tus necesidades.",
+      "presets": "⚡ Presets Rápidos",
+      "presetsDesc": "Configuraciones optimizadas para diferentes tipos de dispositivos y experiencias.",
+      "tips": {
+        "title": "💡 Consejos",
+        "1": "Mantén la separación entre 20-60px para mayor comodidad",
+        "2": "Los offsets pequeños (-20 a +20px) suelen ser suficientes",
+        "3": "Guarda tu configuración para uso futuro",
+        "4": "Prueba los presets antes de ajustar manualmente"
+      }
+    },
+    "overlays": {
+      "title": "📋 OVERLAYS",
+      "selectMultiple": "Selecciona múltiples overlays",
+      "selectOne": "Selecciona un overlay",
+      "configure": "Configurar posición y parámetros",
+      "configureOverlay": "Configurar Overlay",
+      "cleanAll": "🗑️ Limpiar todo ({count})",
+      "resetDefaults": "🔄 Resetear a Defaults",
+      "resetHint": "Resetear a la configuración por defecto del dispositivo",
+      "footer": "{total} overlays disponibles • {active} activos",
+      "dragResize": "Arrastrar para redimensionar",
+      "positions": "Posiciones",
+      "scales": "Escalas",
+      "videoConfig": "Configuración de Videos",
+      "generalConfig": "Configuración General",
+      "videoPlaceholder": "Ej: /videos/sample.mp4 o https://youtube.com/watch?v=...",
+      "resolution": {
+        "auto": "Automática"
+      },
+      "testVideos": "Videos de Prueba",
+      "clickHint": "Haz clic para activar/desactivar overlays",
+      "byType": "Por tipo:",
+      "list": "Lista de overlays:",
+      "component": "Componente:",
+      "aframeVideoTest": "A-FRAME VIDEO TEST",
+      "mirrorTest": "AR-TEST: espejo overlay",
+      "videoPrincipal": "Video Principal",
+      "marcadorCentral": "Marcador Central",
+      "escalaVideoPrincipal": "Escala Video Principal",
+      "urlVideoPrincipal": "URL del Video Principal",
+      "soportaLocalesYoutube": "Soporta archivos locales y URLs de YouTube",
+      "calidadVideoPrincipal": "Calidad del Video Principal",
+      "mostrarFondoVideo": "Mostrar fondo del video principal",
+      "rutaVideoLocal": "Ruta del Video Local",
+      "rutaVideoLocalHint": "Ruta del archivo de video local (relativa a /public)",
+      "autoplay": "Reproducción automática",
+      "doubleSided": "Video de doble cara",
+      "invertBackSide": "Invertir lado posterior",
+      "showMarker": "Mostrar marcador de referencia",
+      "testVideoGangstas": "📁 gangstas.mp4 (Defecto)",
+      "testVideoSample": "📁 sample.mp4",
+      "labelsRadius": "Radio Base de Etiquetas",
+      "labelsHeight": "Altura de Etiquetas",
+      "showCenterMarker": "Mostrar marcador central",
+      "forceReload": "Force Reload",
+      "export": "Exportar",
+      "save": "Guardar",
+      "saved": "Guardado",
+      "debug": {
+        "configActual": "Config Actual",
+        "userSettings": "User Settings",
+        "refresh": "Refresh"
+      },
+      "tab": {
+        "positions": "Posiciones",
+        "scales": "Escalas",
+        "videos": "Videos",
+        "general": "General"
+      }
+    },
+    "overlayLabels": {
+      "videoLocalAframe": "📹 Video Local A-Frame",
+      "simpleText": "Texto Simple",
+      "simpleTextDesc": "Overlay de texto 3D simple",
+      "rotatingCube": "Cubo Rotatorio",
+      "rotatingCubeDesc": "Cubo 3D que rota continuamente",
+      "testR3F": "Overlay Estático",
+      "testR3FDesc": "Overlay R3F básico para pruebas",
+      "vrConeR3F": "Cono R3F",
+      "vrConeR3FDesc": "Cono 3D usando React Three Fiber",
+      "vrConeR3FVideo": "Video Cono R3F",
+      "vrConeR3FVideoDesc": "Video proyectado en cono R3F - Configurable",
+      "vrConeR3FVideoOriginal": "Video Cono R3F (Original)",
+      "vrConeR3FVideoOriginalDesc": "Video proyectado en cono R3F - Versión original",
+      "vrConeOverlay": "Cono de Palabras",
+      "vrConeOverlayDesc": "Cono 3D con palabras en A-Frame",
+      "vrLocalVideo": "Video Local A-Frame",
+      "vrLocalVideoDesc": "Reproductor de video local con controles usando A-Frame",
+      "combinedAFrame": "Cono de Palabras + Video Local (A-Frame)",
+      "combinedAFrameDesc": "Muestra ambos overlays de A-Frame juntos en una sola escena"
+    },
+    "voice": {
+      "off": "OFF",
+      "on": "ON",
+      "ready": "Listo para comandos de voz",
+      "commandsHint": "🎤 Comandos: 'play', 'pause', 'subir volumen', 'bajar volumen'"
+    },
+    "titles": {
+      "main": "VR Experience",
+      "mobile": "VR Experience Mobile",
+      "aFrame": "A-Frame VR Scene"
     }
   }
 }

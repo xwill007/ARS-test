@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import configurableOverlayManager from './ConfigurableOverlayManager';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 /**
  * OverlayDebugPanel - Panel de debug para ver configuraciones en tiempo real
@@ -7,6 +8,7 @@ import configurableOverlayManager from './ConfigurableOverlayManager';
 const OverlayDebugPanel = ({ overlayId, visible = false }) => {
   const [config, setConfig] = useState({});
   const [userSettings, setUserSettings] = useState({});
+  const { t } = useVRLanguage();
 
   useEffect(() => {
     if (!overlayId) return;
@@ -53,7 +55,7 @@ const OverlayDebugPanel = ({ overlayId, visible = false }) => {
       </h4>
       
       <div style={{ marginBottom: '10px' }}>
-        <strong>Config Actual:</strong>
+        <strong>{t('overlays.debug.configActual')}:</strong>
         <pre style={{ 
           fontSize: '10px', 
           color: '#ffffff',
@@ -65,7 +67,7 @@ const OverlayDebugPanel = ({ overlayId, visible = false }) => {
       </div>
 
       <div>
-        <strong>User Settings:</strong>
+        <strong>{t('overlays.debug.userSettings')}:</strong>
         <pre style={{ 
           fontSize: '10px', 
           color: '#ffff00',
@@ -93,7 +95,7 @@ const OverlayDebugPanel = ({ overlayId, visible = false }) => {
             fontSize: '10px'
           }}
         >
-          Refresh
+          {t('overlays.debug.refresh')}
         </button>
       </div>
     </div>

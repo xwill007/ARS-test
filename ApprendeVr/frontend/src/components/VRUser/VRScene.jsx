@@ -3,14 +3,16 @@ import { VRButton, XR, Controllers, Hands } from '@react-three/xr'
 import { Environment } from '@react-three/drei'
 import VRCamera from './VRCamera'
 import VRMoveControls from './VRMoveControls'
+import { useVRLanguage } from '../VRConfig/VRLanguageContext'
 
 const VRScene = () => {
+  const { t } = useVRLanguage();
   return (
     <>
       <VRButton 
         className="vr-button" 
         enterOnly={true}
-        title="ENTER VR"
+        title={t('buttons.enterVr')}
       />
       <Canvas>
         <XR>

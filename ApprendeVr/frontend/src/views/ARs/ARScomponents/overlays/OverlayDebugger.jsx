@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import overlayRegistry from '../overlays/index';
+import { useVRLanguage } from '../../../../components/VRConfig/VRLanguageContext';
 
 /**
  * Componente de debug para verificar overlays registrados
@@ -7,6 +8,7 @@ import overlayRegistry from '../overlays/index';
 const OverlayDebugger = () => {
   const [overlays, setOverlays] = useState({});
   const [selectedOverlay, setSelectedOverlay] = useState(null);
+  const { t } = useVRLanguage();
   
   useEffect(() => {
     // Cargar overlays al montar el componente
@@ -46,7 +48,7 @@ const OverlayDebugger = () => {
       </div>
       
       <div style={{ marginBottom: 15 }}>
-        <h4 style={{ margin: '0 0 5px 0', color: '#00ccff' }}>Por tipo:</h4>
+        <h4 style={{ margin: '0 0 5px 0', color: '#00ccff' }}>{t('overlays.byType')}</h4>
         <div style={{ marginLeft: 10 }}>
           <div>🟢 R3F: {Object.values(overlays).filter(o => o.type === 'r3f').length}</div>
           <div>🔴 HTML: {Object.values(overlays).filter(o => o.type === 'html').length}</div>
@@ -54,7 +56,7 @@ const OverlayDebugger = () => {
       </div>
       
       <div>
-        <h4 style={{ margin: '0 0 10px 0', color: '#ff9900' }}>Lista de overlays:</h4>
+        <h4 style={{ margin: '0 0 10px 0', color: '#ff9900' }}>{t('overlays.list')}</h4>
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {Object.entries(overlays).map(([key, config]) => (
             <li key={key} style={{ 
@@ -96,10 +98,10 @@ const OverlayDebugger = () => {
                 </button>
               </div>
               <div style={{ marginTop: 4, fontSize: 10, color: '#ccc' }}>
-                {config.label}
+                {t(config.label)}
               </div>
               <div style={{ marginTop: 2, fontSize: 9, color: '#999' }}>
-                {config.description}
+                {t(config.description)}
               </div>
               <div style={{ marginTop: 2, fontSize: 8, color: '#666' }}>
                 Categoría: {config.category}
@@ -121,7 +123,7 @@ const OverlayDebugger = () => {
             Overlay seleccionado:
           </h4>
           <div style={{ fontSize: 10 }}>
-            <strong>Componente:</strong> {selectedOverlay.component?.name || 'N/A'}
+            <strong>{t('overlays.component')}</strong> {selectedOverlay.component?.name || 'N/A'}
           </div>
           <pre style={{ 
             fontSize: 9, 

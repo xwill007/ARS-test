@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import arsConfigManager from '../../../config/ARSConfigManager';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 /**
  * ARSConfigStatus
@@ -7,6 +8,7 @@ import arsConfigManager from '../../../config/ARSConfigManager';
  */
 const ARSConfigStatus = ({ onConfigLoaded }) => {
   const [showExportImport, setShowExportImport] = useState(false);
+  const { t } = useVRLanguage();
 
   const exportConfig = () => {
     const config = arsConfigManager.exportConfig();
@@ -67,9 +69,9 @@ const ARSConfigStatus = ({ onConfigLoaded }) => {
           zIndex: 3050
         }}
         onClick={() => setShowExportImport(true)}
-        title="Opciones de configuración"
+        title={t('config.options')}
       >
-        ⚙️ Config
+        {t('config.settingsButton')}
       </button>
     );
   }
@@ -93,7 +95,7 @@ const ARSConfigStatus = ({ onConfigLoaded }) => {
         marginBottom: 8
       }}>
         <span style={{ color: '#4fc3f7', fontSize: 12, fontWeight: 'bold' }}>
-          Configuración AR
+          {t('config.arsConfig')}
         </span>
         <button
           onClick={() => setShowExportImport(false)}
@@ -122,7 +124,7 @@ const ARSConfigStatus = ({ onConfigLoaded }) => {
             cursor: 'pointer'
           }}
         >
-          📥 Exportar Config
+          {t('config.export')}
         </button>
         
         <label style={{
@@ -136,7 +138,7 @@ const ARSConfigStatus = ({ onConfigLoaded }) => {
           textAlign: 'center',
           display: 'block'
         }}>
-          📤 Importar Config
+          {t('config.import')}
           <input
             type="file"
             accept=".json"
@@ -157,7 +159,7 @@ const ARSConfigStatus = ({ onConfigLoaded }) => {
             cursor: 'pointer'
           }}
         >
-          🔄 Resetear
+          {t('config.reset')}
         </button>
       </div>
       
@@ -167,7 +169,7 @@ const ARSConfigStatus = ({ onConfigLoaded }) => {
         color: '#999',
         textAlign: 'center'
       }}>
-        Guardado persistente en localStorage
+        {t('config.persistent')}
       </div>
     </div>
   );

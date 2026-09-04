@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import configurableOverlayManager from './ConfigurableOverlayManager';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 /**
  * OverlayConfigPanel - Panel de configuración para overlays
  * Permite ajustar posiciones y parámetros en tiempo real
  */
 const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
+  const { t } = useVRLanguage();
   // Estado para posición y tamaño del panel
   const [panelPosition, setPanelPosition] = useState({ x: null, y: null });
   const [panelSize, setPanelSize] = useState({ width: 400, height: 600 });
@@ -404,7 +406,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
         onTouchStart={handleTouchStart}
       >
         <h3 style={{ margin: 0, color: '#00ff88' }}>
-          Configurar Overlay: {overlayId}
+          {t('overlays.configureOverlay')}: {overlayId}
         </h3>
         <button
           onClick={onClose}
@@ -437,7 +439,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
               textTransform: 'capitalize'
             }}
           >
-            {tab}
+            {t(`overlays.tab.${tab}`)}
           </button>
         ))}
       </div>
@@ -446,14 +448,14 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
       <div style={{ marginBottom: '20px' }}>
         {activeTab === 'positions' && (
           <div>
-            <h4 style={{ color: '#00ff88', marginTop: 0 }}>Posiciones</h4>
+            <h4 style={{ color: '#00ff88', marginTop: 0 }}>{t('overlays.positions')}</h4>
             <PositionControl 
-              label="Video Principal" 
+              label={t('overlays.videoPrincipal')} 
               configKey="mainVideo.position" 
               defaultValue={[0, 5, 0]}
             />
             <PositionControl 
-              label="Marcador Central" 
+              label={t('overlays.marcadorCentral')} 
               configKey="centerMarker.position" 
               defaultValue={[0, 0, 0]}
             />
@@ -462,9 +464,9 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
 
         {activeTab === 'scales' && (
           <div>
-            <h4 style={{ color: '#ff8800', marginTop: 0 }}>Escalas</h4>
+            <h4 style={{ color: '#ff8800', marginTop: 0 }}>{t('overlays.scales')}</h4>
             <ScaleControl 
-              label="Escala Video Principal" 
+              label={t('overlays.escalaVideoPrincipal')} 
               configKey="mainVideo.scale" 
               defaultValue={[5, 4, 1]}
             />
@@ -473,7 +475,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
 
         {activeTab === 'videos' && (
           <div>
-            <h4 style={{ color: '#ff0000', marginTop: 0 }}>Configuración de Videos</h4>
+            <h4 style={{ color: '#ff0000', marginTop: 0 }}>{t('overlays.videoConfig')}</h4>
             
             {/* URL del video principal */}
             <div style={{ marginBottom: '15px' }}>
@@ -483,13 +485,13 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                 fontWeight: 'bold',
                 color: '#ff0000'
               }}>
-                URL del Video Principal
+                {t('overlays.urlVideoPrincipal')}
               </label>
               <input
                 type="text"
                 value={config.mainVideo?.videoSrc || ''}
                 onChange={(e) => updateConfig('mainVideo.videoSrc', e.target.value)}
-                placeholder="Ej: /videos/sample.mp4 o https://youtube.com/watch?v=..."
+                placeholder={t('overlays.videoPlaceholder')}
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -500,7 +502,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                 }}
               />
               <small style={{ color: '#aaa', fontSize: '12px' }}>
-                Soporta archivos locales y URLs de YouTube
+                {t('overlays.soportaLocalesYoutube')}
               </small>
             </div>
 
@@ -512,7 +514,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                 fontWeight: 'bold',
                 color: '#ff0000'
               }}>
-                Calidad del Video Principal
+                {t('overlays.calidadVideoPrincipal')}
               </label>
               <select
                 value={config.mainVideo?.quality || '720'}
@@ -526,7 +528,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                   color: 'white'
                 }}
               >
-                <option value="default">Automática</option>
+                <option value="default">{t('overlays.resolution.auto')}</option>
                 <option value="480">480p</option>
                 <option value="720">720p</option>
                 <option value="1080">1080p</option>
@@ -548,7 +550,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                   onChange={(e) => updateConfig('mainVideo.showBackground', e.target.checked)}
                   style={{ accentColor: '#ff0000' }}
                 />
-                Mostrar fondo del video principal
+                {t('overlays.mostrarFondoVideo')}
               </label>
             </div>
 
@@ -557,7 +559,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
 
             {/* Configuración de Video Local A-Frame */}
             <div style={{ marginBottom: '20px' }}>
-              <h5 style={{ color: '#00ffff', marginBottom: '15px' }}>📹 Video Local A-Frame</h5>
+              <h5 style={{ color: '#00ffff', marginBottom: '15px' }}>{t('overlayLabels.videoLocalAframe')}</h5>
               
               {/* URL del video local */}
               <div style={{ marginBottom: '15px' }}>
@@ -567,7 +569,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                   fontWeight: 'bold',
                   color: '#00ffff'
                 }}>
-                  Ruta del Video Local
+                  {t('overlays.rutaVideoLocal')}
                 </label>
                 <input
                   type="text"
@@ -584,7 +586,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                   }}
                 />
                 <small style={{ color: '#aaa', fontSize: '12px' }}>
-                  Ruta del archivo de video local (relativa a /public)
+                  {t('overlays.rutaVideoLocalHint')}
                 </small>
               </div>
 
@@ -597,7 +599,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                     fontWeight: 'bold',
                     color: '#00ffff'
                   }}>
-                    Ancho
+                    {t('config.width')}
                   </label>
                   <input
                     type="number"
@@ -621,7 +623,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                     fontWeight: 'bold',
                     color: '#00ffff'
                   }}>
-                    Alto
+                    {t('config.height')}
                   </label>
                   <input
                     type="number"
@@ -656,7 +658,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                     onChange={(e) => updateConfig('vrLocalVideo.autoplay', e.target.checked)}
                     style={{ accentColor: '#00ffff' }}
                   />
-                  Reproducción automática
+                  {t('overlays.autoplay')}
                 </label>
                 
                 <label style={{ 
@@ -673,7 +675,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                     onChange={(e) => updateConfig('vrLocalVideo.doubleSided', e.target.checked)}
                     style={{ accentColor: '#00ffff' }}
                   />
-                  Video de doble cara
+                  {t('overlays.doubleSided')}
                 </label>
 
                 <label style={{ 
@@ -689,7 +691,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                     onChange={(e) => updateConfig('vrLocalVideo.invertBackSide', e.target.checked)}
                     style={{ accentColor: '#00ffff' }}
                   />
-                  Invertir lado posterior
+                  {t('overlays.invertBackSide')}
                 </label>
                 
                 <label style={{ 
@@ -706,13 +708,13 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                     onChange={(e) => updateConfig('vrLocalVideo.showMarker', e.target.checked)}
                     style={{ accentColor: '#00ffff' }}
                   />
-                  Mostrar marcador de referencia
+                  {t('overlays.showMarker')}
                 </label>
               </div>
 
               {/* Botones de prueba para video local */}
               <div style={{ marginTop: '15px' }}>
-                <h6 style={{ color: '#00ffff', marginBottom: '8px' }}>Videos de Prueba</h6>
+                <h6 style={{ color: '#00ffff', marginBottom: '8px' }}>{t('overlays.testVideos')}</h6>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <button
                     onClick={() => {
@@ -728,7 +730,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                       fontSize: '12px'
                     }}
                   >
-                    📁 gangstas.mp4 (Defecto)
+                    {t('overlays.testVideoGangstas')}
                   </button>
                   <button
                     onClick={() => {
@@ -744,7 +746,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                       fontSize: '12px'
                     }}
                   >
-                    📁 sample.mp4
+                    {t('overlays.testVideoSample')}
                   </button>
                 </div>
               </div>
@@ -754,7 +756,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
 
         {activeTab === 'general' && (
           <div>
-            <h4 style={{ color: '#ff88ff', marginTop: 0 }}>Configuración General</h4>
+            <h4 style={{ color: '#ff88ff', marginTop: 0 }}>{t('overlays.generalConfig')}</h4>
             <div style={{ marginBottom: '15px' }}>
               <label style={{ 
                 display: 'block', 
@@ -762,7 +764,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                 fontWeight: 'bold',
                 color: '#ff88ff'
               }}>
-                Radio Base de Etiquetas
+                {t('overlays.labelsRadius')}
               </label>
               <input
                 type="number"
@@ -787,7 +789,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                 fontWeight: 'bold',
                 color: '#ff88ff'
               }}>
-                Altura de Etiquetas
+                {t('overlays.labelsHeight')}
               </label>
               <input
                 type="number"
@@ -820,7 +822,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
                   onChange={(e) => updateConfig('centerMarker.visible', e.target.checked)}
                   style={{ accentColor: '#ff88ff' }}
                 />
-                Mostrar marcador central
+                {t('overlays.showCenterMarker')}
               </label>
             </div>
           </div>
@@ -840,7 +842,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
             cursor: 'pointer'
           }}
         >
-          Resetear
+          {t('config.reset')}
         </button>
         
         <button
@@ -859,7 +861,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
             cursor: 'pointer'
           }}
         >
-          Force Reload
+          {t('overlays.forceReload')}
         </button>
         
         <button
@@ -873,7 +875,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
             cursor: 'pointer'
           }}
         >
-          Exportar
+          {t('overlays.export')}
         </button>
         <button
           onClick={saveConfig}
@@ -887,7 +889,7 @@ const OverlayConfigPanel = ({ overlayId, isVisible = false, onClose }) => {
             cursor: hasChanges ? 'pointer' : 'not-allowed'
           }}
         >
-          {hasChanges ? 'Guardar' : 'Guardado'}
+          {hasChanges ? t('overlays.save') : t('overlays.saved')}
         </button>
       </div>
 

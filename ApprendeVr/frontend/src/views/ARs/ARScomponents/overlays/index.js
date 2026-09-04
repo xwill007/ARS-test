@@ -31,8 +31,8 @@ import CombinedAFrameOverlay from './CombinedAFrameOverlay';
 overlayRegistry.register('simpleText', {
   component: SimpleTextOverlay,
   type: 'r3f',
-  label: 'Texto Simple',
-  description: 'Overlay de texto 3D simple',
+  label: 'overlayLabels.simpleText',
+  description: 'overlayLabels.simpleTextDesc',
   category: 'text',
   defaultProps: {
     position: [0, 3, -2],
@@ -44,8 +44,8 @@ overlayRegistry.register('simpleText', {
 overlayRegistry.register('rotatingCube', {
   component: RotatingCubeOverlay,
   type: 'r3f',
-  label: 'Cubo Rotatorio',
-  description: 'Cubo 3D que rota continuamente',
+  label: 'overlayLabels.rotatingCube',
+  description: 'overlayLabels.rotatingCubeDesc',
   category: 'geometry',
   defaultProps: {
     position: [1, 1, -3],
@@ -58,8 +58,8 @@ overlayRegistry.register('rotatingCube', {
 overlayRegistry.register('testR3FOverlay', {
   component: TestR3FOverlay,
   type: 'r3f',
-  label: 'Overlay Estático',
-  description: 'Overlay R3F básico para pruebas',
+  label: 'overlayLabels.testR3F',
+  description: 'overlayLabels.testR3FDesc',
   category: 'test',
   defaultProps: {}
 });
@@ -68,8 +68,8 @@ overlayRegistry.register('testR3FOverlay', {
 overlayRegistry.register('vrConeR3FOverlay', {
   component: VRConeR3FOverlay,
   type: 'r3f',
-  label: 'Cono R3F',
-  description: 'Cono 3D usando React Three Fiber',
+  label: 'overlayLabels.vrConeR3F',
+  description: 'overlayLabels.vrConeR3FDesc',
   category: 'geometry',
   defaultProps: {}
 });
@@ -78,8 +78,8 @@ overlayRegistry.register('vrConeR3FOverlay', {
 overlayRegistry.register('vrConeR3FVideoOverlay', {
   component: VRConeR3FVideoOverlayConfigurable,
   type: 'r3f',
-  label: 'Video Cono R3F',
-  description: 'Video proyectado en cono R3F - Configurable',
+  label: 'overlayLabels.vrConeR3FVideo',
+  description: 'overlayLabels.vrConeR3FVideoDesc',
   category: 'video',
   configurable: true,
   defaultProps: {}
@@ -89,8 +89,8 @@ overlayRegistry.register('vrConeR3FVideoOverlay', {
 overlayRegistry.register('vrConeR3FVideoOverlayOriginal', {
   component: VRConeR3FVideoOverlay,
   type: 'r3f',
-  label: 'Video Cono R3F (Original)',
-  description: 'Video proyectado en cono R3F - Versión original',
+  label: 'overlayLabels.vrConeR3FVideoOriginal',
+  description: 'overlayLabels.vrConeR3FVideoOriginalDesc',
   category: 'video',
   configurable: false,
   defaultProps: {}
@@ -100,8 +100,8 @@ overlayRegistry.register('vrConeR3FVideoOverlayOriginal', {
 overlayRegistry.register('vrConeOverlay', {
   component: VRConeOverlayWrapper,
   type: 'html',
-  label: 'Cono de Palabras',
-  description: 'Cono 3D con palabras en A-Frame',
+  label: 'overlayLabels.vrConeOverlay',
+  description: 'overlayLabels.vrConeOverlayDesc',
   category: 'educational',
   configurable: true,
   defaultProps: {
@@ -125,8 +125,8 @@ overlayRegistry.register('vrConeOverlay', {
 overlayRegistry.register('vrLocalVideoOverlay', {
   component: VRLocalVideoOverlay,
   type: 'html',
-  label: 'Video Local A-Frame',
-  description: 'Reproductor de video local con controles usando A-Frame',
+  label: 'overlayLabels.vrLocalVideo',
+  description: 'overlayLabels.vrLocalVideoDesc',
   category: 'video',
   configurable: true,
   defaultProps: {
@@ -148,8 +148,8 @@ overlayRegistry.register('vrLocalVideoOverlay', {
 overlayRegistry.register('combinedAFrame', {
   component: CombinedAFrameOverlay,
   type: 'html',
-  label: 'Cono de Palabras + Video Local (A-Frame)',
-  description: 'Muestra ambos overlays de A-Frame juntos en una sola escena',
+  label: 'overlayLabels.combinedAFrame',
+  description: 'overlayLabels.combinedAFrameDesc',
   category: 'combinado',
   configurable: true,
   defaultProps: {

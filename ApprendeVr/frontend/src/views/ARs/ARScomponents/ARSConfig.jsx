@@ -4,6 +4,7 @@ import ARSoverlayList from './ARSoverlayList';
 import ARSHelpTooltip from './ARSHelpTooltip';
 import OverlayDropdownMenu from './OverlayDropdownMenu';
 import arsConfigManager from '../../../config/ARSConfigManager';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 /**
  * ARSConfig
@@ -60,6 +61,7 @@ const ARSConfig = ({
   const [activeTab, setActiveTab] = React.useState('config'); // 'config' o 'overlays'
   const [selectedOverlays, setSelectedOverlays] = React.useState([]);
   const [overlayConfigPanelOpen, setOverlayConfigPanelOpen] = React.useState(null);
+  const { t } = useVRLanguage();
   
   // Estados para el redimensionamiento del menú
   const [isResizing, setIsResizing] = React.useState(false);
@@ -322,7 +324,7 @@ const ARSConfig = ({
       <button
         style={defaultButtonStyle}
         onClick={() => setShowMenu((v) => !v)}
-        aria-label={showMenu ? 'Ocultar menú' : 'Mostrar menú'}
+        aria-label={showMenu ? t('arsConfig.hideMenu') : t('arsConfig.showMenu')}
       >
         {showMenu ? '✕' : '☰'}
       </button>
@@ -355,7 +357,7 @@ const ARSConfig = ({
                 borderBottom: activeTab === 'config' ? 'none' : '1px solid rgba(255,255,255,0.2)'
               }}
             >
-              🎛️ Configuración
+              🎛️ {t('arsConfig.tab.config')}
             </button>
             <button
               onClick={() => setActiveTab('overlays')}
@@ -373,7 +375,7 @@ const ARSConfig = ({
                 borderBottom: activeTab === 'overlays' ? 'none' : '1px solid rgba(255,255,255,0.2)'
               }}
             >
-              📋 Overlays ({selectedOverlays.length})
+              📋 {t('arsConfig.tab.overlays')} ({selectedOverlays.length})
             </button>
           </div>
 
@@ -453,7 +455,7 @@ const ARSConfig = ({
                 marginBottom: 8 
               }}>
                 <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 16, color: '#4fc3f7' }}>
-                  Configuración Estereoscópica AR
+                  {t('arsConfig.title')}
                 </div>
                 <button
                   onClick={() => setShowHelp(true)}
@@ -470,7 +472,7 @@ const ARSConfig = ({
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}
-                  title="Ayuda"
+                  title={t('config.help')}
                 >
                   ?
                 </button>
@@ -478,7 +480,7 @@ const ARSConfig = ({
               
               {/* Control de resolución de cámara */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ minWidth: 90, fontSize: 13 }}>📹 Resolución</span>
+                <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.resolution')}</span>
                 <select 
                   value={cameraResolution} 
                   onChange={e => handleResolutionChange(e.target.value)}
@@ -502,7 +504,7 @@ const ARSConfig = ({
               
               {/* Controles de configuración */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ minWidth: 90, fontSize: 13 }}>📐 Separación</span>
+                <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.separation')}</span>
                 <input 
                   type="range" 
                   min="0" 
@@ -516,7 +518,7 @@ const ARSConfig = ({
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ minWidth: 90, fontSize: 13 }}>📏 Ancho</span>
+                <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.width')}</span>
                 <input 
                   type="range" 
                   min="200" 
@@ -530,7 +532,7 @@ const ARSConfig = ({
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ minWidth: 90, fontSize: 13 }}>📐 Alto</span>
+                <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.height')}</span>
                 <input 
                   type="range" 
                   min="200" 
@@ -544,7 +546,7 @@ const ARSConfig = ({
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ minWidth: 90, fontSize: 13 }}>⬅️ Offset I</span>
+                <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.offsetLeft')}</span>
                 <input 
                   type="range" 
                   min="-300" 
@@ -558,7 +560,7 @@ const ARSConfig = ({
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ minWidth: 90, fontSize: 13 }}>➡️ Offset D</span>
+                <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.offsetRight')}</span>
                 <input 
                   type="range" 
                   min="-300" 
@@ -572,7 +574,7 @@ const ARSConfig = ({
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ minWidth: 90, fontSize: 13 }}>� Escala</span>
+                <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.scale')}</span>
                 <input 
                   type="range" 
                   min="0.3" 
@@ -586,7 +588,7 @@ const ARSConfig = ({
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ minWidth: 90, fontSize: 13 }}>🔍 Zoom Cámara</span>
+                <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.cameraZoom')}</span>
                 <input 
                   type="range" 
                   min="1" 
@@ -611,12 +613,12 @@ const ARSConfig = ({
                   marginBottom: 8,
                   fontWeight: 'bold'
                 }}>
-                  🔧 Optimización Estereoscópica
+                  🔧 {t('arsConfig.optimization')}
                 </div>
                 
                 {/* Optimización general */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ minWidth: 90, fontSize: 13 }}>⚡ Optimizar</span>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.optimize')}</span>
                   <label style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -634,13 +636,13 @@ const ARSConfig = ({
                         transform: 'scale(0.9)'
                       }}
                     />
-                    Modo eficiente
+                    {t('arsConfig.efficientMode')}
                   </label>
                 </div>
                 
                 {/* Espejo del panel derecho */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ minWidth: 90, fontSize: 13 }}>🪞 Espejo D</span>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.mirrorRight')}</span>
                   <label style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -660,13 +662,13 @@ const ARSConfig = ({
                         transform: 'scale(0.9)'
                       }}
                     />
-                    Panel derecho = izquierdo
+                    {t('arsConfig.mirrorPanelLabel')}
                   </label>
                 </div>
                 
                 {/* Silenciar panel derecho */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ minWidth: 90, fontSize: 13 }}>🔇 Silenciar D</span>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.muteRight')}</span>
                   <label style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -686,13 +688,13 @@ const ARSConfig = ({
                         transform: 'scale(0.9)'
                       }}
                     />
-                    Sin audio en panel derecho
+                    {t('arsConfig.mutePanelLabel')}
                   </label>
                 </div>
                 
                 {/* Control de cursores */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ minWidth: 90, fontSize: 13 }}>🎯 Ocultar cursores</span>
+                  <span style={{ minWidth: 90, fontSize: 13 }}>{t('arsConfig.hideCursors')}</span>
                   <label style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -700,7 +702,7 @@ const ARSConfig = ({
                     fontSize: 12,
                     cursor: 'pointer',
                     flex: 1
-                  }} title="Oculta los cursores blancos en ambas vistas. Deja un punto mínimo para referencia.">
+                  }} title={t('arsConfig.hideCursorsHint')}>
                     <input 
                       type="checkbox" 
                       checked={singleCursor}
@@ -710,7 +712,7 @@ const ARSConfig = ({
                         transform: 'scale(0.9)'
                       }}
                     />
-                    Ocultar cursores blancos
+                    {t('arsConfig.hideCursorsLabel')}
                   </label>
                 </div>
               </div>
@@ -731,7 +733,7 @@ const ARSConfig = ({
                   }}
                   onClick={() => applyPreset('mobile')}
                 >
-                  📱 Móvil
+                  📱 {t('arsConfig.presets.mobile')}
                 </button>
                 <button
                   style={{
@@ -747,7 +749,7 @@ const ARSConfig = ({
                   }}
                   onClick={() => applyPreset('desktop')}
                 >
-                  💻 Desktop
+                  💻 {t('arsConfig.presets.desktop')}
                 </button>
                 <button
                   style={{
@@ -763,7 +765,7 @@ const ARSConfig = ({
                   }}
                   onClick={() => applyPreset('vr')}
                 >
-                  🥽 VR
+                  🥽 {t('arsConfig.presets.vr')}
                 </button>
               </div>
               
@@ -792,7 +794,7 @@ const ARSConfig = ({
                   // Feedback visual
                   const button = event.target;
                   const originalText = button.innerHTML;
-                  button.innerHTML = '✓ Guardado';
+                  button.innerHTML = t('arsConfig.saved');
                   button.style.background = 'linear-gradient(135deg, #66bb6a, #4caf50)';
                   setTimeout(() => {
                     button.innerHTML = originalText;
@@ -800,7 +802,7 @@ const ARSConfig = ({
                   }, 1500);
                 }}
               >
-                💾 Guardar Configuración
+                💾 {t('arsConfig.save')}
               </button>
             </div>
           )}
@@ -814,10 +816,10 @@ const ARSConfig = ({
                 borderBottom: '1px solid rgba(255,255,255,0.2)'
               }}>
                 <div style={{ color: '#4fc3f7', fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>
-                  � Selección de Overlays
+                  {t('arsConfig.overlaySelection')}
                 </div>
                 <div style={{ color: '#bbb', fontSize: 11 }}>
-                  Activa/desactiva los overlays para tu experiencia AR
+                  {t('arsConfig.overlaySelectionHint')}
                 </div>
               </div>
               

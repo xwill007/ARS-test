@@ -1,4 +1,5 @@
 import React from 'react';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 /**
  * ARSFloatingButton
@@ -19,6 +20,7 @@ const ARSFloatingButton = ({
   scale = 1,
 }) => {
   if (!visible) return null;
+  const { t } = useVRLanguage();
   const size = 72 * scale;
   const iconSize = 44 * scale;
   return (
@@ -43,7 +45,7 @@ const ARSFloatingButton = ({
         transition: 'background 0.2s',
       }}
       onClick={onClick}
-      aria-label="Activar modo ARS"
+      aria-label={t('ars.activate')}
     >
       <img
         src="/images/vr-glasses-512.png"

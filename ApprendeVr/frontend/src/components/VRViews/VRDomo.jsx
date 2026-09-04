@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useVRLanguage } from '../VRConfig/VRLanguageContext';
 
 // Constantes de configuración
 const showLogs = false; // Cambiar a true para activar todos los logs de depuración
@@ -519,6 +520,7 @@ const generateDomeElements = (geometryData) => {
  * Componente VRDomo principal 
  */
 const VRDomo = ({ position = posicionDomo, numPalabras = numWords }) => {
+  const { t } = useVRLanguage();
   // Ref para el contenedor
   const domoRef = React.useRef(null);
   
@@ -565,7 +567,7 @@ const VRDomo = ({ position = posicionDomo, numPalabras = numWords }) => {
       <a-text
         id="palabra-actual"
         position="0 1 -1.5"
-        value="Selecciona una palabra"
+        value={t('domo.selectWord')}
         color="white"
         align="center"
         width="2"
