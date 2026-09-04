@@ -40,7 +40,7 @@ const VRUserArs = ({
     y: initialRotation[1],
     z: initialRotation[2] 
   });
-  const [pointerColor] = useState(new Color('#2196f3'));
+  const [pointerColor] = useState(new Color('#ffffff'));
 
   // Logs de inicialización
   useEffect(() => {

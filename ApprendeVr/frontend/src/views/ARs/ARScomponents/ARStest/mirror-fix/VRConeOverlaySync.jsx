@@ -254,8 +254,16 @@ function generateConeSpiralHTML(font, fontImage, palabras = listaPalabras, radiu
   return panels;
 }
 
-const VRConeOverlay = ({ 
-  radiusBase = 6, 
+/**
+ * VRConeOverlaySync — Requerimiento 002, copia de `a-frame-components-ars/VRConeOverlay.jsx`
+ * (overlay real de producción) con el mismo puente de sincronización de cámara por postMessage
+ * que VRLocalVideoOverlaySync.jsx (ver ese archivo para el detalle). Este overlay no tiene video
+ * ni control de voz, así que solo agrega el bloque de cámara (posición/rotación).
+ * Componente de prueba aislado, no se usa desde ningún archivo de producción.
+ */
+const VRConeOverlaySyncInner = ({
+  forwardedRef,
+  radiusBase = 6,
   height = 3,
   palabras = listaPalabras,
   showUserMarker = true,
@@ -361,24 +369,91 @@ const VRConeOverlay = ({
           <!-- Cámara a altura de persona -->
           <a-camera position="0 1.8 0" rotation="0 0 0"></a-camera>
         </a-scene>
+        <script>
+          // Requerimiento 002 — sincronización de cámara por postMessage (mismo patrón que
+          // VRLocalVideoOverlaySync.jsx, ver ese archivo para el detalle de por qué se escribe
+          // directo en yawObject/pitchObject y por qué se compara contra el último valor
+          // RECIBIDO en vez del último enviado).
+          (function () {
+            function send(msg) {
+              window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+            }
+            var cameraEl = null;
+            var lookControls = null;
+            var lastSentYaw = null, lastSentPitch = null;
+            var lastReceivedYaw = null, lastReceivedPitch = null;
+            var lastSentPos = null;
+            var lastReceivedPos = null;
+            var EPS = 0.001;
+
+            function findCamera() {
+              cameraEl = document.querySelector('a-camera');
+              if (cameraEl && cameraEl.components && cameraEl.components['look-controls']) {
+                lookControls = cameraEl.components['look-controls'];
+                setInterval(pollCameraMovement, 16);
+              } else {
+                setTimeout(findCamera, 100);
+              }
+            }
+            findCamera();
+
+            function pollCameraMovement() {
+              if (!lookControls || !lookControls.yawObject || !lookControls.pitchObject) return;
+              var yaw = lookControls.yawObject.rotation.y;
+              var pitch = lookControls.pitchObject.rotation.x;
+              var matchesReceivedRot = lastReceivedYaw !== null &&
+                Math.abs(yaw - lastReceivedYaw) < EPS && Math.abs(pitch - lastReceivedPitch) < EPS;
+              var changedRot = lastSentYaw === null ||
+                Math.abs(yaw - lastSentYaw) > EPS || Math.abs(pitch - lastSentPitch) > EPS;
+              if (!matchesReceivedRot && changedRot) {
+                lastSentYaw = yaw; lastSentPitch = pitch;
+                send({ action: 'camera-rotation', yaw: yaw, pitch: pitch });
+              }
+              var p = cameraEl.object3D.position;
+              var matchesReceivedPos = lastReceivedPos !== null &&
+                Math.abs(p.x - lastReceivedPos.x) < EPS && Math.abs(p.y - lastReceivedPos.y) < EPS && Math.abs(p.z - lastReceivedPos.z) < EPS;
+              var changedPos = lastSentPos === null ||
+                Math.abs(p.x - lastSentPos.x) > EPS || Math.abs(p.y - lastSentPos.y) > EPS || Math.abs(p.z - lastSentPos.z) > EPS;
+              if (!matchesReceivedPos && changedPos) {
+                lastSentPos = { x: p.x, y: p.y, z: p.z };
+                send({ action: 'camera-position', x: p.x, y: p.y, z: p.z });
+              }
+            }
+
+            window.addEventListener('message', function (ev) {
+              var msg = ev.data;
+              if (!msg || msg.source !== 'ars-sync-test') return;
+              if (msg.action === 'camera-rotation' && lookControls) {
+                lastReceivedYaw = msg.yaw;
+                lastReceivedPitch = msg.pitch;
+                lookControls.yawObject.rotation.y = msg.yaw;
+                lookControls.pitchObject.rotation.x = msg.pitch;
+              } else if (msg.action === 'camera-position' && cameraEl) {
+                lastReceivedPos = { x: msg.x, y: msg.y, z: msg.z };
+                cameraEl.object3D.position.set(msg.x, msg.y, msg.z);
+              }
+            });
+          })();
+        </script>
       </body>
     </html>
   `;
-  
+
   return (
     <iframe
-      title="VRCone Overlay"
+      ref={forwardedRef}
+      title="VRCone Overlay (Sync)"
       srcDoc={srcDoc}
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        border: 'none', 
-        background: 'transparent', 
-        pointerEvents: 'auto' 
+      style={{
+        width: '100%',
+        height: '100%',
+        border: 'none',
+        background: 'transparent',
+        pointerEvents: 'auto'
       }}
       allow="xr-spatial-tracking; fullscreen"
     />
   );
 };
 
-export default VRConeOverlay;
+export default React.forwardRef((props, ref) => VRConeOverlaySyncInner({ ...props, forwardedRef: ref }));

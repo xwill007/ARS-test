@@ -5,16 +5,17 @@ import './OverlayDropdownMenu.css';
 /**
  * Menú desplegable de overlays con checkboxes y configuración
  */
-const OverlayDropdownMenu = ({ 
-  selectedOverlays = [], 
+const OverlayDropdownMenu = ({
+  selectedOverlays = [],
   onOverlayToggle,
   onClearAll,
   onResetToDefaults,
   onConfigureOverlay,
-  multiSelect = true 
+  multiSelect = true,
+  isOpen = false,
+  onToggleOpen
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [menuSize, setMenuSize] = useState({ width: 350, height: 400 });
+  const [menuSize, setMenuSize] = useState({ width: 350, height: 600 });
   const [isResizing, setIsResizing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [startSize, setStartSize] = useState({ width: 0, height: 0 });
@@ -47,7 +48,9 @@ const OverlayDropdownMenu = ({
   };
 
   const toggleMenu = () => {
-    setIsOpen(!isOpen);
+    if (onToggleOpen) {
+      onToggleOpen();
+    }
   };
 
   const handleClearAll = () => {
@@ -79,10 +82,10 @@ const OverlayDropdownMenu = ({
     
     // Límites más estrictos para mejor UX
     const minWidth = 280;
-    const maxWidth = 800;
+    const maxWidth = 450;
     const minHeight = 200;
-    const maxHeight = 600;
-    
+    const maxHeight = 800;
+  
     const newWidth = Math.max(minWidth, Math.min(maxWidth, startSize.width + deltaX));
     const newHeight = Math.max(minHeight, Math.min(maxHeight, startSize.height + deltaY));
     

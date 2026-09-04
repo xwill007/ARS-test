@@ -60,6 +60,7 @@ const AROverlayController = ({
   
   const [renderKey, setRenderKey] = useState(0);
   const [configPanelOverlay, setConfigPanelOverlay] = useState(null);
+  const [isOverlayMenuOpen, setIsOverlayMenuOpen] = useState(false);
 
   // Obtener overlays disponibles del registro
   const availableOverlays = overlayRegistry.getAll();
@@ -203,6 +204,8 @@ const AROverlayController = ({
           onResetToDefaults={handleResetToDefaults}
           onConfigureOverlay={handleConfigureOverlay}
           multiSelect={true}
+          isOpen={isOverlayMenuOpen}
+          onToggleOpen={() => setIsOverlayMenuOpen(prev => !prev)}
         />
       </div>
     )

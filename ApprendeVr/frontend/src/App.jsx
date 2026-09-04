@@ -130,6 +130,14 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
             text="VR-AR STEREO"
             navigateTo={baseUrl + '/src/views/ARs/index.html'}
           />
+          {/* Temporal — Requerimiento 002: botón de prueba aislado del espejo de overlay en modo
+              estéreo, ver ApprendeVr/Documentation/Requerimientos/2-Developing/002-*.md */}
+          <VRButton
+            position={[-2.4, 0.8, 0]}
+            scale={0.9}
+            text="AR-mirror"
+            navigateTo={baseUrl + '/src/views/ARs/ARScomponents/ARStest/mirror-fix/artest-mirror.html'}
+          />
         </Canvas>
       )}
       {(showDomo || showBoth) && (

@@ -5,6 +5,7 @@ import VRWorldArs from './ARScomponents/VRWorldArs/VRWorlsArs';
 import ARSExperience from './ARScomponents/ARSExperience';
 import VRUserArs from './ARScomponents/VRUserArs/VRUserArs';
 import AROverlayController from './ARScomponents/AROverlayController';
+import VRButton from '../../components/VRViews/VRButton';
 
 const ARSApp = () => {
   const [isARActive, setIsARActive] = useState(false);
@@ -56,7 +57,7 @@ const ARSApp = () => {
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         <VRWorldArs>
-          <VRUserArs 
+          <VRUserArs
             mode="first"
             initialPosition={[0, 0, 3]}
             showAvatar={false}
@@ -66,6 +67,12 @@ const ARSApp = () => {
           >
             {overlayComponents.r3f}
           </VRUserArs>
+          <VRButton
+            position={[2.5, 3.0, -1.5]}
+            scale={0.5}
+            text="Volver a inicio"
+            navigateTo="/"
+          />
         </VRWorldArs>
       </Canvas>
 
