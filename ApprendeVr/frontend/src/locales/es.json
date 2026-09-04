@@ -56,8 +56,14 @@
     "domo": {
       "selectWord": "Selecciona una palabra"
     },
+    "video": {
+      "loading": "Cargando video...",
+      "play": "Reproducir",
+      "pause": "Pausar"
+    },
     "ars": {
-      "activate": "Activar modo ARS"
+      "activate": "Activar modo ARS",
+      "activateAr": "Activar AR"
     },
     "arsConfig": {
       "hideMenu": "Ocultar menú",
@@ -93,7 +99,10 @@
       "save": "💾 Guardar Configuración",
       "saved": "✓ Guardado",
       "overlaySelection": "🎛️ Selección de Overlays",
-      "overlaySelectionHint": "Activa/desactiva los overlays para tu experiencia AR"
+      "overlaySelectionHint": "Activa/desactiva los overlays para tu experiencia AR",
+      "activeOverlays": "Overlays activos:",
+      "stats": "📊 Estadísticas",
+      "noOverlaysSelected": "Ningún overlay seleccionado"
     },
     "help": {
       "title": "🥽 Guía de Controles AR Estereoscópicos",
@@ -141,6 +150,19 @@
       "component": "Componente:",
       "aframeVideoTest": "A-FRAME VIDEO TEST",
       "mirrorTest": "AR-TEST: espejo overlay",
+      "r3fVideoTest": "PRUEBA DE VIDEO R3F",
+      "mainVideo": "VIDEO PRINCIPAL",
+      "secondaryVideo": "VIDEO SECUNDARIO",
+      "configurableVideoHint": "Overlay de video configurable - Ver archivo de configuración",
+      "arTest": "AR-TEST",
+      "arSync": "AR-SYNC",
+      "test": "Probar",
+      "selectedOverlay": "Overlay seleccionado:",
+      "debugTitle": "🔍 Overlay Debugger",
+      "totalRegistered": "Total: {count} overlays registrados",
+      "category": "Categoría:",
+      "videoR3f": "Video R3F",
+      "performanceTest": "Prueba de rendimiento",
       "videoPrincipal": "Video Principal",
       "marcadorCentral": "Marcador Central",
       "escalaVideoPrincipal": "Escala Video Principal",

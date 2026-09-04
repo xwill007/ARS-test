@@ -39,11 +39,11 @@ const OverlayDebugger = () => {
       fontSize: 12
     }}>
       <h3 style={{ margin: '0 0 10px 0', color: '#00ff00' }}>
-        🔍 Overlay Debugger
+        {t('overlays.debugTitle')}
       </h3>
       <div style={{ marginBottom: 15 }}>
         <strong style={{ color: '#ffff00' }}>
-          Total: {Object.keys(overlays).length} overlays registrados
+          {t('overlays.totalRegistered').replace('{count}', Object.keys(overlays).length)}
         </strong>
       </div>
       
@@ -94,7 +94,7 @@ const OverlayDebugger = () => {
                     cursor: 'pointer'
                   }}
                 >
-                  Test
+                  {t('overlays.test')}
                 </button>
               </div>
               <div style={{ marginTop: 4, fontSize: 10, color: '#ccc' }}>
@@ -104,7 +104,7 @@ const OverlayDebugger = () => {
                 {t(config.description)}
               </div>
               <div style={{ marginTop: 2, fontSize: 8, color: '#666' }}>
-                Categoría: {config.category}
+                {t('overlays.category')} {config.category}
               </div>
             </li>
           ))}
@@ -120,7 +120,7 @@ const OverlayDebugger = () => {
           border: '1px solid #ffff00'
         }}>
           <h4 style={{ margin: '0 0 8px 0', color: '#ffff00' }}>
-            Overlay seleccionado:
+            {t('overlays.selectedOverlay')}
           </h4>
           <div style={{ fontSize: 10 }}>
             <strong>{t('overlays.component')}</strong> {selectedOverlay.component?.name || 'N/A'}

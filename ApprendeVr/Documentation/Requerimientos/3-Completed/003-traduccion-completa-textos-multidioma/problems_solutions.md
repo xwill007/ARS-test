@@ -1,0 +1,9 @@
+# Requerimiento 003 — Traducción completa de textos de interfaz (multidioma) — Problemas y soluciones
+
+Registro de incidentes encontrados durante el desarrollo de este requerimiento.
+
+| Fecha | Problema | Causa | Solución | Estado |
+|---|---|---|---|---|
+| 2026-09-04 | Quedaron 16 strings hardcodeados sin detectar en la primera pasada (VRVideoLocal, ARSConfig, overlays R3F de prueba, StereoARView de `views/ARs/`, OverlayDebugger, ARStrackingView, XRStereoView). | El checklist original se armó con un `grep` manual de nodos JSX (`text=`, `value=`, `title=`, etc.) que no cubrió todas las formas de texto visible, y no existía una verificación automatizada. | Se creó el validador `scripts/check-i18n.mjs` (con heurística `--hardcoded`) y se migraron los 16 strings a `t()`. | Resuelto |
+| 2026-09-04 | El validador `--hardcoded` no detectó otra tanda de strings visibles (Play/Pause, "📊 Estadísticas", "Ningún overlay seleccionado", "🔍 Overlay Debugger", "Total: {n} overlays registrados", "Categoría:", arrays `videoLabels`). | La heurística `--hardcoded` es un regex (`>\s*texto\s*<`) que no captura: strings que empiezan con emoji (📊, 🔍), strings dentro de ternarios/expresiones JSX `{...}`, ni strings en arrays JavaScript (`const videoLabels = [...]`). | Se detectaron por inspección manual tras revisar el criterio de aceptación #1 ("ningún string visible hardcodeado") y se migraron con `t()`. El validador no puede (y no pretende) ser 100% exhaustivo; la revisión manual del criterio sigue siendo necesaria. | Resuelto |
+| 2026-09-04 | `br.json` estaba en gallego, no en portugués brasileño ("Fecharciño", "Voltarciño", "Separaciñao", "bajar volume", etc.). | Se reutilizó un tono "ñiño" sin validar que correspondiera a pt-BR; varios valores mezclaban gallego y español. | Se reescribió `br.json` completo en portugués brasileño correcto ("Fechar", "Voltar", "Separação", "diminuir volume", etc.). | Resuelto |

@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Text } from '@react-three/drei';
 import ARSVideoUniversal from './ARSVideoUniversal';
 import useOverlayConfig from '../useOverlayConfig';
+import { useVRLanguage } from '../../../../components/VRConfig/VRLanguageContext';
 
 /**
  * VRConeR3FVideoOverlayConfigurable - Overlay R3F configurable para video
@@ -12,6 +13,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
   showControls = false,
   renderKey = 0 // Clave para forzar re-render
 }) => {
+  const { t } = useVRLanguage();
   const overlayId = 'vrConeR3FVideoOverlay';
   const { config, updatePosition } = useOverlayConfig(overlayId, renderKey);
   
@@ -19,7 +21,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const videoLabels = [
-    "Video R3F", "React Three Fiber", "WebGL Rendering", "Performance Test"
+    t('overlays.videoR3f'), "React Three Fiber", "WebGL Rendering", t('overlays.performanceTest')
   ];
 
   // Función para actualizar posición de elementos
@@ -122,7 +124,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
           anchorX="center"
           anchorY="middle"
         >
-          VIDEO PRINCIPAL
+          {t('overlays.mainVideo')}
         </Text>
       </group>
 
@@ -159,7 +161,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
           anchorX="center"
           anchorY="middle"
         >
-          VIDEO SECUNDARIO
+          {t('overlays.secondaryVideo')}
         </Text>
       </group>
 
@@ -213,7 +215,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
             anchorX="center"
             anchorY="middle"
           >
-            R3F VIDEO TEST
+            {t('overlays.r3fVideoTest')}
           </Text>
         </group>
       )}
@@ -246,7 +248,7 @@ const VRConeR3FVideoOverlayConfigurable = ({
         anchorX="center"
         anchorY="middle"
       >
-        Configurable Video Overlay - Ver archivo de configuración
+        {t('overlays.configurableVideoHint')}
       </Text>
     </group>
   );

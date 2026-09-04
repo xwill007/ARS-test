@@ -35,6 +35,35 @@ páginas y mensajes— está escrito a mano en JSX/HTML, así que al cambiar de 
 `appName`, `greeting`, `welcomeMessage`, `vrButtonText`, `button.submit`, `error.notFound`,
 `menu.title`, `menu.language`, `menu.viewMode`, `menu.theme`, `menu.theme_light`, `menu.theme_dark`.
 
+### 2.2 Hallazgos posteriores (post-validación con `check-i18n`)
+
+Al agregar el validador de i18n (`scripts/check-i18n.mjs`, ver sección 4.2) y correrlo con
+`--hardcoded`, se detectaron **16 strings hardcodeados adicionales** que el grep original del
+checklist no cubrió, y un problema de calidad del portugués:
+
+- **16 strings sin migrar** (fuera del alcance original, en vistas de prueba y views no listadas):
+  `VRVideoLocal.jsx` ("Loading video..."), `ARSConfig.jsx` ("Overlays activos:"),
+  `VRConeR3FVideoOverlay.jsx` ("R3F VIDEO TEST"), `VRConeR3FVideoOverlayConfigurable.jsx`
+  ("VIDEO PRINCIPAL", "VIDEO SECUNDARIO", "R3F VIDEO TEST", "Configurable Video Overlay..."),
+  `ARTestMirrorButton.jsx` ("AR-TEST", "AR-SYNC"), `StereoARView.jsx` (`views/ARs/`, "Volver"),
+  `OverlayDebugger.jsx` ("Test", "Overlay seleccionado:"), `ARStrackingView.jsx` y
+  `XRStereoView.jsx` ("Activar AR", "Volver").
+- **`br.json` estaba en gallego, no en portugués brasileño**: usaba sufijos "-ciño/-ciña/-iño"
+  ("Fecharciño", "Voltarciño", "Separaciñao", etc.). Se reescribió completo a pt-BR correcto.
+
+Ambos hallazgos se resolvieron en esta iteración: se migraron los 16 strings a `t()` y se
+reemplazó `br.json` por traducciones en portugués brasileño.
+
+> **Segunda pasada (strings restantes que la heurística no capturaba):** se migraron también los
+> strings visibles que `--hardcoded` no detectaba por empezar con emoji o estar en ternarios/arrays:
+> `VRVideoLocal.jsx` ("Play"/"Pause" → `video.play`/`video.pause`), `ARSConfig.jsx` ("📊 Estadísticas"
+> y "Ningún overlay seleccionado" → `arsConfig.stats`/`arsConfig.noOverlaysSelected`),
+> `OverlayDebugger.jsx` ("🔍 Overlay Debugger", "Total: {n} overlays registrados", "Categoría:" →
+> `overlays.debugTitle`/`overlays.totalRegistered`/`overlays.category`), y los arrays `videoLabels`
+> de los overlays R3F de prueba ("Video R3F" y "Performance Test" → `overlays.videoR3f`/
+> `overlays.performanceTest`; los términos técnicos "React Three Fiber" y "WebGL Rendering" se
+> mantienen como nombres propios). Con esto no quedan strings de UI hardcodeados en el alcance.
+
 ## 3. Alcance
 
 ### Incluido
@@ -88,6 +117,14 @@ sin beneficio inmediato. Se deja anotada como mejora futura.
 
 **Decisión:** Opción A en todo el alcance.
 
+### 4.2 Validador de integridad i18n (agregado)
+
+Para evitar que vuelva a haber strings hardcodeados o claves faltantes sin detección, se agregó
+`ApprendeVr/frontend/scripts/check-i18n.mjs` (ver skill `texto-multidioma`). Se invoca con
+`npm run check:i18n` (parse JSON + claves usadas en los 3 idiomas + simetría es/en/br) y
+`npm run check:i18n:hardcoded` (heurística de strings visibles en JSX). Corre sin dependencias
+nuevas y sale con código 1 si hay errores.
+
 ### Convención de claves (español, anidadas por dominio)
 
 | Dominio | Prefijo de clave | Ejemplos |
@@ -137,6 +174,13 @@ sin beneficio inmediato. Se deja anotada como mejora futura.
 | `src/views/A-frame/index.html` | `<title>` y los dos `value=` de prueba → `t()` o claves. |
 | `src/views/ARs/index.html`, `src/views/mobile/mobile.html`, `src/index.html` | `<title>` → traducible (o documentar que los títulos de HTML quedan estáticos). |
 | `src/views/ARs/ARScomponents/ARStest/mirror-fix/artest-mirror.html` | `<title>` (opcional). |
+| `src/components/VRViews/VRVideoLocal.jsx` | "Loading video..." → `t('video.loading')` (hallazgo 2.2). |
+| `src/views/ARs/ARScomponents/ARStest/VRConeR3FVideoOverlay.jsx` | "R3F VIDEO TEST" → `t('overlays.r3fVideoTest')` (hallazgo 2.2). |
+| `src/views/ARs/ARScomponents/ARStest/VRConeR3FVideoOverlayConfigurable.jsx` | "VIDEO PRINCIPAL"/"VIDEO SECUNDARIO"/"R3F VIDEO TEST"/"Configurable Video Overlay..." → `t()` (hallazgo 2.2). |
+| `src/views/ARs/ARScomponents/StereoARView.jsx` | "Volver" → `t('home.back')` (hallazgo 2.2). |
+| `src/views/ARs/ARSviews/ARStrackingView.jsx` | "Activar AR"/"Volver" → `t()` (hallazgo 2.2). |
+| `src/views/ARs/ARSviews/XRStereoView.jsx` | "Activar AR"/"Volver" → `t()` (hallazgo 2.2). |
+| `scripts/check-i18n.mjs` | Validador de integridad i18n (nuevo). |
 
 ## 6. Criterios de aceptación
 
@@ -152,6 +196,10 @@ sin beneficio inmediato. Se deja anotada como mejora futura.
       3 locales).
 - [x] Los textos con parámetros ("Limpiar todo (n)", "n overlays disponibles • n activos") muestran
       el número correcto y la traducción del resto.
+- [x] Los 16 strings hardcodeados detectados por `check:i18n:hardcoded` (sección 2.2) quedaron
+      migrados a `t()`.
+- [x] `br.json` está en portugués brasileño correcto (sin sufijos gallego "-ciño/-ciña/-iño").
+- [x] `npm run check:i18n` sale sin errores (claves usadas existen en los 3 idiomas y son simétricas).
 
 ## 8. Referencias
 

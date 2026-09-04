@@ -58,7 +58,7 @@ preocupación:
      8. `## 7. Referencias`
    - **`checklist.md`** con el `## Checklist de ejecución` por fases (`- [ ]`).
    - **`problems_solutions.md`** con un encabezado y una entrada inicial "Sin incidentes
-     registrados" (se irá llenando).
+     registrados" (se irá llenando). Ver la regla de registro de hallazgos tardíos al final.
    - **`tests.md`** con la estrategia de testing y tabla de casos (unitarios/integración/e2e).
 
    Cada sección debe basarse en investigación real del código (usa Grep/Read/Explore para
@@ -69,3 +69,20 @@ preocupación:
    de 1-2 líneas del objetivo. No la muevas de `1-Pending` — ese es siempre el estado inicial,
    salvo que este requerimiento sea el resultado de reencolar uno rechazado (ver skill
    `promover-requerimiento`), en cuyo caso quien reencola es quien lo mueve, no quien lo crea.
+
+## Regla de registro de hallazgos tardíos (retrabajo)
+
+Cuando un item del `checklist.md` o un criterio de aceptación **ya está marcado como `[x]`**, pero
+después se descubre —por el agente, por el usuario o por una herramienta de validación— que **no
+estaba realmente resuelto** (incompleto, incorrecto o pendiente), es obligatorio, **sin esperar a
+que el usuario lo pida**:
+
+1. **Corregir la marca** si corresponde: si el item no está cumplido de verdad, quitar el `[x]` (o
+   no dejar un `[x]` falso). No mantener marcas que ya no reflejan la realidad.
+2. **Registrar el hallazgo en `problems_solutions.md`** con fecha, problema, causa, solución y
+   estado, indicando explícitamente que fue un **hallazgo tardío** (algo que ya se había marcado
+   como hecho).
+
+Esto aplica tanto si lo detecta el agente durante una verificación posterior, como si lo señala
+el usuario después. El objetivo es que nunca quede un "completado" falso sin dejar rastro del
+retrabajo y de por qué se detectó tarde.

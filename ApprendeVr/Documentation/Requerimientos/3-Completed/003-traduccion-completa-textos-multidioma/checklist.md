@@ -207,3 +207,30 @@ Archivos: `ARStest/mirror-fix/ARTestMirrorButton.jsx`, `SyncStereoTestView.jsx`,
 - [x] Cada clave nueva está en los 3 locales y ninguna queda con el mismo valor que la clave.
 - [x] Prueba manual por vista: cambiar idioma en ⚙️ y recorrer Inicio, AR, Móvil, A-Frame y
       mirror-fix, confirmando traducción es/en/br en cada una.
+
+### Etapa extra — Strings hallados con `check-i18n:hardcoded` (16 adicionales)
+
+- [x] Agregar validador `scripts/check-i18n.mjs` + scripts npm `check:i18n` / `check:i18n:hardcoded`.
+- [x] Migrar `VRVideoLocal.jsx` "Loading video..." → `video.loading`.
+- [x] Migrar `ARSConfig.jsx` "Overlays activos:" → `arsConfig.activeOverlays`.
+- [x] Migrar `VRConeR3FVideoOverlay.jsx` "R3F VIDEO TEST" → `overlays.r3fVideoTest`.
+- [x] Migrar `VRConeR3FVideoOverlayConfigurable.jsx` ("VIDEO PRINCIPAL", "VIDEO SECUNDARIO",
+      "R3F VIDEO TEST", "Configurable Video Overlay...") → `overlays.mainVideo` / `overlays.secondaryVideo` /
+      `overlays.r3fVideoTest` / `overlays.configurableVideoHint`.
+- [x] Migrar `ARTestMirrorButton.jsx` "AR-TEST"/"AR-SYNC" → `overlays.arTest` / `overlays.arSync`.
+- [x] Migrar `StereoARView.jsx` (`views/ARs/`) "Volver" → `home.back`.
+- [x] Migrar `OverlayDebugger.jsx` "Test"/"Overlay seleccionado:" → `overlays.test` / `overlays.selectedOverlay`.
+- [x] Migrar `ARStrackingView.jsx` y `XRStereoView.jsx` "Activar AR"/"Volver" → `ars.activateAr` / `home.back`.
+- [x] Reescribir `br.json` a portugués brasileño correcto (eliminar sufijos gallego "-ciño/-ciña/-iño").
+- [x] `npm run check:i18n` → 0 errores; `npm run build` → OK.
+
+### Etapa extra 2 — Strings visibles no detectados por la heurística
+
+- [x] Migrar `VRVideoLocal.jsx` "Play"/"Pause" → `video.play` / `video.pause`.
+- [x] Migrar `ARSConfig.jsx` "📊 Estadísticas" y "Ningún overlay seleccionado" → `arsConfig.stats` /
+      `arsConfig.noOverlaysSelected`.
+- [x] Migrar `OverlayDebugger.jsx` "🔍 Overlay Debugger", "Total: {n} overlays registrados" y
+      "Categoría:" → `overlays.debugTitle` / `overlays.totalRegistered` / `overlays.category`.
+- [x] Migrar arrays `videoLabels` de `VRConeR3FVideoOverlay(.Configurable).jsx` → `overlays.videoR3f` /
+      `overlays.performanceTest` (términos técnicos se mantienen como nombres propios).
+- [x] `npm run check:i18n` → 0 errores; `npm run build` → OK.

@@ -849,13 +849,13 @@ const ARSConfig = ({
                 fontSize: 12
               }}>
                 <div style={{ color: '#4fc3f7', fontWeight: 'bold', marginBottom: 4 }}>
-                  📊 Estadísticas
+                  {t('arsConfig.stats')}
                 </div>
                 <div style={{ color: '#bbb' }}>
-                  Overlays activos: <span style={{ color: '#00ff88' }}>{selectedOverlays.length}</span>
+                  {t('arsConfig.activeOverlays')} <span style={{ color: '#00ff88' }}>{selectedOverlays.length}</span>
                 </div>
                 <div style={{ color: '#bbb', fontSize: 10, marginTop: 2 }}>
-                  {selectedOverlays.length > 0 ? selectedOverlays.join(', ') : 'Ningún overlay seleccionado'}
+                  {selectedOverlays.length > 0 ? selectedOverlays.join(', ') : t('arsConfig.noOverlaysSelected')}
                 </div>
               </div>
             </div>

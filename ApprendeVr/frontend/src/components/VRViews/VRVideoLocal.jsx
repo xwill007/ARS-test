@@ -3,6 +3,7 @@ import { useXR } from '@react-three/xr'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
+import { useVRLanguage } from '../VRConfig/VRLanguageContext'
 
 function VRVideoLocal({ 
   position = [0, 1.7, -4],
@@ -11,6 +12,7 @@ function VRVideoLocal({
   videoSource = '/videos/sample.mp4',
   rotationSpeed = 0.000
 }) {
+  const { t } = useVRLanguage()
   const { isPresenting } = useXR()
   const height = width / aspectRatio
   const meshRef = useRef()
@@ -124,7 +126,7 @@ function VRVideoLocal({
             padding: '10px',
             borderRadius: '5px'
           }}>
-            Loading video...
+            {t('video.loading')}
           </div>
         </Html>
       </group>
@@ -160,7 +162,7 @@ function VRVideoLocal({
             transition: 'all 0.3s ease'
           }}
         >
-          {isPlaying ? 'Pause' : 'Play'}
+          {isPlaying ? t('video.pause') : t('video.play')}
         </button>
       </Html>
     </group>

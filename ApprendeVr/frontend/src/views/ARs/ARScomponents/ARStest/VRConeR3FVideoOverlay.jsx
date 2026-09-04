@@ -1,16 +1,18 @@
 import React from 'react';
 import { Text } from '@react-three/drei';
 import ARSVideoLocal from './ARSVideoLocal';
+import { useVRLanguage } from '../../../../components/VRConfig/VRLanguageContext';
 
 /**
  * VRConeR3FVideoOverlay - Overlay R3F optimizado para mostrar video
  * Versión simplificada enfocada en el rendimiento del video
  */
 const VRConeR3FVideoOverlay = () => {
+  const { t } = useVRLanguage();
   const radiusBase = 8;
   const height = 10;
   const videoLabels = [
-    "Video R3F", "React Three Fiber", "WebGL Rendering", "Performance Test"
+    t('overlays.videoR3f'), "React Three Fiber", "WebGL Rendering", t('overlays.performanceTest')
   ];
 
   return (
@@ -84,7 +86,7 @@ const VRConeR3FVideoOverlay = () => {
         anchorX="center"
         anchorY="middle"
       >
-        R3F VIDEO TEST
+        {t('overlays.r3fVideoTest')}
       </Text>
     </group>
   );

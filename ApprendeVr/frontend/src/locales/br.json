@@ -1,30 +1,30 @@
 {
   "translation": {
-    "appName": "Apprende Brasileño",
-    "greeting": "Hola mundiño!",
-    "welcomeMessage": "Bienvenidiño to ApprendeVr!",
-    "vrButtonText": "Ver VRsiño",
-    "close": "Fecharciño",
+    "appName": "Apprende Português",
+    "greeting": "Olá, mundo!",
+    "welcomeMessage": "Bem-vindo ao ApprendeVr!",
+    "vrButtonText": "Entrar em VR",
+    "close": "Fechar",
     "common": {
-      "loading": "Carregandiño..."
+      "loading": "Carregando..."
     },
     "button": {
-      "submit": "enviar"
+      "submit": "Enviar"
     },
     "error": {
-      "notFound": "no encontradiño"
+      "notFound": "não encontrado"
     },
     "menu": {
-      "title": "Menu Configuracionciña",
-      "language": "Idiomiño",
-      "viewMode": "Modo de Vistiña",
-      "theme": "Temiño",
-      "theme_light": "Clarito",
-      "theme_dark": "Oscurito"
+      "title": "Menu de Configurações",
+      "language": "Idioma",
+      "viewMode": "Modo de Visualização",
+      "theme": "Tema",
+      "theme_light": "Claro",
+      "theme_dark": "Escuro"
     },
     "home": {
-      "back": "Voltarciño",
-      "backToHome": "Voltar ao iníciño"
+      "back": "Voltar",
+      "backToHome": "Voltar ao início"
     },
     "buttons": {
       "vr": "VR",
@@ -35,112 +35,134 @@
       "enterVr": "ENTER VR"
     },
     "display": {
-      "showDomo": "Mostrar Domiño",
-      "bothViews": "Ambas Vistiñas",
+      "showDomo": "Mostrar Domo",
+      "bothViews": "Ambas as Visualizações",
       "arStereo": "AR Stereo"
     },
     "config": {
-      "showVrDisplay": "Mostrar menú VRDisplayciño",
-      "separation": "Separaciñao",
-      "width": "Larguriño",
-      "height": "Alturiño",
-      "options": "Opciones de configuraciñao",
+      "showVrDisplay": "Mostrar menu VRDisplay",
+      "separation": "Separação",
+      "width": "Largura",
+      "height": "Altura",
+      "options": "Opções de configuração",
       "help": "Ajuda",
-      "arsConfig": "Configuraciñao AR",
+      "arsConfig": "Configuração AR",
       "settingsButton": "⚙️ Config",
       "export": "📥 Exportar Config",
       "import": "📤 Importar Config",
-      "reset": "🔄 Resetearciño",
-      "persistent": "Guardadiño persistente en localStorage"
+      "reset": "🔄 Redefinir",
+      "persistent": "Armazenamento persistente no localStorage"
     },
     "domo": {
-      "selectWord": "Seleciona una palabraciña"
+      "selectWord": "Selecione uma palavra"
+    },
+    "video": {
+      "loading": "Carregando vídeo...",
+      "play": "Reproduzir",
+      "pause": "Pausar"
     },
     "ars": {
-      "activate": "Ativar modo ARS"
+      "activate": "Ativar modo ARS",
+      "activateAr": "Ativar AR"
     },
     "arsConfig": {
-      "hideMenu": "Ocultar menúciño",
-      "showMenu": "Mostrar menúciño",
+      "hideMenu": "Ocultar menu",
+      "showMenu": "Mostrar menu",
       "tab": {
-        "config": "🎛️ Configuraciñao",
+        "config": "🎛️ Configuração",
         "overlays": "📋 Overlays"
       },
-      "title": "Configuraciñao Estereoscópica AR",
-      "resolution": "📹 Resoluciñao",
-      "separation": "📐 Separaciñao",
-      "width": "📏 Larguriño",
-      "height": "📐 Alturiño",
-      "offsetLeft": "⬅️ Offset I",
-      "offsetRight": "➡️ Offset D",
-      "scale": "🎮 Escaliña",
-      "cameraZoom": "🔍 Zoom Câmeriño",
-      "optimization": "🔧 Otimizaçiñao Estereoscópica",
-      "optimize": "⚡ Otimizarciño",
+      "title": "Configuração Estereoscópica AR",
+      "resolution": "📹 Resolução",
+      "separation": "📐 Separação",
+      "width": "📏 Largura",
+      "height": "📐 Altura",
+      "offsetLeft": "⬅️ Deslocamento E",
+      "offsetRight": "➡️ Deslocamento D",
+      "scale": "🎮 Escala",
+      "cameraZoom": "🔍 Zoom da Câmera",
+      "optimization": "🔧 Otimização Estereoscópica",
+      "optimize": "⚡ Otimizar",
       "efficientMode": "Modo eficiente",
-      "mirrorRight": "🪞 Espelhiño D",
+      "mirrorRight": "🪞 Espelho D",
       "mirrorPanelLabel": "Painel direito = esquerdo",
-      "muteRight": "🔇 Silenciarciño D",
+      "muteRight": "🔇 Silenciar D",
       "mutePanelLabel": "Sem áudio no painel direito",
       "hideCursors": "🎯 Ocultar cursores",
-      "hideCursorsHint": "Oculta os cursores brancos nas duas vistas. Deixa um ponto mínimo para referência.",
+      "hideCursorsHint": "Oculta os cursores brancos nas duas visualizações. Deixa um ponto mínimo para referência.",
       "hideCursorsLabel": "Ocultar cursores brancos",
       "presets": {
-        "mobile": "📱 Móvilciño",
-        "desktop": "💻 Desktopciño",
+        "mobile": "📱 Móvel",
+        "desktop": "💻 Desktop",
         "vr": "🥽 VR"
       },
-      "save": "💾 Guardar Configuraciñao",
-      "saved": "✓ Guardadiño",
-      "overlaySelection": "🎛️ Seleciñao de Overlays",
-      "overlaySelectionHint": "Ativa/desativa os overlays para a tua experiência AR"
+      "save": "💾 Salvar Configuração",
+      "saved": "✓ Salvo",
+      "overlaySelection": "🎛️ Seleção de Overlays",
+      "overlaySelectionHint": "Ativa/desativa os overlays da sua experiência AR",
+      "activeOverlays": "Overlays ativos:",
+      "stats": "📊 Estatísticas",
+      "noOverlaysSelected": "Nenhum overlay selecionado"
     },
     "help": {
       "title": "🥽 Guia de Controles AR Estereoscópicos",
-      "separation": "📐 Separaciñao",
-      "separationDesc": "Controla a distância entre os dois painéis. Ajusta segundo a largura dos teus olhos e a distância de visualização.",
-      "widthHeight": "📏 Larguriño e Alturiño",
-      "widthHeightDesc": "Define o tamanho de cada painel de visualização. Ajusta segundo o tamanho do teu dispositivo e conforto visual.",
-      "offset": "⬅️➡️ Offset Esquerda/Direita",
+      "separation": "📐 Separação",
+      "separationDesc": "Controla a distância entre os dois painéis. Ajuste conforme a largura dos seus olhos e a distância de visualização.",
+      "widthHeight": "📏 Largura e Altura",
+      "widthHeightDesc": "Define o tamanho de cada painel. Ajuste conforme o tamanho do seu dispositivo e conforto visual.",
+      "offset": "⬅️➡️ Deslocamento Esquerda/Direita",
       "offsetDesc": "Ajusta a posição horizontal do vídeo em cada olho para corrigir o alinhamento estereoscópico.",
       "zoom": "🔍 Zoom",
-      "zoomDesc": "Amplia ou reduz a imagem da câmera. Útil para ajustar o campo de visão às tuas necessidades.",
+      "zoomDesc": "Amplia ou reduz a imagem da câmera. Útil para ajustar o campo de visão conforme necessário.",
       "presets": "⚡ Presets Rápidos",
       "presetsDesc": "Configurações otimizadas para diferentes tipos de dispositivos e experiências.",
       "tips": {
-        "title": "💡 Conselhiños",
-        "1": "Mantém a separação entre 20-60px para maior conforto",
-        "2": "Os offsets pequenos (-20 a +20px) costumam ser suficientes",
-        "3": "Guarda a tua configuração para uso futuro",
-        "4": "Prova os presets antes de ajustar manualmente"
+        "title": "💡 Dicas",
+        "1": "Mantenha a separação entre 20-60px para maior conforto",
+        "2": "Deslocamentos pequenos (-20 a +20px) costumam ser suficientes",
+        "3": "Salve sua configuração para uso futuro",
+        "4": "Teste os presets antes de ajustar manualmente"
       }
     },
     "overlays": {
       "title": "📋 OVERLAYS",
-      "selectMultiple": "Seleciona múltiplos overlays",
-      "selectOne": "Seleciona um overlay",
+      "selectMultiple": "Selecionar múltiplos overlays",
+      "selectOne": "Selecionar um overlay",
       "configure": "Configurar posição e parâmetros",
       "configureOverlay": "Configurar Overlay",
       "cleanAll": "🗑️ Limpar tudo ({count})",
-      "resetDefaults": "🔄 Resetear aos Defaults",
-      "resetHint": "Resetear à configuração padrão do dispositivo",
+      "resetDefaults": "🔄 Redefinir para os padrões",
+      "resetHint": "Redefinir para a configuração padrão do dispositivo",
       "footer": "{total} overlays disponíveis • {active} ativos",
       "dragResize": "Arrastar para redimensionar",
       "positions": "Posições",
       "scales": "Escalas",
-      "videoConfig": "Configuraciñao de Vídeos",
-      "generalConfig": "Configuraciñao Geral",
+      "videoConfig": "Configuração de Vídeos",
+      "generalConfig": "Configuração Geral",
       "videoPlaceholder": "Ex: /videos/sample.mp4 ou https://youtube.com/watch?v=...",
       "resolution": {
         "auto": "Automática"
       },
       "testVideos": "Vídeos de Teste",
-      "clickHint": "Clica para ativar/desativar overlays",
+      "clickHint": "Clique para ativar/desativar overlays",
       "byType": "Por tipo:",
       "list": "Lista de overlays:",
       "component": "Componente:",
       "aframeVideoTest": "A-FRAME VIDEO TEST",
-      "mirrorTest": "AR-TEST: espelho overlay",
+      "mirrorTest": "AR-TEST: espelho de overlay",
+      "r3fVideoTest": "TESTE DE VÍDEO R3F",
+      "mainVideo": "VÍDEO PRINCIPAL",
+      "secondaryVideo": "VÍDEO SECUNDÁRIO",
+      "configurableVideoHint": "Overlay de vídeo configurável - Ver arquivo de configuração",
+      "arTest": "AR-TEST",
+      "arSync": "AR-SYNC",
+      "test": "Testar",
+      "selectedOverlay": "Overlay selecionado:",
+      "debugTitle": "🔍 Overlay Debugger",
+      "totalRegistered": "Total: {count} overlays registrados",
+      "category": "Categoria:",
+      "videoR3f": "Vídeo R3F",
+      "performanceTest": "Teste de desempenho",
       "videoPrincipal": "Vídeo Principal",
       "marcadorCentral": "Marcador Central",
       "escalaVideoPrincipal": "Escala do Vídeo Principal",
@@ -156,17 +178,17 @@
       "showMarker": "Mostrar marcador de referência",
       "testVideoGangstas": "📁 gangstas.mp4 (Padrão)",
       "testVideoSample": "📁 sample.mp4",
-      "labelsRadius": "Raio Base das Etiquetas",
-      "labelsHeight": "Altura das Etiquetas",
+      "labelsRadius": "Raio Base dos Rótulos",
+      "labelsHeight": "Altura dos Rótulos",
       "showCenterMarker": "Mostrar marcador central",
-      "forceReload": "Force Reload",
+      "forceReload": "Forçar recarga",
       "export": "Exportar",
-      "save": "Guardar",
-      "saved": "Guardado",
+      "save": "Salvar",
+      "saved": "Salvo",
       "debug": {
-        "configActual": "Config Actual",
-        "userSettings": "User Settings",
-        "refresh": "Refresh"
+        "configActual": "Config Atual",
+        "userSettings": "Configurações do usuário",
+        "refresh": "Atualizar"
       },
       "tab": {
         "positions": "Posições",
@@ -179,8 +201,8 @@
       "videoLocalAframe": "📹 Vídeo Local A-Frame",
       "simpleText": "Texto Simples",
       "simpleTextDesc": "Overlay de texto 3D simples",
-      "rotatingCube": "Cubo Rotatório",
-      "rotatingCubeDesc": "Cubo 3D que rota continuamente",
+      "rotatingCube": "Cubo Rotativo",
+      "rotatingCubeDesc": "Cubo 3D que gira continuamente",
       "testR3F": "Overlay Estático",
       "testR3FDesc": "Overlay R3F básico para testes",
       "vrConeR3F": "Cone R3F",
@@ -194,7 +216,7 @@
       "vrLocalVideo": "Vídeo Local A-Frame",
       "vrLocalVideoDesc": "Reprodutor de vídeo local com controles usando A-Frame",
       "combinedAFrame": "Cone de Palavras + Vídeo Local (A-Frame)",
-      "combinedAFrameDesc": "Mostra ambos overlays de A-Frame juntos em uma única cena"
+      "combinedAFrameDesc": "Mostra ambos os overlays de A-Frame juntos em uma única cena"
     },
     "syncConfig": {
       "selectMultipleHint": "Seleção múltipla — empilham em ambos os painéis (câmera ao fundo se marcada).",
@@ -208,7 +230,7 @@
       "off": "OFF",
       "on": "ON",
       "ready": "Pronto para comandos de voz",
-      "commandsHint": "🎤 Comandos: 'play', 'pause', 'subir volume', 'bajar volume'"
+      "commandsHint": "🎤 Comandos: 'play', 'pause', 'aumentar volume', 'diminuir volume'"
     },
     "titles": {
       "main": "VR Experience",

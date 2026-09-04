@@ -119,6 +119,12 @@ El **checklist de ejecución** por fases (es lo que se marca para mover el reque
 
 Registro de incidentes: fecha, problema, causa y solución. Empieza con un encabezado y va creciendo.
 
+**Regla de registro de hallazgos tardíos:** cuando un item del `checklist.md` o un criterio de
+aceptación ya está marcado como `[x]` pero después se descubre —por el agente, por el usuario o por
+una herramienta de validación— que no estaba realmente resuelto, es obligatorio (sin esperar a que
+el usuario lo pida): corregir la marca si corresponde y registrar el hallazgo en este archivo
+indicando que fue un **hallazgo tardío**. Ver skill `crear-requerimiento`.
+
 ### `tests.md`
 
 Estrategia de testing y tabla de casos (unitarios, integración, e2e) con su estado.

@@ -75,9 +75,8 @@ técnico/comentario (ignorar).
 - **`src/i18n.js` (i18next) es legado y NO es el flujo activo**: solo registra `en` y no se usa en
   el flujo real. El mecanismo vivo es `VRLanguageContext`. No agregar textos ahí ni usar
   `react-i18next` para strings nuevos.
-- **Solo el título (`appName`) y los labels del menú de configuración (tuerca ⚙️) están
-  migrados.** Los botones de `VRDisplay.jsx` ("Mostrar Domo", "Ambas Vistas", "AR Stereo"), los
-  `text` de los `VRButton` en `App.jsx` y demás strings hardcodeados siguen sin traducir. No
-  copiar ese patrón: todo texto nuevo va a locales.
+- **Todo texto nuevo va a locales.** Ya se migró el conjunto completo de la UI (requerimiento 003);
+  no quedan strings de chrome hardcodeados salvo valores técnicos (`480p/720p/1080p`) e
+  identificadores de prueba ("AR-TEST", "AR-SYNC"). No reintroducir literales en JSX.
 - Textos dentro de la escena 3D (`drei` `<Text>`): mismo mecanismo — obtener el string con `t()`
   y pasarlo como prop (ver `VRTextTranslation.jsx` como ejemplo de texto traducible en 3D).

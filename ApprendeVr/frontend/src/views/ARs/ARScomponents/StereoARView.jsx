@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import StereoARPanel from './StereoARPanel';
 import ARSConfig from './ARSConfig';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 /**
  * StereoARView
@@ -26,6 +27,7 @@ const StereoARView = ({
   const [showMenu, setShowMenu] = useState(true);
   const videoRefL = useRef(null);
   const videoRefR = useRef(null);
+  const { t } = useVRLanguage();
 
   useEffect(() => {
     // Pantalla completa al entrar
@@ -100,7 +102,7 @@ const StereoARView = ({
         }}
         onClick={onClose}
       >
-        Volver
+        {t('home.back')}
       </button>
       {/* Paneles estereoscópicos */}
       <StereoARPanel

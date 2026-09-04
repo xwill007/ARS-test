@@ -62,6 +62,11 @@ directo a `3-Completed` o `5-Accepted`.
      tiene, ayudar a redactarla antes de mover — no dejarlo en la cola sin esa nota, porque quien
      lo tome después no sabrá qué cambió.
 
+   Al validar, si se detecta que algún item está marcado `[x]` pero **no está realmente resuelto**
+   (retrabajo / hallazgo tardío), no mover a `3-Completed` o `5-Accepted` sin más: corregir la
+   marca y registrar el hallazgo en `problems_solutions.md` (ver regla en el skill
+   `crear-requerimiento`).
+
 5. **Anotar el motivo cuando aplica.** Al mover a `4-Rejected` o a `4-Rejected/Discarded`, agregar
    una nota breve en `requerimiento.md` (por ejemplo al final de "Antecedentes y estado actual")
    con la fecha y qué problema se encontró. Si además conviene registrar la causa técnica y la

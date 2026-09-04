@@ -1,6 +1,7 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { XR, Controllers, XRButton } from '@react-three/xr';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 // Cubo naranja reutilizable
 const StereoCube = () => (
@@ -17,6 +18,7 @@ const StereoCube = () => (
  *  - onClose: función para cerrar la vista
  */
 const XRStereoView = ({ onClose }) => {
+  const { t } = useVRLanguage();
   return (
     <div
       style={{
@@ -69,7 +71,7 @@ const XRStereoView = ({ onClose }) => {
           borderRadius: 8,
         }}
       >
-        Activar AR
+        {t('ars.activateAr')}
       </XRButton>
       <button
         style={{
@@ -85,7 +87,7 @@ const XRStereoView = ({ onClose }) => {
         }}
         onClick={onClose}
       >
-        Volver
+        {t('home.back')}
       </button>
     </div>
   );

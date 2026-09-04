@@ -61,8 +61,8 @@ const ARTestMirrorButton = () => {
       <button style={inicioButtonStyle} onClick={goHome} title={t('home.backToHome')}>← {t('home.backToHome')}</button>
       {!open && (
         <>
-          <button style={buttonStyle(32)} onClick={() => setOpen('mirror')}>AR-TEST</button>
-          <button style={buttonStyle(76)} onClick={() => setOpen('sync')}>AR-SYNC</button>
+          <button style={buttonStyle(32)} onClick={() => setOpen('mirror')}>{t('overlays.arTest')}</button>
+          <button style={buttonStyle(76)} onClick={() => setOpen('sync')}>{t('overlays.arSync')}</button>
         </>
       )}
       {open === 'mirror' && (

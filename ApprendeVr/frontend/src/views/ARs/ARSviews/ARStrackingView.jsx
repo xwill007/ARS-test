@@ -1,8 +1,10 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { XR, Controllers, XRButton } from '@react-three/xr';
+import { useVRLanguage } from '../../../components/VRConfig/VRLanguageContext';
 
 const ARStrackingView = ({ onClose }) => {
+  const { t } = useVRLanguage();
   return (
     <div
       className='container3D'
@@ -42,7 +44,7 @@ const ARStrackingView = ({ onClose }) => {
           borderRadius: 8,
         }}
       >
-        Activar AR
+        {t('ars.activateAr')}
       </XRButton>
 
       <button
@@ -59,7 +61,7 @@ const ARStrackingView = ({ onClose }) => {
         }}
         onClick={onClose}
       >
-        Volver
+        {t('home.back')}
       </button>
     </div>
   );
