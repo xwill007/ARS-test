@@ -103,12 +103,22 @@ arriba. La distribución del template clásico queda así:
 
 1. **Objetivo** — qué problema resuelve o qué feature agrega, en 1-2 párrafos.
 2. **Antecedentes y estado actual** — contexto necesario para entender el porqué.
-3. **Alcance** — qué incluye y qué explícitamente no incluye (subsecciones `Incluido` / `No incluido`).
-4. **Diseño técnico** — opciones consideradas y decisión tomada.
-5. **Archivos a modificar** — tabla archivo → cambio.
-6. **Criterios de aceptación** — checklist verificable; es lo que se revisa para mover el
+3. **Historias de usuario** — casos de uso en formato "Como [rol], quiero [acción], para [beneficio]".
+   Redactadas en términos del **valor funcional** para quien usa la app (no de implementación). Cada
+   historia se escribe como una frase única y concreta, con criterios de aceptación claros cuando
+   aporten. Sirven de puente entre el objetivo y los criterios de aceptación técnicos de la
+   sección 6.
+4. **Alcance** — qué incluye y qué explícitamente no incluye (subsecciones `Incluido` / `No incluido`).
+5. **Diseño técnico** — opciones consideradas y decisión tomada.
+6. **Archivos a modificar** — tabla archivo → cambio.
+7. **Criterios de aceptación** — checklist verificable; es lo que se revisa para mover el
    requerimiento de `3-Completed` a `5-Accepted` (o a `4-Rejected` si no se cumple).
-7. **Referencias** — enlaces o commits relacionados.
+8. **Referencias** — enlaces o commits relacionados.
+
+> **Regla de historias de usuario:** van **antes** del diseño técnico y **en lenguaje de negocio**,
+> sin mencionar archivos, hooks ni librerías. Ejemplo correcto: *"Como estudiante, quiero dictar mi
+> nombre con la voz en el formulario de registro, para no tener que teclearlo."* Ejemplo incorrecto
+> (técnico): *"Como dev, quiero usar useVoiceControl para llenar el input."*
 
 ### `checklist.md`
 

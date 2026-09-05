@@ -51,11 +51,13 @@ preocupación:
      1. `# Requerimiento NNN — Título`
      2. `## 1. Objetivo`
      3. `## 2. Antecedentes y estado actual`
-     4. `## 3. Alcance` (subsecciones `### Incluido` / `### No incluido`)
-     5. `## 4. Diseño técnico` (opciones consideradas + decisión)
-     6. `## 5. Archivos a modificar` (tabla)
-     7. `## 6. Criterios de aceptación` (checklist `- [ ]`)
-     8. `## 7. Referencias`
+     4. `## 3. Historias de usuario` (formato "Como [rol], quiero [acción], para [beneficio]",
+        en lenguaje de negocio, sin tecnicismos)
+     5. `## 4. Alcance` (subsecciones `### Incluido` / `### No incluido`)
+     6. `## 5. Diseño técnico` (opciones consideradas + decisión)
+     7. `## 6. Archivos a modificar` (tabla)
+     8. `## 7. Criterios de aceptación` (checklist `- [ ]`)
+     9. `## 8. Referencias`
    - **`checklist.md`** con el `## Checklist de ejecución` por fases (`- [ ]`).
    - **`problems_solutions.md`** con un encabezado y una entrada inicial "Sin incidentes
      registrados" (se irá llenando). Ver la regla de registro de hallazgos tardíos al final.
@@ -64,6 +66,11 @@ preocupación:
    Cada sección debe basarse en investigación real del código (usa Grep/Read/Explore para
    confirmar rutas de archivo, líneas y comportamiento actual) — no completar secciones con
    contenido genérico o inventado.
+
+   Las **historias de usuario** se redactan en lenguaje de negocio, sin mencionar archivos, hooks,
+   componentes ni librerías; describen el valor funcional para quien usa la app. Formato: "Como
+   [rol], quiero [acción], para [beneficio]". Cubren todas las funcionalidades del alcance (si el
+   requerimiento tiene varias fases, al menos una historia por fase o funcionalidad distinguible).
 
 6. **Confirmar el resultado al usuario**: ruta de la carpeta creada, número asignado, y un resumen
    de 1-2 líneas del objetivo. No la muevas de `1-Pending` — ese es siempre el estado inicial,
