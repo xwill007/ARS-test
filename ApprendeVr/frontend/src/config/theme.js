@@ -1,14 +1,14 @@
 // Definición de colores y fuentes directamente en JS
 const COLORS_LIGHT = {
   primary: { main: '#547a54', contrast: '#ffffff' },
-  secondary: { main: '#00ffff', contrast: '#000000' },
+  secondary: { main: '#4d4d4d', contrast: '#ffffff' },
   accent: { main: '#ff0000', contrast: '#ffffff' },
   background: { main: '#ffffff', contrast: '#000000' },
   surface: { main: '#f0f0f0', contrast: '#000000' },
 };
 const COLORS_DARK = {
   primary: { main: '#2e4a2e', contrast: '#ffffff' },
-  secondary: { main: '#00cccc', contrast: '#000000' },
+  secondary: { main: '#3a3a3a', contrast: '#ffffff' },
   accent: { main: '#ff5555', contrast: '#000000' },
   background: { main: '#222222', contrast: '#ffffff' },
   surface: { main: '#333333', contrast: '#ffffff' },

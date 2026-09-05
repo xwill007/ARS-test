@@ -32,7 +32,48 @@
       "aFrame": "A-FRAME",
       "arStereo": "VR-AR STEREO",
       "arMirror": "AR-mirror",
-      "enterVr": "ENTER VR"
+      "enterVr": "ENTER VR",
+      "login": "Acceso"
+    },
+    "auth": {
+      "registerTitle": "Crear cuenta",
+      "loginTitle": "Iniciar sesión",
+      "name": "Nombre",
+      "namePlaceholder": "Tu nombre",
+      "email": "Correo electrónico",
+      "emailPlaceholder": "tu@correo.com",
+      "password": "Contraseña",
+      "passwordPlaceholder": "Contraseña",
+      "confirmPassword": "Confirmar contraseña",
+      "confirmPasswordPlaceholder": "Repite tu contraseña",
+      "age": "Edad",
+      "agePlaceholder": "Tu edad",
+      "englishLevel": "Nivel de inglés",
+      "englishLevelOptions": {
+        "basico": "Básico",
+        "intermedio": "Intermedio",
+        "avanzado": "Avanzado"
+      },
+      "nativeLanguage": "Idioma nativo",
+      "targetLanguage": "Idioma a aprender",
+      "zoomLabel": "Zoom",
+      "positionLabel": "Posición",
+      "languageOptions": {
+        "es": "Español",
+        "en": "Inglés",
+        "pt": "Portugués"
+      },
+      "submitRegister": "Crear cuenta",
+      "submitLogin": "Iniciar sesión",
+      "switchToLogin": "¿Ya tienes cuenta? Inicia sesión",
+      "switchToRegister": "¿No tienes cuenta? Regístrate",
+      "errors": {
+        "required": "Este campo es obligatorio",
+        "invalidEmail": "Correo electrónico inválido",
+        "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+        "passwordsDontMatch": "Las contraseñas no coinciden",
+        "invalidAge": "Edad inválida"
+      }
     },
     "display": {
       "showDomo": "Mostrar Domo",

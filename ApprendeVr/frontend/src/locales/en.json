@@ -32,7 +32,48 @@
       "aFrame": "A-FRAME",
       "arStereo": "VR-AR STEREO",
       "arMirror": "AR-mirror",
-      "enterVr": "ENTER VR"
+      "enterVr": "ENTER VR",
+      "login": "Login"
+    },
+    "auth": {
+      "registerTitle": "Create account",
+      "loginTitle": "Log in",
+      "name": "Name",
+      "namePlaceholder": "Your name",
+      "email": "Email",
+      "emailPlaceholder": "you@email.com",
+      "password": "Password",
+      "passwordPlaceholder": "Password",
+      "confirmPassword": "Confirm password",
+      "confirmPasswordPlaceholder": "Repeat your password",
+      "age": "Age",
+      "agePlaceholder": "Your age",
+      "englishLevel": "English level",
+      "englishLevelOptions": {
+        "basico": "Basic",
+        "intermedio": "Intermediate",
+        "avanzado": "Advanced"
+      },
+      "nativeLanguage": "Native language",
+      "targetLanguage": "Language to learn",
+      "zoomLabel": "Zoom",
+      "positionLabel": "Position",
+      "languageOptions": {
+        "es": "Spanish",
+        "en": "English",
+        "pt": "Portuguese"
+      },
+      "submitRegister": "Create account",
+      "submitLogin": "Log in",
+      "switchToLogin": "Already have an account? Log in",
+      "switchToRegister": "Don't have an account? Sign up",
+      "errors": {
+        "required": "This field is required",
+        "invalidEmail": "Invalid email address",
+        "passwordTooShort": "Password must be at least 6 characters",
+        "passwordsDontMatch": "Passwords don't match",
+        "invalidAge": "Invalid age"
+      }
     },
     "display": {
       "showDomo": "Show Dome",

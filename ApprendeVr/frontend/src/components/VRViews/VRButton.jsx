@@ -31,6 +31,9 @@ function VRButton({
   scale = 0.5,
   text = null,
   navigateTo = null,
+  // Acción arbitraria a ejecutar al activar el botón. Tiene prioridad sobre `navigateTo`
+  // cuando se pasan ambas (permite botones que no navegan, ej. abrir/cerrar un panel).
+  onClick = null,
   // Si es false, el click directo del mouse/touch sobre el botón no hace nada: solo se
   // activa vía userData.onClick (p. ej. el raycaster de mirada con temporizador de VRCursorArs).
   instantClick = true
@@ -45,7 +48,9 @@ function VRButton({
   const label = text || t('buttons.vr');
 
   const handleClick = () => {
-    if (navigateTo) {
+    if (onClick) {
+      onClick()
+    } else if (navigateTo) {
       window.location.href = navigateTo
     }
   }
@@ -61,11 +66,11 @@ function VRButton({
       obj.userData.interactive = true
       obj.userData.onClick = handleClick
     })
-  }, [navigateTo])
+  }, [navigateTo, onClick])
 
   // Colores y fuente desde theme, con fallback seguro
   const primaryColor = colors.primary?.main || '#1976d2';
-  const secondaryColor = colors.secondary?.main || '#2196f3';
+  const secondaryColor = colors.secondary?.main || '#4d4d4d';
   const emissiveColor = colors.primary?.main || '#1976d2';
 
   return (

@@ -6,8 +6,10 @@ import VRFloor from './components/VRWorld/VRFloor';
 import VRDomo from './components/VRViews/VRDomo';
 import StereoARView from './components/VRViews/VRViewARS/StereoARView';
 import VRDisplay from './components/VRDisplay';
+import LoginRegisterForm from './components/LoginRegisterForm';
+import UbicacionControl from './components/UbicacionControl';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Sky } from '@react-three/drei';
+import { Html, OrbitControls, Sky } from '@react-three/drei';
 import { VRLanguageProvider, useVRLanguage } from './components/VRConfig/VRLanguageContext';
 import { VRThemeProvider } from './components/VRConfig/VRThemeContext';
 import { useRef, useState as useStateReact, useEffect } from 'react';
@@ -31,6 +33,15 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const [showDomo, setShowDomo] = useState(false);
   const [showBoth, setShowBoth] = useState(false);
   const [showStereoAR, setShowStereoAR] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  // Zoom/posición del formulario 3D embebido (Requerimiento 007). Default definido: zoom 2.70,
+  // posición [0, 1.6, 1]. Quedan ajustables en caliente vía UbicacionControl (📍, esquina
+  // superior izquierda del formulario) por si se necesita retocar más adelante.
+  const [authDistanceFactor, setAuthDistanceFactor] = useState(2.7);
+  const [authPosition, setAuthPosition] = useState([0, 1.6, 1]);
+  const moveStep = 0.1;
+  const moveAuthPosition = (dx, dy) =>
+    setAuthPosition(([x, y, z]) => [+(x + dx).toFixed(2), +(y + dy).toFixed(2), z]);
   const [arSeparation, setArSeparation] = useState(24); // px separación
   const [arWidth, setArWidth] = useState(380); // px ancho de cada vista
   const [arHeight, setArHeight] = useState(480); // px alto de cada vista
@@ -101,7 +112,27 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
       />
       {(!showDomo || showBoth) && (
         <Canvas camera={{ position: [0, 2, 5] }}>
-          <Sky 
+          {/* Look control de la vista inicial: permite girar la cámara (mirar alrededor) con
+              click+arrastre, sin desplazarla (pan deshabilitado) ni alejarla/acercarla (zoom
+              deshabilitado) — la cámara permanece en su posición fija ([0, 2, 5]).
+              Ángulo vertical acotado entre minPolarAngle=60° (tope superior: no deja subir la
+              cámara más allá de una vista a 60° desde arriba) y maxPolarAngle=90° (horizonte: con
+              target en y=1 y radio ~5.1, la cámara nunca baja de y≈1, por lo que no llega a
+              atravesar el suelo en y=0).
+              Ángulo horizontal acotado a ±60° desde el frente (azimut inicial 0, cámara en el
+              lado +Z): evita rotar lo suficiente como para ver de canto/atrás el formulario 3D
+              embebido (que es un plano HTML orientado hacia +Z). */}
+          <OrbitControls
+            enableZoom={false}
+            enablePan={false}
+            enableRotate={true}
+            target={[0, 1, 0]}
+            minPolarAngle={Math.PI / 3}
+            maxPolarAngle={Math.PI / 2}
+            minAzimuthAngle={-Math.PI / 3}
+            maxAzimuthAngle={Math.PI / 3}
+          />
+          <Sky
             sunPosition={[100, 10, 100]}
             turbidity={0.1}
             rayleigh={0.5}
@@ -142,6 +173,68 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
             text={t('buttons.arMirror')}
             navigateTo={baseUrl + '/src/views/ARs/ARScomponents/ARStest/mirror-fix/artest-mirror.html'}
           />
+          <VRButton
+            position={[0, 3.2, 0]}
+            scale={0.9}
+            text={t('buttons.login')}
+            onClick={() => setShowAuth((v) => !v)}
+          />
+          {/* Requerimiento 007 — formulario 3D de login/registro embebido en la escena vía
+              <Html> de drei. onSubmitRegister/onSubmitLogin quedan como stubs de consola hasta
+              que existan el AuthContext (Fase 4) y el backend de auth (Fase 6).
+              <Html> monta su contenido en una raíz de React separada (ReactDOM.createRoot),
+              no en un portal, así que no hereda VRLanguageProvider del árbol principal: hay
+              que volver a proveerlo aquí (sincronizado con `currentLang` vía `key`+`defaultLang`)
+              para que useVRLanguage()/t() funcione dentro de LoginRegisterForm.
+              UbicacionControl (Requerimiento 007) queda disponible para reajustar en caliente el
+              zoom/posición por defecto (2.70 / [0, 1.6, 1]) si hiciera falta más adelante. */}
+          {showAuth && (
+            <Html transform occlude position={authPosition} distanceFactor={authDistanceFactor}>
+              <VRLanguageProvider key={currentLang} defaultLang={currentLang}>
+                <div style={{ position: 'relative' }}>
+                  <LoginRegisterForm
+                    onSubmitRegister={(data) => console.log('register submit', data)}
+                    onSubmitLogin={(data) => console.log('login submit', data)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAuth(false)}
+                    aria-label="close-auth-form"
+                    style={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      zIndex: 21,
+                      width: 26,
+                      height: 26,
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: 'rgba(0,0,0,0.65)',
+                      color: 'white',
+                      fontSize: 14,
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    ✕
+                  </button>
+                  <UbicacionControl
+                    corner="top-left"
+                    onZoomIn={() => setAuthDistanceFactor((v) => Math.min(5, +(v + 0.1).toFixed(2)))}
+                    onZoomOut={() => setAuthDistanceFactor((v) => Math.max(0.5, +(v - 0.1).toFixed(2)))}
+                    onMoveUp={() => moveAuthPosition(0, moveStep)}
+                    onMoveDown={() => moveAuthPosition(0, -moveStep)}
+                    onMoveLeft={() => moveAuthPosition(-moveStep, 0)}
+                    onMoveRight={() => moveAuthPosition(moveStep, 0)}
+                    label={`${t('auth.zoomLabel')}: ${authDistanceFactor.toFixed(2)} · ${t('auth.positionLabel')}: [${authPosition.join(', ')}]`}
+                  />
+                </div>
+              </VRLanguageProvider>
+            </Html>
+          )}
         </Canvas>
       )}
       {(showDomo || showBoth) && (

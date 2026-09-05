@@ -54,15 +54,19 @@
       de dejarla acoplada dentro de los métodos de los services.
 - [ ] 5.8 Escribir `.spec.ts` para cada función pura y cada service (casos normales y de borde).
 
-### Fase 6 — Auth (JWT + bcrypt)
+### Fase 6 — Auth (JWT + bcrypt) — movida al requerimiento 007
 
-- [ ] 6.1 `AuthModule` con `JwtModule.registerAsync` (secret/expiración desde config).
-- [ ] 6.2 `AuthService.login(email, password)` → `bcrypt.compare` contra `users.password`.
-- [ ] 6.3 `AuthService.register(dto)` → `bcrypt.hash(password, 10)`.
-- [ ] 6.4 `JwtStrategy` (passport-jwt) que valida el token y carga el usuario.
-- [ ] 6.5 `JwtAuthGuard` + decorador `@CurrentUser()`.
-- [ ] 6.6 `GET /users/me` protegido, devolviendo el usuario sin `password` (usar
-      `class-transformer` `@Exclude` en la entidad).
+> Ejecutada desde `Documentation/Requerimientos/1-Pending/007-formulario-3d-login-registro/checklist.md`
+> (Fase 6 de ese documento), no desde aquí. Se deja la lista original como referencia histórica;
+> no marcar estos ítems desde este checklist.
+
+- [ ] ~~6.1 `AuthModule` con `JwtModule.registerAsync` (secret/expiración desde config).~~
+- [ ] ~~6.2 `AuthService.login(email, password)` → `bcrypt.compare` contra `users.password`.~~
+- [ ] ~~6.3 `AuthService.register(dto)` → `bcrypt.hash(password, 10)`.~~
+- [ ] ~~6.4 `JwtStrategy` (passport-jwt) que valida el token y carga el usuario.~~
+- [ ] ~~6.5 `JwtAuthGuard` + decorador `@CurrentUser()`.~~
+- [ ] ~~6.6 `GET /users/me` protegido, devolviendo el usuario sin `password` (usar
+      `class-transformer` `@Exclude` en la entidad).~~
 
 ### Fase 7 — Videos (streaming Range)
 
@@ -76,6 +80,7 @@
 - [ ] 8.1 `npm run build` compila sin errores.
 - [ ] 8.2 `npm test` (unit tests Jest) pasa sin necesidad de levantar la base de datos.
 - [ ] 8.3 Levantar BD + backend y probar cada criterio de la sección 6 con `curl`/Postman.
-- [ ] 8.4 Confirmar que `GET /api/songs` devuelve las 3 canciones y que login/me funcionan.
+- [ ] 8.4 Confirmar que `GET /api/songs` devuelve las 3 canciones (login/me se valida desde el
+      requerimiento 007, no aquí).
 - [ ] 8.5 Marcar criterios de aceptación como cumplidos.
 - [ ] 8.6 Actualizar `ApprendeVr/Documentation/backend-nestjs.md` con lo realmente implementado.

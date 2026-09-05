@@ -32,7 +32,48 @@
       "aFrame": "A-FRAME",
       "arStereo": "VR-AR STEREO",
       "arMirror": "AR-mirror",
-      "enterVr": "ENTER VR"
+      "enterVr": "ENTER VR",
+      "login": "Acesso"
+    },
+    "auth": {
+      "registerTitle": "Criar conta",
+      "loginTitle": "Entrar",
+      "name": "Nome",
+      "namePlaceholder": "Seu nome",
+      "email": "E-mail",
+      "emailPlaceholder": "voce@email.com",
+      "password": "Senha",
+      "passwordPlaceholder": "Senha",
+      "confirmPassword": "Confirmar senha",
+      "confirmPasswordPlaceholder": "Repita sua senha",
+      "age": "Idade",
+      "agePlaceholder": "Sua idade",
+      "englishLevel": "Nível de inglês",
+      "englishLevelOptions": {
+        "basico": "Básico",
+        "intermedio": "Intermediário",
+        "avanzado": "Avançado"
+      },
+      "nativeLanguage": "Idioma nativo",
+      "targetLanguage": "Idioma para aprender",
+      "zoomLabel": "Zoom",
+      "positionLabel": "Posição",
+      "languageOptions": {
+        "es": "Espanhol",
+        "en": "Inglês",
+        "pt": "Português"
+      },
+      "submitRegister": "Criar conta",
+      "submitLogin": "Entrar",
+      "switchToLogin": "Já tem uma conta? Entrar",
+      "switchToRegister": "Não tem conta? Cadastre-se",
+      "errors": {
+        "required": "Este campo é obrigatório",
+        "invalidEmail": "E-mail inválido",
+        "passwordTooShort": "A senha deve ter pelo menos 6 caracteres",
+        "passwordsDontMatch": "As senhas não coincidem",
+        "invalidAge": "Idade inválida"
+      }
     },
     "display": {
       "showDomo": "Mostrar Domo",

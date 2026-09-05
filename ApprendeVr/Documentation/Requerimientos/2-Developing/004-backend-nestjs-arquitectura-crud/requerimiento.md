@@ -28,6 +28,12 @@ construye encima en requerimientos posteriores).
   `@nestjs/config@12` exige `@nestjs/common@^11 || ^12`, pero el scaffold usa
   `@nestjs/common@^10`. Se debe fijar `@nestjs/config@3` (compatible con Nest 10) o usar
   `--legacy-peer-deps`.
+- **Coordinación con el requerimiento 007:** la Fase 6 (Auth JWT+bcrypt) descrita en este
+  documento y en `checklist.md` se **ejecuta desde**
+  `Documentation/Requerimientos/1-Pending/007-formulario-3d-login-registro/` (formulario 3D de
+  login/registro), en vez de desde aquí, para no bloquear ese trabajo esperando el resto del
+  scaffold. El resto del alcance de este requerimiento (scaffold, Docker, TypeORM, entidades, CRUD
+  de `songs/words/phrases/evaluations`, streaming de video) no cambia.
 
 ## 3. Alcance
 
@@ -45,8 +51,8 @@ construye encima en requerimientos posteriores).
   - `words` (palabras)
   - `phrases` (frases)
   - `evaluations` (evaluaciones)
-- `auth` module: login/register con JWT y verificación bcrypt compatible con los hashes
-  existentes.
+- ~~`auth` module: login/register con JWT y verificación bcrypt compatible con los hashes
+  existentes.~~ → **movido al requerimiento 007** (ver nota en "Antecedentes y estado actual").
 - Guard JWT y decorador `@CurrentUser()`.
 - `ValidationPipe` global y DTOs con `class-validator`.
 - Prefijo `/api` y CORS para el origin de Vite en desarrollo.
@@ -112,7 +118,10 @@ negocio.
   no se pueda testear sin levantar la BD es señal de que hay lógica acoplada que debe extraerse.
 - Los tests viven colocalizados con su fuente (`src/.../foo.util.spec.ts`, `.../auth.service.spec.ts`).
 
-### 4.4 Auth
+### 4.4 Auth (movido al requerimiento 007)
+
+> Esta subsección queda como referencia de diseño histórica; su implementación se ejecuta desde
+> `1-Pending/007-formulario-3d-login-registro/` (ver "Antecedentes y estado actual").
 
 `POST /api/auth/login` → `bcrypt.compare(password, user.password)` (compatible con `$2y$10$…`),
 firma JWT y devuelve `{access_token, user}`. `POST /api/auth/register` → `bcrypt.hash`.
@@ -133,7 +142,7 @@ en el host (no en contenedor) en esta fase; el contenedor solo provee MySQL.
 | `ApprendeVr/backend/src/app.module.ts` | `ConfigModule`, `TypeOrmModule.forRoot`, módulos de dominio. |
 | `ApprendeVr/backend/src/config/configuration.ts` | Tipar/validar variables de entorno. |
 | `ApprendeVr/backend/src/database/database.module.ts` | `TypeOrmModule.forRootAsync`. |
-| `ApprendeVr/backend/src/auth/*` | `auth.module.ts`, `auth.controller.ts`, `auth.service.ts`, `jwt.strategy.ts`. |
+| `ApprendeVr/backend/src/auth/*` | ~~`auth.module.ts`, `auth.controller.ts`, `auth.service.ts`, `jwt.strategy.ts`.~~ → movido al requerimiento 007. |
 | `ApprendeVr/backend/src/users/*` | `users.module.ts`, `users.controller.ts`, `users.service.ts`, `entities/user.entity.ts`, `dto/*`. |
 | `ApprendeVr/backend/src/songs/*` | módulo CRUD + `entities/song.entity.ts` + dto. |
 | `ApprendeVr/backend/src/words/*` | módulo + `entities/word.entity.ts`. |
@@ -154,9 +163,10 @@ en el host (no en contenedor) en esta fase; el contenedor solo provee MySQL.
 - [ ] `GET /api/songs` devuelve las 3 canciones del dump.
 - [ ] `GET /api/songs/:id/words` y `GET /api/songs/:id/phrases` devuelven palabras/frases de una
       canción existente.
-- [ ] `POST /api/auth/login` con credenciales de un usuario del dump (`usuarios`) devuelve un
-      `access_token` válido.
-- [ ] `GET /api/users/me` con ese token devuelve el usuario (sin `password`).
+- [ ] ~~`POST /api/auth/login` con credenciales de un usuario del dump (`usuarios`) devuelve un
+      `access_token` válido.~~ → criterio movido a `007-formulario-3d-login-registro`.
+- [ ] ~~`GET /api/users/me` con ese token devuelve el usuario (sin `password`).~~ → criterio movido
+      a `007-formulario-3d-login-registro`.
 - [ ] `POST /api/evaluations` guarda una evaluación y `GET /api/evaluations` la lista.
 - [ ] `GET /api/videos/:fileName` con header `Range` responde `206 Partial Content`.
 - [ ] No hay secretos hardcodeados; las credenciales salen de `.env`.
