@@ -12,7 +12,15 @@ export default defineConfig({
       key: fs.readFileSync(path.resolve(__dirname, 'ssl/key.pem')),
       cert: fs.readFileSync(path.resolve(__dirname, 'ssl/cert.pem')),
     },
-    proxy: {}
+    // Reenvía /api al backend NestJS (plano HTTP, puerto 3001). Evita mixed-content: el
+    // navegador solo habla con este servidor Vite en HTTPS; Vite reenvía la petición por HTTP
+    // internamente hacia Nest.
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    }
   },
   build: {
     rollupOptions: {

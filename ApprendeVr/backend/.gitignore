@@ -1,0 +1,19 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+coverage
+
+# Environment (secrets: JWT_SECRET, DB credentials) — only .env.example is committed
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor/OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea

@@ -63,6 +63,7 @@
         "en": "Inglés",
         "pt": "Portugués"
       },
+      "submitting": "Enviando...",
       "submitRegister": "Crear cuenta",
       "submitLogin": "Iniciar sesión",
       "switchToLogin": "¿Ya tienes cuenta? Inicia sesión",
@@ -72,7 +73,10 @@
         "invalidEmail": "Correo electrónico inválido",
         "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
         "passwordsDontMatch": "Las contraseñas no coinciden",
-        "invalidAge": "Edad inválida"
+        "invalidAge": "Edad inválida",
+        "EMAIL_ALREADY_EXISTS": "Ese correo ya está registrado",
+        "INVALID_CREDENTIALS": "Correo o contraseña incorrectos",
+        "serverError": "Ocurrió un error. Intenta de nuevo."
       }
     },
     "display": {

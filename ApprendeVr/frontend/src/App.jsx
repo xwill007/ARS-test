@@ -42,6 +42,40 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const moveStep = 0.1;
   const moveAuthPosition = (dx, dy) =>
     setAuthPosition(([x, y, z]) => [+(x + dx).toFixed(2), +(y + dy).toFixed(2), z]);
+
+  // Cliente mínimo contra el backend de auth (Requerimiento 007, Fase 6). Se llama vía el proxy
+  // de Vite (`/api` → `http://localhost:3001`, ver vite.config.js) en vez de una URL absoluta,
+  // para no mezclar HTTPS (frontend) con HTTP (backend, sin TLS todavía) — mixed content.
+  const postAuth = async (path, body) => {
+    const res = await fetch(`/api/auth/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // AuthService devuelve `message` con un código estable (EMAIL_ALREADY_EXISTS,
+      // INVALID_CREDENTIALS): LoginRegisterForm lo traduce vía auth.errors.*.
+      throw new Error(data.message || 'serverError');
+    }
+    return data;
+  };
+
+  const submitRegister = async ({ name, email, password, age, englishLevel, nativeLanguage, targetLanguage }) => {
+    // `age`/`nativeLanguage`/`targetLanguage` aún no tienen columna en `usuarios` (ver
+    // problems_solutions.md de 007): el backend los descarta (ValidationPipe whitelist), se
+    // envían igual para no requerir otro cambio de frontend cuando se agreguen.
+    // No guarda token ni cierra el formulario: LoginRegisterForm pasa a modo login con el correo
+    // ya cargado, y es ese login inmediato el que guarda la sesión (ver submitLogin).
+    await postAuth('register', { name, email, password, level: englishLevel, age, nativeLanguage, targetLanguage });
+  };
+
+  const submitLogin = async ({ email, password }) => {
+    const data = await postAuth('login', { email, password });
+    localStorage.setItem('apprendevr_auth', JSON.stringify(data));
+    // Al iniciar sesión (no al registrarse) se redirige a la vista A-Frame.
+    window.location.href = aframeUrl;
+  };
   const [arSeparation, setArSeparation] = useState(24); // px separación
   const [arWidth, setArWidth] = useState(380); // px ancho de cada vista
   const [arHeight, setArHeight] = useState(480); // px alto de cada vista
@@ -180,8 +214,9 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
             onClick={() => setShowAuth((v) => !v)}
           />
           {/* Requerimiento 007 — formulario 3D de login/registro embebido en la escena vía
-              <Html> de drei. onSubmitRegister/onSubmitLogin quedan como stubs de consola hasta
-              que existan el AuthContext (Fase 4) y el backend de auth (Fase 6).
+              <Html> de drei. onSubmitRegister/onSubmitLogin llaman al backend real (submitRegister/
+              submitLogin más arriba); guardan el token en localStorage pero sin AuthContext
+              todavía (Fase 4: rehidratar sesión al montar, exponer useAuth(), etc.).
               <Html> monta su contenido en una raíz de React separada (ReactDOM.createRoot),
               no en un portal, así que no hereda VRLanguageProvider del árbol principal: hay
               que volver a proveerlo aquí (sincronizado con `currentLang` vía `key`+`defaultLang`)
@@ -193,8 +228,8 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
               <VRLanguageProvider key={currentLang} defaultLang={currentLang}>
                 <div style={{ position: 'relative' }}>
                   <LoginRegisterForm
-                    onSubmitRegister={(data) => console.log('register submit', data)}
-                    onSubmitLogin={(data) => console.log('login submit', data)}
+                    onSubmitRegister={submitRegister}
+                    onSubmitLogin={submitLogin}
                   />
                   <button
                     type="button"

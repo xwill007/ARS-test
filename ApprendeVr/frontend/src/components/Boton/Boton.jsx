@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const baseStyle = {
   border: 'none',
@@ -24,16 +24,26 @@ const variantStyles = {
   },
 };
 
+// Mismo gris oscuro de hover que los VRButton 3D (ver config/theme.js, secondary.main), para que
+// el feedback de "hover" sea consistente en toda la app.
+const HOVER_BACKGROUND = '#4d4d4d';
+
 const Boton = ({ label, onClick, type = 'button', disabled = false, variant = 'primary' }) => {
+  const [hovered, setHovered] = useState(false);
   const variantStyle = variantStyles[variant] || variantStyles.primary;
+  // El variant "link" es texto plano sin fondo: el hover gris no aplica ahí.
+  const hoverStyle = hovered && !disabled && variant !== 'link' ? { background: HOVER_BACKGROUND } : {};
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         ...baseStyle,
         ...variantStyle,
+        ...hoverStyle,
         cursor: disabled ? 'not-allowed' : baseStyle.cursor,
         opacity: disabled ? 0.6 : 1,
       }}

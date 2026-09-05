@@ -268,40 +268,50 @@ llamadas autenticadas (ej. `GET /api/users/me`).
 
 **Frontend**
 
-- [ ] Existen y son reutilizables (con `index.js` barrel) los componentes `Boton`, `Input` y
+- [x] Existen y son reutilizables (con `index.js` barrel) los componentes `Boton`, `Input` y
       `Formulario` en `frontend/src/components/`.
-- [ ] `LoginRegisterForm` compone esos tres componentes (no reimplementa inputs/botones propios).
-- [ ] El formulario aparece embebido dentro de la escena 3D (`<Html>` dentro del `<Canvas>` de
+- [x] `LoginRegisterForm` compone esos tres componentes (no reimplementa inputs/botones propios).
+- [x] El formulario aparece embebido dentro de la escena 3D (`<Html>` dentro del `<Canvas>` de
       `App.jsx`), no como overlay HTML plano.
-- [ ] Un nuevo `VRButton` en la escena alterna la visibilidad del formulario.
-- [ ] El formulario valida en cliente: campos requeridos, formato de email, longitud mínima de
+- [x] Un nuevo `VRButton` en la escena alterna la visibilidad del formulario.
+- [x] El formulario valida en cliente: campos requeridos, formato de email, longitud mínima de
       contraseña, confirmación de contraseña en modo registro — sin llamar al backend si la
       validación falla.
-- [ ] Un registro exitoso deja al usuario autenticado (token guardado) sin recargar la página.
-- [ ] Un login exitoso guarda el token en `localStorage` y lo rehidrata tras recargar la página.
-- [ ] Errores del backend (credenciales inválidas, email duplicado) se muestran en el propio
-      formulario, en el idioma activo (`es`/`en`/`br`).
-- [ ] Los tres locales (`es.json`, `en.json`, `br.json`) tienen las mismas claves nuevas de
+- [x] Un registro exitoso **no** autentica automáticamente: pasa el formulario a modo login con
+      el correo ya cargado (decisión del usuario, ver `problems_solutions.md`), para que solo
+      falte escribir la contraseña. El token se guarda recién en el login que sigue.
+- [x] Un login exitoso guarda `{access_token, user}` en `localStorage['apprendevr_auth']` y
+      redirige a `src/views/A-frame/index.html`. — La **rehidratación** de la sesión al recargar
+      (leerlo de `localStorage` y reflejarlo en `isAuthenticated`/`user`) sigue pendiente de la
+      Fase 4 (`AuthContext`); hoy solo se persiste, no se relee al montar.
+- [x] Errores del backend (credenciales inválidas, email duplicado) se muestran en el propio
+      formulario, en el idioma activo (`es`/`en`/`br`) — vía `auth.errors.INVALID_CREDENTIALS` /
+      `EMAIL_ALREADY_EXISTS` / `serverError`.
+- [x] Los tres locales (`es.json`, `en.json`, `br.json`) tienen las mismas claves nuevas de
       `login.*`/`register.*` (sin claves huérfanas en un idioma y faltantes en otro).
 
 **Backend**
 
-- [ ] `POST /api/auth/register` con un email nuevo crea el usuario (contraseña hasheada con
-      bcrypt, nunca en texto plano) y devuelve `access_token`.
-- [ ] `POST /api/auth/register` con un email ya existente responde error (no crea duplicado).
-- [ ] `POST /api/auth/login` con credenciales válidas devuelve un `access_token` JWT y el usuario
+- [x] `POST /api/auth/register` con un email nuevo crea el usuario (contraseña hasheada con
+      bcrypt, nunca en texto plano) y devuelve `access_token`. — Verificado con `curl` contra
+      MySQL real (Docker).
+- [x] `POST /api/auth/register` con un email ya existente responde error (no crea duplicado). —
+      Verificado: `409 EMAIL_ALREADY_EXISTS`.
+- [x] `POST /api/auth/login` con credenciales válidas devuelve un `access_token` JWT y el usuario
       sin `password`.
-- [ ] `POST /api/auth/login` con credenciales inválidas responde `401` sin filtrar si el email
-      existe o no.
-- [ ] `GET /api/users/me` con el token devuelve el usuario autenticado (sin `password`); sin token
+- [x] `POST /api/auth/login` con credenciales inválidas responde `401` sin filtrar si el email
+      existe o no. — Mismo mensaje (`INVALID_CREDENTIALS`) para email inexistente y para password
+      incorrecta.
+- [x] `GET /api/users/me` con el token devuelve el usuario autenticado (sin `password`); sin token
       o con token inválido responde `401`.
-- [ ] La lógica de negocio de `auth` está en funciones puras con `.spec.ts`, y `npm test` pasa sin
-      necesidad de levantar MySQL.
-- [ ] No hay secretos hardcodeados (`JWT_SECRET` sale de `.env`).
+- [x] La lógica de negocio de `auth` está en funciones puras con `.spec.ts`, y `npm test` pasa sin
+      necesidad de levantar MySQL. — 4 suites, 14 tests en verde sin Docker corriendo.
+- [x] No hay secretos hardcodeados (`JWT_SECRET` sale de `.env`, no versionado; solo
+      `.env.example` se commitea).
 
 **Coordinación**
 
-- [ ] `004-backend-nestjs-arquitectura-crud` (`requerimiento.md` y `checklist.md`) queda anotado
+- [x] `004-backend-nestjs-arquitectura-crud` (`requerimiento.md` y `checklist.md`) queda anotado
       indicando que su Fase 6/`src/auth/*` se ejecutó desde 007, sin duplicar trabajo.
 
 ## 8. Referencias

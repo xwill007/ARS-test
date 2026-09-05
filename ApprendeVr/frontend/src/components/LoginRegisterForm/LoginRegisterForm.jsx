@@ -22,6 +22,8 @@ const LoginRegisterForm = ({ defaultMode = 'register', onSubmitRegister, onSubmi
   const [mode, setMode] = useState(defaultMode);
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,26 +33,45 @@ const LoginRegisterForm = ({ defaultMode = 'register', onSubmitRegister, onSubmi
   const switchMode = () => {
     setMode((prev) => (prev === 'register' ? 'login' : 'register'));
     setErrors({});
+    setServerError('');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const validate = mode === 'register' ? validateRegisterForm : validateLoginForm;
     const validationErrors = validate(values);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
 
-    if (mode === 'register') {
-      onSubmitRegister?.({
-        name: values.name,
-        email: values.email,
-        password: values.password,
-        age: values.age,
-        englishLevel: values.englishLevel,
-        nativeLanguage: values.nativeLanguage,
-        targetLanguage: values.targetLanguage,
-      });
-    } else {
-      onSubmitLogin?.({ email: values.email, password: values.password });
+    setServerError('');
+    setSubmitting(true);
+    try {
+      if (mode === 'register') {
+        await onSubmitRegister?.({
+          name: values.name,
+          email: values.email,
+          password: values.password,
+          age: values.age,
+          englishLevel: values.englishLevel,
+          nativeLanguage: values.nativeLanguage,
+          targetLanguage: values.targetLanguage,
+        });
+        // Tras un registro exitoso se pasa a modo login con el correo ya cargado, para que
+        // el usuario solo tenga que escribir la contraseña (en vez de cerrar el formulario).
+        const registeredEmail = values.email;
+        setValues({ ...initialValues, email: registeredEmail });
+        setMode('login');
+      } else {
+        await onSubmitLogin?.({ email: values.email, password: values.password });
+      }
+    } catch (err) {
+      const code = err?.message;
+      setServerError(
+        code === 'EMAIL_ALREADY_EXISTS' || code === 'INVALID_CREDENTIALS'
+          ? t(`auth.errors.${code}`)
+          : t('auth.errors.serverError'),
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -148,7 +169,20 @@ const LoginRegisterForm = ({ defaultMode = 'register', onSubmitRegister, onSubmi
           options={languageOptions}
         />
       )}
-      <Boton type="submit" label={mode === 'register' ? t('auth.submitRegister') : t('auth.submitLogin')} />
+      {serverError && (
+        <span style={{ color: '#ff8a80', fontSize: 13 }}>{serverError}</span>
+      )}
+      <Boton
+        type="submit"
+        disabled={submitting}
+        label={
+          submitting
+            ? t('auth.submitting')
+            : mode === 'register'
+              ? t('auth.submitRegister')
+              : t('auth.submitLogin')
+        }
+      />
       <Boton
         type="button"
         variant="link"

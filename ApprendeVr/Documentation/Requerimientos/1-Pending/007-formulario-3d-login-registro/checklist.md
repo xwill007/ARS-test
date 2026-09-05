@@ -24,6 +24,12 @@
       `isValidAge`, `validateRegisterForm`, `validateLoginForm`), pero falta su `.test.js`.
 - [x] 2.3 Mensajes de error inline (sin `alert()`), en el idioma activo — verificado: `Input`
       muestra `error` inline y `LoginRegisterForm` traduce las claves `auth.errors.*` vía `t()`.
+- [x] 2.4 Ícono de ojo (👁️/🙈) en `Input` para mostrar/ocultar la contraseña ingresada — genérico
+      en el átomo (aplica solo cuando `type="password"`), cubre `password` y `confirmPassword`
+      de forma independiente entre sí.
+- [x] 2.5 Tras un registro exitoso, `LoginRegisterForm` pasa a modo login con el correo ya
+      cargado (el usuario solo escribe la contraseña), en vez de cerrar el formulario. `Boton`
+      ahora tiene hover gris oscuro (mismo tono que los `VRButton`, ver 3.8).
 
 ### Fase 3 — Integración 3D en la home
 
@@ -54,12 +60,23 @@
 ### Fase 4 — Sesión y API cliente (frontend)
 
 - [ ] 4.1 Crear `AuthContext`/`useAuth()` con `login()`, `register()`, `logout()`, `user`, `token`,
-      `isAuthenticated`.
+      `isAuthenticated`. — **Pendiente:** hoy `submitRegister`/`submitLogin` viven como funciones
+      sueltas en `App.jsx`, no como un context/hook reutilizable.
 - [ ] 4.2 Persistir el token en `localStorage` (clave `apprendevr_auth`) y rehidratar sesión al
-      montar la app.
-- [ ] 4.3 Cliente `fetch` para `POST /api/auth/login` y `POST /api/auth/register`.
-- [ ] 4.4 Corregir `frontend/.env` (`VITE_API_URL`) para apuntar al backend, no al frontend.
-- [ ] 4.5 Envolver `App.jsx` en el nuevo `AuthProvider`.
+      montar la app. — Persistencia hecha (`submitLogin` en `App.jsx` guarda
+      `{access_token, user}` bajo esa clave exacta); **falta** rehidratar al montar (leer
+      `localStorage` y reflejar `isAuthenticated`/`user` en algún estado — depende de 4.1).
+- [x] 4.3 Cliente `fetch` para `POST /api/auth/login` y `POST /api/auth/register`. —
+      Implementado en `App.jsx` (`postAuth`/`submitRegister`/`submitLogin`), no como archivo
+      cliente separado; cubre el flujo real: registro exitoso → pasa a modo login con el correo
+      precargado (ver 2.5) → login exitoso guarda el token y redirige a `src/views/A-frame/index.html`.
+      Verificado en el navegador contra el backend real (Fase 6) más abajo.
+- [x] 4.4 Corregir `frontend/.env` (`VITE_API_URL`) para apuntar al backend, no al frontend. —
+      Resuelto por una vía alternativa ya contemplada en el diseño (`backend-nestjs.md` §9): en
+      vez de tocar `VITE_API_URL`, se agregó un proxy de Vite (`vite.config.js`, `server.proxy`)
+      que reenvía `/api` → `http://localhost:3001`. Evita mixed-content (frontend HTTPS / backend
+      HTTP sin TLS) sin necesitar CORS ni una URL absoluta en el cliente.
+- [ ] 4.5 Envolver `App.jsx` en el nuevo `AuthProvider`. — Pendiente (depende de 4.1).
 
 ### Fase 5 — i18n
 
@@ -72,20 +89,28 @@
 
 ### Fase 6 — Backend: `AuthModule` (absorbe Fase 6 de 004)
 
-- [ ] 6.1 Verificar/crear la entidad `User`→`usuarios` (reusar la de 004 si ya existe al momento
-      de implementar).
-- [ ] 6.2 `AuthModule` con `JwtModule.registerAsync` (secret/expiración desde `.env`).
-- [ ] 6.3 `LoginDto`/`RegisterDto` con `class-validator`.
-- [ ] 6.4 Lógica pura en `auth.util.ts` (normalización de email, validación de payload) + su
+- [x] 6.1 Verificar/crear la entidad `User`→`usuarios` (reusar la de 004 si ya existe al momento
+      de implementar). — No existía (004 solo tenía el scaffold de Nest CLI); creada en
+      `src/users/entities/user.entity.ts` mapeando la tabla real del dump (`id`, `name`, `email`,
+      `password`, `level`, `date`), sin renombrar columnas.
+- [x] 6.2 `AuthModule` con `JwtModule.registerAsync` (secret/expiración desde `.env`).
+- [x] 6.3 `LoginDto`/`RegisterDto` con `class-validator`.
+- [x] 6.4 Lógica pura en `auth.util.ts` (normalización de email, validación de payload) + su
       `.spec.ts`.
-- [ ] 6.5 `AuthService.login(email, password)` → `bcrypt.compare` contra `users.password`.
-- [ ] 6.6 `AuthService.register(dto)` → valida email único, `bcrypt.hash(password, 10)`.
-- [ ] 6.7 `JwtStrategy` (passport-jwt) + `JwtAuthGuard` + decorador `@CurrentUser()`.
-- [ ] 6.8 `auth.controller.ts`: `POST /api/auth/login`, `POST /api/auth/register`.
-- [ ] 6.9 `GET /api/users/me` protegido (usa `class-transformer` `@Exclude` para ocultar
+- [x] 6.5 `AuthService.login(email, password)` → `bcrypt.compare` contra `users.password`.
+- [x] 6.6 `AuthService.register(dto)` → valida email único, `bcrypt.hash(password, 10)`.
+- [x] 6.7 `JwtStrategy` (passport-jwt) + `JwtAuthGuard` + decorador `@CurrentUser()`.
+- [x] 6.8 `auth.controller.ts`: `POST /api/auth/login`, `POST /api/auth/register`.
+- [x] 6.9 `GET /api/users/me` protegido — implementado con una función pura propia
+      (`sanitizeUser()` en `src/common/sanitize-user.util.ts`, con su `.spec.ts`) en vez de
+      `class-transformer @Exclude`, para mantener la lógica de negocio en funciones simples
+      testeables (regla de arquitectura del backend); resultado equivalente (nunca devuelve
       `password`).
-- [ ] 6.10 Confirmar prefijo `/api` y CORS habilitado para el origin del frontend.
-- [ ] 6.11 `auth.service.spec.ts` con el repo mockeado (casos normales y de borde).
+- [x] 6.10 Confirmar prefijo `/api` y CORS habilitado para el origin del frontend.
+- [x] 6.11 `auth.service.spec.ts` con las dependencias mockeadas (`UsersService`+`JwtService` en
+      vez del `Repository` crudo — mismo principio de aislar de la BD; casos normales y de
+      borde: registro exitoso, email duplicado, login exitoso, credenciales inválidas, email
+      inexistente).
 
 ### Fase 7 — Coordinación con requerimiento 004
 
@@ -96,11 +121,24 @@
 
 ### Fase 8 — Verificación y cierre
 
-- [ ] 8.1 `npm run build` (o `nest build`) compila sin errores en `ApprendeVr/backend/`.
-- [ ] 8.2 `npm test` (Jest) del backend pasa sin levantar MySQL.
-- [ ] 8.3 Con MySQL levantado (según 004): `curl POST /api/auth/register` → `curl POST
-      /api/auth/login` → `curl GET /api/users/me` con el token, en secuencia, funcionan.
-- [ ] 8.4 Frontend: `npm run build` compila sin errores.
-- [ ] 8.5 Prueba manual end-to-end en el navegador: abrir la home, activar el formulario 3D,
-      registrar un usuario nuevo, cerrar sesión (recargar), iniciar sesión con ese usuario.
-- [ ] 8.6 Marcar los criterios de aceptación de `requerimiento.md` como cumplidos.
+- [x] 8.1 `npm run build` (o `nest build`) compila sin errores en `ApprendeVr/backend/`.
+- [x] 8.2 `npm test` (Jest) del backend pasa sin levantar MySQL — 4 suites, 14 tests, todos en
+      verde.
+- [x] 8.3 Con MySQL levantado (Docker, contenedor `Backend-ApprendeVr`, ver
+      `problems_solutions.md`): `curl POST /api/auth/register` → `curl POST /api/auth/login` →
+      `curl GET /api/users/me` con el token, en secuencia, funcionan. También verificado: login
+      con contraseña incorrecta (401), registro con email duplicado (409), `/me` sin token (401),
+      y login contra un usuario del dump con hash `$2y$10$…` existente (bcrypt compara sin
+      error). Usuarios de prueba creados durante la verificación, eliminados después.
+- [x] 8.4 Frontend: `npm run build` compila sin errores.
+- [x] 8.5 Prueba manual end-to-end en el navegador: abrir la home, activar el formulario 3D,
+      registrar un usuario nuevo, iniciar sesión con ese usuario. — Verificado en Chrome
+      (chrome-devtools) contra el backend real: registrar → pasa a modo login con el correo
+      precargado (2.5) → login → token guardado en `localStorage['apprendevr_auth']` → redirige a
+      `src/views/A-frame/index.html`. Sin errores en consola. Usuarios de prueba del navegador
+      eliminados después. (El caso "cerrar sesión (recargar) → volver a iniciar sesión" con
+      rehidratación de sesión sigue pendiente de la Fase 4/`AuthContext`, no probado aquí.)
+- [ ] 8.6 Marcar los criterios de aceptación de `requerimiento.md` como cumplidos. — Backend
+      verificado (ver 8.1–8.3) y el flujo real de registro/login en el navegador (8.5); queda
+      pendiente `AuthContext`/rehidratación de sesión (Fase 4.1/4.2/4.5), así que los criterios de
+      aceptación completos aún no se marcan.

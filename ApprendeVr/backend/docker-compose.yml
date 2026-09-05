@@ -1,0 +1,17 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: Backend-ApprendeVr
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: ${DB_NAME:-english_vr}
+    volumes:
+      # Importa el dump completo (schema + datos) del submodule A-frame al arrancar el contenedor
+      # por primera vez (mismo patrón que A-frame/docker-dev/docker-compose.yml).
+      - ../../A-frame/Proyecto/BaseDatos/english_vr.sql:/docker-entrypoint-initdb.d/01-english_vr.sql:ro
+      - db-data:/var/lib/mysql
+    ports:
+      - "${DB_PORT:-3306}:3306"
+
+volumes:
+  db-data:

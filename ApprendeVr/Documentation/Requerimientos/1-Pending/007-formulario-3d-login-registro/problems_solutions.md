@@ -23,3 +23,59 @@ cambia el idioma global mientras el formulario está abierto, la raíz aislada s
 Si en el futuro se necesita `VRThemeContext` (u otro contexto) dentro de contenido embebido en
 `<Html>`, aplicar el mismo patrón: volver a proveer el contexto localmente en ese punto, no asumir
 que se hereda del árbol externo.
+
+### 2026-09-05 — Puerto 3306 ocupado por un MySQL nativo del host
+
+**Causa:** al levantar `docker compose up -d` en `ApprendeVr/backend/` (Fase 6/8), el contenedor
+`db` quedaba en estado `Created` sin arrancar nunca (sin logs, sin error visible en la salida de
+`docker compose`). La causa real: ya había un `mysqld` nativo del sistema escuchando en
+`127.0.0.1:3306` (ajeno a este proyecto), así que Docker no podía bindear ese puerto en el host.
+
+**Solución:** cambiar el puerto expuesto por el contenedor a `3307` (`DB_PORT=3307` en `.env` y
+`.env.example`; `docker-compose.yml` ya lo tomaba de `${DB_PORT:-3306}`, sin cambios ahí). MySQL
+sigue escuchando en el puerto `3306` **dentro** del contenedor; solo cambia el mapeo al host. Si
+en otra máquina el 3306 está libre, `DB_PORT` puede volver a 3306 sin tocar código.
+
+**Nota adicional:** a pedido del usuario, el contenedor se nombra explícitamente
+`Backend-ApprendeVr` (`container_name` en `docker-compose.yml`) en vez del nombre autogenerado
+`backend-db-1`.
+
+### 2026-09-05 — Campos nuevos del registro (edad, nivel, idiomas) sin persistir en el backend
+
+**Estado:** el formulario de registro (`LoginRegisterForm`) ya recolecta `age`, `nativeLanguage` y
+`targetLanguage` además de `name`/`email`/`password`/`englishLevel` (ver Fase 2 de este mismo
+checklist), pero el `RegisterDto`/entidad `User` del backend implementado en la Fase 6 solo cubre
+`name`, `email`, `password` y `level` (columnas reales de `usuarios`). `age`, `nativeLanguage` y
+`targetLanguage` **no tienen columna equivalente hoy**: con `ValidationPipe({ whitelist: true })`
+esas propiedades se descartan silenciosamente si el frontend llega a enviarlas (Fase 4), no se
+persisten ni dan error. Pendiente decidir (al implementar la Fase 4): sumarlas al esquema
+(`ALTER TABLE usuarios ADD COLUMN ...` + entidad + DTO) o descartarlas explícitamente del payload
+del cliente.
+
+### 2026-09-05 — Mixed content: frontend HTTPS llamando a un backend HTTP
+
+**Causa:** el frontend corre en HTTPS (certificado autofirmado, `vite.config.js`), pero el
+backend NestJS no tiene TLS configurado (HTTP plano, puerto 3001). Un `fetch()` directo desde el
+frontend a `http://.../api/...` lo bloquea el navegador (mixed content: contenido activo inseguro
+desde una página segura), incluso con CORS habilitado.
+
+**Solución:** agregar un proxy en `vite.config.js` (`server.proxy['/api'] → http://localhost:3001`,
+`changeOrigin: true`). El frontend llama a rutas relativas (`/api/auth/login`, etc.), mismo origen
+HTTPS desde la perspectiva del navegador; Vite reenvía la petición por HTTP internamente hacia
+Nest. Evita también depender de `VITE_API_URL`/CORS para este caso (ver ítem 4.4 del checklist).
+Si en el futuro el backend corre detrás de HTTPS real, se puede volver a una URL absoluta sin
+tocar el frontend más que esa variable.
+
+### 2026-09-05 — Decisión de UX: registro no autentica automáticamente
+
+**Contexto:** el criterio de aceptación original decía "un registro exitoso deja al usuario
+autenticado". El usuario pidió en cambio que, tras registrarse, el formulario pase a modo login
+con el correo ya cargado, dejando solo el campo de contraseña por completar — no autenticar de
+una vez.
+
+**Implementación:** `submitRegister` (`App.jsx`) solo llama a `POST /api/auth/register`, sin
+guardar token ni cerrar el formulario. `LoginRegisterForm.handleSubmit` cambia `mode` a `'login'`
+y precarga `values.email` tras un registro exitoso. El login inmediato posterior (acción explícita
+del usuario) es el que guarda `apprendevr_auth` en `localStorage` y redirige a
+`src/views/A-frame/index.html`. El criterio de aceptación de `requerimiento.md` se actualizó para
+reflejar este flujo real.
