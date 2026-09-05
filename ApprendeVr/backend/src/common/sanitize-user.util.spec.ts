@@ -13,7 +13,18 @@ describe('sanitizeUser', () => {
   });
 
   it('keeps every other field untouched', () => {
-    const user = { id: 1, email: 'a@b.com', password: 'hash', name: 'A', level: 'basico' };
-    expect(sanitizeUser(user)).toEqual({ id: 1, email: 'a@b.com', name: 'A', level: 'basico' });
+    const user = {
+      id: 1,
+      email: 'a@b.com',
+      password: 'hash',
+      name: 'A',
+      level: 'basico',
+    };
+    expect(sanitizeUser(user)).toEqual({
+      id: 1,
+      email: 'a@b.com',
+      name: 'A',
+      level: 'basico',
+    });
   });
 });

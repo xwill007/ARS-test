@@ -12,7 +12,10 @@ async function bootstrap() {
   // hoy manda el frontend pero que aún no persiste la entidad `User`) en vez de rechazar la
   // petición entera.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.enableCors({ origin: configService.get('corsOrigin'), credentials: true });
+  app.enableCors({
+    origin: configService.get('corsOrigin'),
+    credentials: true,
+  });
 
   await app.listen(configService.get<number>('port') ?? 3001);
 }

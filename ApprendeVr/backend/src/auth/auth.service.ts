@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { sanitizeUser } from '../common/sanitize-user.util';
@@ -38,7 +42,9 @@ export class AuthService {
   async login(dto: LoginDto) {
     const email = normalizeEmail(dto.email);
     const user = await this.usersService.findByEmail(email);
-    const passwordMatches = user ? await bcrypt.compare(dto.password, user.password) : false;
+    const passwordMatches = user
+      ? await bcrypt.compare(dto.password, user.password)
+      : false;
 
     if (!user || !passwordMatches) {
       // Mismo mensaje exista o no el email, para no filtrar qué correos están registrados.

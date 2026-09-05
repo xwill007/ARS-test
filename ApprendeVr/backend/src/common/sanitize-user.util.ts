@@ -2,6 +2,7 @@
 export function sanitizeUser<T extends { password: string }>(
   user: T,
 ): Omit<T, 'password'> {
-  const { password: _password, ...rest } = user;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se destructura para excluirla
+  const { password, ...rest } = user;
   return rest;
 }

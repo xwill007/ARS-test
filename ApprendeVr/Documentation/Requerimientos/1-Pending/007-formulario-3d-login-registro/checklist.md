@@ -111,6 +111,16 @@
       vez del `Repository` crudo — mismo principio de aislar de la BD; casos normales y de
       borde: registro exitoso, email duplicado, login exitoso, credenciales inválidas, email
       inexistente).
+- [x] 6.12 Cobertura de tests ≥80% verificada (`npm run test:cov`) — hallazgo tardío: 6.11 por sí
+      solo dejaba la cobertura real en ~37% (`auth.service.spec.ts` mockeaba `UsersService`
+      entero, sin ejercitar su implementación). Se agregaron specs de `users.service.ts`,
+      `jwt.strategy.ts`, `configuration.ts`, `auth.controller.ts`, `users.controller.ts` y los
+      DTOs; se configuró `coverageThreshold.global` en 80% en `package.json` y se excluyó de
+      `collectCoverageFrom` el wiring sin lógica propia (`*.module.ts`, `main.ts`, `*.guard.ts`,
+      `*.decorator.ts`), documentado en el skill `backend-nestjs`. Resultado: 100% de cobertura,
+      34 tests, `npm run lint` limpio. Ver `problems_solutions.md` para el detalle completo,
+      incluido un problema recurrente (no resuelto) de imports espurios reintroducidos por el
+      editor del usuario en archivos `.spec.ts` nuevos.
 
 ### Fase 7 — Coordinación con requerimiento 004
 

@@ -1,3 +1,5 @@
+name: backend-apprendevr
+
 services:
   db:
     image: mysql:8.0
@@ -15,3 +17,6 @@ services:
 
 volumes:
   db-data:
+    # Nombre fijo: conserva el volumen creado bajo el proyecto compose anterior ("backend") al
+    # renombrar el proyecto a "backend-apprendevr", sin perder los datos ya cargados.
+    name: backend_db-data

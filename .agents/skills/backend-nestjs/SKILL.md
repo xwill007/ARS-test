@@ -143,3 +143,18 @@ describe('songs.util', () => {
 - `npm run build` — compila (desde `ApprendeVr/backend/`).
 - `npm test` — unit tests (Jest). Deben pasar sin base de datos levantada.
 - Si un test necesita levantar MySQL, es señal de que falta extraer lógica a una función pura.
+- `npm run test:cov` — cobertura. El `package.json` define `coverageThreshold.global` en 80%
+  (statements/branches/functions/lines); Jest falla si algún módulo nuevo la baja del 80%. Antes
+  de dar por cerrado un módulo nuevo (o una tanda grande de cambios en `auth`/`users`/etc.),
+  correr `npm run test:cov` y revisar la tabla por archivo, no solo el resumen global.
+- **Qué NO cuenta para la cobertura** (excluido en `collectCoverageFrom`, porque es wiring
+  declarativo sin lógica propia que valga la pena unit-testear): `main.ts` (bootstrap),
+  `*.module.ts` (DI), `*.guard.ts` (subclases de una línea de `AuthGuard`), `*.decorator.ts`
+  (`createParamDecorator` trivial). Si un archivo de estos categorías empieza a tener lógica real
+  (un guard con una condición propia, por ejemplo), sacarlo de la exclusión y testearlo.
+- **Qué SÍ hay que testear directamente** (no alcanza con que otro test lo mockee): DTOs
+  (`class-validator` + `validate()` de `class-transformer`/`class-validator`, casos válidos e
+  inválidos por campo), `*.strategy.ts` (instanciar con dependencias mockeadas y llamar
+  `validate()`), `configuration.ts` (defaults vs. variables de entorno presentes), controllers
+  (aunque sean delgados: verificar que delegan al service con los argumentos correctos) y todo
+  service (mockeando el repo/las dependencias inyectadas, nunca el repo real).

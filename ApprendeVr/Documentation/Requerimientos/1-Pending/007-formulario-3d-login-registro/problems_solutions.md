@@ -79,3 +79,44 @@ y precarga `values.email` tras un registro exitoso. El login inmediato posterior
 del usuario) es el que guarda `apprendevr_auth` en `localStorage` y redirige a
 `src/views/A-frame/index.html`. El criterio de aceptación de `requerimiento.md` se actualizó para
 reflejar este flujo real.
+
+### 2026-09-05 — Cobertura de tests del backend por debajo del umbral (hallazgo tardío)
+
+**Hallazgo tardío:** el checklist ya marcaba como `[x]` el ítem 6.11 (`auth.service.spec.ts` con
+dependencias mockeadas) dando a entender que el testing del módulo `auth` estaba resuelto, pero al
+pedir explícitamente verificar cobertura ≥80% se detectó que la cobertura real del proyecto era
+solo ~37% — la mayoría de los archivos (`*.module.ts`, `main.ts`, DTOs, guards, decorators,
+`jwt.strategy.ts`, controllers, `users.service.ts`, `configuration.ts`) no tenían ningún test
+propio; `auth.service.spec.ts` solo cubría `auth.service.ts` porque mockeaba `UsersService`
+completo, sin ejercitar su implementación real.
+
+**Solución:** se agregaron specs para `users.service.ts`, `jwt.strategy.ts`, `configuration.ts`,
+`auth.controller.ts`, `users.controller.ts` y los DTOs (`login.dto.spec.ts`/`register.dto.spec.ts`
+vía `class-validator`). Se configuró `coverageThreshold.global` en 80% en `package.json` (Jest
+falla si se regresa por debajo) y se excluyó explícitamente de `collectCoverageFrom` lo que es
+wiring puro sin lógica propia (`*.module.ts`, `main.ts`, `*.guard.ts`, `*.decorator.ts`), documentado
+en el skill `backend-nestjs`. Resultado: 100% de cobertura (statements/branches/functions/lines),
+34 tests en verde.
+
+### 2026-09-05 — El editor reintroduce `node:test`/`@jest/globals` en archivos `.spec.ts` nuevos
+
+**Problema:** al menos dos veces (`configuration.spec.ts`, `users.service.spec.ts`), el archivo
+recién creado apareció modificado en disco con contenido que nunca se escribió desde acá:
+`import { beforeEach, describe, it } from 'node:test';`, `import { expect, jest } from
+'@jest/globals';`, tipos `jest.fn<any>()` agregados, e incluso (en `configuration.spec.ts`) dos
+funciones stub `function afterAll() {...}`/`function expect() { throw new Error('Function not
+implemented.') }` que tapaban los globals reales de Jest dentro de ese archivo — causando errores
+de tipo reales (`Property 'toEqual' does not exist on type 'void'`), no solo ruido de editor.
+
+**Causa:** el proyecto usa los globals ambient de Jest (vía `@types/jest`, sin imports explícitos
+de `describe`/`it`/`expect`/`jest`, como ya hacían el resto de los `*.spec.ts` existentes). Algo en
+el entorno del usuario (auto-fix/auto-import al abrir un archivo `.ts` nuevo con nombres aún no
+resueltos por el TS server, posible extensión o asistente del editor) resuelve esos nombres contra
+`node:test`/`@jest/globals` en vez de reconocer los globals de `@types/jest`, y reescribe el
+archivo. Pendiente de confirmar con el usuario qué extensión/auto-fix concreto lo causa.
+
+**Solución aplicada (reactiva):** se reescribió cada archivo afectado quitando esos imports/tipos
+y las funciones stub, verificando `tsc --noEmit` + `eslint` + `npm test` limpios después de cada
+fix. **No hay solución preventiva todavía** — si vuelve a pasar en un archivo nuevo, aplicar el
+mismo fix (quitar los imports de `node:test`/`@jest/globals`, dejar `jest.fn()` sin `<any>`) y
+verificar con los tres comandos de arriba.
