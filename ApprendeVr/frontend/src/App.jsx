@@ -35,13 +35,74 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const [showStereoAR, setShowStereoAR] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   // Zoom/posición del formulario 3D embebido (Requerimiento 007). Default definido: zoom 2.70,
-  // posición [0, 1.6, 1]. Quedan ajustables en caliente vía UbicacionControl (📍, esquina
-  // superior izquierda del formulario) por si se necesita retocar más adelante.
+  // posición [0, 1.6, 1]. Ajustables en caliente vía UbicacionControl (📍, esquina superior
+  // izquierda del formulario) y persistidos por usuario (Requerimiento 010, vista `login-form`).
   const [authDistanceFactor, setAuthDistanceFactor] = useState(2.7);
   const [authPosition, setAuthPosition] = useState([0, 1.6, 1]);
   const moveStep = 0.1;
+
+  const getStoredToken = () => {
+    try {
+      const auth = JSON.parse(localStorage.getItem('apprendevr_auth'));
+      return auth?.access_token || null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Sin sesión, ambas funciones son no-ops silenciosos: el ajuste de posición sigue funcionando
+  // con estado local en memoria, sin intentar persistir nada (no hay de quién guardarlo).
+  const getUserSetting = async (view) => {
+    const token = getStoredToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(`/api/user-settings/${view}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.ok ? await res.json() : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const saveUserSetting = (view, config) => {
+    const token = getStoredToken();
+    if (!token) return;
+    fetch(`/api/user-settings/${view}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ config }),
+    }).catch(() => { /* el ajuste sigue funcionando en memoria aunque no se guarde */ });
+  };
+
+  // Al abrir el formulario, si hay sesión y el usuario ya había ajustado su posición antes,
+  // reemplaza el default por lo guardado.
+  useEffect(() => {
+    if (!showAuth) return;
+    let cancelled = false;
+    getUserSetting('login-form').then((saved) => {
+      if (cancelled || !saved) return;
+      if (Array.isArray(saved.position) && typeof saved.distanceFactor === 'number') {
+        setAuthPosition(saved.position);
+        setAuthDistanceFactor(saved.distanceFactor);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [showAuth]);
+
   const moveAuthPosition = (dx, dy) =>
-    setAuthPosition(([x, y, z]) => [+(x + dx).toFixed(2), +(y + dy).toFixed(2), z]);
+    setAuthPosition(([x, y, z]) => {
+      const next = [+(x + dx).toFixed(2), +(y + dy).toFixed(2), z];
+      saveUserSetting('login-form', { position: next, distanceFactor: authDistanceFactor });
+      return next;
+    });
+
+  const zoomAuthDistance = (delta) =>
+    setAuthDistanceFactor((v) => {
+      const next = Math.max(0.5, Math.min(5, +(v + delta).toFixed(2)));
+      saveUserSetting('login-form', { position: authPosition, distanceFactor: next });
+      return next;
+    });
 
   // Cliente mínimo contra el backend de auth (Requerimiento 007, Fase 6). Se llama vía el proxy
   // de Vite (`/api` → `http://localhost:3001`, ver vite.config.js) en vez de una URL absoluta,
@@ -258,8 +319,8 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
                   </button>
                   <UbicacionControl
                     corner="top-left"
-                    onZoomIn={() => setAuthDistanceFactor((v) => Math.min(5, +(v + 0.1).toFixed(2)))}
-                    onZoomOut={() => setAuthDistanceFactor((v) => Math.max(0.5, +(v - 0.1).toFixed(2)))}
+                    onZoomIn={() => zoomAuthDistance(0.1)}
+                    onZoomOut={() => zoomAuthDistance(-0.1)}
                     onMoveUp={() => moveAuthPosition(0, moveStep)}
                     onMoveDown={() => moveAuthPosition(0, -moveStep)}
                     onMoveLeft={() => moveAuthPosition(-moveStep, 0)}

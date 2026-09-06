@@ -7,18 +7,29 @@ import './components/VRVideoAf/VRLocalVideo/VRLocalVideo.js';
 // crea dinámicamente VRKaraokeAf.js al pulsar "EVALUATE SONG".
 import './components/VRKaraokeAf/VRKaraokeAf.js';
 import './components/VREvaluacionAf/VREvaluacionAf.js';
+// Control de ajuste de posición para video/karaoke/agregar-canción, persistido por usuario
+// (Requerimiento 010).
+import { initPositionControl } from './vrPositionControl.js';
+import { t } from './vrI18n.util.js';
 
 // Configuración inicial
 document.addEventListener('DOMContentLoaded', function() {
+  // Texto del link "volver a inicio" desde los locales (regla de i18n del proyecto), respetando
+  // el idioma que el usuario eligió en la vista principal (localStorage['apprendevr_lang']).
+  const backLink = document.getElementById('back-to-home-link');
+  if (backLink) backLink.textContent = `← ${t('home.backToHome')}`;
+
   // Asegurarse de que el cursor siga al mouse y funcione el raycaster
   const scene = document.querySelector('a-scene');
   if (!scene.hasLoaded) {
     scene.addEventListener('loaded', function() {
       console.log('Scene loaded, components ready');
       setupCameraControls();
+      initPositionControl();
     });
   } else {
     setupCameraControls();
+    initPositionControl();
   }
 });
 

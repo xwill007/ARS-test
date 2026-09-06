@@ -281,6 +281,11 @@
       "main": "VR Experience",
       "mobile": "VR Experience Mobile",
       "aFrame": "A-Frame VR Scene"
+    },
+    "aframe": {
+      "positionControl": {
+        "save": "Guardar"
+      }
     }
   }
 }

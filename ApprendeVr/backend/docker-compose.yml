@@ -11,6 +11,8 @@ services:
       # Importa el dump completo (schema + datos) del submodule A-frame al arrancar el contenedor
       # por primera vez (mismo patrón que A-frame/docker-dev/docker-compose.yml).
       - ../../A-frame/Proyecto/BaseDatos/english_vr.sql:/docker-entrypoint-initdb.d/01-english_vr.sql:ro
+      # Tabla propia de ApprendeVr (Requerimiento 010), separada del dump legacy de arriba.
+      - ./db/001-user-settings.sql:/docker-entrypoint-initdb.d/02-user-settings.sql:ro
       - db-data:/var/lib/mysql
     ports:
       - "${DB_PORT:-3306}:3306"

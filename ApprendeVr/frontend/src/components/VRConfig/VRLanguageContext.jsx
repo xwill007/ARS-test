@@ -2,8 +2,23 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const VRLanguageContext = createContext();
 
+// Clave de localStorage para persistir el idioma elegido (mismo patrón que VRThemeContext con
+// 'themeMode'): sin esto, el idioma seleccionado no sobrevive a un reload ni es visible desde
+// páginas que no montan este Provider, como la vista A-Frame (ver vrI18n.util.js).
+const LANG_STORAGE_KEY = 'apprendevr_lang';
+
 export const VRLanguageProvider = ({ children, defaultLang = 'en' }) => {
-  const [currentLang, setCurrentLang] = useState(defaultLang);
+  const [currentLang, setCurrentLangState] = useState(
+    () => window.localStorage.getItem(LANG_STORAGE_KEY) || defaultLang,
+  );
+  const setCurrentLang = (lang) => {
+    setCurrentLangState(lang);
+    try {
+      window.localStorage.setItem(LANG_STORAGE_KEY, lang);
+    } catch (e) {
+      /* localStorage no disponible: el idioma sigue funcionando solo en memoria */
+    }
+  };
   const [translations, setTranslations] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [availableLanguages, setAvailableLanguages] = useState([]);
