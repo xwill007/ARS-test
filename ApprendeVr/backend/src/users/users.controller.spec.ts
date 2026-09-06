@@ -1,6 +1,4 @@
-import { describe, it, expect } from 'node:test';
 import { UsersController } from './users.controller';
-import { User } from './entities/user.entity';
 
 describe('UsersController', () => {
   it('returns the current user without the password', () => {
@@ -26,4 +24,3 @@ describe('UsersController', () => {
     });
   });
 });
-
