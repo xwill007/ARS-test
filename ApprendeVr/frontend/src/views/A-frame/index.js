@@ -2,6 +2,11 @@
 import './components/VRWorld/VRWorldAf.js';
 import './components/VRUserAf/VRUserAf.js';
 import './components/VRVideoAf/VRLocalVideo/VRLocalVideo.js';
+// Karaoke (lista de canciones + reproductor, incluye VRNewSongAf) y evaluación de pronunciación
+// (Requerimiento 009). vr-evaluacion-af no se declara como entidad estática en index.html: la
+// crea dinámicamente VRKaraokeAf.js al pulsar "EVALUATE SONG".
+import './components/VRKaraokeAf/VRKaraokeAf.js';
+import './components/VREvaluacionAf/VREvaluacionAf.js';
 
 // Configuración inicial
 document.addEventListener('DOMContentLoaded', function() {

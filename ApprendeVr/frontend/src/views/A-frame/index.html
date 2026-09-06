@@ -81,8 +81,34 @@
 
       </a-entity> 
 
+      <!-- Karaoke: lista de canciones + reproductor (incluye VRNewSongAf, ver Requerimiento 009).
+           El panel de evaluación (vr-evaluacion-af) no se declara aquí: VRKaraokeAf.js lo crea
+           dinámicamente al pulsar "EVALUATE SONG". -->
+      <a-entity
+        id="karaoke-vr-component"
+        vr-karaoke-af="videoPath: /videos/karaoke/StandByMe_BenEKing.mp4;
+                videoWidth: 15;
+                videoHeight: 9;
+                videoList: StandByMe_BenEKing.mp4|Ben E. King|2:58,ItsMyLife_BonJovi.mp4|Bon Jovi|4:25,GangstasParadise_Coolio.mp4|Coolio|3:45;
+                textColor: #8a8a96ff;
+                buttonColor: #121093ff;
+                backgroundColor: #454545ff;
+                videoPosition: 0 2.5 -3;
+                listPosition: 12.0 6.15 -3;
+                escalaLista: 2.2;
+                tituloFontScale: 1.4;
+                itemFontScale: 1.35"
+        position="10 2.5 3">
+      </a-entity>
+
+      <!-- Panel para agregar canciones nuevas al catálogo local (ver vrSongCatalog.util.js) -->
+      <a-entity
+        id="new-song-component"
+        vr-new-song-af="position: 0 5 0">
+      </a-entity>
+
       <a-assets>
-        
+
       </a-assets>
 
       <a-text
