@@ -94,7 +94,9 @@ legacy (`src/fonts.js`, carga `Arial-msdf.json`) ya tiene un equivalente en Appr
   deshabilitados en la parte de guardar/leer del servidor — el detalle de esta estrategia temporal
   se define al iniciar el desarrollo y se documenta en `problems_solutions.md`. Crear esos módulos
   de backend (con sus tablas, ya presentes en el dump `english-vr/VR` / `Proyecto/BaseDatos`)
-  queda para un requerimiento aparte.
+  queda para un requerimiento aparte. **Actualización:** la lectura de `palabras`/`frases` (no
+  la de canciones/evaluaciones) se implementó dentro de este mismo requerimiento — ver
+  `problems_solutions.md` #7 (`src/songs/`, `src/words/`, `src/phrases/`).
 - Nivel 2 de pronunciación vía Web Speech API: se porta la UI y el flujo de selección de nivel,
   pero la integración real con reconocimiento de voz del navegador se prueba y ajusta como parte
   de este mismo requerimiento solo si el tiempo lo permite; si no, queda anotada como pendiente en

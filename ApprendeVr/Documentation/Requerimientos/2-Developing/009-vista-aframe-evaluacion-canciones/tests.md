@@ -29,13 +29,16 @@ requerimiento.
 | Manual | El panel de evaluación y el de karaoke muestran el nombre de usuario real tras iniciar sesión (Requerimiento 007), vía `GET /api/users/me`. | **Verificado** (con sesión de `prueba@gmail.com`, ambos paneles mostraron "usuario prueba (id: 31)") |
 | Manual | Sin sesión iniciada, los paneles no rompen la escena (mantienen "User: Guest (id: 0)" en vez de fallar). | Pendiente |
 | Manual | Los textos con ñ/acentos de los paneles se ven correctamente con la fuente `Ultra-msdf` ya presente en ApprendeVr. | **Verificado** (textos estáticos en español de `VRNewSongAf`, incluida la advertencia de derechos de autor, se ven sin glifos rotos) |
-| Manual | Flujo "EVALUATE SONG" → panel de evaluación dinámico → seleccionar Nivel 1 → EVALUATE → degradación explícita ("No words found") al no existir `/api/palabras`. | **Verificado** |
+| Manual | Flujo "EVALUATE SONG" → panel de evaluación dinámico → seleccionar Nivel 1 → EVALUATE. | **Verificado** — degradaba a "No words found" sin `/api/palabras`; **desde `problems_solutions.md` #7 ya trae el quiz real** ("when" → "cuando"/"yo"/"quedate", "Word 1/137", avanza a "Word 2/137" al responder). |
 | Unitario (condicionado al runner del Req. 008) | Parseo de `videoList` (`"archivo.mp4\|Artista\|Duración,..."`) a la estructura de items de la lista, si se extrae como función pura. | Pendiente / opcional |
 | Unitario (condicionado al runner del Req. 008) | Cálculo de nivel seleccionado (botón 2 → Nivel 2 Pronunciación; botones 1 y 3 → Nivel 1 Vocabulario) si se extrae como función pura. | Pendiente / opcional |
+| Unitario (`songs.service.spec.ts`, `words.util.spec.ts`, `words.service.spec.ts`, `words.controller.spec.ts` — y equivalentes de `phrases`) | Backend de `GET /api/palabras`/`GET /api/frases` (ver `problems_solutions.md` #7): resolución de `archivo` → canción, mapeo de columnas al contrato del frontend, `[]` en archivo inexistente. | **Verificado** (100% cobertura en `songs`/`words`/`phrases`) |
 
 ## Fuera de alcance de testing
 
-- Reconocimiento de voz real (Web Speech API) del Nivel 2 de evaluación: se verifica a mano con
-  micrófono en Chrome/Edge, no es automatizable en este stack.
-- Cualquier test contra un backend de canciones/evaluaciones: no existe todavía (ver "No incluido"
-  en `requerimiento.md`).
+- Reconocimiento de voz real (Web Speech API) del Nivel 2/3 de evaluación: ya llega con la
+  palabra/frase real desde el backend; el reconocimiento en sí se verifica a mano con micrófono en
+  Chrome/Edge, no es automatizable en este stack.
+- Guardar evaluación / obtener evaluaciones previas: sigue en `localStorage`
+  (`vrEvaluationLog.util.js`) — no incluido en el backend de palabras/frases agregado en
+  `problems_solutions.md` #7, que solo cubre lectura de vocabulario/frases.

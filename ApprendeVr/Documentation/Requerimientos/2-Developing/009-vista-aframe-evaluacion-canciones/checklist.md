@@ -49,12 +49,10 @@
 - [x] Documentar en `problems_solutions.md` qué queda mock/local para: obtener palabras/frases,
       guardar evaluación, obtener evaluaciones previas (no hay backend NestJS equivalente aún).
 - [ ] Integración de Nivel 2/3 (Web Speech API): el código se portó tal cual (reconocimiento de
-      voz, medidor de audio, comparación de pronunciación), pero no se pudo ejercitar el flujo
-      completo porque depende de palabras/frases reales que vendrían de `/api/palabras` o
-      `/api/frases` (inexistentes, ver "No incluido") — sin esas listas nunca hay una palabra que
-      pronunciar. Queda pendiente de verificación manual con micrófono el día que exista ese
-      backend. El Nivel 1 (quiz de vocabulario) sí se verificó end-to-end en su código de
-      degradación (ver Fase 5).
+      voz, medidor de audio, comparación de pronunciación). **Actualización (Fase 7):**
+      `/api/palabras`/`/api/frases` ya existen y devuelven datos reales, así que el flujo ya llega
+      hasta "Say the word/phrase in English" con la palabra/frase correcta — lo único que sigue
+      sin probarse es el reconocimiento de voz en sí (requiere micrófono real, no automatizable).
 - [x] Importar `vr-evaluacion-af` en `index.js`. **Ajuste sobre lo planeado**: no se declara como
       entidad estática en `index.html` — igual que en el proyecto legacy, `VRKaraokeAf.js` la crea
       dinámicamente (`document.createElement('a-entity')` + `setAttribute('vr-evaluacion-af', …)`)
@@ -69,8 +67,9 @@
       vista muestra el usuario real en el panel de evaluación y en el de karaoke. Verificado con
       una sesión ya logueada (`prueba@gmail.com`): ambos paneles muestran "usuario prueba (id: 31)".
 - [x] Probar el flujo completo "EVALUATE SONG" → panel de evaluación → seleccionar nivel 1 →
-      EVALUATE → degradación correcta ("No words found", sin excepciones) al no existir el
-      backend de palabras.
+      EVALUATE. En su momento (sin backend de palabras) degradaba correctamente a "No words
+      found"; **desde la Fase 7 ya trae el quiz real** ("when" → "cuando"/"yo"/"quedate", "Word
+      1 / 137", avanza al responder).
 
 ## Fase 6 — Fix: raycaster manual roto por Pointer Lock (reportado por el usuario)
 
@@ -89,3 +88,23 @@
       un navegador, no automatizado): no se pudo reproducir en este entorno porque la extensión de
       automatización no logra activar el Pointer Lock del navegador (ver
       `problems_solutions.md` #5). Pendiente de que el usuario confirme en su propio navegador.
+
+## Fase 7 — Backend de palabras/frases (cierra el gap documentado en "No incluido")
+
+- [x] Crear dominio `songs` (`ApprendeVr/backend/src/songs/`): entidad `Song` sobre `canciones_vr`
+      y `SongsService.findByFileName(archivo)`, reusado por `words` y `phrases` para resolver
+      `archivo_cancion` → `id_cancion`.
+- [x] Crear dominio `words` (`GET /api/palabras?archivo=...`) sobre `palabras_vr`, con
+      `words.util.ts` mapeando la entidad al contrato ya esperado por `VREvaluacionAf.js`
+      (`esp_palabra`/`ing_palabra`).
+- [x] Crear dominio `phrases` (`GET /api/frases?archivo=...`) sobre `frases_vr`, con
+      `phrases.util.ts` mapeando `español_frase` (columna real, con ñ) a `espanol_frase` (nombre
+      esperado por el frontend, sin ñ) y `ingles_frase`.
+- [x] `npm run build` compila y `npm test` pasa sin levantar MySQL (74/74 tests, toda la suite).
+- [x] `npm run test:cov`: los tres módulos nuevos (`songs`, `words`, `phrases`) tienen 100% de
+      cobertura (statements/branches/functions/lines).
+- [x] Verificado con `curl` contra el backend real: `GET /api/palabras`/`GET /api/frases` con
+      `archivo=StandByMe_BenEKing.mp4` devuelven datos reales (137 palabras, 31 frases);
+      `archivo` inexistente devuelve `{status:'success', words: []}` en vez de error.
+- [x] Verificado en navegador: flujo completo "EVALUATE SONG" → Nivel 1 → EVALUATE → quiz real
+      ("when" → opciones "cuando"/"yo"/"quedate", "Word 1/137") → responder avanza a "Word 2/137".

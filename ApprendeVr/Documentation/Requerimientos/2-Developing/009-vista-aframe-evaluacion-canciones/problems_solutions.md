@@ -132,3 +132,48 @@ ya responden al click.
 
 **Estado:** corregido a nivel de código; verificación visual con Pointer Lock real pendiente de
 confirmación del usuario.
+
+## 7. "No se encuentran las palabras y frases en el módulo de evaluación" (reportado por el usuario)
+
+**Fecha:** reportado después de que el punto 1 ya documentaba esto como decisión deliberada
+("No incluido").
+
+**Problema:** al evaluar Nivel 1 (o 2/3), el panel siempre mostraba "No words found"/"No phrases
+found".
+
+**Causa (confirmada, no era un bug):** `/api/palabras` y `/api/frases` directamente no existían
+en el backend NestJS — `GET` a esas rutas devolvía `404 Cannot GET`. Tal como estaba documentado
+en el punto 1, este requerimiento nunca creó esos endpoints. Los **datos sí existían** en
+`english_vr` (heredados del dump legacy): 824 filas en `palabras_vr` y 125 en `frases_vr`, ya
+vinculadas a las 3 canciones por `id_cancion`/`archivo_cancion` en `canciones_vr` — solo faltaba
+el backend que las expusiera.
+
+**Solución:** el usuario pidió explícitamente crear esos endpoints (cerrando el gap documentado en
+el punto 1). Se agregaron tres dominios nuevos siguiendo el skill `backend-nestjs`:
+
+- `src/songs/`: `Song` (mapea `canciones_vr`) + `SongsService.findByFileName(archivo)`, exportado
+  para que `words`/`phrases` resuelvan `archivo` → `id_cancion` sin duplicar esa lógica.
+- `src/words/`: `GET /api/palabras?archivo=...` sobre `palabras_vr`, mapeando la entidad
+  (`spanish`/`english`) al contrato que ya esperaba `VREvaluacionAf.js`
+  (`esp_palabra`/`ing_palabra` — mismos nombres que el PHP legacy).
+- `src/phrases/`: `GET /api/frases?archivo=...` sobre `frases_vr`, con el mismo mapeo
+  (`espanol_frase`/`ingles_frase`).
+
+Ambos endpoints son públicos (sin `JwtAuthGuard`): son contenido de vocabulario, no datos de
+usuario, y el frontend ya los llama sin `Authorization`. Un `archivo` que no matchea ninguna
+canción devuelve `{status:'success', words: []}` (o `phrases`) en vez de error, para que el
+frontend siga mostrando su "No words found" ya existente en ese caso legítimo, en vez de un 500.
+
+**Hallazgo colateral (no era un problema real):** al revisar `frases_vr` por CLI de MySQL sin
+especificar `--default-character-set=utf8mb4`, el texto en español se veía corrupto ("est�",
+"�nica"). Investigado y descartado: es un artefacto de la sesión del cliente `mysql` (charset por
+defecto de esa conexión), no un problema de los datos — la tabla es `utf8mb4_general_ci` y el
+driver `mysql2` que usa NestJS devuelve los acentos correctamente (confirmado con
+`GET /api/frases`: "está", "única", "quédate", "cariño" se ven bien).
+
+**Verificación:** `npm test` (74/74) y `npm run test:cov` (100% en los 3 módulos nuevos);
+`curl` contra `/api/palabras`/`/api/frases` reales devolviendo datos; y en el navegador, el flujo
+completo Nivel 1 mostrando el quiz real ("when" → "cuando"/"yo"/"quedate", "Word 1/137",
+avanza a "Word 2/137" al responder bien).
+
+**Estado:** resuelto.
