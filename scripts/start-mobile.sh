@@ -40,6 +40,13 @@ killall -9 node 2>/dev/null || true
 # Generar certificados SSL
 bash generate-ssl.sh
 
+# Iniciar el backend (NestJS) en segundo plano. El frontend le pega vía el proxy /api de Vite
+# (ver vite.config.js), así que tiene que estar arriba antes de que alguien intente loguearse.
+echo "Iniciando backend (NestJS)..."
+(cd "$SCRIPT_DIR/../ApprendeVr/backend" && npm run start:dev) &
+BACKEND_PID=$!
+trap 'echo "Deteniendo backend..."; kill "$BACKEND_PID" 2>/dev/null' EXIT
+
 # Iniciar el servidor
 echo "Starting server at https://$VITE_FRONT_IP:$VITE_PORT"
 npx vite --host "$VITE_FRONT_IP" --port "$VITE_PORT"
