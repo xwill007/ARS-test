@@ -76,6 +76,84 @@ refresh manual (F5 / "Invalidate-Reconnect") sobre la conexión.
 **Estado:** resuelto (confirmado por el usuario tras sincronizar/refrescar la conexión). Se deja
 documentado para no repetir el diagnóstico si vuelve a pasar con otra tabla nueva en este entorno.
 
+## 5. `#video-container` nunca existió: el widget "video" quedaba fuera de la config guardada y el `PUT` fallaba con 400
+
+**Problema:** el usuario reportó "al dar al boton de guardar y refrezcar no queda donde se dejo
+guardado" y, más tarde, un error concreto en consola: `PUT /api/user-settings/aframe-view 400
+(Bad Request)`.
+
+**Causa raíz:** `ELEMENTS` en `vrPositionControl.js` incluía una entrada
+`{ key: 'video', selector: '#video-container', ... }`, pero ese id nunca existió en `index.html`
+— el video del karaoke vive DENTRO del propio panel `vr-karaoke-af` (ver `videoPosition` en su
+schema), no como una entidad independiente. `initPositionControl()` filtra los `targets` a los que
+sí resuelven en el DOM (`document.querySelector`), así que el widget de "video" nunca llegaba a
+crearse — pero el backend (`isValidAframeViewConfig`) seguía exigiendo las TRES claves (`video`,
+`karaoke`, `newSong`). Como la config enviada solo tenía `karaoke`/`newSong`, la validación fallaba
+y el `PUT` devolvía 400 en cada intento de GUARDAR, así que ningún ajuste de estos dos elementos se
+persistía jamás — de ahí que tras recargar la página siempre volvieran a su posición hardcodeada.
+
+**Hallazgo tardío:** esto invalida el `[x]` de `checklist.md` Fase 5 ("mover el video (+1 en Y con
+el d-pad), recargar y confirmar que aparece en la posición ajustada") — esa verificación no pudo
+haber probado lo que dice, porque el widget de "video" nunca se creó. Se corrigió la marca en
+`checklist.md`.
+
+**Solución:** se eliminó la entrada `video` de `ELEMENTS` (no hay elemento de video independiente
+para posicionar) y se actualizó `AFRAME_VIEW_ELEMENTS` en el backend (`user-settings.util.ts`) a
+`['karaoke', 'newSong']`, alineando la validación con lo que realmente existe en el DOM.
+
+**Estado:** resuelto y verificado con `PUT`/`GET` directos contra el backend real: el guardado
+ahora devuelve 200 y el valor persiste tras recargar.
+
+## 6. El marcador 📍 movía el elemento en vez de abrir el d-pad
+
+**Problema:** el usuario reportó "al dar al icono no despliega el menu para mover sino que mueve
+hacia arriba el elemento".
+
+**Causa raíz:** al agrandar las flechas del d-pad para facilitar el click, la flecha "^" (offset
+local `y=0.48` dentro del d-pad) quedaba a solo 0.02 unidades del marcador — el d-pad estaba
+desplazado apenas `oy - 0.5` respecto a él, prácticamente superpuestos. El raycaster manual
+compartido (`setupSharedRaycast`) activa el PRIMER objeto intersectado, así que terminaba
+activando la flecha "^" (mover hacia arriba) en vez del marcador (abrir/cerrar el d-pad).
+
+**Solución:** se aumentó el desplazamiento del d-pad respecto al marcador de `oy - 0.5` a
+`oy - 0.9`, separando lo suficiente ambos elementos para que el raycaster los distinga.
+
+**Estado:** resuelto y verificado en navegador (clickear el marcador abre/cierra el d-pad
+correctamente, sin mover el elemento).
+
+## 7. Panel de evaluación: fórmulas de posición inconsistentes entre `init()` y `update()`
+
+**Problema:** el usuario pidió "bajalo un poco mas... para visualizar mejor el icono rojo de
+cerrar" (el botón "X", arriba a la derecha del panel).
+
+**Causa raíz:** `init()` ajustaba `data.position` sumando `y+1` y restando `z-1`, pero AFRAME llama
+a `update()` inmediatamente después de `init()` en el primer attach — y `update()` recalculaba la
+posición desde cero a partir de `data.position` (sin el `+1`), restando `z-2`, pisando por completo
+el ajuste de `init()` sin usarlo. El resultado real (`y` sin ajustar, `z-2`) dejaba el panel
+spawneando a la altura de los ojos de la cámara, con el botón "X" (arriba a la derecha, en
+`height/2 - 0.18` local) cerca del borde superior del campo de visión.
+
+**Solución:** se eliminó el ajuste duplicado de `init()` (queda solo como valor de partida, ya que
+`update()` lo pisa de inmediato) y se unificó la fórmula en `update()`: `y - 0.3, z - 2`, bajando el
+panel lo suficiente para que el botón "X" quede cómodamente visible.
+
+**Estado:** resuelto y verificado visualmente en navegador.
+
+## 8. Escala del widget duplicada + flechas e input a la misma distancia de la cámara
+
+**Pedido del usuario:** "aumenta la escala lo quiero el doble de grande para mejor control" y, en
+un pedido relacionado, "veo que tiraste hacia adelante el input pero no las flechas ajusta a la
+misma distancia".
+
+**Solución:** se aplicó `scale: 2 2 2` al marcador y al d-pad completo (flechas, coordenadas y
+ancla del input escalan juntos, incluida la separación entre ellos). Además, se creó un grupo
+`front` dentro del d-pad que agrupa TODO el contenido interactivo (coordenadas, flechas, ancla del
+input) desplazado como una única unidad hacia la cámara (+Z) — antes solo el ancla del input tenía
+ese desplazamiento, dejando las flechas en un plano distinto y más lejano, separadas visualmente
+del input en vez de formar un solo conjunto.
+
+**Estado:** resuelto y verificado en navegador.
+
 > Recordatorio: si un item de `checklist.md` o un criterio de aceptación ya marcado `[x]` resulta
 > no estar realmente resuelto, hay que corregir la marca y registrar acá el hallazgo como
 > **hallazgo tardío**, sin esperar a que se pida.

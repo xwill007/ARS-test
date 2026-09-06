@@ -81,13 +81,16 @@ alcance/diseño para cubrir ambos de una vez, reusando la misma tabla e infraest
   `UbicacionControl`, guardar el nuevo valor vía `PUT /api/user-settings/login-form`.
 - **Vista A-Frame** (`ApprendeVr/frontend/src/views/A-frame/index.html`): agregar un control de
   posición equivalente a `UbicacionControl` (mismo icono 📍 + d-pad + zoom, pero implementado en
-  JS plano — esta vista no usa React) para los tres elementos posicionables hoy hardcodeados en la
-  escena: el video local (`#video-container`), el panel de karaoke (`#karaoke-vr-component`, que
-  arrastra consigo la lista de canciones y los controles del reproductor, sus hijos) y el panel de
-  agregar canción (`#new-song-component`). Al cargar la vista, si hay sesión y hay configuración
-  guardada, se aplica sobre la posición hardcodeada del `index.html`; cada ajuste se guarda vía
-  `PUT /api/user-settings/aframe-view` con las tres posiciones juntas en un solo JSON
-  (`{ video: {x,y,z}, karaoke: {x,y,z}, newSong: {x,y,z} }`).
+  JS plano — esta vista no usa React) para los elementos posicionables hoy hardcodeados en la
+  escena: el panel de karaoke (`#karaoke-vr-component`, que arrastra consigo el video, la lista de
+  canciones y los controles del reproductor, sus hijos) y el panel de agregar canción
+  (`#new-song-component`). (No hay un elemento de "video" independiente: vive dentro del propio
+  panel de karaoke — una versión anterior de este documento lo listaba como tercer elemento con
+  selector `#video-container`, que nunca existió en el DOM; ver `problems_solutions.md` #5 para el
+  hallazgo tardío y el fix.) Al cargar la vista, si hay sesión y hay configuración guardada, se
+  aplica sobre la posición hardcodeada del `index.html`; cada ajuste se guarda vía
+  `PUT /api/user-settings/aframe-view` con ambas posiciones juntas en un solo JSON
+  (`{ karaoke: {x,y,z}, newSong: {x,y,z} }`).
 - El mundo (`vr-world`) y el usuario/cámara (`vr-user`) **no** se incluyen como elementos
   ajustables: el primero es el entorno de fondo (cielo/piso), sin una "posición" que tenga sentido
   reacomodar; el segundo ya se controla por movimiento del jugador, no por un ajuste de posición
@@ -109,12 +112,18 @@ alcance/diseño para cubrir ambos de una vez, reusando la misma tabla e infraest
 - Ajustar la rotación de los elementos de la vista A-Frame (solo posición `[x,y,z]`) — el video
   hoy tiene además `rotation`, pero se deja fija; si hace falta ajustarla también queda para una
   iteración futura.
-- El panel de evaluación (`vr-evaluacion-af`) no es ajustable: se crea dinámicamente frente a la
-  cámara al pulsar "EVALUATE SONG" (ver Requerimiento 009), no tiene una posición fija en la
-  escena que tenga sentido guardar.
-- Cualquier vista de configuración además de `login-form` y `aframe-view` — se agrega la
-  columna/endpoint para otras vistas cuando esas vistas lo necesiten, no de forma especulativa
-  ahora.
+- Cualquier vista de configuración además de `login-form`, `aframe-view` y `evaluation-panel` — se
+  agrega la columna/endpoint para otras vistas cuando esas vistas lo necesiten, no de forma
+  especulativa ahora.
+
+**Ampliación de alcance (post-implementación):** el panel de evaluación (`vr-evaluacion-af`) se
+había excluido inicialmente por crearse dinámicamente frente a la cámara al pulsar "EVALUATE SONG"
+(ver Requerimiento 009), sin una posición fija que tuviera sentido guardar. El usuario pidió
+después el mismo control ahí también — se agregó una cuarta vista, `evaluation-panel`
+(columna `evaluation_panel_config`, solo `{position:[x,y,z]}`, sin `distanceFactor`): la posición
+calculada relativa a la cámara sigue siendo el default la primera vez, pero si el usuario guardó
+un ajuste, ese valor absoluto gana sobre el cálculo relativo en cada apertura del panel. Ver
+`problems_solutions.md`.
 
 ## 5. Diseño técnico
 
@@ -187,7 +196,7 @@ o recrear el volumen. Se deja documentado en `checklist.md`.
 | `ApprendeVr/backend/src/user-settings/user-settings.module.ts` (nuevo) | Registra la entidad (`TypeOrmModule.forFeature`), controller y service. |
 | `ApprendeVr/backend/src/app.module.ts` | Importar `UserSettingsModule`. |
 | `ApprendeVr/frontend/src/App.jsx` | Cargar la config de `login-form` al abrir el formulario (si hay sesión) para inicializar `authPosition`/`authDistanceFactor`; guardar vía `PUT` en los handlers ya cableados a `UbicacionControl` (`onZoomIn`, `onMoveUp`, etc.). |
-| `ApprendeVr/frontend/src/views/A-frame/vrPositionControl.js` (nuevo) | Un marcador 📍 + d-pad + botón GUARDAR por elemento (`#video-container`, `#karaoke-vr-component`, `#new-song-component`), como hijos 3D de cada entidad; carga `GET /api/user-settings/aframe-view` al iniciar y guarda con `PUT` solo al pulsar GUARDAR. |
+| `ApprendeVr/frontend/src/views/A-frame/vrPositionControl.js` (nuevo) | Un marcador 📍 + d-pad + botón GUARDAR por elemento (`#karaoke-vr-component`, `#new-song-component`), como hijos 3D de cada entidad; carga `GET /api/user-settings/aframe-view` al iniciar y guarda con `PUT` solo al pulsar GUARDAR. Reutilizado también por `VREvaluacionAf.js` (panel de EVALUATION, vista `evaluation-panel`), creado dinámicamente. |
 | `ApprendeVr/frontend/src/views/A-frame/index.js` | Importar e inicializar `vrPositionControl.js` tras el evento `loaded` de la escena. |
 
 ## 7. Criterios de aceptación
@@ -211,12 +220,15 @@ o recrear el volumen. Se deja documentado en `checklist.md`.
 - [ ] Dos usuarios distintos que ajustan la posición del formulario en el mismo navegador (sesiones
       separadas) conservan cada uno su propio valor guardado. No probado todavía (solo un usuario).
 - [x] `GET`/`PUT /api/user-settings/aframe-view` funcionan igual que `login-form` (guardan/leen
-      `{ video, karaoke, newSong }`, `400` en vista inexistente/config inválido, `401` sin token).
-- [x] En la vista A-Frame, cada elemento (video, karaoke, agregar canción) tiene su propio marcador
+      `{ karaoke, newSong }`, `400` en vista inexistente/config inválido, `401` sin token).
+      (Corregido: decía `{ video, karaoke, newSong }` — la clave `video` nunca correspondió a un
+      elemento real, y de hecho hacía fallar el `PUT` con 400 hasta el fix, ver
+      `problems_solutions.md` #5.)
+- [x] En la vista A-Frame, cada elemento (karaoke, agregar canción) tiene su propio marcador
       📍 pegado a él (no uno global): mover con su d-pad y pulsar GUARDAR registra el ajuste en la
       base de datos; mover sin pulsar GUARDAR no persiste nada.
-- [x] Con sesión iniciada: mover y GUARDAR el video/karaoke/agregar-canción, recargar la página y
-      confirmar que cada uno aparece en la posición guardada (no la hardcodeada de `index.html`).
+- [x] Con sesión iniciada: mover y GUARDAR karaoke/agregar-canción, recargar la página y confirmar
+      que cada uno aparece en la posición guardada (no la hardcodeada de `index.html`).
 - [ ] En la vista A-Frame, sin sesión iniciada, los marcadores 📍 siguen moviendo cada elemento en
       pantalla con normalidad (el botón GUARDAR es un no-op silencioso, sin llamadas a la API ni
       errores en consola).

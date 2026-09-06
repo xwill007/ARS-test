@@ -13,4 +13,7 @@ export class UserSettings {
 
   @Column({ name: 'aframe_view_config', type: 'json', nullable: true })
   aframeViewConfig: Record<string, unknown> | null;
+
+  @Column({ name: 'evaluation_panel_config', type: 'json', nullable: true })
+  evaluationPanelConfig: Record<string, unknown> | null;
 }

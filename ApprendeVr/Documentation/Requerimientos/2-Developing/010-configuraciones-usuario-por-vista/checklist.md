@@ -50,9 +50,11 @@
 
 - [x] **Rediseñado tras feedback del usuario** (ver `problems_solutions.md` #1): en vez de un
       overlay HTML global con selector, `views/A-frame/vrPositionControl.js` crea un marcador 📍
-      (círculo rojo) + d-pad + botón GUARDAR por cada elemento (`#video-container`,
-      `#karaoke-vr-component`, `#new-song-component`), como hijos 3D de su propia entidad — se
-      mueven junto con ella.
+      (círculo rojo) + d-pad + botón GUARDAR por cada elemento (`#karaoke-vr-component`,
+      `#new-song-component`), como hijos 3D de su propia entidad — se mueven junto con ella.
+      **Corregido tras hallazgo tardío** (ver `problems_solutions.md` #5): había una tercera
+      entrada `video` con selector `#video-container`, que nunca existió en el DOM (el video vive
+      dentro del propio panel de karaoke) — se eliminó.
 - [x] Al iniciar la vista, si hay sesión, pedir `GET /api/user-settings/aframe-view` y aplicar la
       posición guardada de cada elemento (si existe) sobre la hardcodeada de `index.html`.
 - [x] **Rediseñado tras feedback del usuario** (ver `problems_solutions.md` #2): mover con el
@@ -82,9 +84,16 @@
 - [ ] Con dos usuarios distintos (dos sesiones/login separados en el mismo navegador): confirmar
       que cada uno conserva su propio ajuste, sin pisarse. No verificado todavía (solo se probó
       con un usuario).
-- [x] En la vista A-Frame, con un usuario logueado: mover el video (+1 en Y con el d-pad),
+- [x] ~~En la vista A-Frame, con un usuario logueado: mover el video (+1 en Y con el d-pad),
       recargar y confirmar que aparece en la posición ajustada (`y: 7`, no el default `y: 6`);
-      confirmado además que karaoke/newSong no se pisaron entre sí en el mismo JSON.
+      confirmado además que karaoke/newSong no se pisaron entre sí en el mismo JSON.~~
+      **Hallazgo tardío, marca corregida** (ver `problems_solutions.md` #5): esto no pudo haberse
+      verificado tal como está escrito — el widget de "video" nunca llegó a existir
+      (`#video-container` no está en el DOM), y de hecho el `PUT` de `aframe-view` fallaba con 400
+      en todo intento de guardado real de karaoke/newSong, por lo que ningún ajuste de posición se
+      persistía. Re-verificado correctamente tras el fix: mover `karaoke` o `newSong`, guardar,
+      recargar, y confirmar `GET /api/user-settings/aframe-view` devuelve el valor guardado (200,
+      no 400).
 - [x] Confirmar en la consola del navegador que no hay errores al abrir/cerrar el formulario de
       login ni al mover/hacer zoom en ninguna de las dos vistas (con sesión). Verificado sin
       errores nuevos (el único error visto, `SecurityError` del Service Worker por el certificado
@@ -92,3 +101,40 @@
 
 Datos de prueba (`login-form` → `[2,2,2]`/`1.60`, `aframe-view` → video en `y:7`) se
 restablecieron a sus valores por defecto vía API antes de cerrar la verificación.
+
+## Fase 6 — Ampliación: posición ajustable en el panel de EVALUATION + mejoras de UX del widget
+
+- [x] Agregar la vista `evaluation-panel` a `user-settings`: columna `evaluation_panel_config`
+      (`ApprendeVr/backend/db/002-evaluation-panel-config.sql`), entrada en `VIEW_COLUMNS` y
+      `isValidEvaluationPanelConfig` (solo `position`, sin `distanceFactor`) en
+      `user-settings.util.ts`, con sus `.spec.ts` correspondientes.
+- [x] Cablear el mismo widget (`createWidget`) al panel `VREvaluacionAf.js` (no declarado
+      estáticamente en `index.html` — se crea dinámicamente al pulsar "EVALUATE SONG", así que
+      registra sus clickables/input contra los registros compartidos de `vrPositionControl.js` bajo
+      demanda). Aplica la posición guardada en `update()` (que AFRAME llama justo después de
+      `init()` en el primer attach).
+- [x] Mostrar las coordenadas actuales del elemento sobre el d-pad (`coordsLabel`, actualizado en
+      cada movimiento).
+- [x] Agregar un input numérico HTML (proyectado sobre el centro del d-pad vía
+      `Vector3.project(camera)` + RAF) para definir el incremento de cada click de flecha,
+      valor por defecto `3.0`.
+- [x] **Corregido tras feedback del usuario** ("el input tapa las flechas..."): flechas más
+      grandes y separadas del centro, input más angosto, para que no se tapen entre sí.
+- [x] **Corregido tras hallazgo tardío** (ver `problems_solutions.md` #6): el d-pad quedaba
+      desplazado solo `oy - 0.5` respecto al marcador, y al agrandar las flechas la "^" terminaba
+      casi superpuesta al marcador — el raycaster activaba la flecha en vez de abrir/cerrar el
+      d-pad. Corregido a `oy - 0.9`.
+- [x] **Corregido tras hallazgo tardío** (ver `problems_solutions.md` #7): `init()` y `update()`
+      del panel de evaluación calculaban la posición de spawn con fórmulas distintas e
+      inconsistentes (`update()` pisaba el ajuste de `init()` sin usarlo), dejando el botón "X" de
+      cerrar cerca del borde superior del campo de visión. Unificado en una sola fórmula
+      (`y - 0.3, z - 2`) en `update()`.
+- [x] **Ampliado a pedido del usuario** ("aumenta la escala... el doble de grande" /
+      "ajusta [las flechas] a la misma distancia [que el input]", ver `problems_solutions.md` #8):
+      marcador y d-pad completo escalados `2 2 2`; todo el contenido interactivo del d-pad (coords,
+      flechas, ancla del input) agrupado en un único sub-grupo `front` desplazado como unidad hacia
+      la cámara, en vez de que solo el input tuviera ese desplazamiento.
+- [x] Verificado en navegador (panel de evaluación creado vía `evaluateSong()`): el marcador abre/
+      cierra el d-pad sin mover el panel, las coordenadas se actualizan al mover, el botón GUARDAR
+      persiste (`PUT /api/user-settings/evaluation-panel` → 200) y el botón "X" de cerrar queda
+      visible sin solaparse con el marcador ni con las flechas.

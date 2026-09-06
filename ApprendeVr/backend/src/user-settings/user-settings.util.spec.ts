@@ -3,6 +3,7 @@ import {
   isKnownView,
   isValidAframeViewConfig,
   isValidConfigForView,
+  isValidEvaluationPanelConfig,
   isValidLoginFormConfig,
 } from './user-settings.util';
 
@@ -11,6 +12,7 @@ describe('user-settings.util', () => {
     it('accepts known views', () => {
       expect(isKnownView('login-form')).toBe(true);
       expect(isKnownView('aframe-view')).toBe(true);
+      expect(isKnownView('evaluation-panel')).toBe(true);
     });
 
     it('rejects an unknown view', () => {
@@ -22,6 +24,7 @@ describe('user-settings.util', () => {
     it('maps each view to its column', () => {
       expect(columnForView('login-form')).toBe('loginFormConfig');
       expect(columnForView('aframe-view')).toBe('aframeViewConfig');
+      expect(columnForView('evaluation-panel')).toBe('evaluationPanelConfig');
     });
   });
 
@@ -62,12 +65,11 @@ describe('user-settings.util', () => {
 
   describe('isValidAframeViewConfig', () => {
     const valid = {
-      video: { position: [0, 6, -9] },
       karaoke: { position: [10, 2.5, 3] },
       newSong: { position: [0, 5, 0] },
     };
 
-    it('accepts a valid payload with the three elements', () => {
+    it('accepts a valid payload with both elements', () => {
       expect(isValidAframeViewConfig(valid)).toBe(true);
     });
 
@@ -78,13 +80,30 @@ describe('user-settings.util', () => {
 
     it('rejects an element without a valid position', () => {
       expect(
-        isValidAframeViewConfig({ ...valid, video: { position: [0, 6] } }),
+        isValidAframeViewConfig({ ...valid, karaoke: { position: [0, 6] } }),
       ).toBe(false);
     });
 
     it('rejects a non-object payload', () => {
       expect(isValidAframeViewConfig(null)).toBe(false);
       expect(isValidAframeViewConfig('nope')).toBe(false);
+    });
+  });
+
+  describe('isValidEvaluationPanelConfig', () => {
+    it('accepts a valid position-only payload', () => {
+      expect(isValidEvaluationPanelConfig({ position: [-2, 1.6, -1.5] })).toBe(
+        true,
+      );
+    });
+
+    it('rejects a payload without a valid position', () => {
+      expect(isValidEvaluationPanelConfig({ position: [0, 1] })).toBe(false);
+    });
+
+    it('rejects a non-object payload', () => {
+      expect(isValidEvaluationPanelConfig(null)).toBe(false);
+      expect(isValidEvaluationPanelConfig('nope')).toBe(false);
     });
   });
 

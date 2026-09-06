@@ -7,6 +7,10 @@
 import { fetchCurrentUser } from '../../vrAuth.util.js';
 import { saveLocalEvaluation, getLocalEvaluations } from '../../vrEvaluationLog.util.js';
 import { getPointerNDC } from '../../vrPointerRaycast.util.js';
+import { createWidget, registerPositionWidgetClickables, registerNumericInput } from '../../vrPositionControl.js';
+import { getUserSetting, saveUserSetting } from '../../vrUserSettingsApi.util.js';
+
+const POSITION_VIEW = 'evaluation-panel';
 
 AFRAME.registerComponent('vr-evaluacion-af', {
   schema: {
@@ -27,20 +31,14 @@ AFRAME.registerComponent('vr-evaluacion-af', {
     const el = this.el;
     const data = this.data;
 
-    // Mover el panel 2 unidades más lejos en Z para que quede un poco alejado de la cámara.
+    // El ajuste real de posición de spawn vive en `update()` (AFRAME la llama inmediatamente
+    // después de `init()` en el primer attach — ver comentario en `update()`), así que acá solo
+    // dejamos la posición cruda como punto de partida para evitar tener dos fórmulas
+    // inconsistentes (hallazgo tardío: antes esta también ajustaba y+1/z-1, pero quedaba pisada
+    // por la de `update()` sin que sus valores calzaran, ver problems_solutions.md).
     this._origPosition = data.position;
-    let _adjustedPos = data.position;
-    try {
-      const parts = ('' + data.position).trim().split(/\s+/);
-      if (parts.length === 3) {
-        const x = parseFloat(parts[0]) || 0;
-        const y = parseFloat(parts[1]) || 0;
-        const z = parseFloat(parts[2]) || 0;
-        _adjustedPos = `${x} ${y + 1} ${z - 1}`;
-      }
-    } catch (e) { /* ignore and use provided position */ }
-    this._adjustedPosition = _adjustedPos;
-    el.setAttribute('position', _adjustedPos);
+    this._adjustedPosition = data.position;
+    el.setAttribute('position', data.position);
     el.setAttribute('visible', data.visible);
 
     // Fondo
@@ -429,6 +427,46 @@ AFRAME.registerComponent('vr-evaluacion-af', {
     this._wordsContainer = document.createElement('a-entity');
     this._wordsContainer.setAttribute('position', '0 0 0.01');
     el.appendChild(this._wordsContainer);
+
+    // Control de posición (📍 + d-pad + GUARDAR), mismo mecanismo que video/karaoke/new-song
+    // (Requerimiento 010) — anclado a la esquina superior izquierda del panel. Se crea una sola
+    // vez acá en init(); el panel se reposiciona en cada `update()` (nueva canción evaluada), así
+    // que la posición guardada se reaplica ahí también (ver `_applySavedPosition`).
+    // Un poco más abajo que el borde superior del panel (no +0.3 como en video/karaoke/new-song):
+    // acá arriba-izquierda queda cerca del botón "X" de cerrar (arriba-derecha, ver `closeBtn` más
+    // abajo), y con el d-pad agrandado la flecha "^" llegaba a taparlo.
+    const widgetOffset = [-(data.width / 2), data.height / 2 + 0.12, 0.05];
+    const onMove = (dx, dy, dz) => {
+      const pos = el.getAttribute('position');
+      el.setAttribute('position', {
+        x: +(pos.x + dx).toFixed(2),
+        y: +(pos.y + dy).toFixed(2),
+        z: +(pos.z + dz).toFixed(2),
+      });
+    };
+    const onSave = () => {
+      const pos = el.getAttribute('position');
+      saveUserSetting(POSITION_VIEW, { position: [pos.x, pos.y, pos.z] });
+    };
+    this._positionWidget = createWidget(el, widgetOffset, onMove, onSave);
+    registerPositionWidgetClickables(this._positionWidget.clickables);
+    registerNumericInput(this._positionWidget.stepInput, this._positionWidget.dpad, this._positionWidget.inputAnchor);
+    // No hace falta llamar `_applySavedPosition()` acá: A-Frame llama `update()` inmediatamente
+    // después de `init()` en el primer attach, y `update()` ya la llama.
+  },
+
+  // Si el usuario ya guardó una posición para este panel, la aplica por encima de la calculada
+  // en init()/update() (relativa a la cámara) — mismo criterio que video/karaoke/new-song: la
+  // posición guardada gana sobre el default.
+  _applySavedPosition: function () {
+    getUserSetting(POSITION_VIEW).then((saved) => {
+      if (saved && Array.isArray(saved.position) && saved.position.length === 3) {
+        try {
+          this.el.setAttribute('position', saved.position.join(' '));
+          if (this._positionWidget) this._positionWidget.refreshCoordsLabel();
+        } catch (e) {}
+      }
+    });
   },
 
   update: function () {
@@ -443,12 +481,16 @@ AFRAME.registerComponent('vr-evaluacion-af', {
           const x = parseFloat(parts[0]) || 0;
           const y = parseFloat(parts[1]) || 0;
           const z = parseFloat(parts[2]) || 0;
-          adj = `${x} ${y} ${z - 2}`;
+          // y - 0.3 (además de z - 2, alejarlo un poco de la cámara): el panel spawnea a la
+          // altura de los ojos de la cámara: sin este ajuste, el botón "X" de cerrar (arriba a la
+          // derecha del panel) queda casi al límite superior del campo de visión y cuesta verlo.
+          adj = `${x} ${y - 0.3} ${z - 2}`;
         }
         if (this.el) this.el.setAttribute('position', adj);
         this._adjustedPosition = adj;
       } catch (e) { /* ignore */ }
       if (this.el) this.el.setAttribute('visible', this.data.visible);
+      this._applySavedPosition();
     } catch (e) {}
   },
 

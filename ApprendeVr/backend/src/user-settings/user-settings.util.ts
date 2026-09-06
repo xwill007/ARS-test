@@ -5,6 +5,7 @@
 export const VIEW_COLUMNS = {
   'login-form': 'loginFormConfig',
   'aframe-view': 'aframeViewConfig',
+  'evaluation-panel': 'evaluationPanelConfig',
 } as const;
 
 export type SettingsView = keyof typeof VIEW_COLUMNS;
@@ -43,8 +44,11 @@ export function isValidLoginFormConfig(config: unknown): boolean {
   );
 }
 
-// aframe-view: posición de los tres elementos ajustables de la vista A-Frame (Requerimiento 009).
-const AFRAME_VIEW_ELEMENTS = ['video', 'karaoke', 'newSong'] as const;
+// aframe-view: posición de los elementos ajustables de la vista A-Frame (Requerimiento 009). El
+// video del karaoke vive DENTRO del propio panel de karaoke (no es una entidad independiente en
+// el DOM), así que no tiene una entrada propia acá — solo karaoke y newSong son posicionables por
+// separado.
+const AFRAME_VIEW_ELEMENTS = ['karaoke', 'newSong'] as const;
 
 export function isValidAframeViewConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;
@@ -52,9 +56,17 @@ export function isValidAframeViewConfig(config: unknown): boolean {
   return AFRAME_VIEW_ELEMENTS.every((key) => isPositionedElement(c[key]));
 }
 
+// evaluation-panel: posición del panel de evaluación dinámico (ver VREvaluacionAf.js,
+// Requerimiento 009), que a diferencia de `aframe-view` no tiene un `distanceFactor` — solo
+// posición, igual forma que cada elemento de `aframe-view`.
+export function isValidEvaluationPanelConfig(config: unknown): boolean {
+  return isPositionedElement(config);
+}
+
 const VALIDATORS: Record<SettingsView, (config: unknown) => boolean> = {
   'login-form': isValidLoginFormConfig,
   'aframe-view': isValidAframeViewConfig,
+  'evaluation-panel': isValidEvaluationPanelConfig,
 };
 
 export function isValidConfigForView(view: SettingsView, config: unknown): boolean {
