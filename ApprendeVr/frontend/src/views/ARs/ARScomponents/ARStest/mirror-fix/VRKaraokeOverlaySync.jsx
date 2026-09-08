@@ -23,12 +23,20 @@ import React from 'react';
  * los otros dos overlays sincronizables.
  *
  * Componente de prueba aislado: no se importa ni se usa desde ningún archivo de producción.
+ *
+ * Requerimiento 012: `isPrimaryPanel`/`isRightPanel` (mismas props que ya recibe
+ * VRLocalVideoOverlaySync.jsx desde SyncStereoTestView.jsx) se pasan acá como query string en el
+ * `src` del iframe — es una página real, no puede recibir props de React directamente. Del otro
+ * lado, aframe-overlay-modules.js las lee de `location.search` para bajar el volumen del video de
+ * karaoke en el panel izquierdo (mismo criterio anti-eco que ya usa VRLocalVideoOverlaySync.jsx:
+ * ambos paneles suenan por el mismo dispositivo físico, así que sin esto se escuchan las dos
+ * pistas superpuestas).
  */
-const VRKaraokeOverlaySyncInner = ({ forwardedRef }) => (
+const VRKaraokeOverlaySyncInner = ({ forwardedRef, isPrimaryPanel = true, isRightPanel = false }) => (
   <iframe
     ref={forwardedRef}
     title="VR Karaoke Overlay (Sync)"
-    src="./aframe-overlay-modules.html"
+    src={`./aframe-overlay-modules.html?isPrimaryPanel=${isPrimaryPanel}&isRightPanel=${isRightPanel}`}
     style={{ width: '100%', height: '100%', border: 'none', background: 'transparent', pointerEvents: 'auto' }}
     allow="xr-spatial-tracking; fullscreen"
   />

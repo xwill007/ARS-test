@@ -267,6 +267,7 @@ const VRConeOverlaySyncInner = ({
   height = 3,
   palabras = listaPalabras,
   showUserMarker = true,
+  cursorFuseTimeout = 2500, // Requerimiento 012: ms de dwell del reticle antes del click automático
   targetObjectId = "user-marker",
   targetObjectType = "sphere",
   targetObjectProps = {
@@ -366,8 +367,24 @@ const VRConeOverlaySyncInner = ({
           <!-- Objeto objetivo configurable -->
           ${generateTargetObject()}
           ` : ''}
-          <!-- Cámara a altura de persona -->
-          <a-camera position="0 1.8 0" rotation="0 0 0"></a-camera>
+          <!-- Cámara con cursor (Requerimiento 012, corregido tras prueba en dispositivo real):
+               reticle de gaze estático en el centro (hijo de la cámara, sin rayOrigin: mouse — no
+               hay mouse persistente en un celular dentro de lentes de cartón). Este overlay no
+               tiene elementos .clickable/.raycastable propios todavía, así que el fuse no dispara
+               nada acá; se agrega por consistencia visual con "video". -->
+          <a-camera position="0 1.8 0" rotation="0 0 0">
+            <a-cursor
+              id="main-cursor"
+              position="0 0 -1"
+              geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+              material="color: white; shader: flat; opacity: 0.8"
+              animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+              animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: ${cursorFuseTimeout}"
+              animation__mouseleave="property: scale; startEvents: mouseleave; to: 1 1 1; dur: 500"
+              raycaster="objects: .clickable, .raycastable; far: 30; interval: 100"
+              cursor="fuse: true; fuseTimeout: ${cursorFuseTimeout}">
+            </a-cursor>
+          </a-camera>
         </a-scene>
         <script>
           // Requerimiento 002 — sincronización de cámara por postMessage (mismo patrón que

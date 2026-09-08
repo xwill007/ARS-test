@@ -59,6 +59,7 @@ const VRLocalVideoOverlaySyncInner = ({
   enableVoiceCommands = true,
   voiceCommandsActivated = false, // Siempre false por defecto
   showCursor = true, // Nueva prop para controlar si se muestra el cursor
+  cursorFuseTimeout = 2500, // Requerimiento 012: ms de dwell del reticle antes del click automático
   isPrimaryPanel = true, // Nueva prop para determinar si es el panel principal
   isRightPanel = false, // Nueva prop para determinar si es el panel derecho
   ...props 
@@ -1507,7 +1508,28 @@ const VRLocalVideoOverlaySyncInner = ({
           if (!msg || msg.source !== 'ars-sync-test') return;
           if (!video) {
             // el video puede tardar en estar listo; los mensajes de cámara no dependen de él
-          } else if (msg.action === 'play') { suppressNextPlay = true; video.play(); }
+          } else if (msg.action === 'play') {
+            suppressNextPlay = true;
+            // Requerimiento 012: el panel que recibe este mensaje nunca tuvo un gesto real del
+            // usuario en SU PROPIO iframe (el tap ocurrió en el panel hermano) — los navegadores
+            // bloquean video.play() programático sin gesto salvo que el video esté muted, así que
+            // silenciar momentáneamente es necesario para que el play remoto realmente arranque
+            // (si no, la promesa de play() se rechaza en silencio y el video nunca inicia acá).
+            // Se restaura el volumen apenas resuelve (o falla) la promesa.
+            var wasMuted = video.muted;
+            video.muted = true;
+            var playPromise = video.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+              playPromise
+                .then(function () { video.muted = wasMuted; })
+                .catch(function (err) {
+                  video.muted = wasMuted;
+                  console.warn('vr-local-video: play remoto bloqueado por el navegador incluso muted:', err);
+                });
+            } else {
+              video.muted = wasMuted;
+            }
+          }
           else if (msg.action === 'pause') { suppressNextPause = true; video.pause(); }
           else if (msg.action === 'seek') { suppressNextSeeked = true; video.currentTime = msg.time; }
 
@@ -1585,7 +1607,7 @@ const VRLocalVideoOverlaySyncInner = ({
         ${videoScript}
       </head>
       <body style="margin:0; background:transparent;">
-        <a-scene 
+        <a-scene
           embedded 
           vr-mode-ui="enabled: false" 
           stats="false"
@@ -1597,7 +1619,13 @@ const VRLocalVideoOverlaySyncInner = ({
           ${generateToggleButton()}
           ${generateVoiceControls()}
           
-          <!-- Cámara con cursor condicional -->
+          <!-- Cámara con cursor condicional. Requerimiento 012 (corregido tras prueba en
+               dispositivo real): el reticle usa gaze por defecto (SIN rayOrigin: mouse) — en un
+               celular dentro de lentes de cartón no hay mouse persistente, el patrón de
+               interacción es apuntar con la cabeza (rota la cámara, ya sincronizada entre paneles
+               por pollCameraMovement más abajo) y esperar el "fuse" (dwell) para hacer click
+               automático. Al ser hijo de la cámara en position fija "0 0 -1", el reticle queda
+               estático en el centro de CADA panel sin necesitar sincronizarlo por separado. -->
           <a-camera position="0 1.8 0" rotation="0 0 0">
             ${showCursor ? `
             <!-- Cursor único para toda la interacción -->
@@ -1607,11 +1635,10 @@ const VRLocalVideoOverlaySyncInner = ({
               geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
               material="color: white; shader: flat; opacity: 0.8"
               animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-              animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
+              animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: ${cursorFuseTimeout}"
               animation__mouseleave="property: scale; startEvents: mouseleave; to: 1 1 1; dur: 500"
               raycaster="objects: .clickable, .raycastable; far: 30; interval: 100"
-              fuse="true"
-              fuse-timeout="1500">
+              cursor="fuse: true; fuseTimeout: ${cursorFuseTimeout}">
             </a-cursor>
             ` : ''}
           </a-camera>

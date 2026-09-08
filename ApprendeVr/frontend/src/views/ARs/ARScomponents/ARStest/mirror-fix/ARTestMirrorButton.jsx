@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ARStereoView from '../../../ARSviews/ARStereoView';
 import TestOverlayAR2 from './TestOverlayAR2';
 import SyncStereoTestView from './SyncStereoTestView';
+import { enterFullscreen, exitFullscreen } from './fullscreenHelper';
 import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 
 const buttonStyle = (bottom) => ({
@@ -34,6 +35,7 @@ const inicioButtonStyle = {
 };
 
 const goHome = () => {
+  exitFullscreen();
   window.location.href = '/';
 };
 
@@ -57,6 +59,14 @@ const goHome = () => {
 const ARTestMirrorButton = () => {
   const [open, setOpen] = useState(null); // null | 'mirror' | 'sync'
   const { t } = useVRLanguage();
+
+  // Requerimiento 012: pantalla completa mientras cualquiera de las dos vistas de prueba está
+  // abierta — se sale del navegador normal recién al cerrarla (cleanup del efecto), no antes.
+  useEffect(() => {
+    if (!open) return;
+    enterFullscreen();
+    return () => exitFullscreen();
+  }, [open]);
 
   return (
     <>

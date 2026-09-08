@@ -68,3 +68,111 @@ import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
     lookControls.pitchObject.rotation.x = msg.pitch;
   });
 })();
+
+// Puente de sincronización de play/pause/seek del video interno de vr-karaoke-af — mismo patrón
+// que el bloque de video de VRLocalVideoOverlaySync.jsx (mismo canal 'ars-sync-test', ver ese
+// archivo para el detalle del workaround de silenciar antes de play() remoto: el panel que RECIBE
+// el mensaje nunca tuvo un gesto real en su propio iframe, y los navegadores bloquean
+// video.play() programático sin gesto salvo que esté muted).
+//
+// Diferencia clave con VRLocalVideoOverlaySync: acá no hay un <video> fijo — VRKaraokeAf.js
+// recrea su `<video>` real (this._htmlVideo, ver loadVideo() en VRKaraokeAf.js) cada vez que
+// cambia la canción seleccionada, así que hay que re-engancharse cada vez que cambia esa
+// referencia, no una sola vez. Se lee `_htmlVideo` (campo por convención "privado", no expuesto
+// como API pública) en vez de tocar VRKaraokeAf.js — mismo principio de no modificar el
+// componente real que ya sigue el resto de este archivo; si VRKaraokeAf.js renombra ese campo en
+// el futuro, este puente deja de encontrar el video (se degrada a "sin sync", no rompe nada).
+(function () {
+  function send(msg) {
+    window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+  }
+
+  // Requerimiento 012: volumen por panel para evitar eco (mismo criterio que
+  // VRLocalVideoOverlaySync.jsx — ambos paneles de AR-SYNC suenan por el mismo dispositivo
+  // físico). isPrimaryPanel/isRightPanel llegan como query string desde VRKaraokeOverlaySync.jsx
+  // (esta página no puede recibir props de React directamente).
+  const params = new URLSearchParams(window.location.search);
+  const isPrimaryPanel = params.get('isPrimaryPanel') !== 'false';
+  const isRightPanel = params.get('isRightPanel') === 'true';
+
+  let karaokeComp = null;
+  let video = null;
+  let suppressNextPlay = false;
+  let suppressNextPause = false;
+  let suppressNextSeeked = false;
+
+  function findKaraokeComponent() {
+    const entity = document.querySelector('#karaoke-vr-component');
+    karaokeComp = entity && entity.components && entity.components['vr-karaoke-af'];
+    if (karaokeComp) {
+      setInterval(watchVideoElement, 300);
+    } else {
+      setTimeout(findKaraokeComponent, 200);
+    }
+  }
+  findKaraokeComponent();
+
+  // vr-karaoke-af reemplaza this._htmlVideo en cada cambio de canción — comparar por referencia
+  // para reenganchar los listeners cuando cambia, en vez de asumir que sigue siendo el mismo video.
+  function watchVideoElement() {
+    const current = karaokeComp && karaokeComp._htmlVideo;
+    if (current && current !== video) {
+      video = current;
+      wireVideo(video);
+    }
+  }
+
+  function wireVideo(v) {
+    // Bajar el volumen del panel izquierdo (primario) para no escuchar las dos pistas
+    // superpuestas — mismo valor que usa VRLocalVideoOverlaySync.jsx para su video.
+    if (isPrimaryPanel && !isRightPanel) {
+      v.muted = false;
+      v.volume = 0.01;
+    } else if (isRightPanel) {
+      v.muted = false;
+      v.volume = 1.0;
+    } else {
+      v.muted = false;
+      v.volume = 0.05;
+    }
+    v.addEventListener('play', function () {
+      if (suppressNextPlay) { suppressNextPlay = false; return; }
+      send({ action: 'karaoke-play' });
+    });
+    v.addEventListener('pause', function () {
+      if (suppressNextPause) { suppressNextPause = false; return; }
+      send({ action: 'karaoke-pause' });
+    });
+    v.addEventListener('seeked', function () {
+      if (suppressNextSeeked) { suppressNextSeeked = false; return; }
+      send({ action: 'karaoke-seek', time: v.currentTime });
+    });
+  }
+
+  window.addEventListener('message', function (ev) {
+    const msg = ev.data;
+    if (!msg || msg.source !== 'ars-sync-test' || !video) return;
+    if (msg.action === 'karaoke-play') {
+      suppressNextPlay = true;
+      const wasMuted = video.muted;
+      video.muted = true;
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise
+          .then(function () { video.muted = wasMuted; })
+          .catch(function (err) {
+            video.muted = wasMuted;
+            console.warn('vr-karaoke-af: play remoto bloqueado por el navegador incluso muted:', err);
+          });
+      } else {
+        video.muted = wasMuted;
+      }
+    } else if (msg.action === 'karaoke-pause') {
+      suppressNextPause = true;
+      video.pause();
+    } else if (msg.action === 'karaoke-seek') {
+      suppressNextSeeked = true;
+      video.currentTime = msg.time;
+    }
+  });
+})();

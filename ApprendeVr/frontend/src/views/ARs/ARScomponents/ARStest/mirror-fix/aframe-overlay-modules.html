@@ -30,9 +30,35 @@
     <style>
       html, body { margin: 0; height: 100%; width: 100%; background: transparent; }
       .clickable { cursor: pointer; }
+
+      /* Requerimiento 012 (corregido tras prueba en dispositivo real): puntero ESTÁTICO en el
+         centro de la pantalla — no sigue mouse/touch. En un celular dentro de lentes de cartón no
+         hay mouse persistente ni una mano libre para arrastrar un puntero; el patrón de
+         interacción es apuntar con la cabeza (gira la cámara, ya sincronizada entre paneles) hacia
+         el elemento. Al estar centrado por CSS en vez de seguir eventos, es automáticamente
+         idéntico en ambos paneles de AR-SYNC sin necesitar sincronizarlo por postMessage. No es un
+         <a-cursor> 3D porque vr-karaoke-af/vr-new-song-af no marcan sus botones con
+         .clickable/.raycastable (ver aframe-overlay-modules.js): el raycaster de A-Frame no los
+         intersectaría, así que el "fuse"/auto-click por gaze no está disponible para karaoke en
+         esta iteración — queda documentado como pendiente en el Requerimiento 012. */
+      #mirror-fix-pointer {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 24px;
+        height: 24px;
+        margin-left: -12px;
+        margin-top: -12px;
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+        pointer-events: none;
+        z-index: 99999;
+      }
     </style>
   </head>
   <body style="margin:0; background:transparent;">
+    <div id="mirror-fix-pointer"></div>
     <a-scene
       embedded
       vr-mode-ui="enabled: false"
@@ -71,8 +97,9 @@
            look-controls por defecto (giroscopio/acelerómetro en móvil, drag de mouse en
            escritorio) — mismo patrón que <a-camera> en VRLocalVideoOverlaySync.jsx /
            VRConeOverlaySync.jsx. vr-karaoke-af hace su propio raycasting manual sobre
-           sceneEl.canvas (mousedown/touchstart), no depende de <a-cursor>, solo de que
-           sceneEl.camera exista. -->
+           sceneEl.canvas (mousedown/touchstart), no depende de ningún cursor de A-Frame, solo de
+           que sceneEl.camera exista. El puntero visible (#mirror-fix-pointer) es un div 2D
+           estático centrado por CSS, no una entidad 3D — ver comentario junto a ese estilo. -->
       <a-camera position="0 1.8 6" rotation="0 0 0"></a-camera>
     </a-scene>
   </body>
