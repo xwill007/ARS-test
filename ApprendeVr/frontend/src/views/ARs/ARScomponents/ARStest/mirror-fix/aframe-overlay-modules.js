@@ -190,11 +190,23 @@ import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
   const pointerEl = document.getElementById('mirror-fix-pointer');
   if (!pointerEl) return;
   const FUSE_MS = 2500;
+  // Requerimiento 012 (corrección de bug real): antirebote tras cualquier activación — el
+  // usuario reportó que un click (manual o por dwell) sobre el botón de play a veces se veía
+  // "cancelarse solo" como si fuera un doble click. Causa encontrada: el `key` que identificaba
+  // el objetivo era el `uuid` del MESH individual intersectado, pero un mismo botón lógico
+  // (btnEl) puede tener varios sub-meshes (fondo + texto/ícono) — si el raycaster alternaba de
+  // cuál sub-mesh intersectaba entre un tick y el siguiente (¡mismo botón!), el código lo leía
+  // como "cambió de objetivo" y podía re-disparar. Se corrige agrupando por el ELEMENTO (btnEl/
+  // entry.el), no por mesh individual, y además se agrega este cooldown explícito como red de
+  // seguridad adicional: ninguna activación nueva se procesa hasta pasado COOLDOWN_MS desde la
+  // última, sin importar el objetivo.
+  const COOLDOWN_MS = 600;
   let camera = null;
   let raycaster = null;
-  let hoveredKey = null;
+  let hoveredEl = null;
   let fuseStart = null;
-  let lockedKey = null;
+  let lockedEl = null;
+  let lastActivationAt = 0;
 
   function collectTargets() {
     const targets = [];
@@ -206,6 +218,7 @@ import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
         if (obj.isMesh) {
           targets.push({
             mesh: obj,
+            el: btnEl,
             activate: (intersection) => {
               if (typeof btnEl._activateSelection === 'function') {
                 btnEl._activateSelection({ type: 'pointerdown', defaultPrevented: false, detail: { intersection } });
@@ -223,7 +236,7 @@ import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
       if (!entry.el || !entry.el.object3D) return;
       entry.el.object3D.traverse((obj) => {
         if (obj.isMesh) {
-          targets.push({ mesh: obj, activate: () => entry.onClick() });
+          targets.push({ mesh: obj, el: entry.el, activate: () => entry.onClick() });
         }
       });
     });
@@ -250,16 +263,17 @@ import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
       hitIntersection = hits[0];
       hitTarget = targets.find((t) => t.mesh === hits[0].object) || null;
     }
-    const key = hitTarget ? hitTarget.mesh.uuid : null;
+    // Agrupado por ELEMENTO (no por mesh individual) — ver comentario arriba sobre por qué.
+    const el = hitTarget ? hitTarget.el : null;
 
-    if (key !== lockedKey) lockedKey = null;
+    if (el !== lockedEl) lockedEl = null;
 
-    if (key !== hoveredKey) {
-      hoveredKey = key;
-      fuseStart = (key && key !== lockedKey) ? Date.now() : null;
+    if (el !== hoveredEl) {
+      hoveredEl = el;
+      fuseStart = (el && el !== lockedEl) ? Date.now() : null;
     }
 
-    if (!key || key === lockedKey) {
+    if (!el || el === lockedEl) {
       setPointerVisual('white', 24);
       return;
     }
@@ -269,8 +283,12 @@ import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
     setPointerVisual('#ff3333', 24 * (1 - 0.9 * progress));
 
     if (progress >= 1) {
-      hitTarget.activate(hitIntersection);
-      lockedKey = key;
+      const now = Date.now();
+      if (now - lastActivationAt >= COOLDOWN_MS) {
+        hitTarget.activate(hitIntersection);
+        lastActivationAt = now;
+      }
+      lockedEl = el;
       fuseStart = null;
       setPointerVisual('white', 24);
     }

@@ -397,6 +397,11 @@ const VRConeOverlaySyncInner = ({
             var hoveredEl = null;
             var fuseStart = null;
             var lockedEl = null;
+            // Requerimiento 012: antirebote — ver el mismo mecanismo (y el porqué) en
+            // aframe-overlay-modules.js, donde se encontró y corrigió el bug real de doble
+            // activación. Acá se agrega como red de seguridad adicional.
+            var COOLDOWN_MS = 600;
+            var lastActivationAt = 0;
 
             function setVisual(color, scale) {
               cursorEl.setAttribute('material', 'color: ' + color + '; shader: flat; opacity: 0.85');
@@ -425,7 +430,11 @@ const VRConeOverlaySyncInner = ({
               setVisual('#ff3333', 1 - 0.9 * progress);
 
               if (progress >= 1) {
-                target.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+                var now = Date.now();
+                if (now - lastActivationAt >= COOLDOWN_MS) {
+                  target.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+                  lastActivationAt = now;
+                }
                 lockedEl = target;
                 fuseStart = null;
                 setVisual('white', 1);

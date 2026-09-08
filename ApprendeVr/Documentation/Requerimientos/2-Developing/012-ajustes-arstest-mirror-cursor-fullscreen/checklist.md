@@ -66,6 +66,25 @@
       agregar el mecanismo de dwell).
 - [x] Confirmar sin errores de consola en ninguno de los casos.
 
+## Fase 5.5 — Bug de doble activación / antirebote (reportado tras uso real)
+
+- [x] Diagnosticar el reporte del usuario ("el botón de play se desactiva solo, como doble
+      click"): en karaoke, el objetivo del dwell se identificaba por `mesh.uuid` de un sub-mesh
+      individual, no por el botón lógico completo — un mismo botón con varios sub-meshes (fondo +
+      texto) podía leerse como "cambió de objetivo" entre ticks y re-disparar.
+- [x] Corregir agrupando por el elemento (`btnEl`/`entry.el`) en vez de por `mesh.uuid`, en
+      `aframe-overlay-modules.js`.
+- [x] Agregar un cooldown explícito (`COOLDOWN_MS = 600`) tras cualquier activación, en los tres
+      overlays (pedido explícito del usuario: "agrega un delay de antirebote").
+- [x] Confirmar por consola: pausar por click real sincroniza correctamente entre paneles sin
+      rebote de vuelta a "playing".
+- [x] Usuario confirmó mejora ("ya funciona mejor") tras el fix.
+- [ ] Seguimiento abierto: un click de "play" puntual no registró intersección en una prueba
+      posterior (sin errores) — no se confirmó si es el mismo bug u otra causa (posible
+      acumulación de meshes que loguea `VRKaraokeAf.js` internamente, `buildMeshMap: mapped N
+      meshes...` creciendo con el tiempo — no investigado a fondo, es código de producción fuera
+      de este requerimiento).
+
 ## Fase 6 — Validación final
 
 - [x] Correr `npm run build` en `ApprendeVr/frontend` y confirmar que termina sin errores
