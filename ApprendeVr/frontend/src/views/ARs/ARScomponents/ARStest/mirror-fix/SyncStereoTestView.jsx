@@ -6,6 +6,7 @@ import VRKaraokeOverlaySync from './VRKaraokeOverlaySync';
 import SyncConfigMenu from './SyncConfigMenu';
 import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 import { getUserSetting, saveUserSetting, detectDeviceType } from '../../../../A-frame/vrUserSettingsApi.util.js';
+import { getStoredAuth } from '../../../../A-frame/vrAuth.util.js';
 
 // Requerimiento 012 (ajuste pedido tras revisión): persistencia de qué overlays quedan
 // seleccionados en el menú de AR-SYNC — mismo patrón `getUserSetting`/`saveUserSetting` que usa
@@ -100,6 +101,12 @@ const SyncStereoTestView = ({ onClose }) => {
   // lo detectan solas por su propio default, ver vrUserSettingsApi.util.js) como para que
   // SyncConfigMenu.jsx muestre "Guardar ... (Web)"/"(Móvil)" en sus botones.
   const deviceType = detectDeviceType();
+  // Requerimiento 012 (ampliación pedida por el usuario): mostrar a qué cuenta queda atado el
+  // guardado — diagnóstico directo en el propio menú para casos como "en el celular no guarda":
+  // `apprendevr_auth` es por origen/navegador (localStorage), así que en un dispositivo que nunca
+  // inició sesión en ESTE origen esto muestra "sin sesión" en vez de un email, señal inmediata de
+  // que ni siquiera se intenta la llamada de red (ver vrUserSettingsApi.util.js).
+  const userEmail = getStoredAuth()?.user?.email || null;
 
   const [showMenu, setShowMenu] = useState(false);
   const [separation, setSeparation] = useState(24);
@@ -259,7 +266,7 @@ const SyncStereoTestView = ({ onClose }) => {
           selectedOverlays={selectedOverlays} onToggleOverlay={toggleOverlay}
           onSaveOverlays={saveSelectedOverlays} overlaysSaved={overlaysSaved}
           onSaveConfig={saveConfig} configSaved={configSaved}
-          deviceType={deviceType}
+          deviceType={deviceType} userEmail={userEmail}
         />
       )}
 

@@ -269,6 +269,8 @@
       "saveConfig": "Save configuration",
       "deviceWeb": "Web",
       "deviceMobile": "Mobile",
+      "loggedInAs": "Session",
+      "noSession": "No session in this browser",
       "overlay": {
         "camera": "Camera (background, not synchronized — each panel reads its own live camera)",
         "video": "Local video (play/pause/seek + voice)",

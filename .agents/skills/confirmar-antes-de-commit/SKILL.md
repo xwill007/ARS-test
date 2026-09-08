@@ -22,6 +22,17 @@ razonable parezca el commit, o cuánto trabajo se haya hecho antes.
 - Una autorización de commit vale para ese commit puntual, no para futuros commits en la misma
   sesión. Cada commit necesita su propia autorización explícita.
 
+## Actualizar documentación y skills ANTES de commitear
+
+- Cuando el usuario autoriza un commit ("haz commit" o equivalente), antes de ejecutar `git commit`
+  hay que **actualizar primero** la documentación relacionada — `problems_solutions.md` y
+  `checklist.md` del Requerimiento activo (ver skill `crear-requerimiento`) — y cualquier skill de
+  `.agents/skills/` que corresponda a un hallazgo o convención nueva de esta sesión, para que el
+  commit incluya el código *junto con* su documentación, no el código solo.
+- Esto aplica aunque el usuario solo diga "haz commit" sin mencionar documentación — la
+  autorización de commit implica completar este paso antes, no es un paso aparte que haya que
+  pedir por separado.
+
 ## Idioma del mensaje de commit
 
 - **Todo mensaje de commit se escribe en inglés**, incluidos el sujeto y el cuerpo, sin importar

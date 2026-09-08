@@ -71,6 +71,14 @@ export const OVERLAY_OPTIONS = [
   { key: 'karaoke', labelKey: 'syncConfig.overlay.karaoke' },
 ];
 
+const sessionRowStyle = {
+  padding: '8px 12px',
+  fontSize: 11,
+  color: '#999',
+  borderBottom: '1px solid #333',
+  wordBreak: 'break-all',
+};
+
 const saveButtonStyle = (saved) => ({
   display: 'block',
   width: '100%',
@@ -91,7 +99,7 @@ const SyncConfigMenu = ({
   width, onWidthChange,
   height, onHeightChange,
   selectedOverlays, onToggleOverlay, onSaveOverlays, overlaysSaved,
-  onSaveConfig, configSaved, deviceType,
+  onSaveConfig, configSaved, deviceType, userEmail,
 }) => {
   const [tab, setTab] = useState('config');
   const { t } = useVRLanguage();
@@ -112,6 +120,15 @@ const SyncConfigMenu = ({
         >
           ✕
         </div>
+      </div>
+
+      {/* Requerimiento 012 (ampliación pedida por el usuario): mostrar a qué cuenta está atada el
+          guardado — diagnóstico directo para casos como "en el celular el botón no se pone gris":
+          si acá dice "Sin sesión", el guardado nunca llega a intentar la llamada de red (ver
+          getUserSetting/saveUserSetting en vrUserSettingsApi.util.js, que no-opean sin
+          apprendevr_auth), antes de sospechar de la red o el certificado. */}
+      <div style={sessionRowStyle}>
+        {userEmail ? `${t('syncConfig.loggedInAs')}: ${userEmail}` : t('syncConfig.noSession')}
       </div>
 
       {tab === 'config' && (

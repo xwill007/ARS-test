@@ -165,14 +165,19 @@
       `ars-sync-config`: web quedó en `{893,0,735}`, mobile en `{320,8,420}`, sin pisarse).
 - [x] Tests de backend actualizados (`user-settings.util.spec.ts`, `.service.spec.ts`,
       `.controller.spec.ts`) — 96/96 en total.
-- [ ] Reportado por el usuario: en su celular real, el botón "Guardar configuración" muestra
+- [x] Reportado por el usuario: en su celular real, el botón "Guardar configuración" muestra
       correctamente `(Mobile)` (la detección de dispositivo funciona), pero el guardado no
-      persiste — el botón queda en verde tras el click. Se agregó logging de diagnóstico
-      (`console.warn`) en `getUserSetting`/`saveUserSetting` para distinguir "sin sesión en ese
-      navegador" de "falla de red" (candidato principal: certificado HTTPS autofirmado —
-      `ssl/cert.pem`, ver `vite.config.js` — sin confiar en ese dispositivo) de "el servidor
-      rechazó la config". **Pendiente**: confirmar con el usuario qué mensaje aparece en la consola
-      de su navegador móvil para identificar la causa real y corregirla.
+      persistía — el botón quedaba en verde tras el click. Investigado en varias vueltas
+      (certificado HTTPS autofirmado descartado vía túnel `cloudflared` con certificado real;
+      sesión por origen confirmada agregando "Sesión: {email}" al menú). **Causa raíz real**:
+      `App.jsx` construía `baseUrl`/`aframeUrl` con `VITE_FRONT_IP` (IP LAN fija) en vez de
+      `window.location.origin` — el redirect post-login saltaba siempre a esa IP fija, un origen
+      distinto sin la sesión recién guardada, sin importar desde qué origen se hiciera login.
+      Corregido reemplazando por `window.location.origin`; de paso, el redirect post-login ahora
+      apunta directo a AR-SYNC (`arSyncMirrorUrl`, pedido explícito del usuario) en vez de la vista
+      A-Frame. **Confirmado por el usuario en su celular real**: login vía túnel, menú muestra su
+      email, "Guardar configuración"/"Guardar selección" persisten correctamente. Ver
+      `problems_solutions.md` para el detalle completo de las tres vueltas de diagnóstico.
 
 ## Fase 8 — Validación final
 

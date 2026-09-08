@@ -134,8 +134,10 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
   const submitLogin = async ({ email, password }) => {
     const data = await postAuth('login', { email, password });
     localStorage.setItem('apprendevr_auth', JSON.stringify(data));
-    // Al iniciar sesión (no al registrarse) se redirige a la vista A-Frame.
-    window.location.href = aframeUrl;
+    // Al iniciar sesión (no al registrarse) se redirige directo a AR-SYNC (pedido del usuario,
+    // Requerimiento 012) — antes iba a la vista A-Frame (`aframeUrl`, ver ese const más abajo,
+    // que sigue existiendo para el botón "AR-Frame" del menú principal).
+    window.location.href = arSyncMirrorUrl;
   };
   const [arSeparation, setArSeparation] = useState(24); // px separación
   const [arWidth, setArWidth] = useState(380); // px ancho de cada vista
@@ -147,12 +149,20 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
     document.title = t('titles.main');
   }, [currentLang]);
 
-  const protocol = import.meta.env.VITE_HTTPS === 'true' ? 'https' : 'http'
-  const host = import.meta.env.VITE_FRONT_IP
-  const port = import.meta.env.VITE_PORT
-  const baseUrl = `${protocol}://${host}:${port}`
+  // Requerimiento 012 (hallazgo real, no relacionado al feature en sí): `baseUrl` se construía con
+  // `VITE_FRONT_IP`/`VITE_PORT` (env fijo a la IP LAN del equipo de desarrollo), no con el origen
+  // real desde el que se sirvió la página. Cualquier acceso desde OTRO origen — un túnel
+  // (cloudflared/ngrok) usado para probar desde un celular real sin lidiar con el certificado
+  // autofirmado, `localhost`, o un dominio real en producción — quedaba roto: el login guarda la
+  // sesión en `localStorage` del origen actual, pero `window.location.href = aframeUrl` (login) y
+  // los `navigateTo` de abajo saltaban siempre a la IP LAN fija, un origen DISTINTO sin esa sesión
+  // (`localStorage` es por origen). Se reemplaza por `window.location.origin`, que es siempre el
+  // origen real desde el que se sirvió esta página — coincide con la IP LAN cuando se accede así
+  // (mismo comportamiento de antes), y sigue siendo correcto desde cualquier otro origen.
+  const baseUrl = window.location.origin;
   const mobileUrl = `${baseUrl}/src/views/mobile/mobile.html`
   const aframeUrl = `${baseUrl}/src/views/A-frame/index.html`  // Corregido para usar la ruta real del archivo
+  const arSyncMirrorUrl = `${baseUrl}/src/views/ARs/ARScomponents/ARStest/mirror-fix/artest-mirror.html`
 
   // Acceso a la cámara para AR
   useEffect(() => {
@@ -266,7 +276,7 @@ function AppContent({ showVRDisplay, setShowVRDisplay }) {
             position={[-2.4, 0.8, 0]}
             scale={0.9}
             text={t('buttons.arMirror')}
-            navigateTo={baseUrl + '/src/views/ARs/ARScomponents/ARStest/mirror-fix/artest-mirror.html'}
+            navigateTo={arSyncMirrorUrl}
           />
           <VRButton
             position={[0, 3.2, 0]}

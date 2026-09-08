@@ -269,6 +269,8 @@
       "saveConfig": "Guardar configuración",
       "deviceWeb": "Web",
       "deviceMobile": "Móvil",
+      "loggedInAs": "Sesión",
+      "noSession": "Sin sesión iniciada en este navegador",
       "overlay": {
         "camera": "Cámara (fondo, sin sincronizar — cada panel lee su propia cámara en vivo)",
         "video": "Video local (play/pause/seek + voz)",
