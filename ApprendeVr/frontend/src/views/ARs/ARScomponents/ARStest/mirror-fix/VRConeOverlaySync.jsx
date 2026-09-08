@@ -371,21 +371,78 @@ const VRConeOverlaySyncInner = ({
                reticle de gaze estático en el centro (hijo de la cámara, sin rayOrigin: mouse — no
                hay mouse persistente en un celular dentro de lentes de cartón). Este overlay no
                tiene elementos .clickable/.raycastable propios todavía, así que el fuse no dispara
-               nada acá; se agrega por consistencia visual con "video". -->
+               nada acá; se agrega por consistencia visual con "video". SIN el componente
+               cursor="fuse: ..." nativo — ver el mismo comentario en VRLocalVideoOverlaySync.jsx
+               sobre por qué su pipeline de eventos no se pudo hacer disparar; el script de más
+               abajo maneja color/escala/dwell/click directamente. -->
           <a-camera position="0 1.8 0" rotation="0 0 0">
             <a-cursor
               id="main-cursor"
               position="0 0 -1"
               geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
-              material="color: white; shader: flat; opacity: 0.8"
-              animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-              animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: ${cursorFuseTimeout}"
-              animation__mouseleave="property: scale; startEvents: mouseleave; to: 1 1 1; dur: 500"
-              raycaster="objects: .clickable, .raycastable; far: 30; interval: 100"
-              cursor="fuse: true; fuseTimeout: ${cursorFuseTimeout}">
+              material="color: white; shader: flat; opacity: 0.85"
+              raycaster="objects: .clickable, .raycastable; far: 30; interval: 100">
             </a-cursor>
           </a-camera>
         </a-scene>
+        <script>
+          // Requerimiento 012: hover/dwell/click propio del reticle (ver el mismo bloque en
+          // VRLocalVideoOverlaySync.jsx para el detalle completo). Acá no hay nada .clickable
+          // todavía, así que en la práctica nunca cambia a rojo — queda listo para cuando este
+          // overlay tenga elementos interactivos.
+          (function () {
+            var cursorEl = document.querySelector('#main-cursor');
+            if (!cursorEl) return;
+            var FUSE_MS = ${cursorFuseTimeout};
+            var hoveredEl = null;
+            var fuseStart = null;
+            var lockedEl = null;
+
+            function setVisual(color, scale) {
+              cursorEl.setAttribute('material', 'color: ' + color + '; shader: flat; opacity: 0.85');
+              cursorEl.setAttribute('scale', scale + ' ' + scale + ' ' + scale);
+            }
+
+            function tick() {
+              var raycasterComp = cursorEl.components && cursorEl.components['raycaster'];
+              if (!raycasterComp) return;
+              var target = (raycasterComp.intersectedEls && raycasterComp.intersectedEls[0]) || null;
+
+              if (target !== lockedEl) lockedEl = null;
+
+              if (target !== hoveredEl) {
+                hoveredEl = target;
+                fuseStart = (target && target !== lockedEl) ? Date.now() : null;
+              }
+
+              if (!target || target === lockedEl) {
+                setVisual('white', 1);
+                return;
+              }
+
+              var elapsed = Date.now() - fuseStart;
+              var progress = Math.min(1, elapsed / FUSE_MS);
+              setVisual('#ff3333', 1 - 0.9 * progress);
+
+              if (progress >= 1) {
+                target.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+                lockedEl = target;
+                fuseStart = null;
+                setVisual('white', 1);
+              }
+            }
+
+            function findRaycaster() {
+              var raycasterComp = cursorEl.components && cursorEl.components['raycaster'];
+              if (raycasterComp) {
+                setInterval(tick, 50);
+              } else {
+                setTimeout(findRaycaster, 100);
+              }
+            }
+            findRaycaster();
+          })();
+        </script>
         <script>
           // Requerimiento 002 — sincronización de cámara por postMessage (mismo patrón que
           // VRLocalVideoOverlaySync.jsx, ver ese archivo para el detalle de por qué se escribe

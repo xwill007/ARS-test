@@ -404,6 +404,15 @@ const VRLocalVideoOverlaySyncInner = ({
     `;
   };
 
+  // Requerimiento 012: pitch inicial (radianes) para que el reticle de gaze caiga sobre el plano
+  // de video en la orientación de reposo. Diagnóstico confirmado por raycasting manual: la cámara
+  // mira plano hacia -Z desde "0 1.8 0" mientras el video está más arriba (position[1] suele ser
+  // > 1.8), así que en reposo el rayo del centro de pantalla pasa por debajo del video y el
+  // "fuse"/auto-click nunca tiene nada que intersectar. Se calcula desde la posición real del
+  // video (no un ángulo hardcodeado) para seguir siendo correcto si `position` cambia.
+  const cameraY = 1.8; // debe coincidir con el position="0 1.8 0" del <a-camera> más abajo
+  const initialCursorPitch = Math.atan2(position[1] - cameraY, -position[2]);
+
   // Script para cargar el componente vr-local-video
   const videoScript = `
     <script>
@@ -1464,6 +1473,15 @@ const VRLocalVideoOverlaySyncInner = ({
           cameraEl = document.querySelector('a-camera');
           if (cameraEl && cameraEl.components && cameraEl.components['look-controls']) {
             lookControls = cameraEl.components['look-controls'];
+            // Requerimiento 012: pitch inicial hacia el video (ver initialCursorPitch más arriba,
+            // calculado desde la posición real del video). Se asigna ANTES de arrancar el poll
+            // para que el primer valor que se compare/envíe ya sea este, no 0 — y como look-controls
+            // recién copia pitchObject/yawObject al object3D real en su próximo tick() (no de forma
+            // síncrona), el efecto se ve recién en el siguiente frame de render, que ya ocurrió
+            // para cuando la escena termina de cargar visualmente.
+            if (lookControls.pitchObject) {
+              lookControls.pitchObject.rotation.x = ${initialCursorPitch};
+            }
             // setInterval a 16ms (~60/seg) en vez de los 100ms originales: baja el retardo
             // percibido de "hasta 100ms + escalones" a unos pocos ms. Se probó primero con
             // requestAnimationFrame (retardo teóricamente aún menor, sincronizado al render),
@@ -1628,21 +1646,85 @@ const VRLocalVideoOverlaySyncInner = ({
                estático en el centro de CADA panel sin necesitar sincronizarlo por separado. -->
           <a-camera position="0 1.8 0" rotation="0 0 0">
             ${showCursor ? `
-            <!-- Cursor único para toda la interacción -->
+            <!-- Cursor único para toda la interacción. Requerimiento 012: SIN el componente
+                 cursor="fuse: ..." de A-Frame — su raycaster sí detecta la intersección
+                 correctamente (confirmado por consola) pero su propio pipeline de eventos
+                 mouseenter/fusing/click nunca llegó a dispararse en este contexto (A-Frame 1.4.2)
+                 y no se pudo diagnosticar la causa exacta. El color/escala/dwell/click los maneja
+                 directamente el script de más abajo, leyendo raycaster.intersectedEls (que sí
+                 funciona) y disparando un evento 'click' real sobre el elemento apuntado. -->
             <a-cursor
               id="main-cursor"
               position="0 0 -1"
               geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
-              material="color: white; shader: flat; opacity: 0.8"
-              animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-              animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: ${cursorFuseTimeout}"
-              animation__mouseleave="property: scale; startEvents: mouseleave; to: 1 1 1; dur: 500"
-              raycaster="objects: .clickable, .raycastable; far: 30; interval: 100"
-              cursor="fuse: true; fuseTimeout: ${cursorFuseTimeout}">
+              material="color: white; shader: flat; opacity: 0.85"
+              raycaster="objects: .clickable, .raycastable; far: 30; interval: 100">
             </a-cursor>
             ` : ''}
           </a-camera>
         </a-scene>
+        ${showCursor ? `
+        <script>
+          // Requerimiento 012: hover/dwell/click propio del reticle #main-cursor — reemplaza el
+          // componente cursor="fuse: ..." nativo (ver comentario junto al <a-cursor> más arriba).
+          // Se apoya en raycaster.intersectedEls (confirmado que sí se actualiza en tiempo real)
+          // y dispara un evento 'click' DOM real sobre el elemento apuntado, que es exactamente
+          // lo que ya escuchan los .clickable existentes (this.videoPlane.addEventListener(
+          // 'click', ...) en vr-local-video) — no hace falta tocar esa lógica.
+          (function () {
+            var cursorEl = document.querySelector('#main-cursor');
+            if (!cursorEl) return;
+            var FUSE_MS = ${cursorFuseTimeout};
+            var hoveredEl = null;
+            var fuseStart = null;
+            var lockedEl = null; // el que ya generó click: no vuelve a contar hasta dejar de mirarlo
+
+            function setVisual(color, scale) {
+              cursorEl.setAttribute('material', 'color: ' + color + '; shader: flat; opacity: 0.85');
+              cursorEl.setAttribute('scale', scale + ' ' + scale + ' ' + scale);
+            }
+
+            function tick() {
+              var raycasterComp = cursorEl.components && cursorEl.components['raycaster'];
+              if (!raycasterComp) return;
+              var target = (raycasterComp.intersectedEls && raycasterComp.intersectedEls[0]) || null;
+
+              if (target !== lockedEl) lockedEl = null; // dejó de mirar lo ya clickeado: se rearma
+
+              if (target !== hoveredEl) {
+                hoveredEl = target;
+                fuseStart = (target && target !== lockedEl) ? Date.now() : null;
+              }
+
+              if (!target || target === lockedEl) {
+                setVisual('white', 1);
+                return;
+              }
+
+              var elapsed = Date.now() - fuseStart;
+              var progress = Math.min(1, elapsed / FUSE_MS);
+              setVisual('#ff3333', 1 - 0.9 * progress);
+
+              if (progress >= 1) {
+                target.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+                lockedEl = target;
+                fuseStart = null;
+                setVisual('white', 1);
+              }
+            }
+
+            function findRaycaster() {
+              var raycasterComp = cursorEl.components && cursorEl.components['raycaster'];
+              if (raycasterComp) {
+                setInterval(tick, 50);
+              } else {
+                setTimeout(findRaycaster, 100);
+              }
+            }
+            findRaycaster();
+          })();
+        </script>
+        ` : ''}
       </body>
     </html>
   `;

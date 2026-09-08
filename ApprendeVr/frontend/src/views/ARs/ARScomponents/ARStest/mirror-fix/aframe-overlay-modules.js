@@ -176,3 +176,116 @@ import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
     }
   });
 })();
+
+// Requerimiento 012: hover/dwell/click propio para el puntero estático (#mirror-fix-pointer) de
+// este overlay — mismo patrón de gaze+fuse que VRLocalVideoOverlaySync.jsx/VRConeOverlaySync.jsx
+// (ver esos archivos), pero con SU PROPIO raycasting THREE.js directo en vez de un <a-cursor
+// raycaster="...">: los botones de VRKaraokeAf.js (this._karaokeButtons) y VRNewSongAf.js
+// (this._clickableEls) no están marcados .clickable/.raycastable — hacen su propio raycasting
+// manual por mouse (ver Requerimiento 011) — así que no hay nada que un <a-cursor> nativo pudiera
+// intersectar. Se leen esos dos campos "privados" por convención para reusar exactamente los
+// mismos botones/callbacks que ya usa el click manual, sin tocar ninguno de los dos componentes
+// reales — si algún día renombran esos campos, esto se degrada a "sin auto-click", no rompe nada.
+(function () {
+  const pointerEl = document.getElementById('mirror-fix-pointer');
+  if (!pointerEl) return;
+  const FUSE_MS = 2500;
+  let camera = null;
+  let raycaster = null;
+  let hoveredKey = null;
+  let fuseStart = null;
+  let lockedKey = null;
+
+  function collectTargets() {
+    const targets = [];
+    const karaokeEntity = document.querySelector('#karaoke-vr-component');
+    const karaokeComp = karaokeEntity && karaokeEntity.components && karaokeEntity.components['vr-karaoke-af'];
+    (karaokeComp && karaokeComp._karaokeButtons || []).forEach((btnEl) => {
+      if (!btnEl.object3D) return;
+      btnEl.object3D.traverse((obj) => {
+        if (obj.isMesh) {
+          targets.push({
+            mesh: obj,
+            activate: (intersection) => {
+              if (typeof btnEl._activateSelection === 'function') {
+                btnEl._activateSelection({ type: 'pointerdown', defaultPrevented: false, detail: { intersection } });
+              } else {
+                btnEl.dispatchEvent(new CustomEvent('click', { bubbles: true, cancelable: true, detail: { intersection } }));
+              }
+            },
+          });
+        }
+      });
+    });
+    const newSongEntity = document.querySelector('#new-song-component');
+    const newSongComp = newSongEntity && newSongEntity.components && newSongEntity.components['vr-new-song-af'];
+    (newSongComp && newSongComp._clickableEls || []).forEach((entry) => {
+      if (!entry.el || !entry.el.object3D) return;
+      entry.el.object3D.traverse((obj) => {
+        if (obj.isMesh) {
+          targets.push({ mesh: obj, activate: () => entry.onClick() });
+        }
+      });
+    });
+    return targets;
+  }
+
+  function setPointerVisual(color, sizePx) {
+    pointerEl.style.borderColor = color;
+    pointerEl.style.width = sizePx + 'px';
+    pointerEl.style.height = sizePx + 'px';
+    pointerEl.style.marginLeft = (-sizePx / 2) + 'px';
+    pointerEl.style.marginTop = (-sizePx / 2) + 'px';
+  }
+
+  function tick() {
+    if (!camera) return;
+    const targets = collectTargets();
+    const meshes = targets.map((t) => t.mesh);
+    raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+    const hits = raycaster.intersectObjects(meshes, false);
+    let hitTarget = null;
+    let hitIntersection = null;
+    if (hits.length) {
+      hitIntersection = hits[0];
+      hitTarget = targets.find((t) => t.mesh === hits[0].object) || null;
+    }
+    const key = hitTarget ? hitTarget.mesh.uuid : null;
+
+    if (key !== lockedKey) lockedKey = null;
+
+    if (key !== hoveredKey) {
+      hoveredKey = key;
+      fuseStart = (key && key !== lockedKey) ? Date.now() : null;
+    }
+
+    if (!key || key === lockedKey) {
+      setPointerVisual('white', 24);
+      return;
+    }
+
+    const elapsed = Date.now() - fuseStart;
+    const progress = Math.min(1, elapsed / FUSE_MS);
+    setPointerVisual('#ff3333', 24 * (1 - 0.9 * progress));
+
+    if (progress >= 1) {
+      hitTarget.activate(hitIntersection);
+      lockedKey = key;
+      fuseStart = null;
+      setPointerVisual('white', 24);
+    }
+  }
+
+  function findCamera() {
+    const sceneEl = document.querySelector('a-scene');
+    if (sceneEl && sceneEl.camera) {
+      camera = sceneEl.camera;
+      raycaster = new AFRAME.THREE.Raycaster();
+      raycaster.far = 30;
+      setInterval(tick, 50);
+    } else {
+      setTimeout(findCamera, 100);
+    }
+  }
+  findCamera();
+})();
