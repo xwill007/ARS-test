@@ -45,8 +45,61 @@ bash generate-ssl.sh
 echo "Iniciando backend (NestJS)..."
 (cd "$SCRIPT_DIR/../ApprendeVr/backend" && npm run start:dev) &
 BACKEND_PID=$!
-trap 'echo "Deteniendo backend..."; kill "$BACKEND_PID" 2>/dev/null' EXIT
+
+# Túnel público (cloudflared) con certificado real, para acceso móvil sin advertencia de
+# certificado autofirmado (ver Requerimiento 012, problems_solutions.md fila 2026-09-08:
+# el certificado autofirmado de ssl/cert.pem no siempre basta para que fetch() funcione
+# en navegadores móviles reales). IMPORTANTE: iniciar sesión desde la URL del túnel — la
+# sesión guardada en localStorage es por origen, no se comparte con la IP LAN.
+TUNNEL_LOG="$(mktemp)"
+TUNNEL_PID=""
+if command -v cloudflared >/dev/null 2>&1; then
+  echo "Iniciando túnel cloudflared..."
+  cloudflared tunnel --url "https://$VITE_FRONT_IP:$VITE_PORT" --no-tls-verify >"$TUNNEL_LOG" 2>&1 &
+  TUNNEL_PID=$!
+else
+  echo "cloudflared no está instalado (brew install cloudflared) — se omite el túnel público."
+fi
+
+cleanup() {
+  echo "Deteniendo backend..."
+  kill "$BACKEND_PID" 2>/dev/null
+  if [ -n "$TUNNEL_PID" ]; then
+    echo "Deteniendo túnel..."
+    kill "$TUNNEL_PID" 2>/dev/null
+  fi
+  rm -f "$TUNNEL_LOG"
+}
+trap cleanup EXIT
+
+# Esperar a que cloudflared publique la URL pública del túnel (aparece en su log)
+TUNNEL_URL=""
+if [ -n "$TUNNEL_PID" ]; then
+  attempts=0
+  until [ -n "$TUNNEL_URL" ] || [ "$attempts" -ge 20 ]; do
+    TUNNEL_URL="$(grep -o 'https://[a-zA-Z0-9.-]*\.trycloudflare\.com' "$TUNNEL_LOG" 2>/dev/null | head -n1)"
+    [ -n "$TUNNEL_URL" ] && break
+    attempts=$((attempts + 1))
+    sleep 1
+  done
+fi
+
+echo ""
+echo "=== Acceso móvil ==="
+echo "  ➜  Red local (misma WiFi):  https://$VITE_FRONT_IP:$VITE_PORT/"
+if [ -n "$TUNNEL_URL" ]; then
+  echo "  ➜  Túnel público (cualquier red):  $TUNNEL_URL/"
+else
+  echo "  ➜  Túnel público: no disponible (revisa $TUNNEL_LOG)"
+fi
+echo "IMPORTANTE: inicia sesión desde la URL que vayas a usar en el celular (la sesión no se comparte entre orígenes distintos)."
+echo "====================="
+echo ""
 
 # Iniciar el servidor
-echo "Starting server at https://$VITE_FRONT_IP:$VITE_PORT"
+if [ -n "$TUNNEL_URL" ]; then
+  echo "Starting server — red pública: $TUNNEL_URL"
+else
+  echo "Starting server at https://$VITE_FRONT_IP:$VITE_PORT"
+fi
 npx vite --host "$VITE_FRONT_IP" --port "$VITE_PORT"
