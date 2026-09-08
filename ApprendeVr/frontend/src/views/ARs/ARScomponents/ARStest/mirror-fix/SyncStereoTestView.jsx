@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import CameraOverlaySync from './CameraOverlaySync';
 import VRLocalVideoOverlaySync from './VRLocalVideoOverlaySync';
 import VRConeOverlaySync from './VRConeOverlaySync';
+import VRKaraokeOverlaySync from './VRKaraokeOverlaySync';
 import SyncConfigMenu from './SyncConfigMenu';
 import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 
@@ -38,9 +39,12 @@ const menuButtonStyle = {
 
 // Overlays sincronizables por postMessage (todos menos 'camera', que no necesita sync — ver
 // CameraOverlaySync.jsx). Cada uno se renderiza apilado (position absolute) sobre la cámara.
+// 'karaoke' (Requerimiento 011) reusa los componentes A-Frame reales de src/views/A-frame
+// (lista de canciones + agregar canción) importados tal cual — ver VRKaraokeOverlaySync.jsx.
 const SYNCABLE_OVERLAYS = {
   video: VRLocalVideoOverlaySync,
   cone: VRConeOverlaySync,
+  karaoke: VRKaraokeOverlaySync,
 };
 
 const layerStyle = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' };
@@ -73,8 +77,12 @@ const SyncStereoTestView = ({ onClose }) => {
   const { t } = useVRLanguage();
   // Un ref por tipo de overlay sincronizable, por panel — se crean todos de una, se usen o no,
   // así el relay siempre tiene dónde mirar sin tener que crear/destruir refs dinámicamente.
-  const leftRefs = useRef({ video: React.createRef(), cone: React.createRef() });
-  const rightRefs = useRef({ video: React.createRef(), cone: React.createRef() });
+  // Derivado de SYNCABLE_OVERLAYS (no hardcodeado aparte) para que agregar una clave ahí alcance:
+  // un objeto literal aparte se desincroniza en silencio (TypeError en runtime al no encontrar la
+  // clave nueva, como pasó al agregar 'karaoke' en el Requerimiento 011).
+  const makeRefs = () => Object.fromEntries(Object.keys(SYNCABLE_OVERLAYS).map((key) => [key, React.createRef()]));
+  const leftRefs = useRef(makeRefs());
+  const rightRefs = useRef(makeRefs());
 
   const [showMenu, setShowMenu] = useState(false);
   const [separation, setSeparation] = useState(24);

@@ -27,7 +27,10 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'index.html'),
         mobile: path.resolve(__dirname, 'src/views/mobile/mobile.html'),
-        aframe: path.resolve(__dirname, 'src/views/A-frame/index.html')
+        aframe: path.resolve(__dirname, 'src/views/A-frame/index.html'),
+        // Requerimiento 011: overlay de prueba que importa componentes A-Frame reales como
+        // src/views/A-frame/index.html, para validar que se pueden reusar sin copiar código.
+        aframeOverlayModules: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.html')
       }
     }
   }

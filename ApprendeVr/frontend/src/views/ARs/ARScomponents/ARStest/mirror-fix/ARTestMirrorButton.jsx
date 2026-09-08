@@ -48,7 +48,9 @@ const goHome = () => {
  *
  * - "AR-SYNC": enfoque alternativo propuesto por el usuario — en vez de capturar píxeles, dos
  *   instancias reales sincronizadas por estado vía postMessage (play/pause/seek de video). Ver
- *   SyncStereoTestView.jsx y VRLocalVideoOverlaySync.jsx (copia del componente de video real).
+ *   SyncStereoTestView.jsx. Los overlays disponibles dentro de AR-SYNC (cámara, video, cono,
+ *   karaoke — Requerimiento 011) se eligen desde su propio menú ⚙️ (SyncConfigMenu.jsx), no desde
+ *   botones acá.
  *
  * Componente temporal: eliminar esta carpeta completa (mirror-fix/) cuando termine la validación.
  */

@@ -268,7 +268,8 @@
       "overlay": {
         "camera": "Camera (background, not synchronized — each panel reads its own live camera)",
         "video": "Local video (play/pause/seek + voice)",
-        "cone": "Words cone"
+        "cone": "Words cone",
+        "karaoke": "Karaoke (song list + add song, real A-Frame component)"
       }
     },
     "voice": {

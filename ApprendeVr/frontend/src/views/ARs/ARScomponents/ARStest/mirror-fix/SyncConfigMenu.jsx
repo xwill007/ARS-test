@@ -13,7 +13,8 @@ import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageCont
  *  - Configuración: separación entre paneles, ancho, alto de cada uno.
  *  - Overlays: selección MÚLTIPLE (checkboxes, igual que el menú "Overlays" real de producción —
  *    OverlayDropdownMenu con multiSelect={true}) de qué overlays se apilan en ambos paneles. Ver
- *    CameraOverlaySync.jsx, VRLocalVideoOverlaySync.jsx y VRConeOverlaySync.jsx.
+ *    CameraOverlaySync.jsx, VRLocalVideoOverlaySync.jsx, VRConeOverlaySync.jsx y
+ *    VRKaraokeOverlaySync.jsx (Requerimiento 011).
  *
  * Componente de prueba aislado, no se usa desde ningún archivo de producción.
  */
@@ -67,6 +68,7 @@ export const OVERLAY_OPTIONS = [
   { key: 'camera', labelKey: 'syncConfig.overlay.camera' },
   { key: 'video', labelKey: 'syncConfig.overlay.video' },
   { key: 'cone', labelKey: 'syncConfig.overlay.cone' },
+  { key: 'karaoke', labelKey: 'syncConfig.overlay.karaoke' },
 ];
 
 const SyncConfigMenu = ({

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>A-Frame Overlay Modules (Requerimiento 011)</title>
+
+    <!--
+      Requerimiento 011: página Vite real (registrada en vite.config.js ->
+      build.rollupOptions.input) que importa los componentes A-Frame REALES de
+      src/views/A-frame/components (sin copiar su código) para reusarlos como un overlay más de
+      "AR-SYNC" (SyncStereoTestView.jsx, junto a "video" y "cone" — ver VRKaraokeOverlaySync.jsx).
+      Carga la MISMA copia local de A-Frame que usa la vista original (/libs/aframe.min.js), no una
+      versión distinta por CDN.
+
+      Se monta con un <iframe src="..."> real (no srcDoc, a diferencia de VRLocalVideoOverlaySync.jsx
+      / VRConeOverlaySync.jsx) para que las rutas relativas que usan estos componentes (fetch a
+      /api/user-settings/..., rutas de video, import.meta.glob de locales en vrI18n.util.js)
+      resuelvan contra el origen real de la app.
+
+      La cámara usa look-controls SIN deshabilitar (igual que en VRLocalVideoOverlaySync.jsx /
+      VRConeOverlaySync.jsx): en un dispositivo móvil, A-Frame lo maneja con
+      DeviceOrientationControls (giroscopio/acelerómetro) automáticamente; en escritorio cae a
+      arrastre con mouse. aframe-overlay-modules.js agrega el mismo puente por postMessage que usan
+      esos dos overlays para que la rotación de cámara se replique entre los paneles izquierdo y
+      derecho de AR-SYNC.
+    -->
+    <script src="/libs/aframe.min.js"></script>
+    <script type="module" src="./aframe-overlay-modules.js"></script>
+
+    <style>
+      html, body { margin: 0; height: 100%; width: 100%; background: transparent; }
+      .clickable { cursor: pointer; }
+    </style>
+  </head>
+  <body style="margin:0; background:transparent;">
+    <a-scene
+      embedded
+      vr-mode-ui="enabled: false"
+      stats="false"
+      style="width: 100vw; height: 100vh; background: transparent;">
+
+      <!-- Lista de canciones + reproductor (arrastra VRNewSongAf, importado por VRKaraokeAf.js).
+           Mismos parámetros de contenido que src/views/A-frame/index.html; position/videoPosition/
+           listPosition ajustados para quedar centrados frente a la cámara fija de este overlay
+           (allá la cámara sigue a un avatar en tercera persona, acá es una <a-camera> estática). -->
+      <a-entity
+        id="karaoke-vr-component"
+        vr-karaoke-af="videoPath: /videos/karaoke/StandByMe_BenEKing.mp4;
+                videoWidth: 6;
+                videoHeight: 3.6;
+                videoList: StandByMe_BenEKing.mp4|Ben E. King|2:58,ItsMyLife_BonJovi.mp4|Bon Jovi|4:25,GangstasParadise_Coolio.mp4|Coolio|3:45;
+                textColor: #8a8a96ff;
+                buttonColor: #121093ff;
+                backgroundColor: #454545ff;
+                videoPosition: -3.2 1.6 -6;
+                listPosition: 3.2 1.6 -6;
+                escalaLista: 0.85;
+                tituloFontScale: 1.0;
+                itemFontScale: 1.0"
+        position="0 0 0">
+      </a-entity>
+
+      <!-- Panel para agregar canciones nuevas al catálogo local (localStorage, ver
+           vrSongCatalog.util.js) -->
+      <a-entity
+        id="new-song-component"
+        vr-new-song-af="position: -8 1.6 -6; width: 3.2; height: 5.15">
+      </a-entity>
+
+      <!-- Retrasada en z para que los tres paneles (nuevo, video, lista) entren en el encuadre.
+           look-controls por defecto (giroscopio/acelerómetro en móvil, drag de mouse en
+           escritorio) — mismo patrón que <a-camera> en VRLocalVideoOverlaySync.jsx /
+           VRConeOverlaySync.jsx. vr-karaoke-af hace su propio raycasting manual sobre
+           sceneEl.canvas (mousedown/touchstart), no depende de <a-cursor>, solo de que
+           sceneEl.camera exista. -->
+      <a-camera position="0 1.8 6" rotation="0 0 0"></a-camera>
+    </a-scene>
+  </body>
+</html>
