@@ -5,6 +5,17 @@ import VRConeOverlaySync from './VRConeOverlaySync';
 import VRKaraokeOverlaySync from './VRKaraokeOverlaySync';
 import SyncConfigMenu from './SyncConfigMenu';
 import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
+import { getUserSetting, saveUserSetting, detectDeviceType } from '../../../../A-frame/vrUserSettingsApi.util.js';
+
+// Requerimiento 012 (ajuste pedido tras revisión): persistencia de qué overlays quedan
+// seleccionados en el menú de AR-SYNC — mismo patrón `getUserSetting`/`saveUserSetting` que usa
+// vrPositionControl.js (Requerimiento 010) para los widgets de posición, con su propia clave de
+// vista para no chocar con las demás (`aframe-view`, `evaluation-panel`, etc.).
+const OVERLAYS_SETTINGS_VIEW = 'ars-sync-overlays';
+// Requerimiento 012 (ajuste pedido tras revisión): mismo patrón de persistencia explícita para la
+// pestaña "Configuración" (separación/ancho/alto de los paneles), vista propia para no chocar con
+// `ars-sync-overlays`.
+const CONFIG_SETTINGS_VIEW = 'ars-sync-config';
 
 const closeButtonStyle = {
   position: 'fixed',
@@ -84,16 +95,87 @@ const SyncStereoTestView = ({ onClose }) => {
   const leftRefs = useRef(makeRefs());
   const rightRefs = useRef(makeRefs());
 
+  // Requerimiento 012 (ampliación): no cambia durante la sesión (navigator.userAgent es estático),
+  // así que no hace falta estado — se usa tanto para persistir (getUserSetting/saveUserSetting ya
+  // lo detectan solas por su propio default, ver vrUserSettingsApi.util.js) como para que
+  // SyncConfigMenu.jsx muestre "Guardar ... (Web)"/"(Móvil)" en sus botones.
+  const deviceType = detectDeviceType();
+
   const [showMenu, setShowMenu] = useState(false);
   const [separation, setSeparation] = useState(24);
   const [panelWidth, setPanelWidth] = useState(380);
   const [panelHeight, setPanelHeight] = useState(480);
   const [selectedOverlays, setSelectedOverlays] = useState(['camera', 'video']);
+  // Requerimiento 012 (ajuste pedido tras revisión): feedback visual del botón "Guardar
+  // selección" — gris mientras la selección actual coincide con lo último guardado con éxito,
+  // vuelve a su color normal en cuanto se toca un checkbox (ya no coincide con lo guardado).
+  const [overlaysSaved, setOverlaysSaved] = useState(false);
+  // Mismo feedback ("gris" mientras coincide con lo último guardado) para la pestaña
+  // "Configuración".
+  const [configSaved, setConfigSaved] = useState(false);
+
+  // Carga la selección/config guardadas (si las hay) al montar. Sin sesión o sin ajuste guardado,
+  // getUserSetting resuelve `null` y se mantienen los defaults de arriba — mismo comportamiento
+  // "sin romper nada" que vrPositionControl.js.
+  useEffect(() => {
+    let cancelled = false;
+    getUserSetting(OVERLAYS_SETTINGS_VIEW).then((setting) => {
+      if (cancelled) return;
+      // getUserSetting ya resuelve el `config` guardado directamente (no envuelto en `.config` —
+      // ese envoltorio solo lo usa el body del PUT, ver vrUserSettingsApi.util.js), mismo
+      // consumo que hace vrPositionControl.js con su propio `saved`.
+      const saved = setting && Array.isArray(setting.selectedOverlays)
+        ? setting.selectedOverlays
+        : null;
+      if (saved) {
+        setSelectedOverlays(saved);
+        setOverlaysSaved(true);
+      }
+    });
+    getUserSetting(CONFIG_SETTINGS_VIEW).then((setting) => {
+      if (cancelled) return;
+      const hasValidConfig = setting &&
+        typeof setting.separation === 'number' &&
+        typeof setting.panelWidth === 'number' &&
+        typeof setting.panelHeight === 'number';
+      if (hasValidConfig) {
+        setSeparation(setting.separation);
+        setPanelWidth(setting.panelWidth);
+        setPanelHeight(setting.panelHeight);
+        setConfigSaved(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const toggleOverlay = (key) => {
+    setOverlaysSaved(false);
     setSelectedOverlays((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
+  };
+
+  // Guardado explícito (botón "Guardar" al inicio de la lista de overlays, no autosave al
+  // togglear) — el usuario pidió que la selección se guarde bajo su propia acción, no en cada
+  // click de checkbox. El botón se pone gris solo si el guardado terminó en éxito (200), no de
+  // forma optimista.
+  const saveSelectedOverlays = () => {
+    saveUserSetting(OVERLAYS_SETTINGS_VIEW, { selectedOverlays }).then((ok) => {
+      if (ok) setOverlaysSaved(true);
+    });
+  };
+
+  // Wrappers de los sliders (en vez de pasar los setters de useState directo, como antes): marcan
+  // la config como "no guardada" (botón vuelve a verde) apenas se mueve cualquier slider — mismo
+  // criterio que `toggleOverlay` con `overlaysSaved`.
+  const updateSeparation = (value) => { setConfigSaved(false); setSeparation(value); };
+  const updateWidth = (value) => { setConfigSaved(false); setPanelWidth(value); };
+  const updateHeight = (value) => { setConfigSaved(false); setPanelHeight(value); };
+
+  const saveConfig = () => {
+    saveUserSetting(CONFIG_SETTINGS_VIEW, { separation, panelWidth, panelHeight }).then((ok) => {
+      if (ok) setConfigSaved(true);
+    });
   };
 
   useEffect(() => {
@@ -171,10 +253,13 @@ const SyncStereoTestView = ({ onClose }) => {
       {showMenu && (
         <SyncConfigMenu
           onClose={() => setShowMenu(false)}
-          separation={separation} onSeparationChange={setSeparation}
-          width={panelWidth} onWidthChange={setPanelWidth}
-          height={panelHeight} onHeightChange={setPanelHeight}
+          separation={separation} onSeparationChange={updateSeparation}
+          width={panelWidth} onWidthChange={updateWidth}
+          height={panelHeight} onHeightChange={updateHeight}
           selectedOverlays={selectedOverlays} onToggleOverlay={toggleOverlay}
+          onSaveOverlays={saveSelectedOverlays} overlaysSaved={overlaysSaved}
+          onSaveConfig={saveConfig} configSaved={configSaved}
+          deviceType={deviceType}
         />
       )}
 

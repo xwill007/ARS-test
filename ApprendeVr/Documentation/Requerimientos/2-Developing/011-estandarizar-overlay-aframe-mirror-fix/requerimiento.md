@@ -14,9 +14,12 @@ vista o botón nuevo separado. Hoy el patrón vigente para los overlays de AR-SY
 componente real como un string embebido en el `srcDoc` de un `<iframe>`, cargando además una
 versión de A-Frame distinta (1.4.2 por CDN) de la que usa la vista original
 (`/libs/aframe.min.js` local). Este requerimiento reemplaza ese patrón por uno que reutiliza el
-módulo `.js` real vía `import`, y lo valida aplicándolo primero al módulo de lista de canciones +
-reproductor (`VRKaraokeAf`, que ya arrastra **agregar canción** — `VRNewSongAf`); **evaluación de
-pronunciación** (`VREvaluacionAf`) queda para una siguiente iteración sobre este mismo mecanismo.
+módulo `.js` real vía `import`, y lo valida aplicándolo al módulo de lista de canciones +
+reproductor (`VRKaraokeAf`, que ya arrastra **agregar canción** — `VRNewSongAf`) y, en una segunda
+pasada, a **evaluación de pronunciación** (`VREvaluacionAf`) — se importa con el mismo mecanismo,
+sin código nuevo de "montaje" propio: `VRKaraokeAf.js` ya la crea/actualiza dinámicamente al pulsar
+"EVALUATE SONG" (ver 2.1), así que solo hacía falta el `import` para que `vr-evaluacion-af` quedara
+registrado.
 
 ## 2. Antecedentes y estado actual
 
@@ -147,10 +150,11 @@ más la comprobación de que `vite build` no rompe con el nuevo entry point.
 
 ### No incluido
 
-- `VREvaluacionAf` (evaluación de pronunciación) como overlay — queda para una siguiente
-  iteración sobre este mismo mecanismo, una vez validado con `VRKaraokeAf`/`VRNewSongAf`. Depende
-  además de `vrUserSettingsApi.util.js` (llamadas reales a `/api/user-settings/...`), un caso más
-  complejo que conviene probar por separado.
+- **Interacción por gaze/fuse-click (Requerimiento 012) con los botones propios del panel de
+  evaluación** (calificación 1/2/3, "EVALUATE", cerrar "X") — `VREvaluacionAf.js` hace su propio
+  raycasting manual por mouse/touch (mismo patrón que `VRKaraokeAf.js`), pero a diferencia de
+  `VRNewSongAf.js` no expone un array interno equivalente a `_clickableEls` para reusarlo; solo
+  responde a click manual directo por ahora.
 - Integrar estos overlays al flujo real de producción de `ARStereoView`/`AROverlayController` —
   eso implicaría reabrir el Requerimiento 002 (descartado), no es el objetivo de esta iteración.
 - Sincronizar el estado propio del overlay de karaoke (canción seleccionada, play/pause) entre
@@ -226,7 +230,7 @@ AR-SYNC en el futuro — sin pipeline de build nuevo.
 | Archivo | Cambio |
 |---|---|
 | `src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.html` (nuevo) | Página Vite que carga `/libs/aframe.min.js`, declara las entidades A-Frame necesarias para `vr-karaoke-af` (incluye `VRNewSongAf`) y una `<a-camera>` con `look-controls` habilitado (giroscopio/acelerómetro en móvil, mouse-drag en escritorio). |
-| `src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.js` (nuevo) | `import` real de `VRKaraokeAf.js` desde `src/views/A-frame/components/...` (sin copiar código) + puente de sincronización de rotación de cámara por `postMessage` entre paneles (mismo patrón que el de `VRLocalVideoOverlaySync.jsx`/`VRConeOverlaySync.jsx`, ver Fase 5.2 del diseño técnico). |
+| `src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.js` (nuevo) | `import` real de `VRKaraokeAf.js` y `VREvaluacionAf.js` desde `src/views/A-frame/components/...` (sin copiar código) + puente de sincronización de rotación de cámara por `postMessage` entre paneles (mismo patrón que el de `VRLocalVideoOverlaySync.jsx`/`VRConeOverlaySync.jsx`, ver Fase 5.2 del diseño técnico). |
 | `ApprendeVr/frontend/vite.config.js` | Agregar el nuevo `.html` a `build.rollupOptions.input`, junto a `main`/`mobile`/`aframe`, para que compile también en `vite build`. |
 | `src/views/ARs/ARScomponents/ARStest/mirror-fix/VRKaraokeOverlaySync.jsx` (nuevo) | Monta `aframe-overlay-modules.html` en un `<iframe src="...">` real (no `srcDoc`) con `React.forwardRef`, mismo contrato que `VRLocalVideoOverlaySync.jsx`/`VRConeOverlaySync.jsx`. |
 | `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Agregar `karaoke: VRKaraokeOverlaySync` a `SYNCABLE_OVERLAYS`. |
@@ -271,8 +275,13 @@ AR-SYNC en el futuro — sin pipeline de build nuevo.
       `AROverlayController.jsx`, `appArs.jsx`, `ARStereoView.jsx`, `overlays/*.jsx` de producción).
 - [x] Todo texto visible nuevo está en los locales `es`/`en`/`br` y pasa `npm run check:i18n` sin
       nuevas alertas.
-- [ ] `VREvaluacionAf` como overlay de AR-SYNC (siguiente iteración, fuera del alcance de esta —
-      ver sección 4).
+- [x] `VREvaluacionAf` importado en `aframe-overlay-modules.js` — al pulsar "EVALUATE SONG" en el
+      overlay "karaoke", el panel de evaluación real se crea y renderiza (`vr-evaluacion-af`
+      registrado, `visible: true` confirmado por consola), con su contenido real (título/artista
+      de la canción, selector de dificultad 1/2/3, botón EVALUATE, cerrar) — no solo un
+      `setAttribute` sin efecto. Confirmado en navegador, sin errores de consola. La interacción
+      por gaze/fuse-click con los botones propios de este panel queda fuera de esta pasada (ver
+      "No incluido").
 
 ## 8. Referencias
 

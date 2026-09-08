@@ -4,9 +4,17 @@ services:
   db:
     image: mysql:8.0
     container_name: Backend-ApprendeVr
+    # Zona horaria fijada a UTC de forma explícita (revisión pedida por el usuario): sin esto,
+    # `time_zone` del servidor queda en `SYSTEM`, que resuelve al reloj del SO del contenedor —
+    # correcto hoy porque la imagen base ya usa UTC, pero implícito y frágil ante un cambio de
+    # imagen/host. `--default-time-zone=+00:00` lo deja explícito y estable sin importar el
+    # entorno; el backend (TypeORM/mysql2, ver database.module.ts) también fija `timezone: 'Z'`
+    # para interpretar/emitir los timestamps de forma consistente con esto.
+    command: --default-time-zone=+00:00
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: ${DB_NAME:-english_vr}
+      TZ: UTC
     volumes:
       # Importa el dump completo (schema + datos) del submodule A-frame al arrancar el contenedor
       # por primera vez (mismo patrón que A-frame/docker-dev/docker-compose.yml).
@@ -14,6 +22,10 @@ services:
       # Tabla y migraciones propias de ApprendeVr (Requerimiento 010), separadas del dump legacy.
       - ./db/001-user-settings.sql:/docker-entrypoint-initdb.d/02-user-settings.sql:ro
       - ./db/002-evaluation-panel-config.sql:/docker-entrypoint-initdb.d/03-evaluation-panel-config.sql:ro
+      - ./db/003-ars-sync-overlays-config.sql:/docker-entrypoint-initdb.d/04-ars-sync-overlays-config.sql:ro
+      - ./db/004-normalize-user-settings-row-per-view.sql:/docker-entrypoint-initdb.d/05-normalize-user-settings-row-per-view.sql:ro
+      - ./db/005-ars-sync-config-view.sql:/docker-entrypoint-initdb.d/06-ars-sync-config-view.sql:ro
+      - ./db/006-user-settings-device-type.sql:/docker-entrypoint-initdb.d/07-user-settings-device-type.sql:ro
       - db-data:/var/lib/mysql
     ports:
       - "${DB_PORT:-3306}:3306"

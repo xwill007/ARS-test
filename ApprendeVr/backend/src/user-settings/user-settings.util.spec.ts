@@ -1,7 +1,9 @@
 import {
-  columnForView,
+  isKnownDeviceType,
   isKnownView,
   isValidAframeViewConfig,
+  isValidArsSyncConfigConfig,
+  isValidArsSyncOverlaysConfig,
   isValidConfigForView,
   isValidEvaluationPanelConfig,
   isValidLoginFormConfig,
@@ -13,6 +15,8 @@ describe('user-settings.util', () => {
       expect(isKnownView('login-form')).toBe(true);
       expect(isKnownView('aframe-view')).toBe(true);
       expect(isKnownView('evaluation-panel')).toBe(true);
+      expect(isKnownView('ars-sync-overlays')).toBe(true);
+      expect(isKnownView('ars-sync-config')).toBe(true);
     });
 
     it('rejects an unknown view', () => {
@@ -20,11 +24,15 @@ describe('user-settings.util', () => {
     });
   });
 
-  describe('columnForView', () => {
-    it('maps each view to its column', () => {
-      expect(columnForView('login-form')).toBe('loginFormConfig');
-      expect(columnForView('aframe-view')).toBe('aframeViewConfig');
-      expect(columnForView('evaluation-panel')).toBe('evaluationPanelConfig');
+  describe('isKnownDeviceType', () => {
+    it('accepts known device types', () => {
+      expect(isKnownDeviceType('web')).toBe(true);
+      expect(isKnownDeviceType('mobile')).toBe(true);
+    });
+
+    it('rejects an unknown device type', () => {
+      expect(isKnownDeviceType('tablet')).toBe(false);
+      expect(isKnownDeviceType('')).toBe(false);
     });
   });
 
@@ -104,6 +112,68 @@ describe('user-settings.util', () => {
     it('rejects a non-object payload', () => {
       expect(isValidEvaluationPanelConfig(null)).toBe(false);
       expect(isValidEvaluationPanelConfig('nope')).toBe(false);
+    });
+  });
+
+  describe('isValidArsSyncOverlaysConfig', () => {
+    it('accepts a valid list of known overlay keys', () => {
+      expect(
+        isValidArsSyncOverlaysConfig({ selectedOverlays: ['camera', 'video', 'karaoke'] }),
+      ).toBe(true);
+    });
+
+    it('accepts an empty list', () => {
+      expect(isValidArsSyncOverlaysConfig({ selectedOverlays: [] })).toBe(true);
+    });
+
+    it('rejects an unknown overlay key', () => {
+      expect(
+        isValidArsSyncOverlaysConfig({ selectedOverlays: ['camera', 'not-an-overlay'] }),
+      ).toBe(false);
+    });
+
+    it('rejects a non-array selectedOverlays', () => {
+      expect(isValidArsSyncOverlaysConfig({ selectedOverlays: 'video' })).toBe(false);
+    });
+
+    it('rejects a non-object payload', () => {
+      expect(isValidArsSyncOverlaysConfig(null)).toBe(false);
+      expect(isValidArsSyncOverlaysConfig('nope')).toBe(false);
+    });
+  });
+
+  describe('isValidArsSyncConfigConfig', () => {
+    it('accepts a valid payload', () => {
+      expect(
+        isValidArsSyncConfigConfig({ separation: 24, panelWidth: 380, panelHeight: 480 }),
+      ).toBe(true);
+    });
+
+    it('accepts zero as a valid separation', () => {
+      expect(
+        isValidArsSyncConfigConfig({ separation: 0, panelWidth: 380, panelHeight: 480 }),
+      ).toBe(true);
+    });
+
+    it('rejects a negative value', () => {
+      expect(
+        isValidArsSyncConfigConfig({ separation: -1, panelWidth: 380, panelHeight: 480 }),
+      ).toBe(false);
+    });
+
+    it('rejects a missing field', () => {
+      expect(isValidArsSyncConfigConfig({ separation: 24, panelWidth: 380 })).toBe(false);
+    });
+
+    it('rejects a non-numeric field', () => {
+      expect(
+        isValidArsSyncConfigConfig({ separation: 24, panelWidth: '380', panelHeight: 480 }),
+      ).toBe(false);
+    });
+
+    it('rejects a non-object payload', () => {
+      expect(isValidArsSyncConfigConfig(null)).toBe(false);
+      expect(isValidArsSyncConfigConfig('nope')).toBe(false);
     });
   });
 

@@ -67,8 +67,18 @@
       `SYNCABLE_OVERLAYS`/`OVERLAY_OPTIONS`) para que sirva de referencia al sumar overlays de
       futuros componentes A-Frame a AR-SYNC.
 
-## Fase 6 — Siguiente iteración (fuera de esta pasada)
+## Fase 6 — `VREvaluacionAf` (siguiente iteración, retomada)
 
-- [ ] Repetir el mecanismo para `VREvaluacionAf` (evaluación de pronunciación) como overlay
-      adicional de AR-SYNC — depende de `vrUserSettingsApi.util.js` (`fetch` real a
-      `/api/user-settings/...`), caso más complejo que se prueba aparte.
+- [x] Agregar `import '../../../../A-frame/components/VREvaluacionAf/VREvaluacionAf.js';` a
+      `aframe-overlay-modules.js` — se detectó que faltaba porque el usuario notó, revisando este
+      requerimiento, que el componente nunca se había importado (el botón "EVALUATE SONG" ya
+      funcionaba por el fix de gaze-click del Requerimiento 012, pero `vr-evaluacion-af` no estaba
+      registrado, así que `setAttribute` no hacía nada).
+- [x] Confirmar `npm run build` sin errores.
+- [x] Confirmar en navegador: pulsar "EVALUATE SONG" crea y muestra el panel de evaluación real
+      (título/artista, selector de dificultad 1/2/3, botón EVALUATE, cerrar "X"), sin errores de
+      consola — incluye la llamada real a `vrUserSettingsApi.util.js`/`/api/user-settings/...`.
+- [x] Confirmar `npm run check:i18n` sin alertas nuevas.
+- [ ] Pendiente (no incluido en esta pasada): interacción por gaze/fuse-click con los botones
+      propios del panel de evaluación — `VREvaluacionAf.js` no expone un array de clickables
+      reusable como `VRNewSongAf.js`, solo responde a click manual directo por ahora.

@@ -71,15 +71,35 @@ export const OVERLAY_OPTIONS = [
   { key: 'karaoke', labelKey: 'syncConfig.overlay.karaoke' },
 ];
 
+const saveButtonStyle = (saved) => ({
+  display: 'block',
+  width: '100%',
+  marginBottom: 12,
+  padding: '8px 10px',
+  borderRadius: 6,
+  border: 'none',
+  background: saved ? '#555' : '#2e7d32',
+  color: saved ? '#ccc' : 'white',
+  fontSize: 13,
+  fontWeight: 'bold',
+  cursor: 'pointer',
+});
+
 const SyncConfigMenu = ({
   onClose,
   separation, onSeparationChange,
   width, onWidthChange,
   height, onHeightChange,
-  selectedOverlays, onToggleOverlay,
+  selectedOverlays, onToggleOverlay, onSaveOverlays, overlaysSaved,
+  onSaveConfig, configSaved, deviceType,
 }) => {
   const [tab, setTab] = useState('config');
   const { t } = useVRLanguage();
+  // Requerimiento 012 (ampliación): cada botón de guardar debe indicar para qué dispositivo está
+  // guardando (`getUserSetting`/`saveUserSetting` ya persisten por (usuario, vista, dispositivo) —
+  // ver vrUserSettingsApi.util.js `detectDeviceType()`), así el usuario sabe que ese ajuste es
+  // independiente del que vería en el otro tipo de dispositivo.
+  const deviceLabel = t(deviceType === 'mobile' ? 'syncConfig.deviceMobile' : 'syncConfig.deviceWeb');
 
   return (
     <div style={menuStyle}>
@@ -96,6 +116,9 @@ const SyncConfigMenu = ({
 
       {tab === 'config' && (
         <div style={bodyStyle}>
+          <button style={saveButtonStyle(configSaved)} onClick={onSaveConfig}>
+            {t('syncConfig.saveConfig')} ({deviceLabel})
+          </button>
           <div style={rowStyle}>
             <label style={labelStyle}>{t('config.separation')}: {separation}px</label>
             <input
@@ -107,7 +130,7 @@ const SyncConfigMenu = ({
           <div style={rowStyle}>
             <label style={labelStyle}>{t('config.width')}: {width}px</label>
             <input
-              type="range" min={200} max={700} value={width}
+              type="range" min={200} max={900} value={width}
               onChange={(e) => onWidthChange(Number(e.target.value))}
               style={{ width: '100%' }}
             />
@@ -128,6 +151,9 @@ const SyncConfigMenu = ({
           <p style={{ fontSize: 12, color: '#999', marginTop: 0 }}>
             {t('syncConfig.selectMultipleHint')}
           </p>
+          <button style={saveButtonStyle(overlaysSaved)} onClick={onSaveOverlays}>
+            {t('syncConfig.saveOverlays')} ({deviceLabel})
+          </button>
           {OVERLAY_OPTIONS.map((opt) => {
             const active = selectedOverlays.includes(opt.key);
             return (

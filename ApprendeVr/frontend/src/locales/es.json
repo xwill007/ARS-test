@@ -265,6 +265,10 @@
     },
     "syncConfig": {
       "selectMultipleHint": "Selección múltiple — se apilan en ambos paneles (cámara al fondo si está marcada).",
+      "saveOverlays": "Guardar selección",
+      "saveConfig": "Guardar configuración",
+      "deviceWeb": "Web",
+      "deviceMobile": "Móvil",
       "overlay": {
         "camera": "Cámara (fondo, sin sincronizar — cada panel lee su propia cámara en vivo)",
         "video": "Video local (play/pause/seek + voz)",

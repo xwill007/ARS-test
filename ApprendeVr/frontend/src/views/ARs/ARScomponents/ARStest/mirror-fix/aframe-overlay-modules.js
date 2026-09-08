@@ -15,6 +15,28 @@
 //    ese .html en un <iframe src="..."> real (no srcDoc) con forwardRef, y agregarlo a
 //    SYNCABLE_OVERLAYS en SyncStereoTestView.jsx + OVERLAY_OPTIONS en SyncConfigMenu.jsx.
 import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
+// Requerimiento 011 (siguiente iteración) / 011: panel de evaluación de pronunciación. No se
+// declara como entidad estática — VRKaraokeAf.js lo crea/actualiza dinámicamente al pulsar
+// "EVALUATE SONG" (evaluateSong() en VRKaraokeAf.js), igual que en la vista A-Frame original.
+// Sin este import, vr-evaluacion-af no está registrado y ese setAttribute no hace nada.
+import '../../../../A-frame/components/VREvaluacionAf/VREvaluacionAf.js';
+// Requerimiento 012: `initPositionControl()` (Requerimiento 010) — arma el marcador rojo 📍 +
+// d-pad + botón GUARDAR de cada elemento posicionable (karaoke, agregar-canción, y el de
+// VREvaluacionAf.js que se registra solo al crearse) y, sobre todo, el ÚNICO listener
+// `window.addEventListener('pointerdown', ...)` que hace el raycast y procesa esos clicks — sin
+// llamar a esta función esos marcadores existen (VREvaluacionAf.js los crea igual) pero ningún
+// click les llega, porque nunca se armó el listener que los escucha. Mismo patrón que
+// `index.js` de la vista A-Frame original: esperar a que la escena termine de cargar antes de
+// llamarla (necesita `sceneEl.camera`/`sceneEl.canvas` ya listos).
+import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
+(function () {
+  const sceneEl = document.querySelector('a-scene');
+  if (sceneEl.hasLoaded) {
+    initPositionControl();
+  } else {
+    sceneEl.addEventListener('loaded', () => initPositionControl());
+  }
+})();
 
 // Puente de sincronización de rotación de cámara entre los paneles izquierdo/derecho de AR-SYNC —
 // mismo patrón que el bloque final de VRLocalVideoOverlaySync.jsx / VRConeOverlaySync.jsx (ver
@@ -210,10 +232,21 @@ import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
 
   function collectTargets() {
     const targets = [];
+    // Elementos ya cubiertos por los bloques específicos de abajo (karaoke/newSong/eval) — el
+    // bloque genérico `.clickable` de más abajo los salta. Hallazgo real durante la verificación
+    // de este fix: `.clickable` NO es exclusivo de los widgets de posición como se asumió al
+    // escribir el bloque genérico — VRKaraokeAf.js, VRNewSongAf.js y VREvaluacionAf.js también
+    // marcan sus propios botones con esa clase (confirmado por grep). Sin este Set, esos botones
+    // quedarían duplicados en `targets` (una vez con su `activate` específico, otra con el
+    // genérico `dispatchCenterPointerdown`) — `Array.find` igual habría elegido la entrada
+    // específica por orden de inserción, así que no había bug funcional, pero sí una lista de
+    // raycast innecesariamente grande recorrida cada 50ms.
+    const coveredEls = new Set();
     const karaokeEntity = document.querySelector('#karaoke-vr-component');
     const karaokeComp = karaokeEntity && karaokeEntity.components && karaokeEntity.components['vr-karaoke-af'];
     (karaokeComp && karaokeComp._karaokeButtons || []).forEach((btnEl) => {
       if (!btnEl.object3D) return;
+      coveredEls.add(btnEl);
       btnEl.object3D.traverse((obj) => {
         if (obj.isMesh) {
           targets.push({
@@ -234,13 +267,81 @@ import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
     const newSongComp = newSongEntity && newSongEntity.components && newSongEntity.components['vr-new-song-af'];
     (newSongComp && newSongComp._clickableEls || []).forEach((entry) => {
       if (!entry.el || !entry.el.object3D) return;
+      coveredEls.add(entry.el);
       entry.el.object3D.traverse((obj) => {
         if (obj.isMesh) {
           targets.push({ mesh: obj, el: entry.el, activate: () => entry.onClick() });
         }
       });
     });
+
+    // VREvaluacionAf.js (panel de evaluación, creado dinámicamente al pulsar "EVALUATE SONG"):
+    // a diferencia de vr-karaoke-af/vr-new-song-af, su lógica de qué botón hace qué vive DENTRO
+    // de un listener privado (`_onPointerDown`, `window.addEventListener('pointerdown', ...)`) —
+    // no expone un método por botón que se pueda invocar desde afuera. En vez de duplicar esa
+    // lógica acá (frágil: seleccionar nivel, cerrar, scroll de fallidos, etc. — varios `types`
+    // distintos con ramas internas), se deja que EL PROPIO componente decida: se registran sus
+    // botones como objetivos del gaze (para el hover/dwell visual), y al completar el dwell se
+    // dispara un `pointerdown` sintético real en `window` apuntando al centro del canvas — la
+    // misma posición que ya usa internamente `getPointerNDC` para el gaze (NDC 0,0) — y el propio
+    // `_onPointerDown` de VREvaluacionAf.js hace su raycasting real y decide qué botón activar,
+    // exactamente igual que si fuera un click real de mouse en el centro de la pantalla.
+    const evalEntity = document.querySelector('[vr-evaluacion-af]');
+    const evalComp = evalEntity && evalEntity.components && evalEntity.components['vr-evaluacion-af'];
+    if (evalComp) {
+      const evalButtons = [];
+      if (evalComp._closeBtn) evalButtons.push(evalComp._closeBtn);
+      (evalComp._numButtons || []).forEach((b) => evalButtons.push(b));
+      if (evalComp._pronListenBtn) evalButtons.push(evalComp._pronListenBtn);
+      if (evalComp._scrollUpBtn) evalButtons.push(evalComp._scrollUpBtn);
+      if (evalComp._scrollDownBtn) evalButtons.push(evalComp._scrollDownBtn);
+      (evalComp._optionButtons || []).forEach((b) => evalButtons.push(b));
+      if (evalComp._evalBtn) evalButtons.push(evalComp._evalBtn);
+      evalButtons.forEach((btnEl) => {
+        if (!btnEl || !btnEl.object3D) return;
+        coveredEls.add(btnEl);
+        btnEl.object3D.traverse((obj) => {
+          if (obj.isMesh) {
+            targets.push({ mesh: obj, el: btnEl, activate: dispatchCenterPointerdown });
+          }
+        });
+      });
+    }
+
+    // Widgets de posición (Requerimiento 010, vía initPositionControl() más arriba): marcador
+    // rojo 📍 + d-pad + GUARDAR de karaoke, agregar-canción, y el de VREvaluacionAf.js. Su click
+    // real ya funciona con initPositionControl() (raycast propio compartido, mismo patrón
+    // window+pointerdown que VREvaluacionAf.js), así que se activan igual: dwell + pointerdown
+    // sintético al centro. `createWidget()`/vrPositionControl.js marca sus propios elementos con
+    // `.clickable`, pero esa misma clase también la usan los botones de vr-karaoke-af/
+    // VRNewSongAf.js/VREvaluacionAf.js (ya cubiertos arriba) — se saltan vía `coveredEls` para no
+    // duplicar targets, así este bloque solo termina agregando los widgets de posición en sí.
+    document.querySelectorAll('.clickable').forEach((btnEl) => {
+      if (!btnEl.object3D || coveredEls.has(btnEl)) return;
+      btnEl.object3D.traverse((obj) => {
+        if (obj.isMesh) {
+          targets.push({ mesh: obj, el: btnEl, activate: dispatchCenterPointerdown });
+        }
+      });
+    });
     return targets;
+  }
+
+  function dispatchCenterPointerdown() {
+    const sceneEl = document.querySelector('a-scene');
+    const canvas = sceneEl && sceneEl.canvas;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+    window.dispatchEvent(new PointerEvent('pointerdown', {
+      clientX,
+      clientY,
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: 'mouse',
+    }));
   }
 
   function setPointerVisual(color, sizePx) {

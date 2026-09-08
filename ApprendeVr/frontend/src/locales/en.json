@@ -265,6 +265,10 @@
     },
     "syncConfig": {
       "selectMultipleHint": "Multiple selection — they stack on both panels (camera at the back if checked).",
+      "saveOverlays": "Save selection",
+      "saveConfig": "Save configuration",
+      "deviceWeb": "Web",
+      "deviceMobile": "Mobile",
       "overlay": {
         "camera": "Camera (background, not synchronized — each panel reads its own live camera)",
         "video": "Local video (play/pause/seek + voice)",
