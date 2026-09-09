@@ -4,6 +4,51 @@ Recordatorio de la regla de hallazgos tardíos (ver skill `crear-requerimiento`)
 `checklist.md` o un criterio de aceptación ya marcado `[x]` resulta no estar realmente resuelto,
 corregir la marca y registrar acá el hallazgo indicando explícitamente que fue tardío.
 
+## 2026-09-09 — Hallazgo del usuario: `#settings-panel` y `#confirm-panel` podían quedar los dos abiertos
+
+**Problema:** "solo se puede desplegar un panel de configuración a la vez, si otro está abierto y
+selecciono una sección nueva la anterior se cierra" — ninguna de las dos funciones que abren un
+panel (`__activateSettingsSection` para Configuración/Overlays, `__requestConfirm` para
+Volver/Cerrar sesión) cerraba la OTRA, así que si estaba abierto `#settings-panel` y se activaba
+"Volver", ambos quedaban visibles superpuestos (comparten la misma posición/orientación).
+
+**Solución:** cada función ahora cierra la otra antes de mostrarse — `__activateSettingsSection`
+llama a `window.__closeConfirmPanel()`, `__requestConfirm` llama a `window.__closeSettingsPanel()`
+(ambas expuestas en `window` por su propio script, mismo patrón que `__activateSettingsSection`).
+Confirmado en navegador en ambos sentidos: Configuración abierta → Volver reemplaza por el panel
+de confirmación; Overlays abierto → mismo resultado.
+
+## 2026-09-09 — Ajustes visuales: dona gris uniforme, click solo en el texto, texto radial
+
+Tres pedidos del usuario sobre el mismo componente, encadenados:
+
+1. **"cambia el color de las secciones... quiero que todas sean en fondo gris transparente, y en
+   el centro agrega un círculo para que el menú quede como dona y no como círculo completo"** —
+   las 4 porciones pasaron de `<a-cylinder>` con un color distinto cada una a `<a-ring>`
+   (`radius-inner`/`radius-outer`, ver `RING_INNER_RADIUS`) con el mismo gris semitransparente
+   (`WEDGE_COLOR`/`WEDGE_OPACITY`) — el hueco central es el que da la forma de dona. Al ser
+   `a-ring` una geometría plana (sin grosor, a diferencia del cilindro), pasó a llevar
+   `rotation="-90 0 0"` igual que el resto de elementos "tirados en el piso" de este archivo.
+2. **"el click se debe detectar solo en el texto de cada sección"** — se sacó la clase
+   `.clickable` y los `data-*` del anillo decorativo; ahora el objetivo real es un `<a-plane>`
+   invisible (`opacity: 0.01`, mismo criterio que `mic-icon` en `VRLocalVideoOverlaySync.jsx` —
+   la opacidad no desactiva el raycaster, `visible` sí) del tamaño del texto, no de toda la
+   porción.
+3. **"el texto se debe ubicar del centro hacia afuera ubicado radialmente"** — en vez de intentar
+   componer una única rotación Euler `"x y z"` (el orden de composición no es obvio sin probarlo),
+   se armó con 3 rotaciones simples anidadas, una por `<a-entity>`: (1) gira todo el grupo en Y
+   por la bisectriz de la porción — ubica el eje +Z local apuntando radialmente hacia afuera; (2)
+   gira -90 en Y — alinea el eje de lectura del texto (+X) con ese +Z radial, y ubica el grupo a
+   mid-radio a lo largo de ese eje; (3) tira el texto/plano plano contra el piso con -90 en X, sin
+   tocar el eje +X ya alineado en el paso 2. Confirmado visualmente: el texto de las 4 porciones
+   se lee efectivamente "de adentro hacia afuera" (las del lado opuesto del círculo quedan boca
+   abajo respecto a un espectador fijo — es el resultado esperado de una orientación radial pura,
+   no una orientación "siempre legible"; el usuario pidió específicamente "radialmente").
+
+Confirmado en navegador (forzando el pitch de la cámara a mano, ver hallazgo de reubicación de
+cámara/menú más abajo, para poder ver la brújula desde arriba): dona gris con hueco central, 4
+textos radiales, click en el plano invisible sigue abriendo/activando cada sección.
+
 ## 2026-09-09 — Hallazgo del usuario: botones a la misma profundidad que su fondo (z-fighting) + skill nuevo
 
 **Problema señalado por el usuario:** "cuando creas elementos en 3D y estos tienen botones, los

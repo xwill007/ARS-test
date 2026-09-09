@@ -56,17 +56,23 @@ import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageCont
 //
 // Componente de prueba aislado, no se usa desde ningún archivo de producción.
 const SECTIONS = [
-  { key: 'config', labelKey: 'arsConfig.tab.config', thetaStart: 0, color: '#1565C0', type: 'panel' },
-  { key: 'overlays', labelKey: 'arsConfig.tab.overlays', thetaStart: 90, color: '#2e7d32', type: 'panel' },
-  { key: 'back', labelKey: 'home.back', thetaStart: 180, color: '#546E7A', type: 'action', action: 'back' },
+  { key: 'config', labelKey: 'arsConfig.tab.config', thetaStart: 0, type: 'panel' },
+  { key: 'overlays', labelKey: 'arsConfig.tab.overlays', thetaStart: 90, type: 'panel' },
+  { key: 'back', labelKey: 'home.back', thetaStart: 180, type: 'action', action: 'back' },
   // dwell: false — "Cerrar sesión" es destructivo (borra la credencial guardada) y NO se activa
   // por apuntado sostenido, solo con click directo. El reticle se queda blanco/neutro sobre esta
   // porción en vez de ponerse rojo/achicarse, para que se note que ahí el dwell no hace nada.
-  { key: 'logout', labelKey: 'home.logout', thetaStart: 270, color: '#c62828', type: 'action', action: 'logout', dwell: false },
+  { key: 'logout', labelKey: 'home.logout', thetaStart: 270, type: 'action', action: 'logout', dwell: false },
 ];
 const WEDGE_THETA_LENGTH = 360 / SECTIONS.length;
 const STEP_DEG = WEDGE_THETA_LENGTH;
 const RADIUS = 1.2;
+// Pedido del usuario: las 4 porciones comparten el mismo gris transparente (ya no un color
+// distinto por sección — la etiqueta de texto es lo que las distingue), y el círculo pasa a ser
+// una dona (hueco circular en el centro) en vez de un disco completo.
+const WEDGE_COLOR = '#888888';
+const WEDGE_OPACITY = 0.45;
+const RING_INNER_RADIUS = RADIUS * 0.4;
 // Ubicación pedida por el usuario: el menú (compass-root) en el origen de la escena, la cámara
 // directamente arriba mirando hacia abajo — en vez del esquema anterior (menú a GROUND_Z=-4 frente
 // a una cámara a la altura de los ojos, CAMERA_Y=1.8, mirando casi horizontal).
@@ -180,40 +186,62 @@ function buildConfirmPanelHTML() {
 }
 
 function buildWedgesHTML() {
-  return SECTIONS.map(({ key, thetaStart, color, type, action, dwell }) => {
-    // Texto ubicado en la bisectriz angular de cada porción. Geometría de A-Frame/THREE para
-    // `a-cylinder` (sección radial en el plano XZ): x = radius*sin(theta), z = radius*cos(theta),
-    // con theta en grados medido desde thetaStart — confirmado visualmente con las 2 porciones
-    // originales (thetaStart 0/180° con thetaLength 180° caían en +X/-X, que es exactamente lo
-    // que da esta fórmula con bisectriz en 90°/270°).
-    const bisectorRad = (thetaStart + WEDGE_THETA_LENGTH / 2) * (Math.PI / 180);
-    const textX = RADIUS * 0.6 * Math.sin(bisectorRad);
-    const textZ = RADIUS * 0.6 * Math.cos(bisectorRad);
+  // Radio medio de la franja de la dona (entre el hueco y el borde exterior) — ahí es donde va
+  // el texto de cada porción, ni pegado al hueco ni al borde.
+  const midRadius = (RING_INNER_RADIUS + RADIUS) / 2;
+  return SECTIONS.map(({ key, thetaStart, type, action, dwell }) => {
+    const bisectorDeg = thetaStart + WEDGE_THETA_LENGTH / 2;
     return `
-      <a-cylinder
-        class="clickable compass-wedge"
-        data-section="${key}"
-        data-type="${type}"
-        ${action ? `data-action="${action}"` : ''}
-        ${dwell === false ? 'data-dwell="false"' : ''}
-        radius="${RADIUS}"
-        height="0.04"
+      <!-- Puramente decorativa: SIN clase .clickable ni data-* — pedido del usuario: "el click se
+           debe detectar solo en el texto de cada sección", no en toda la porción. -->
+      <a-ring
+        radius-inner="${RING_INNER_RADIUS}"
+        radius-outer="${RADIUS}"
         theta-start="${thetaStart}"
         theta-length="${WEDGE_THETA_LENGTH}"
-        color="${color}"
-        opacity="0.75"
-        material="shader: flat; side: double;"
-        position="0 0 0">
-      </a-cylinder>
-      <a-text
-        data-section-label="${key}"
-        value="__LABEL_${key}__"
-        align="center"
-        color="#ffffff"
-        width="2.1"
+        color="${WEDGE_COLOR}"
+        opacity="${WEDGE_OPACITY}"
+        material="shader: flat; side: double; transparent: true;"
         rotation="-90 0 0"
-        position="${textX.toFixed(2)} 0.03 ${textZ.toFixed(2)}">
-      </a-text>
+        position="0 0 0">
+      </a-ring>
+      <!-- Texto y su área de click, ubicados y orientados radialmente (pedido del usuario: "del
+           centro hacia afuera"), con 3 rotaciones simples anidadas en vez de una sola compuesta
+           (evita tener que adivinar el orden de composición de un Euler "x y z" combinado):
+             1. (este a-entity) gira todo el grupo en Y por la bisectriz de la porción — pone el
+                eje +Z local de este grupo apuntando radialmente hacia afuera.
+             2. (a-entity interno) gira -90 en Y — alinea el eje +X (dirección de lectura del
+                texto) con ese +Z radial, y ubica el grupo a mid-radius a lo largo de ese eje.
+             3. (a-text/a-plane) gira -90 en X — los tira planos contra el suelo, sin tocar el eje
+                +X ya alineado radialmente en el paso 2. -->
+      <a-entity rotation="0 ${bisectorDeg.toFixed(2)} 0">
+        <a-entity rotation="0 -90 0" position="0 0.02 ${midRadius.toFixed(2)}">
+          <a-text
+            data-section-label="${key}"
+            value="__LABEL_${key}__"
+            align="center"
+            color="#ffffff"
+            width="2.1"
+            rotation="-90 0 0">
+          </a-text>
+        </a-entity>
+        <!-- Área de click real: un plano invisible del tamaño del texto, no de toda la porción.
+             opacity 0.01 (no 0 exacto) — mismo criterio ya usado en el proyecto para hit-areas
+             invisibles pero raycastables (ver mic-icon en VRLocalVideoOverlaySync.jsx): "visible"
+             es lo que desactiva el raycaster, la opacidad no. -->
+        <a-entity rotation="0 -90 0" position="0 0.01 ${midRadius.toFixed(2)}">
+          <a-plane
+            class="clickable compass-wedge"
+            data-section="${key}"
+            data-type="${type}"
+            ${action ? `data-action="${action}"` : ''}
+            ${dwell === false ? 'data-dwell="false"' : ''}
+            width="1.3" height="0.4"
+            material="shader: flat; side: double; transparent: true; opacity: 0.01;"
+            rotation="-90 0 0">
+          </a-plane>
+        </a-entity>
+      </a-entity>
     `;
   }).join('\n');
 }
@@ -274,6 +302,44 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               ${wedgesHTML}
             </a-entity>
 
+            <!-- Requerimiento 013 (ampliación): botón "X" en el hueco de la dona que
+                 muestra/oculta #compass-wheel (pedido del usuario) — vive FUERA de #compass-wheel
+                 a propósito, para poder seguir clickeándolo y mostrar el menú de nuevo aunque
+                 esté oculto. Con el menú visible aparecen además "+"/"-" a los lados ("+ (X) -")
+                 para acercar/alejar #compass-root en Y respecto a la cámara — reusan el mismo
+                 mecanismo "data-move" que el d-pad del widget de posición (ver más abajo), así que
+                 lo que muevan queda incluido si se guarda desde ese mismo widget. -->
+            <a-plane
+              class="clickable wheel-visibility-dependent"
+              data-move="0,0.3,0"
+              width="0.22" height="0.22"
+              color="#333333"
+              material="shader: flat; side: double;"
+              rotation="-90 0 0"
+              position="${(-(RING_INNER_RADIUS * 0.55)).toFixed(2)} 0.01 0">
+              <a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+            </a-plane>
+            <a-plane
+              id="wheel-visibility-toggle"
+              class="clickable"
+              width="0.26" height="0.26"
+              color="#333333"
+              material="shader: flat; side: double;"
+              rotation="-90 0 0"
+              position="0 0.01 0">
+              <a-text value="X" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+            </a-plane>
+            <a-plane
+              class="clickable wheel-visibility-dependent"
+              data-move="0,-0.3,0"
+              width="0.22" height="0.22"
+              color="#333333"
+              material="shader: flat; side: double;"
+              rotation="-90 0 0"
+              position="${(RING_INNER_RADIUS * 0.55).toFixed(2)} 0.01 0">
+              <a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+            </a-plane>
+
             <!-- Triángulo de norte: FIJO, no es hijo de #compass-wheel, marca el punto de
                  referencia/frente de la brújula (no orientación geomagnética real). -->
             <a-triangle
@@ -286,9 +352,11 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               position="0 0.05 ${(RADIUS * 0.95).toFixed(2)}">
             </a-triangle>
 
-            <!-- Flechas: rotan #compass-wheel 180° por click/dwell, en cada sentido. -->
+            <!-- Flechas: rotan #compass-wheel 180° por click/dwell, en cada sentido. Llevan
+                 "wheel-visibility-dependent" porque solo tienen sentido con la dona visible (se
+                 ocultan y muestran junto con #compass-wheel, ver el botón "X"). -->
             <a-plane
-              class="clickable compass-arrow"
+              class="clickable compass-arrow wheel-visibility-dependent"
               data-arrow="left"
               width="0.4" height="0.4"
               color="#333333"
@@ -298,7 +366,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               <a-text value="◄" align="center" color="#ffffff" width="6" position="0 0 0.01"></a-text>
             </a-plane>
             <a-plane
-              class="clickable compass-arrow"
+              class="clickable compass-arrow wheel-visibility-dependent"
               data-arrow="right"
               width="0.4" height="0.4"
               color="#333333"
@@ -516,6 +584,22 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               var saveBtn = document.querySelector('#position-save-btn');
               if (!rootEl || !marker || !dpad) return;
 
+              // Última posición confirmada en DB (o la inicial por defecto hasta que el padre
+              // conteste "compass-set-position") — permite saber si hay cambios sin guardar al
+              // cerrar el menú con la "X" (pedido del usuario).
+              var lastSavedPosition = Object.assign({}, rootEl.getAttribute('position'));
+
+              function positionChanged() {
+                var pos = rootEl.getAttribute('position');
+                return pos.x !== lastSavedPosition.x || pos.y !== lastSavedPosition.y || pos.z !== lastSavedPosition.z;
+              }
+
+              function savePosition() {
+                var pos = rootEl.getAttribute('position');
+                send({ action: 'compass-save-position', x: pos.x, y: pos.y, z: pos.z });
+                lastSavedPosition = { x: pos.x, y: pos.y, z: pos.z };
+              }
+
               function refreshCoordsLabel() {
                 coordsLabel.setAttribute('value', formatCoords(rootEl.getAttribute('position')));
               }
@@ -525,7 +609,36 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 dpad.setAttribute('visible', !dpad.getAttribute('visible'));
               });
 
-              document.querySelectorAll('#position-dpad [data-move]').forEach(function (btn) {
+              // Requerimiento 013 (ampliación): botón "X" en el hueco de la dona — muestra/oculta
+              // #compass-wheel (pedido del usuario); las flechas y los "+"/"-" a los lados de la X
+              // solo tienen sentido con el menú visible, así que se ocultan junto con él
+              // ("wheel-visibility-dependent"). Al OCULTAR el menú además: se cierra cualquier
+              // panel de configuración/confirmación que haya quedado abierto, y se guarda en DB la
+              // posición si cambió desde el último guardado (pedido del usuario — no forzar al
+              // usuario a abrir el d-pad y tocar "Guardar" a mano solo para no perder un cambio de
+              // posición hecho con los "+"/"-" centrales). Este toggle es puramente local a cada
+              // instancia del compass (no se sincroniza el estado de mostrar/ocultar por
+              // postMessage), ver problems_solutions.md del Requerimiento 013.
+              var wheelEl = document.querySelector('#compass-wheel');
+              var wheelToggleBtn = document.querySelector('#wheel-visibility-toggle');
+              var wheelDependentEls = document.querySelectorAll('.wheel-visibility-dependent');
+              if (wheelEl && wheelToggleBtn) {
+                wheelToggleBtn.addEventListener('click', function () {
+                  var nextVisible = !wheelEl.getAttribute('visible');
+                  wheelEl.setAttribute('visible', nextVisible);
+                  wheelDependentEls.forEach(function (el) { el.setAttribute('visible', nextVisible); });
+                  if (!nextVisible) {
+                    if (window.__closeSettingsPanel) window.__closeSettingsPanel();
+                    if (window.__closeConfirmPanel) window.__closeConfirmPanel();
+                    if (positionChanged()) savePosition();
+                  }
+                });
+              }
+
+              // Selector global (no acotado a #position-dpad): también agarra los botones "+"/"-"
+              // del hueco central de la brújula (ver el "X"/"+"/"-" cerca de #compass-wheel) —
+              // mismo mecanismo, mismo eje Y, distinto lugar en la pantalla para acceder más fácil.
+              document.querySelectorAll('[data-move]').forEach(function (btn) {
                 var parts = btn.dataset.move.split(',').map(Number);
                 btn.addEventListener('click', function () {
                   var pos = rootEl.getAttribute('position');
@@ -540,8 +653,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               });
 
               saveBtn.addEventListener('click', function () {
-                var pos = rootEl.getAttribute('position');
-                send({ action: 'compass-save-position', x: pos.x, y: pos.y, z: pos.z });
+                savePosition();
                 var prevColor = saveBtn.getAttribute('color');
                 saveBtn.setAttribute('color', '#117711');
                 setTimeout(function () { saveBtn.setAttribute('color', prevColor); }, 400);
@@ -554,6 +666,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 var msg = ev.data;
                 if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'compass-set-position') return;
                 rootEl.setAttribute('position', { x: msg.x, y: msg.y, z: msg.z });
+                lastSavedPosition = { x: msg.x, y: msg.y, z: msg.z };
                 refreshCoordsLabel();
               });
               send({ action: 'compass-ready' });
@@ -627,10 +740,21 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               );
             }
 
+            // Expuesta en window: la cierra tanto su propio botón ✕ como el panel de confirmación
+            // (pedido del usuario: solo un panel puede estar abierto a la vez) cuando se activa
+            // una acción "back"/"logout" mientras este panel ya estaba abierto.
+            function closeSettingsPanel() {
+              currentSection = null;
+              document.querySelector('#settings-panel').setAttribute('visible', false);
+            }
+            window.__closeSettingsPanel = closeSettingsPanel;
+
             // Expuesta en window: la llama el script de rotación/selección (arriba) cuando se
             // activa una porción tipo "panel" — este script es el dueño del estado
-            // abierto/cerrado del panel, no el de la brújula.
+            // abierto/cerrado del panel, no el de la brújula. Cierra primero el panel de
+            // confirmación si estaba abierto (pedido del usuario: nunca los dos a la vez).
             window.__activateSettingsSection = function (section) {
+              if (window.__closeConfirmPanel) window.__closeConfirmPanel();
               currentSection = section;
               document.querySelector('#settings-panel').setAttribute('visible', true);
               document.querySelector('#settings-config-group').setAttribute('visible', section === 'config');
@@ -639,10 +763,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             };
 
             document.addEventListener('DOMContentLoaded', function () {
-              document.querySelector('#settings-close-btn').addEventListener('click', function () {
-                currentSection = null;
-                document.querySelector('#settings-panel').setAttribute('visible', false);
-              });
+              document.querySelector('#settings-close-btn').addEventListener('click', closeSettingsPanel);
 
               document.querySelectorAll('[data-step]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
@@ -689,10 +810,15 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               pendingAction = null;
               document.querySelector('#confirm-panel').setAttribute('visible', false);
             }
+            // Expuesta en window: la llama "__activateSettingsSection" (ver script anterior)
+            // cuando se activa una porción tipo "panel" mientras este panel ya estaba abierto —
+            // pedido del usuario: solo un panel puede estar abierto a la vez.
+            window.__closeConfirmPanel = hideConfirm;
 
             // Expuesta en window: la llama el script de rotación/selección cuando se activa una
-            // porción tipo "action".
+            // porción tipo "action". Cierra primero el panel de configuración si estaba abierto.
             window.__requestConfirm = function (action) {
+              if (window.__closeSettingsPanel) window.__closeSettingsPanel();
               pendingAction = action;
               var messageKey = action === 'logout' ? 'confirmLogout' : 'confirmBack';
               document.querySelector('#confirm-message').setAttribute('value', STATIC[messageKey]);

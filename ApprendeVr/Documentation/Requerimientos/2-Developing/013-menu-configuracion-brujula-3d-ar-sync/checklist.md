@@ -168,3 +168,23 @@
       AR-SYNC; Cerrar sesión borra `apprendevr_auth` y navega a `/`).
 - [x] `npm run build` y `npm run check:i18n` (en `ApprendeVr/frontend`) siguen pasando sin errores
       después de estos ajustes.
+
+## Fase 9 — Exclusión mutua de paneles + ajustes visuales de la brújula
+
+- [x] Hallazgo del usuario: `#settings-panel` y `#confirm-panel` podían quedar los dos visibles a
+      la vez (comparten posición/orientación). Corregido: cada uno cierra al otro antes de
+      mostrarse (`window.__closeConfirmPanel`/`window.__closeSettingsPanel`). Confirmado en ambos
+      sentidos (Configuración → Volver, Overlays → Volver).
+- [x] Las 4 porciones pasaron de un color distinto cada una (`<a-cylinder>`) a un gris
+      semitransparente uniforme (`<a-ring>`, `WEDGE_COLOR`/`WEDGE_OPACITY`) con hueco central
+      (`RING_INNER_RADIUS`) — la brújula quedó con forma de dona, no de círculo completo.
+      Confirmado visualmente.
+- [x] El área de click de cada porción se acotó al texto (un `<a-plane>` invisible del tamaño de
+      la etiqueta, `opacity: 0.01`), no a toda la porción — el anillo decorativo ya no lleva
+      `.clickable`. Confirmado que el click sigue activando cada sección.
+- [x] El texto de cada porción se reubicó y reorientó radialmente (del centro hacia afuera), con
+      3 rotaciones anidadas simples en vez de un Euler compuesto. Confirmado visualmente (las 4
+      etiquetas se leen "hacia afuera"; las del lado opuesto del círculo quedan boca abajo para un
+      espectador fijo — resultado esperado de una orientación radial pura, no de una "siempre
+      legible").
+- [x] `npm run build` y `npm run check:i18n` siguen pasando sin errores después de estos ajustes.
