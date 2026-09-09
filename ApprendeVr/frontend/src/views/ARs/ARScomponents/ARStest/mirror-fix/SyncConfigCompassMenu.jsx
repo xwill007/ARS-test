@@ -653,31 +653,42 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 dpad.setAttribute('visible', !dpad.getAttribute('visible'));
               });
 
-              // Requerimiento 013 (ampliación): botón "X" en el hueco de la dona — muestra/oculta
-              // #compass-wheel (pedido del usuario); las flechas y los "+"/"-" a los lados de la X
-              // solo tienen sentido con el menú visible, así que se ocultan junto con él
-              // ("wheel-visibility-dependent"). Al OCULTAR el menú además: se cierra cualquier
-              // panel de configuración/confirmación que haya quedado abierto, y se guarda en DB la
-              // posición si cambió desde el último guardado (pedido del usuario — no forzar al
-              // usuario a abrir el d-pad y tocar "Guardar" a mano solo para no perder un cambio de
-              // posición hecho con los "+"/"-" centrales). Este toggle es puramente local a cada
-              // instancia del compass (no se sincroniza el estado de mostrar/ocultar por
-              // postMessage), ver problems_solutions.md del Requerimiento 013.
+              // Requerimiento 013 (sync pedido por el usuario): la visibilidad NO es local a cada
+              // panel — al tocarse la X esta brújula NO alterna su propio estado, solo emite la
+              // INTENCIÓN ('compass-wheel-visibility-toggle'). El estado real y su sincronización
+              // los decide el padre (SyncStereoTestView.jsx, fuente de verdad única), que aplica un
+              // antirebote de 1s y responde con 'compass-wheel-visibility' a AMBAS instancias (la
+              // que clickeó y la otra) — así los dos ojos quedan siempre alineados aunque el click
+              // o el dwell solo ocurran en uno.
               var wheelEl = document.querySelector('#compass-wheel');
               var wheelToggleBtn = document.querySelector('#wheel-visibility-toggle');
               var wheelDependentEls = document.querySelectorAll('.wheel-visibility-dependent');
+
+              function applyWheelVisibility(visible) {
+                wheelEl.setAttribute('visible', visible);
+                wheelDependentEls.forEach(function (el) { el.setAttribute('visible', visible); });
+                if (!visible) {
+                  if (window.__closeSettingsPanel) window.__closeSettingsPanel();
+                  if (window.__closeConfirmPanel) window.__closeConfirmPanel();
+                }
+              }
+
               if (wheelEl && wheelToggleBtn) {
                 wheelToggleBtn.addEventListener('click', function () {
-                  var nextVisible = !wheelEl.getAttribute('visible');
-                  wheelEl.setAttribute('visible', nextVisible);
-                  wheelDependentEls.forEach(function (el) { el.setAttribute('visible', nextVisible); });
-                  if (!nextVisible) {
-                    if (window.__closeSettingsPanel) window.__closeSettingsPanel();
-                    if (window.__closeConfirmPanel) window.__closeConfirmPanel();
-                    if (positionChanged()) savePosition();
-                  }
+                  // Guardado de posición: solo la instancia que recibió el click real, y solo si el
+                  // menú está por ocultarse (el padre confirmará el nuevo estado y lo rebroadcasteará).
+                  if (wheelEl.getAttribute('visible') && positionChanged()) savePosition();
+                  send({ action: 'compass-wheel-visibility-toggle' });
                 });
               }
+
+              // Aplica el estado decidido por el padre (broadcast a ambas instancias) — esta brújula
+              // ya no decide su visibilidad por sí sola.
+              window.addEventListener('message', function (ev) {
+                var msg = ev.data;
+                if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'compass-wheel-visibility') return;
+                applyWheelVisibility(msg.visible);
+              });
 
               // Selector global (no acotado a #position-dpad): también agarra los botones "+"/"-"
               // del hueco central de la brújula (ver el "X"/"+"/"-" cerca de #compass-wheel) —

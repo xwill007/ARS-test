@@ -53,6 +53,12 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 // este antirebote el overlay se activa y desactiva al instante (dos toggles consecutivos). Se
 // ignora cualquier toggle de la MISMA clave dentro de este delay (mínimo 1 segundo pedido).
 const OVERLAY_TOGGLE_DEBOUNCE_MS = 1000;
+// Requerimiento 013 (sync de visibilidad del menú): antirebote del toggle de la X de la dona.
+// Mismo motivo que el overlay: ambas brújulas (un ojo cada una, cámaras sincronizadas) disparan la
+// X casi a la vez, así que sin este delay el estado alternaría dos veces y volvería al punto de
+// partida (o quedaría desfasado). El padre es la fuente de verdad: ignora toggles repetidos dentro
+// de 1 segundo y rebroadcastea un único estado a ambas instancias.
+const COMPASS_WHEEL_TOGGLE_DEBOUNCE_MS = 1000;
 
 /**
  * SyncStereoTestView — Requerimiento 002, enfoque alternativo al espejo por captura de píxeles:
@@ -100,6 +106,14 @@ const SyncStereoTestView = ({ onClose }) => {
   // toggle por clave. Vive en un ref (no en estado) porque `handleMessage` (registrado una vez,
   // deps `[]`) debe leer/escribir siempre el valor más reciente, no el capturado en el primer render.
   const lastOverlayToggleAtRef = useRef({});
+  // Requerimiento 013 (sync de visibilidad del menú, pedido por el usuario): estado fuente de
+  // verdad de si la dona (`#compass-wheel`) está visible. Ambas brújulas arrancan visibles; cada
+  // vez que una cambia el estado, el padre lo guarda acá y lo relaya a la otra, así nunca se
+  // desincronizan. Ref (no estado) porque `handleMessage` está registrado con deps `[]`.
+  const compassWheelVisibleRef = useRef(true);
+  // Requerimiento 013 (antirebote del toggle de la X, ver COMPASS_WHEEL_TOGGLE_DEBOUNCE_MS): último
+  // timestamp del toggle de visibilidad. Ref por el mismo motivo que `compassWheelVisibleRef`.
+  const compassWheelToggleAtRef = useRef(0);
   // Requerimiento 012 (ampliación): no cambia durante la sesión (navigator.userAgent es estático),
   // así que no hace falta estado — se usa tanto para persistir (getUserSetting/saveUserSetting ya
   // lo detectan solas por su propio default, ver vrUserSettingsApi.util.js) como para que el panel
@@ -350,6 +364,28 @@ const SyncStereoTestView = ({ onClose }) => {
           { source: 'ars-sync-test', action: 'compass-config-state', ...configStateRef.current, deviceType, userEmail },
           '*',
         );
+        // Requerimiento 013 (sync): también se contesta con la visibilidad actual de la dona, para
+        // que una brújula que monte/remonte en desfasaje se alinee al estado vigente.
+        ev.source.postMessage(
+          { source: 'ars-sync-test', action: 'compass-wheel-visibility', visible: compassWheelVisibleRef.current },
+          '*',
+        );
+        return;
+      }
+      // Requerimiento 013 (sync de visibilidad): la X de una brújula solo emite la intención de
+      // alternar ('compass-wheel-visibility-toggle'). El padre es la fuente de verdad: antirebote de
+      // 1s (ignora el doble disparo de los dos ojos/cámaras sincronizadas), alterna el estado y lo
+      // rebroadcastea a AMBAS instancias — la que clickeó NO aplica nada localmente, ambas esperan
+      // este mensaje, así quedan siempre alineadas.
+      if (msg.action === 'compass-wheel-visibility-toggle') {
+        const now = Date.now();
+        if (now - compassWheelToggleAtRef.current < COMPASS_WHEEL_TOGGLE_DEBOUNCE_MS) return;
+        compassWheelToggleAtRef.current = now;
+        compassWheelVisibleRef.current = !compassWheelVisibleRef.current;
+        const nextVisible = compassWheelVisibleRef.current;
+        [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
+          .filter(Boolean)
+          .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-wheel-visibility', visible: nextVisible }, '*'));
         return;
       }
       // `compass-save-position` sí se guarda y además se reenvía a AMBAS brújulas (izquierda y
