@@ -117,16 +117,36 @@
       no hacia el menú) — el usuario tiene que bajar la mirada para verlo, como mirar al piso.
       Confirmado con lectura directa de `look-controls` (pitch/yaw en 0°, posición de cámara y
       menú exactas) sin interacción de por medio.
-- [ ] **Pendiente, no implementado todavía**: el usuario pidió que el panel de la sección activa
-      (Configuración/Overlays) sea un elemento 3D real dentro de la escena — interactuable con el
-      mismo raycaster/cursor de la brújula — en vez de HTML 2D superpuesto (que es como sigue hoy,
-      duplicado por panel pero todavía HTML). Solo se hizo preparación (claves i18n cortas para
-      los nombres de overlay — `syncConfig.overlay.*Short` — pensadas para filas de un panel 3D
-      compacto); la conversión de sliders/checkboxes a controles 3D clickeables (steppers +/-,
-      toggles) y el puente de mensajes bidireccional con `SyncStereoTestView.jsx` quedan para una
-      próxima sesión. Ver `problems_solutions.md`.
-- [ ] Ubicación del marcador/d-pad de posición y del futuro panel 3D: siguen usando el esquema de
-      layout de la cámara ANTERIOR (elevados en Y, pensado para una cámara casi horizontal); con
-      la cámara ahora arriba mirando al frente por defecto (y el usuario bajando la mirada para
-      ver el menú), conviene revisar su posición/orientación una vez el panel 3D esté en marcha —
-      no se tocó en esta pasada para no adelantarse a la iteración del usuario.
+- [x] **Implementado** (era el pendiente de la entrada anterior): el panel de la sección activa
+      (Configuración/Overlays) pasó a ser geometría A-Frame real dentro de `#compass-root`
+      (`#settings-panel`, hijo de la brújula, tirado plano contra el suelo con `rotation="-90 0 0"`
+      — NO hijo de `<a-camera>`, ver justificación en `problems_solutions.md`), interactuable con
+      el mismo `.clickable` + raycaster/dwell que el resto de la brújula. `SyncConfigMenu.jsx`
+      (HTML 2D) se retiró — ya no lo usa nadie.
+      - Steppers +/- para Separación/Ancho/Alto (`CONFIG_FIELDS`, mismos rangos que los sliders
+        `<input type="range">` originales), filas clickeables con check para cada overlay
+        (`OVERLAY_OPTIONS`, etiquetas cortas nuevas `syncConfig.overlay.*Short`), botones Guardar
+        para cada pestaña, botón ✕ para cerrar.
+      - Puente bidireccional con `SyncStereoTestView.jsx` (que sigue siendo dueño del estado real y
+        de `getUserSetting`/`saveUserSetting`): `compass-config-state` (padre → brújula, en
+        respuesta a `compass-ready` y cada vez que el estado cambia) y
+        `compass-update-separation/width/height`, `compass-toggle-overlay`,
+        `compass-save-config`/`compass-save-overlays` (brújula → padre).
+      - Confirmado end-to-end en navegador: abrir cada pestaña muestra los valores reales
+        (separación/ancho/alto/checks de overlay) en AMBOS paneles estéreo; un stepper (+20 en
+        Width) actualizó el valor mostrado en ambos paneles; togglear "Cono" activó de verdad el
+        overlay (visible en el video de fondo de ambos paneles); cerrar con ✕ oculta el panel.
+      - Hallazgo corregido durante la implementación: los nombres de campo no coincidían
+        (`panelWidth`/`panelHeight` del lado de `SyncStereoTestView.jsx` vs `width`/`height` que
+        espera `CONFIG_FIELDS` del lado de la brújula) — el ancho/alto se mostraban como
+        "undefinedpx". Se corrigió aliasando en el mensaje (`width: panelWidth, height:
+        panelHeight`), sin tocar los nombres de estado/DB internos.
+- [ ] No confirmado con sesión real: guardar Configuración/Overlays desde el panel 3D con
+      `apprendevr_auth` presente (el navegador de prueba no tenía sesión — se confirmó sí el
+      comportamiento correcto de "sin sesión": el botón se queda verde, no pasa a gris, porque
+      `saveUserSetting` no llega a intentar la llamada).
+- [ ] Ubicación del marcador/d-pad de posición: sigue usando el esquema de layout de la cámara
+      ANTERIOR (elevado en Y, pensado para una cámara casi horizontal) — con la cámara ahora
+      arriba mirando al frente por defecto (y el usuario bajando la mirada para ver el menú),
+      convendría revisarlo para que quede igual de accesible que el nuevo panel de
+      configuración/overlays (ver ubicación de `#settings-panel` en `SyncConfigCompassMenu.jsx`).

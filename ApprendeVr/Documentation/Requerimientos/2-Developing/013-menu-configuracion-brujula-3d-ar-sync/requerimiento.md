@@ -241,9 +241,9 @@ UI de configuración) encima del stack existente en cada panel de `SyncStereoTes
 
 | Archivo | Cambio |
 |---|---|
-| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigCompassMenu.jsx` (nuevo) | Componente `forwardRef` con `<iframe srcDoc>`: escena A-Frame con la brújula (porciones, triángulo de norte, flechas `.clickable`), script de gaze/dwell + click directo (mismo patrón que `VRConeOverlaySync.jsx`), y el panel HTML de la sección activa (reusa el JSX/markup de `SyncConfigMenu.jsx`) proyectado al centro de pantalla. |
-| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Quitar `menuButtonStyle`/botón ☰ y el estado `showMenu`; montar `SyncConfigCompassMenu` como capa siempre activa (`layerStyle`) en cada panel, pasándole las mismas props que hoy recibe `SyncConfigMenu` (separación/ancho/alto, overlays seleccionados, handlers de guardado, `deviceType`, `userEmail`). |
-| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigMenu.jsx` | **Decisión tomada en implementación:** no se extrajeron subcomponentes ni se retiró el archivo — `tab`/`onTabChange` y `centered` pasan a ser props controladas por `SyncStereoTestView.jsx` (antes eran estado interno + posición fija), y sigue siendo el componente que renderiza el contenido de cada sección. Más simple que extraer piezas nuevas para un componente que de todos modos solo lo usa esta vista. |
+| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigCompassMenu.jsx` (nuevo) | Componente `forwardRef` con `<iframe srcDoc>`: escena A-Frame con la brújula (4 porciones, triángulo de norte, flechas `.clickable`), widget de posición, y **`#settings-panel`** — el panel de la sección activa como geometría A-Frame real (steppers/toggles/botones `.clickable`), hijo de `#compass-root`, no de `<a-camera>` (ver "Estado final" abajo y `problems_solutions.md`). |
+| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Quitar `menuButtonStyle`/botón ☰, el estado `showMenu` y (más tarde) `activeSection`; montar `SyncConfigCompassMenu` como capa siempre activa (`layerStyle`) en cada panel; puente bidireccional de mensajes (`compass-config-state` ↔ `compass-update-*`/`compass-toggle-overlay`/`compass-save-*`) — esta vista sigue siendo la dueña de `getUserSetting`/`saveUserSetting`. |
+| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigMenu.jsx` | **Estado final: eliminado.** La decisión intermedia (dejarlo como componente 2D controlado por props) quedó superada por el pedido explícito del usuario de que el panel fuera 3D interactivo — una vez `#settings-panel` reemplazó su contenido, `SyncConfigMenu.jsx` quedó sin ningún consumidor y se borró (`OVERLAY_OPTIONS` se duplicó, con etiquetas cortas nuevas, directamente en `SyncConfigCompassMenu.jsx`). |
 | `vite.config.js` (no estaba en el alcance original — hallazgo durante la implementación) | Se agregó `artestMirror` a `build.rollupOptions.input`: sin esa entrada, `npm run build` nunca transformaba `artest-mirror.jsx`/`SyncStereoTestView.jsx`/`SyncConfigCompassMenu.jsx`, así que ese criterio de aceptación nunca fue una verificación real para este código. Ver `problems_solutions.md`. |
 | `src/views/ARs/ARScomponents/ARStest/mirror-fix/ARTestMirrorButton.jsx` (ampliación, sección 9) | Ocultar el botón "← Volver a inicio" mientras AR-SYNC está abierto (`open !== 'sync'`) — la porción "Cerrar sesión" de la brújula lo reemplaza ahí. |
 | `src/locales/{es,en,br}.json` (ampliación, sección 9) | Nueva clave `home.logout` ("Cerrar sesión"/"Logout"/"Sair") para la porción "Cerrar sesión". Las etiquetas de las otras 3 porciones ya existían (`arsConfig.tab.config`, `arsConfig.tab.overlays`, `home.back`). |
@@ -305,14 +305,23 @@ UI de configuración) encima del stack existente en cada panel de `SyncStereoTes
       (`ars-sync-compass-position`) y se aplica al volver a abrir AR-SYNC. Implementado
       (`compass-ready`/`compass-set-position`/`compass-save-position`); no se confirmó con sesión
       real (sin sesión en el navegador de prueba).
-- [x] El panel de la sección activa (Configuración/Overlays) se ve DUPLICADO, una instancia
-      centrada dentro de CADA panel estéreo (izquierdo y derecho) — no un único overlay centrado
-      en toda la ventana. Confirmado visualmente tras la corrección (ver `problems_solutions.md`).
+- [x] El panel de la sección activa (Configuración/Overlays) se ve DUPLICADO — una instancia por
+      cada panel estéreo (izquierdo y derecho), no un único overlay para toda la ventana. Confirmado
+      visualmente (título/sesión/campos/checks idénticos en ambos iframes de la brújula).
 - [x] El widget de posición (marcador + d-pad) es visible y funciona igual en ambos paneles
       estéreo. Confirmado (misma estructura y posición inicial en ambos iframes de la brújula).
 - [x] La rotación de cámara de la brújula no desalinea el video/cono entre paneles (regresión
       encontrada y revertida, ver `problems_solutions.md`). Confirmado: video y brújula a la misma
       altura en ambos paneles tras el fix.
+- [x] **(Pedido explícito, sección 9)** El panel de la sección activa es geometría A-Frame real
+      dentro de la escena — no HTML 2D — interactuable con el mismo raycaster/`.clickable` que el
+      resto de la brújula (steppers +/-, filas de overlay, botones Guardar/✕). Confirmado:
+      dispatchear `click` real sobre esos elementos actualiza el estado (en `SyncStereoTestView.jsx`)
+      y lo refleja en ambos paneles.
+- [x] **(Pedido explícito, sección 9)** El menú vive en el origen de la escena (`0,0,0`) y la
+      cámara arriba (`0,3,0`), con la vista inicial mirando al frente (pitch/yaw 0°, no hacia el
+      menú) — confirmado leyendo `look-controls` directo por consola, sin interacción de mouse de
+      por medio (ver limitación de verificación por screenshot en `problems_solutions.md`).
 
 ## 8. Referencias
 

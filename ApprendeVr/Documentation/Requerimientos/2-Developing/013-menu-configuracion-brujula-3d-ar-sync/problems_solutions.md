@@ -12,19 +12,38 @@ diseño original (sección 5 de `requerimiento.md`, "sin reescribir esos control
 3D"), que había sido tomada deliberadamente por falta de precedente de sliders/checkboxes 3D en
 el repo.
 
-**Estado: pendiente, no implementado.** Antes de empezar la conversión (sliders → steppers +/-
-clickeables, checkboxes → toggles clickeables, mismo patrón `.clickable` + dwell/click ya
-establecido) el usuario pidió resolver primero la ubicación de cámara/menú (ver hallazgo
-siguiente), y la sesión se centró en eso. Se dejó preparado: claves i18n cortas
-(`syncConfig.overlay.cameraShort/videoShort/coneShort/karaokeShort`) en `src/locales/{es,en,br}.json`
-pensadas para las etiquetas de un panel 3D compacto (las descripciones largas existentes,
-`syncConfig.overlay.camera` etc., no entran en una fila angosta). **Próxima sesión:** construir el
-panel 3D dentro de `SyncConfigCompassMenu.jsx` (probablemente como hijo de `#compass-root`, no de
-`<a-camera>` — un panel pegado a la cámara pondría todos sus botones siempre en el mismo punto de
-la pantalla, haciendo imposible apuntar a botones distintos con la mirada, ver razonamiento
-completo en el hallazgo de reubicación de abajo) y el puente de mensajes bidireccional con
-`SyncStereoTestView.jsx` (que sigue siendo el dueño del estado real —
-separación/ancho/alto/overlays seleccionados — y de `getUserSetting`/`saveUserSetting`).
+**Estado: implementado.** Panel 3D real (`#settings-panel`) dentro de `#compass-root`, hijo de la
+brújula (NO de `<a-camera>` — un panel pegado a la cámara pondría todos sus botones siempre en el
+mismo punto de la pantalla, haciendo imposible apuntar a botones distintos con la mirada, ver
+razonamiento completo en el hallazgo de reubicación de abajo), tirado plano contra el suelo
+(`rotation="-90 0 0"`, mismo criterio que el círculo/las flechas) para que cada botón ocupe una
+posición distinta que el usuario pueda mirar. Interactúa con el mismo `.clickable` +
+raycaster/dwell ya establecido — no fue necesario ningún mecanismo nuevo de interacción.
+
+Contenido: steppers +/- (no sliders arrastrables — sin precedente en el repo, ver diseño técnico
+original) para Separación/Ancho/Alto, filas clickeables con check para cada overlay (etiquetas
+cortas nuevas `syncConfig.overlay.cameraShort/videoShort/coneShort/karaokeShort`, las descripciones
+largas existentes no entran en una fila angosta de 3D), botón ✕ para cerrar, botones Guardar por
+pestaña. El estado real (separación/ancho/alto/overlays/guardado/sesión) sigue viviendo en
+`SyncStereoTestView.jsx` (que sí puede `getUserSetting`/`saveUserSetting`); el panel solo cachea lo
+último recibido por `compass-config-state` y manda deltas/acciones
+(`compass-update-separation/width/height`, `compass-toggle-overlay`,
+`compass-save-config`/`compass-save-overlays`) — mismo patrón ya usado por el widget de posición.
+
+**Hallazgo corregido durante la implementación:** los nombres de campo no coincidían entre los dos
+lados — `SyncStereoTestView.jsx` usa `panelWidth`/`panelHeight` (nombres de estado/DB, ver
+`saveConfig`), pero `CONFIG_FIELDS` del lado de la brújula usa `width`/`height` (para que la acción
+`compass-update-width` combine limpio con el nombre del campo). Sin el alias, el panel mostraba
+"Width: undefinedpx"/"Height: undefinedpx" — confirmado y corregido aliasando en el mensaje
+(`{ width: panelWidth, height: panelHeight, ... }`) en vez de renombrar el estado interno.
+
+**Confirmado en navegador:** abrir "Configuración" y "Overlays" muestra los valores reales en
+AMBOS paneles estéreo (izquierdo y derecho, disparando el click en cada wedge por separado, como
+haría cada raycaster/cámara sincronizados de forma independiente); un stepper (Width +20) actualizó
+el valor mostrado en ambos paneles; togglear "Cono" activó de verdad ese overlay (visible en el
+video de fondo de ambos paneles); guardar sin sesión se queda en verde (comportamiento correcto,
+`saveUserSetting` no llega a intentar la llamada); cerrar con ✕ oculta el panel. `SyncConfigMenu.jsx`
+(HTML 2D, ya sin ningún consumidor) se eliminó.
 
 ## 2026-09-09 — Reubicación pedida por el usuario: menú en el origen, cámara arriba
 
@@ -56,18 +75,18 @@ verificación por screenshot en este entorno no sirve para confirmar un pitch ex
 leer `look-controls` directo por consola, inmediatamente después de cargar, sin ninguna acción de
 mouse de por medio.
 
-**Implicación para el panel 3D pendiente (hallazgo de arriba):** un panel con varios botones no
-puede ir pegado a `<a-camera>` (como se consideró en su momento) — al moverse siempre junto con la
-cámara, TODOS sus botones quedarían fijos en el mismo punto de la pantalla (el centro, donde
-también está el reticle), y el usuario nunca podría apuntar a un botón distinto de otro girando la
-cabeza, porque el panel entero giraría con él. Tiene que vivir en coordenadas del mundo/escena
-(como la brújula), para que cada botón ocupe una posición distinta a la que el usuario pueda
-apuntar.
+**Implicación para el panel 3D (aplicada, ver entrada de arriba "Pedido explícito: el panel de
+sección debe ser 3D interactivo"):** un panel con varios botones no puede ir pegado a
+`<a-camera>` — al moverse siempre junto con la cámara, TODOS sus botones quedarían fijos en el
+mismo punto de la pantalla (el centro, donde también está el reticle), y el usuario nunca podría
+apuntar a un botón distinto de otro girando la cabeza, porque el panel entero giraría con él. Por
+eso `#settings-panel` se construyó como hijo de `#compass-root` (coordenadas del mundo/escena,
+como la brújula), no de la cámara.
 
-**Pendiente:** el marcador/d-pad de posición (y el futuro panel 3D) siguen con el layout pensado
-para la cámara anterior (casi horizontal) — con la cámara ahora arriba mirando al frente por
-defecto, su ubicación/orientación probablemente necesite ajustarse; no se tocó en esta pasada a
-pedido del usuario ("empecemos por" cámara/menú, dejando el resto para después).
+**Pendiente:** el marcador/d-pad de posición sigue con el layout pensado para la cámara anterior
+(casi horizontal, elevado en Y) — con la cámara ahora arriba mirando al frente por defecto (y el
+usuario bajando la mirada para ver el menú), convendría revisar su ubicación/orientación para que
+quede igual de accesible que `#settings-panel` (que si se reubicó, ver entrada de arriba).
 
 ## 2026-09-09 — Ampliación: widget de posición, secciones "Volver"/"Cerrar sesión" y panel duplicado por ojo
 

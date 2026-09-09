@@ -12,8 +12,8 @@ import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageCont
 // Geometría:
 //  - Círculo en el suelo con 4 porciones tipo "torta" (cuartos de cilindro, theta-length: 90°),
 //    agrupadas en `#compass-wheel` (rotable en Y). Dos tipos de porción:
-//     - "panel" (Configuración, Overlays): abre/cierra el panel HTML correspondiente en
-//       SyncStereoTestView.jsx vía `compass-select`/`compass-deselect`.
+//     - "panel" (Configuración, Overlays): muestra/oculta el grupo correspondiente de
+//       `#settings-panel` (geometría 3D de esta misma escena, ver más abajo).
 //     - "action" (Volver, Cerrar sesión): dispara de inmediato una acción vía `compass-do-action`
 //       — sin panel ni estado "abierto/cerrado" que rastrear. "Volver" reemplaza al botón "Volver"
 //       que tenía SyncStereoTestView.jsx; "Cerrar sesión" reemplaza al botón "← Volver a inicio"
@@ -23,11 +23,25 @@ import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageCont
 //  - Dos flechas `.clickable` que rotan `#compass-wheel` 360°/N grados por activación (N =
 //    secciones = 4 hoy, o sea 90° por paso), con click directo y con apuntado sostenido (dwell).
 //
-// Esta capa NO renderiza los controles de cada sección "panel" (sliders/checkboxes) — esos siguen
-// siendo el HTML/React ya existente de SyncConfigMenu.jsx, mostrado por SyncStereoTestView.jsx
-// cuando llega el mensaje `compass-select`. Acá solo se decide QUÉ sección quedó activa, o qué
-// acción se disparó, vía postMessage — igual mecanismo (`source: 'ars-sync-test'`) que el resto de
-// mirror-fix usa para sincronizar cámara/video entre paneles.
+// Panel de sección (Configuración/Overlays): pedido explícito del usuario tras la primera pasada
+// — "el panel que se despliega debe ser un elemento 3D no 2D, debe poder interactuar con el
+// cursor del raycaster" — así que, a diferencia de la primera versión (HTML 2D de
+// SyncConfigMenu.jsx, mostrado por SyncStereoTestView.jsx), el panel es geometría A-Frame más
+// dentro de esta misma escena (`#settings-panel`, ver más abajo), con sus propios botones
+// `.clickable` (steppers +/- para separación/ancho/alto, filas clickeables para cada overlay)
+// usando el mismo mecanismo de gaze/dwell/click de arriba. Como el ESTADO real (separación,
+// ancho, alto, overlays seleccionados, guardado) vive en `SyncStereoTestView.jsx` (que sí puede
+// hacer `getUserSetting`/`saveUserSetting`, ver comentario del widget de posición más abajo), el
+// panel solo cachea localmente lo último que le llegó por `compass-config-state` y manda deltas
+// (`compass-update-separation/width/height`, `compass-toggle-overlay`,
+// `compass-save-config`/`compass-save-overlays`) — mismo patrón que el widget de posición.
+//
+// El panel NO es hijo de `<a-camera>`: si lo fuera, todos sus botones quedarían siempre en el
+// mismo punto de la pantalla (el centro, junto con el reticle) al moverse en bloque con la
+// cámara, y nunca se podría apuntar a un botón distinto de otro girando la cabeza. Vive en
+// coordenadas de la escena, como la brújula (hijo de `#compass-root`), tirado plano contra el
+// suelo (`rotation="-90 0 0"` en el grupo entero, igual criterio que el círculo/las flechas) para
+// que cada botón ocupe una posición angular/distancia distinta que el usuario pueda mirar.
 //
 // Widget de posición (marcador 📍 + d-pad, mismo patrón visual que `createWidget` de
 // vrPositionControl.js — Requerimiento 010 — pero reimplementado acá porque ese archivo asume la
@@ -57,6 +71,89 @@ const RADIUS = 1.2;
 // a una cámara a la altura de los ojos, CAMERA_Y=1.8, mirando casi horizontal).
 const MENU_POSITION = { x: 0, y: 0, z: 0 };
 const CAMERA_POSITION = { x: 0, y: 3, z: 0 };
+
+// Campos de la pestaña "Configuración" — mismos rangos/paso que tenían los `<input type="range">`
+// de SyncConfigMenu.jsx (min/max), ahora como steppers +/- discretos (no hay precedente de
+// slider arrastrable en 3D en este repo, ver requerimiento.md sección 5).
+const CONFIG_FIELDS = [
+  { key: 'separation', labelKey: 'config.separation', min: 0, max: 100, step: 4 },
+  { key: 'width', labelKey: 'config.width', min: 200, max: 900, step: 20 },
+  { key: 'height', labelKey: 'config.height', min: 200, max: 900, step: 20 },
+];
+// Mismas 4 claves que `OVERLAY_OPTIONS` de SyncConfigMenu.jsx — se duplica acá (en vez de
+// importarla) porque ese componente ya no se usa como panel (ver SyncStereoTestView.jsx) y este
+// archivo no depende de él. `*Short` son etiquetas cortas nuevas (ver locales) — las descripciones
+// largas existentes (`syncConfig.overlay.camera`, etc.) no entran en una fila angosta de 3D.
+const OVERLAY_OPTIONS = [
+  { key: 'camera', labelKey: 'syncConfig.overlay.cameraShort' },
+  { key: 'video', labelKey: 'syncConfig.overlay.videoShort' },
+  { key: 'cone', labelKey: 'syncConfig.overlay.coneShort' },
+  { key: 'karaoke', labelKey: 'syncConfig.overlay.karaokeShort' },
+];
+
+// Grupo "Configuración": título/cerrar/sesión arriba, filas de valor + steppers, guardar abajo —
+// mismos offsets relativos que ocuparía un panel HTML vertical (ver comentario grande sobre por
+// qué esto funciona igual una vez el grupo entero se tira plano contra el suelo).
+function buildConfigGroupHTML() {
+  const rows = CONFIG_FIELDS.map((field, i) => {
+    const y = 0.25 - i * 0.4;
+    return `
+      <a-text data-field-label="${field.key}" align="center" color="#ffffff" width="2.6" position="0 ${(y + 0.16).toFixed(2)} 0.01"></a-text>
+      <a-plane class="clickable" data-step="${field.key}" data-dir="-1" width="0.32" height="0.28" color="#333333" material="shader: flat; side: double;" position="-0.85 ${y.toFixed(2)} 0"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+      <a-plane class="clickable" data-step="${field.key}" data-dir="1" width="0.32" height="0.28" color="#333333" material="shader: flat; side: double;" position="0.85 ${y.toFixed(2)} 0"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+    `;
+  }).join('\n');
+  return `
+    <a-entity id="settings-config-group" visible="false">
+      ${rows}
+      <a-plane class="clickable" id="settings-save-config-btn" width="1.3" height="0.32" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.95 0">
+        <a-text id="settings-save-config-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+      </a-plane>
+    </a-entity>
+  `;
+}
+
+// Grupo "Overlays": una fila clickeable por overlay (toda la fila alterna, no solo un cuadradito
+// — más fácil de apuntar con la mirada que un checkbox chico), con un check a la derecha cuando
+// está seleccionado.
+function buildOverlaysGroupHTML() {
+  const rows = OVERLAY_OPTIONS.map((opt, i) => {
+    const y = 0.35 - i * 0.32;
+    return `
+      <a-plane class="clickable" data-overlay-toggle="${opt.key}" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 ${y.toFixed(2)} 0">
+        <a-text data-overlay-label="${opt.key}" value="__LABEL_overlay_${opt.key}__" align="left" color="#ffffff" width="5" position="-0.9 0 0.011"></a-text>
+        <a-text data-overlay-check="${opt.key}" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.011"></a-text>
+      </a-plane>
+    `;
+  }).join('\n');
+  return `
+    <a-entity id="settings-overlays-group" visible="false">
+      ${rows}
+      <a-plane class="clickable" id="settings-save-overlays-btn" width="1.3" height="0.32" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.9 0">
+        <a-text id="settings-save-overlays-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+      </a-plane>
+    </a-entity>
+  `;
+}
+
+// Panel completo: fondo + título + cerrar + sesión + los dos grupos de arriba (uno visible a la
+// vez, según qué porción se activó). Se ubica 3m al frente del origen (misma dirección -Z en la
+// que ya mira la cámara por defecto, ver CAMERA_POSITION/pitch inicial) para que aparezca cerca de
+// donde el usuario ya está mirando al bajar la vista hacia la brújula, no en un punto arbitrario.
+function buildSettingsPanelHTML() {
+  return `
+    <a-entity id="settings-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
+      <a-plane width="2.2" height="2.2" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
+      <a-text id="settings-title" align="center" color="#4FC3F7" width="2.6" position="0 0.9 0.01"></a-text>
+      <a-plane class="clickable" id="settings-close-btn" width="0.3" height="0.3" color="#333333" material="shader: flat; side: double;" position="0.95 0.9 0.01">
+        <a-text value="X" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+      </a-plane>
+      <a-text id="settings-session" align="center" color="#999999" width="2.4" position="0 0.65 0.01"></a-text>
+      ${buildConfigGroupHTML()}
+      ${buildOverlaysGroupHTML()}
+    </a-entity>
+  `;
+}
 
 function buildWedgesHTML() {
   return SECTIONS.map(({ key, thetaStart, color, type, action, dwell }) => {
@@ -105,6 +202,28 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     (html, section) => html.replace(`__LABEL_${section.key}__`, t(section.labelKey)),
     buildWedgesHTML(),
   );
+
+  const settingsPanelHTML = OVERLAY_OPTIONS.reduce(
+    (html, opt) => html.replace(`__LABEL_overlay_${opt.key}__`, t(opt.labelKey)),
+    buildSettingsPanelHTML(),
+  );
+
+  // Etiquetas estáticas que el script del panel combina en tiempo real con los valores dinámicos
+  // recibidos por `compass-config-state` (separación/ancho/alto/email/etc. viven en
+  // SyncStereoTestView.jsx, no acá) — mismo criterio que las porciones de la brújula, pero pasadas
+  // como JSON a un `<script>` en vez de sustituidas en el HTML, porque se recombinan en cada
+  // actualización de estado, no una sola vez al construir el DOM.
+  const staticLabels = {
+    configTitle: t('arsConfig.tab.config'),
+    overlaysTitle: t('arsConfig.tab.overlays'),
+    loggedInAs: t('syncConfig.loggedInAs'),
+    noSession: t('syncConfig.noSession'),
+    deviceMobile: t('syncConfig.deviceMobile'),
+    deviceWeb: t('syncConfig.deviceWeb'),
+    saveConfig: t('syncConfig.saveConfig'),
+    saveOverlays: t('syncConfig.saveOverlays'),
+    fields: Object.fromEntries(CONFIG_FIELDS.map((f) => [f.key, t(f.labelKey)])),
+  };
 
   // Ajuste pedido por el usuario: a diferencia de Requerimiento 012 (donde el pitch inicial SÍ
   // apuntaba al objetivo, ver VRLocalVideoOverlaySync.jsx), acá la vista inicial mira al frente
@@ -183,6 +302,11 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               <a-plane class="clickable" data-move="0,0,0.3" width="0.44" height="0.36" color="#333333" material="shader: flat; side: double;" position="0.3 -0.95 0"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
               <a-plane id="position-save-btn" class="clickable" width="0.85" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 -1.4 0"><a-text value="${saveLabel}" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
             </a-entity>
+
+            <!-- Panel 3D de la sección activa (Configuración/Overlays) — ver comentario grande al
+                 principio del archivo sobre por qué es geometría de escena y no HTML/hijo de la
+                 cámara. -->
+            ${settingsPanelHTML}
           </a-entity>
 
           <!-- Cámara con reticle de gaze estático (Requerimiento 012, mismo patrón que
@@ -241,16 +365,11 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               });
             }
 
-            // Solo las porciones tipo "panel" (Configuración/Overlays) llevan un registro de
-            // "abierta" — las de tipo "action" (Volver/Cerrar sesión) disparan una vez y no
+            // Las porciones tipo "panel" (Configuración/Overlays) delegan en
+            // "window.__activateSettingsSection" (definida por el script del panel 3D, más abajo
+            // — ahí vive el estado de qué sección está abierta, el panel es dueño de su propia
+            // visibilidad). Las de tipo "action" (Volver/Cerrar sesión) disparan una vez y no
             // quedan abiertas ni se cierran solas.
-            var openSection = null;
-            function activatePanelSection(section) {
-              if (openSection === section) return;
-              openSection = section;
-              send({ action: 'compass-select', section: section });
-            }
-
             document.addEventListener('DOMContentLoaded', function () {
               var leftArrow = document.querySelector('[data-arrow="left"]');
               var rightArrow = document.querySelector('[data-arrow="right"]');
@@ -261,8 +380,8 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 wedgeEl.addEventListener('click', function () {
                   if (wedgeEl.dataset.type === 'action') {
                     send({ action: 'compass-do-action', name: wedgeEl.dataset.action });
-                  } else {
-                    activatePanelSection(wedgeEl.dataset.section);
+                  } else if (window.__activateSettingsSection) {
+                    window.__activateSettingsSection(wedgeEl.dataset.section);
                   }
                 });
               });
@@ -281,28 +400,11 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               cursorEl.setAttribute('scale', scale + ' ' + scale + ' ' + scale);
             }
 
-            function elementSection(el) {
-              // Agrupar por elemento lógico (data-section / data-arrow), no por mesh — mismo
-              // criterio que corrigió el commit dea919b para karaoke.
-              if (!el) return null;
-              return el.dataset && (el.dataset.section || el.dataset.arrow) || null;
-            }
-
             function tick() {
               if (!cursorEl) return;
               var raycasterComp = cursorEl.components && cursorEl.components['raycaster'];
               if (!raycasterComp) return;
               var target = (raycasterComp.intersectedEls && raycasterComp.intersectedEls[0]) || null;
-
-              // Cierra el panel de la sección abierta si se deja de apuntar esa porción (mirando
-              // otra cosa o directamente lejos de la brújula).
-              if (openSection) {
-                var targetKey = elementSection(target);
-                if (targetKey !== openSection) {
-                  send({ action: 'compass-deselect', section: openSection });
-                  openSection = null;
-                }
-              }
 
               // Porciones marcadas data-dwell="false" (hoy: "Cerrar sesión", destructiva) no se
               // activan por apuntado sostenido — el reticle se queda neutro sobre ellas, como si
@@ -421,6 +523,118 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 refreshCoordsLabel();
               });
               send({ action: 'compass-ready' });
+            });
+          })();
+        </script>
+
+        <!-- Etiquetas estáticas ya traducidas (ver "staticLabels" en el componente React) —
+             JSON plano en vez de embebido como string JS, para no tener que escapar comillas de
+             textos traducidos dentro de un literal de un solo tipo de comilla. -->
+        <script type="application/json" id="settings-static-labels">${JSON.stringify(staticLabels)}</script>
+
+        <script>
+          // Requerimiento 013 (pedido explícito del usuario): panel 3D de la sección activa —
+          // steppers +/- para "Configuración", filas clickeables para "Overlays". El estado real
+          // (separación/ancho/alto/overlays/guardado/sesión) vive en SyncStereoTestView.jsx (que sí
+          // puede getUserSetting/saveUserSetting) — acá solo se cachea lo último recibido por
+          // "compass-config-state" y se mandan deltas/acciones, mismo patrón que el widget de
+          // posición de más arriba.
+          (function () {
+            function send(msg) {
+              window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+            }
+
+            var STATIC = JSON.parse(document.getElementById('settings-static-labels').textContent);
+            var FIELDS = ${JSON.stringify(CONFIG_FIELDS)};
+            var currentSection = null; // 'config' | 'overlays' | null
+            var state = null; // último "compass-config-state" recibido
+
+            function fieldStep(key) {
+              for (var i = 0; i < FIELDS.length; i++) {
+                if (FIELDS[i].key === key) return FIELDS[i].step;
+              }
+              return 1;
+            }
+
+            function deviceLabel(deviceType) {
+              return deviceType === 'mobile' ? STATIC.deviceMobile : STATIC.deviceWeb;
+            }
+
+            function refreshDisplay() {
+              if (!state || !currentSection) return;
+
+              document.querySelector('#settings-title').setAttribute(
+                'value', currentSection === 'overlays' ? STATIC.overlaysTitle : STATIC.configTitle,
+              );
+              document.querySelector('#settings-session').setAttribute(
+                'value', state.userEmail ? (STATIC.loggedInAs + ': ' + state.userEmail) : STATIC.noSession,
+              );
+
+              FIELDS.forEach(function (field) {
+                var labelEl = document.querySelector('[data-field-label="' + field.key + '"]');
+                if (labelEl) labelEl.setAttribute('value', STATIC.fields[field.key] + ': ' + state[field.key] + 'px');
+              });
+              document.querySelector('#settings-save-config-label').setAttribute(
+                'value', STATIC.saveConfig + ' (' + deviceLabel(state.deviceType) + ')',
+              );
+              document.querySelector('#settings-save-config-btn').setAttribute(
+                'color', state.configSaved ? '#555555' : '#2e7d32',
+              );
+
+              document.querySelectorAll('[data-overlay-check]').forEach(function (el) {
+                var selected = (state.selectedOverlays || []).indexOf(el.dataset.overlayCheck) !== -1;
+                el.setAttribute('value', selected ? '✓' : '');
+              });
+              document.querySelector('#settings-save-overlays-label').setAttribute(
+                'value', STATIC.saveOverlays + ' (' + deviceLabel(state.deviceType) + ')',
+              );
+              document.querySelector('#settings-save-overlays-btn').setAttribute(
+                'color', state.overlaysSaved ? '#555555' : '#2e7d32',
+              );
+            }
+
+            // Expuesta en window: la llama el script de rotación/selección (arriba) cuando se
+            // activa una porción tipo "panel" — este script es el dueño del estado
+            // abierto/cerrado del panel, no el de la brújula.
+            window.__activateSettingsSection = function (section) {
+              currentSection = section;
+              document.querySelector('#settings-panel').setAttribute('visible', true);
+              document.querySelector('#settings-config-group').setAttribute('visible', section === 'config');
+              document.querySelector('#settings-overlays-group').setAttribute('visible', section === 'overlays');
+              refreshDisplay();
+            };
+
+            document.addEventListener('DOMContentLoaded', function () {
+              document.querySelector('#settings-close-btn').addEventListener('click', function () {
+                currentSection = null;
+                document.querySelector('#settings-panel').setAttribute('visible', false);
+              });
+
+              document.querySelectorAll('[data-step]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                  var key = btn.dataset.step;
+                  send({ action: 'compass-update-' + key, delta: Number(btn.dataset.dir) * fieldStep(key) });
+                });
+              });
+              document.querySelector('#settings-save-config-btn').addEventListener('click', function () {
+                send({ action: 'compass-save-config' });
+              });
+
+              document.querySelectorAll('[data-overlay-toggle]').forEach(function (el) {
+                el.addEventListener('click', function () {
+                  send({ action: 'compass-toggle-overlay', key: el.dataset.overlayToggle });
+                });
+              });
+              document.querySelector('#settings-save-overlays-btn').addEventListener('click', function () {
+                send({ action: 'compass-save-overlays' });
+              });
+            });
+
+            window.addEventListener('message', function (ev) {
+              var msg = ev.data;
+              if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'compass-config-state') return;
+              state = msg;
+              refreshDisplay();
             });
           })();
         </script>

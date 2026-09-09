@@ -3,7 +3,6 @@ import CameraOverlaySync from './CameraOverlaySync';
 import VRLocalVideoOverlaySync from './VRLocalVideoOverlaySync';
 import VRConeOverlaySync from './VRConeOverlaySync';
 import VRKaraokeOverlaySync from './VRKaraokeOverlaySync';
-import SyncConfigMenu from './SyncConfigMenu';
 import SyncConfigCompassMenu from './SyncConfigCompassMenu';
 import { getUserSetting, saveUserSetting, detectDeviceType } from '../../../../A-frame/vrUserSettingsApi.util.js';
 import { getStoredAuth } from '../../../../A-frame/vrAuth.util.js';
@@ -38,6 +37,16 @@ const SYNCABLE_OVERLAYS = {
 
 const layerStyle = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' };
 
+// Mismos rangos que tenían los `<input type="range">` originales (min/max) — el panel 3D de la
+// brújula manda deltas (+/- un paso), así que hay que acotarlos acá, del lado que sí conoce el
+// límite real de cada campo.
+const CONFIG_RANGES = {
+  separation: { min: 0, max: 100 },
+  width: { min: 200, max: 900 },
+  height: { min: 200, max: 900 },
+};
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
 /**
  * SyncStereoTestView — Requerimiento 002, enfoque alternativo al espejo por captura de píxeles:
  * dos instancias reales e independientes de cada overlay seleccionado, sincronizadas en tiempo
@@ -53,11 +62,13 @@ const layerStyle = { position: 'absolute', top: 0, left: 0, width: '100%', heigh
  * `<video>` con zIndex 1, ver ARPanel.jsx).
  *
  * Requerimiento 013: el menú de configuración (separación/ancho/alto de los paneles, selección
- * múltiple de overlays) ya no se abre con un botón ☰ fijo — se abre apuntando o clickeando una
- * porción de la brújula 3D (SyncConfigCompassMenu.jsx, una instancia por panel, siempre activa,
- * apilada como la capa más externa) que reemplaza a esa entrada anterior. El contenido de cada
- * sección (sliders/checkboxes) sigue siendo SyncConfigMenu.jsx, ahora mostrado centrado en
- * pantalla ("al frente del usuario") y controlado por `activeSection` en vez de por estado propio.
+ * múltiple de overlays) ya no se abre con un botón ☰ fijo ni se muestra como HTML 2D — es geometría
+ * A-Frame dentro de la propia brújula 3D (SyncConfigCompassMenu.jsx, "panel 3D interactivo con el
+ * raycaster", pedido explícito del usuario). Esta vista sigue siendo la dueña del estado real
+ * (separación/ancho/alto/overlays seleccionados/guardado) y de `getUserSetting`/`saveUserSetting`
+ * — la brújula solo cachea lo último recibido por `compass-config-state` y manda deltas/acciones
+ * (`compass-update-separation/width/height`, `compass-toggle-overlay`,
+ * `compass-save-config`/`compass-save-overlays`), mismo patrón que ya usa el widget de posición.
  *
  * No reutiliza ARStereoView.jsx a propósito — ese componente está pensado para el mecanismo de
  * espejo por captura (Intentos 1-6), no para sincronización de estado. Mantenerlos separados
@@ -81,8 +92,8 @@ const SyncStereoTestView = ({ onClose }) => {
 
   // Requerimiento 012 (ampliación): no cambia durante la sesión (navigator.userAgent es estático),
   // así que no hace falta estado — se usa tanto para persistir (getUserSetting/saveUserSetting ya
-  // lo detectan solas por su propio default, ver vrUserSettingsApi.util.js) como para que
-  // SyncConfigMenu.jsx muestre "Guardar ... (Web)"/"(Móvil)" en sus botones.
+  // lo detectan solas por su propio default, ver vrUserSettingsApi.util.js) como para que el panel
+  // 3D de la brújula muestre "Guardar ... (Web)"/"(Móvil)" en sus botones.
   const deviceType = detectDeviceType();
   // Requerimiento 012 (ampliación pedida por el usuario): mostrar a qué cuenta queda atado el
   // guardado — diagnóstico directo en el propio menú para casos como "en el celular no guarda":
@@ -91,10 +102,6 @@ const SyncStereoTestView = ({ onClose }) => {
   // que ni siquiera se intenta la llamada de red (ver vrUserSettingsApi.util.js).
   const userEmail = getStoredAuth()?.user?.email || null;
 
-  // Requerimiento 013: qué sección de la brújula 3D está activa (null = ninguna) — la fija el
-  // mensaje `compass-select`/`compass-deselect` que emite SyncConfigCompassMenu.jsx al
-  // apuntar/clickear una porción, reemplazando el botón ☰ + estado `showMenu` anteriores.
-  const [activeSection, setActiveSection] = useState(null);
   const [separation, setSeparation] = useState(24);
   const [panelWidth, setPanelWidth] = useState(380);
   const [panelHeight, setPanelHeight] = useState(480);
@@ -115,6 +122,20 @@ const SyncStereoTestView = ({ onClose }) => {
   const [compassPosition, setCompassPosition] = useState(DEFAULT_COMPASS_POSITION);
   const compassPositionRef = useRef(compassPosition);
   useEffect(() => { compassPositionRef.current = compassPosition; }, [compassPosition]);
+
+  // Requerimiento 013 (panel 3D): mismo motivo que `compassPositionRef` — `handleMessage` (más
+  // abajo) se registra una sola vez y necesita el valor más reciente de todo lo que el panel 3D
+  // de la brújula puede pedir guardar (separación/ancho/alto/overlays), no el del primer render.
+  // Sin dependencias: se refresca después de CADA render, más simple que listar cada campo.
+  // `width`/`height` (no `panelWidth`/`panelHeight`) porque son los nombres que usa
+  // `CONFIG_FIELDS` del lado de la brújula (SyncConfigCompassMenu.jsx) — este ref (y el broadcast
+  // de más abajo) alimentan directamente el mensaje `compass-config-state`, así que usan ESE
+  // vocabulario; `panelWidth`/`panelHeight` siguen siendo los nombres de estado/DB acá adentro
+  // (ver `saveConfig`).
+  const configStateRef = useRef(null);
+  useEffect(() => {
+    configStateRef.current = { separation, width: panelWidth, height: panelHeight, configSaved, selectedOverlays, overlaysSaved };
+  });
 
   // Carga la selección/config/posición guardadas (si las hay) al montar. Sin sesión o sin ajuste
   // guardado, getUserSetting resuelve `null` y se mantienen los defaults de arriba — mismo
@@ -197,6 +218,20 @@ const SyncStereoTestView = ({ onClose }) => {
     window.location.href = '/';
   };
 
+  // Requerimiento 013 (panel 3D): empuja el estado actual a las dos instancias de la brújula cada
+  // vez que algo que el panel muestra cambia — cubre tanto los cambios que salen DEL panel (llegan
+  // acá como `compass-update-*`/`compass-toggle-overlay`, ver `handleMessage`, y el nuevo estado
+  // resultante se reenvía en este mismo efecto) como los que ya venían de otro lado (p. ej. la
+  // carga inicial de `getUserSetting`, que no pasa por la brújula). El "avance" para una brújula
+  // que todavía no cargó (antes de mandar su primer `compass-ready`) lo cubre el propio handler de
+  // `compass-ready` más abajo, así que perder este primer broadcast no es un problema.
+  useEffect(() => {
+    const state = { separation, width: panelWidth, height: panelHeight, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail };
+    [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
+      .filter(Boolean)
+      .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-config-state', ...state }, '*'));
+  }, [separation, panelWidth, panelHeight, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail]);
+
   useEffect(() => {
     const handleMessage = (ev) => {
       const msg = ev.data;
@@ -210,25 +245,48 @@ const SyncStereoTestView = ({ onClose }) => {
         return;
       }
 
-      // Requerimiento 013: selección de sección de la brújula — no se relaya, decide directamente
-      // qué panel de SyncConfigMenu.jsx mostrar (o esconder, si se deja de apuntar la porción
-      // activa).
-      if (msg.action === 'compass-select') {
-        setActiveSection(msg.section);
+      // Requerimiento 013 (panel 3D): deltas de los steppers +/- de "Configuración" — se acotan acá
+      // (`CONFIG_RANGES`, la brújula no conoce los límites) y se aplican con la forma funcional de
+      // `setState` para no depender del valor capturado en el closure de este `handleMessage`
+      // (registrado una sola vez, `deps: []`).
+      if (msg.action === 'compass-update-separation') {
+        updateSeparation((prev) => clamp(prev + msg.delta, CONFIG_RANGES.separation.min, CONFIG_RANGES.separation.max));
         return;
       }
-      if (msg.action === 'compass-deselect') {
-        setActiveSection((prev) => (prev === msg.section ? null : prev));
+      if (msg.action === 'compass-update-width') {
+        updateWidth((prev) => clamp(prev + msg.delta, CONFIG_RANGES.width.min, CONFIG_RANGES.width.max));
+        return;
+      }
+      if (msg.action === 'compass-update-height') {
+        updateHeight((prev) => clamp(prev + msg.delta, CONFIG_RANGES.height.min, CONFIG_RANGES.height.max));
+        return;
+      }
+      if (msg.action === 'compass-save-config') {
+        saveConfig();
+        return;
+      }
+      if (msg.action === 'compass-toggle-overlay') {
+        toggleOverlay(msg.key);
+        return;
+      }
+      if (msg.action === 'compass-save-overlays') {
+        saveSelectedOverlays();
         return;
       }
 
       // Requerimiento 013 (ampliación): widget de posición de la brújula. `compass-ready` lo
       // manda cada instancia al montar (no puede leer la DB directo, ver SyncConfigCompassMenu.jsx)
       // — se le contesta solo a ELLA (`ev.source`, no broadcast) con la última posición conocida,
-      // ya sea la recién cargada de `getUserSetting` o la que ya esté en memoria.
+      // ya sea la recién cargada de `getUserSetting` o la que ya esté en memoria, y con el estado
+      // actual del panel 3D (separación/ancho/alto/overlays/guardado/sesión) para que lo muestre
+      // apenas termine de cargar, sin esperar al próximo cambio.
       if (msg.action === 'compass-ready') {
         ev.source.postMessage(
           { source: 'ars-sync-test', action: 'compass-set-position', ...compassPositionRef.current },
+          '*',
+        );
+        ev.source.postMessage(
+          { source: 'ars-sync-test', action: 'compass-config-state', ...configStateRef.current, deviceType, userEmail },
           '*',
         );
         return;
@@ -314,29 +372,13 @@ const SyncStereoTestView = ({ onClose }) => {
           );
         })}
       {/* Requerimiento 013: brújula 3D siempre activa, última en el DOM (capa más externa) — ver
-          handleMessage para el reenvío de su cámara al resto de overlays de este panel. */}
+          handleMessage para el reenvío de su cámara al resto de overlays de este panel. El panel
+          de la sección activa (Configuración/Overlays) es geometría A-Frame DENTRO de esta misma
+          brújula (pedido explícito del usuario: "un elemento 3D, no 2D, interactuable con el
+          raycaster") — no un componente React aparte, ver SyncConfigCompassMenu.jsx. */}
       <div style={layerStyle}>
         <SyncConfigCompassMenu ref={compassRef} />
       </div>
-      {/* Requerimiento 013 (corrección): el panel de la sección activa se renderiza DENTRO de
-          cada panel estéreo (una instancia por ojo), no una sola vez centrada en toda la
-          ventana — en AR-SYNC el usuario mira a través de lentes de cartón (un ojo por panel), así
-          que un overlay único solo sería visible/legible por un ojo. Ver comentario grande en
-          SyncConfigMenu.jsx. */}
-      {activeSection && (
-        <SyncConfigMenu
-          centered
-          tab={activeSection} onTabChange={setActiveSection}
-          onClose={() => setActiveSection(null)}
-          separation={separation} onSeparationChange={updateSeparation}
-          width={panelWidth} onWidthChange={updateWidth}
-          height={panelHeight} onHeightChange={updateHeight}
-          selectedOverlays={selectedOverlays} onToggleOverlay={toggleOverlay}
-          onSaveOverlays={saveSelectedOverlays} overlaysSaved={overlaysSaved}
-          onSaveConfig={saveConfig} configSaved={configSaved}
-          deviceType={deviceType} userEmail={userEmail}
-        />
-      )}
     </div>
   );
 
