@@ -273,6 +273,8 @@
       "selectMultipleHint": "Selección múltiple — se apilan en ambos paneles (cámara al fondo si está marcada).",
       "saveOverlays": "Guardar selección",
       "saveConfig": "Guardar configuración",
+      "saveOverlaysSub": "selección",
+      "saveConfigSub": "configuración",
       "deviceWeb": "Web",
       "deviceMobile": "Móvil",
       "loggedInAs": "Sesión",

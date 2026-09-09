@@ -113,9 +113,10 @@ function buildConfigGroupHTML() {
   return `
     <a-entity id="settings-config-group" visible="false">
       ${rows}
-      <a-plane class="clickable" id="settings-save-config-btn" width="1.3" height="0.32" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.95 0.01">
-        <a-text id="settings-save-config-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+      <a-plane class="clickable" id="settings-save-config-btn" width="1.0" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.95 0.01">
+        <a-text id="settings-save-config-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
       </a-plane>
+      <a-text id="settings-save-config-sub" align="center" color="#999999" width="3.2" position="0 -1.22 0.01"></a-text>
     </a-entity>
   `;
 }
@@ -136,9 +137,10 @@ function buildOverlaysGroupHTML() {
   return `
     <a-entity id="settings-overlays-group" visible="false">
       ${rows}
-      <a-plane class="clickable" id="settings-save-overlays-btn" width="1.3" height="0.32" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.9 0.01">
-        <a-text id="settings-save-overlays-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+      <a-plane class="clickable" id="settings-save-overlays-btn" width="1.0" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 -1.0 0.01">
+        <a-text id="settings-save-overlays-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
       </a-plane>
+      <a-text id="settings-save-overlays-sub" align="center" color="#999999" width="3.2" position="0 -1.27 0.01"></a-text>
     </a-entity>
   `;
 }
@@ -150,7 +152,7 @@ function buildOverlaysGroupHTML() {
 function buildSettingsPanelHTML() {
   return `
     <a-entity id="settings-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
-      <a-plane width="2.2" height="2.2" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
+      <a-plane width="2.2" height="2.8" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
       <a-text id="settings-title" align="center" color="#4FC3F7" width="2.6" position="0 0.9 0.01"></a-text>
       <!-- z=0.02 (no 0.01, como el título/sesión): el título centrado puede llegar a extenderse
            hasta esta zona — un botón .clickable necesita quedar sin ambigüedad por delante, ver
@@ -309,6 +311,12 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     deviceWeb: t('syncConfig.deviceWeb'),
     saveConfig: t('syncConfig.saveConfig'),
     saveOverlays: t('syncConfig.saveOverlays'),
+    // Requerimiento 013 (ajuste pedido por el usuario): el botón verde muestra solo "Guardar"
+    // (verbo corto, para que no sobresalga lateralmente) y el resto del texto ("selección
+    // (Móvil)") va debajo, en una línea aparte.
+    saveShort: t('aframe.positionControl.save'),
+    saveConfigSub: t('syncConfig.saveConfigSub'),
+    saveOverlaysSub: t('syncConfig.saveOverlaysSub'),
     fields: Object.fromEntries(CONFIG_FIELDS.map((f) => [f.key, t(f.labelKey)])),
     // Panel de confirmación (pedido del usuario) para las porciones tipo "action" — evita que un
     // dwell/click accidental dispare "Volver"/"Cerrar sesión" sin que el usuario lo confirme.
@@ -758,7 +766,10 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 if (labelEl) labelEl.setAttribute('value', STATIC.fields[field.key] + ': ' + state[field.key] + 'px');
               });
               document.querySelector('#settings-save-config-label').setAttribute(
-                'value', STATIC.saveConfig + ' (' + deviceLabel(state.deviceType) + ')',
+                'value', STATIC.saveShort,
+              );
+              document.querySelector('#settings-save-config-sub').setAttribute(
+                'value', STATIC.saveConfigSub + ' (' + deviceLabel(state.deviceType) + ')',
               );
               document.querySelector('#settings-save-config-btn').setAttribute(
                 'color', state.configSaved ? '#555555' : '#2e7d32',
@@ -781,8 +792,12 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                   checkEl.setAttribute('value', selected ? '✓' : '');
                   checkEl.setAttribute('color', selected ? '#0D1B2A' : '#69F0AE');
                 }
-              });              document.querySelector('#settings-save-overlays-label').setAttribute(
-                'value', STATIC.saveOverlays + ' (' + deviceLabel(state.deviceType) + ')',
+              });
+              document.querySelector('#settings-save-overlays-label').setAttribute(
+                'value', STATIC.saveShort,
+              );
+              document.querySelector('#settings-save-overlays-sub').setAttribute(
+                'value', STATIC.saveOverlaysSub + ' (' + deviceLabel(state.deviceType) + ')',
               );
               document.querySelector('#settings-save-overlays-btn').setAttribute(
                 'color', state.overlaysSaved ? '#555555' : '#2e7d32',

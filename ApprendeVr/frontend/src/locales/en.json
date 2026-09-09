@@ -273,6 +273,8 @@
       "selectMultipleHint": "Multiple selection — they stack on both panels (camera at the back if checked).",
       "saveOverlays": "Save selection",
       "saveConfig": "Save configuration",
+      "saveOverlaysSub": "selection",
+      "saveConfigSub": "configuration",
       "deviceWeb": "Web",
       "deviceMobile": "Mobile",
       "loggedInAs": "Session",
