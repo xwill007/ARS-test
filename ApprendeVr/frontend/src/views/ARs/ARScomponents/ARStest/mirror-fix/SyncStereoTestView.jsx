@@ -100,7 +100,11 @@ const SyncStereoTestView = ({ onClose }) => {
   // `apprendevr_auth` es por origen/navegador (localStorage), así que en un dispositivo que nunca
   // inició sesión en ESTE origen esto muestra "sin sesión" en vez de un email, señal inmediata de
   // que ni siquiera se intenta la llamada de red (ver vrUserSettingsApi.util.js).
-  const userEmail = getStoredAuth()?.user?.email || null;
+  // Requerimiento 013 (ampliación, login-test): pasa de const a estado para que, tras iniciar
+  // sesión con el usuario de prueba desde la brújula (sin salir de la vista), el email se refresque
+  // y el broadcast de `compass-config-state` (que depende de `userEmail`) lo propague a ambos
+  // paneles de la brújula.
+  const [userEmail, setUserEmail] = useState(() => getStoredAuth()?.user?.email || null);
 
   const [separation, setSeparation] = useState(24);
   const [panelWidth, setPanelWidth] = useState(380);
@@ -137,13 +141,21 @@ const SyncStereoTestView = ({ onClose }) => {
     configStateRef.current = { separation, width: panelWidth, height: panelHeight, configSaved, selectedOverlays, overlaysSaved };
   });
 
-  // Carga la selección/config/posición guardadas (si las hay) al montar. Sin sesión o sin ajuste
-  // guardado, getUserSetting resuelve `null` y se mantienen los defaults de arriba — mismo
-  // comportamiento "sin romper nada" que vrPositionControl.js.
-  useEffect(() => {
-    let cancelled = false;
+  // Carga la selección/config/posición guardadas (si las hay). Se usa tanto al montar como al
+  // cambiar de usuario vía login-test (ver doLoginTest): primero se resetea a defaults para que no
+  // queden visibles los ajustes del usuario anterior cuando el nuevo no tiene nada guardado, y
+  // luego se aplica lo guardado si existe. Sin sesión o sin ajuste guardado, getUserSetting
+  // resuelve `null` y quedan los defaults de arriba — mismo comportamiento "sin romper nada" que
+  // vrPositionControl.js.
+  const loadUserSettings = () => {
+    setSeparation(24);
+    setPanelWidth(380);
+    setPanelHeight(480);
+    setSelectedOverlays(['camera', 'video']);
+    setOverlaysSaved(false);
+    setConfigSaved(false);
+
     getUserSetting(OVERLAYS_SETTINGS_VIEW).then((setting) => {
-      if (cancelled) return;
       // getUserSetting ya resuelve el `config` guardado directamente (no envuelto en `.config` —
       // ese envoltorio solo lo usa el body del PUT, ver vrUserSettingsApi.util.js), mismo
       // consumo que hace vrPositionControl.js con su propio `saved`.
@@ -156,7 +168,6 @@ const SyncStereoTestView = ({ onClose }) => {
       }
     });
     getUserSetting(CONFIG_SETTINGS_VIEW).then((setting) => {
-      if (cancelled) return;
       const hasValidConfig = setting &&
         typeof setting.separation === 'number' &&
         typeof setting.panelWidth === 'number' &&
@@ -169,12 +180,15 @@ const SyncStereoTestView = ({ onClose }) => {
       }
     });
     getUserSetting(COMPASS_POSITION_VIEW).then((setting) => {
-      if (cancelled) return;
       const hasValidPosition = setting &&
         typeof setting.x === 'number' && typeof setting.y === 'number' && typeof setting.z === 'number';
       if (hasValidPosition) setCompassPosition({ x: setting.x, y: setting.y, z: setting.z });
     });
-    return () => { cancelled = true; };
+  };
+
+  useEffect(() => {
+    loadUserSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleOverlay = (key) => {
@@ -218,6 +232,35 @@ const SyncStereoTestView = ({ onClose }) => {
     window.location.href = '/';
   };
 
+  // Requerimiento 013 (ampliación, login-test): inicia sesión con el usuario de prueba sin salir
+  // de la vista AR-SYNC, para recargar sus configuraciones al toque (pedido del usuario: "para no
+  // tener que salir de la vista y cargar las configuraciones a este usuario"). Mismo contrato del
+  // login 3D (App.jsx submitLogin): POST /api/auth/login (vía proxy Vite) devuelve
+  // `{ access_token, user }`, que se guarda en localStorage['apprendevr_auth'] y alimenta
+  // getUserSetting/saveUserSetting (vrAuth.util.js). Tras guardar, se actualiza el email y se
+  // recargan las tres vistas de ajustes del nuevo usuario.
+  const doLoginTest = async () => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'prueba@gmail.com', password: '123456' }),
+      });
+      if (!res.ok) {
+        console.warn(`login-test: /api/auth/login devolvió ${res.status}.`);
+        return;
+      }
+      const data = await res.json();
+      localStorage.setItem('apprendevr_auth', JSON.stringify(data));
+      setUserEmail(data?.user?.email || 'prueba@gmail.com');
+      loadUserSettings();
+    } catch (e) {
+      // Mismo motivo típico que getUserSetting: certificado HTTPS autofirmado sin confiar en el
+      // dispositivo — el login no llega a ejecutarse.
+      console.warn('login-test: falló la llamada de login (¿HTTPS autofirmado sin confiar?).', e);
+    }
+  };
+
   // Requerimiento 013 (panel 3D): empuja el estado actual a las dos instancias de la brújula cada
   // vez que algo que el panel muestra cambia — cubre tanto los cambios que salen DEL panel (llegan
   // acá como `compass-update-*`/`compass-toggle-overlay`, ver `handleMessage`, y el nuevo estado
@@ -242,6 +285,7 @@ const SyncStereoTestView = ({ onClose }) => {
       if (msg.action === 'compass-do-action') {
         if (msg.name === 'back') onClose();
         else if (msg.name === 'logout') doLogout();
+        else if (msg.name === 'login-test') doLoginTest();
         return;
       }
 

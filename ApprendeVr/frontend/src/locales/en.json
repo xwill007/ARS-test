@@ -29,7 +29,8 @@
       "confirmBack": "Go back to the selector?",
       "confirmLogout": "Log out?",
       "confirmYes": "Confirm",
-      "confirmCancel": "Cancel"
+      "confirmCancel": "Cancel",
+      "loginTest": "login-test"
     },
     "buttons": {
       "vr": "VR",

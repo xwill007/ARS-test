@@ -173,13 +173,21 @@ function buildSettingsPanelHTML() {
 function buildConfirmPanelHTML() {
   return `
     <a-entity id="confirm-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
-      <a-plane width="2.2" height="1.1" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
-      <a-text id="confirm-message" align="center" color="#ffffff" width="2.4" position="0 0.3 0.01"></a-text>
-      <a-plane class="clickable" id="confirm-yes-btn" width="0.95" height="0.34" color="#c62828" material="shader: flat; side: double;" position="-0.55 -0.25 0.01">
+      <a-plane width="2.2" height="1.55" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
+      <a-text id="confirm-message" align="center" color="#ffffff" width="2.4" position="0 0.52 0.01"></a-text>
+      <a-plane class="clickable" id="confirm-yes-btn" width="0.95" height="0.34" color="#c62828" material="shader: flat; side: double;" position="-0.55 0.05 0.01">
         <a-text id="confirm-yes-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
       </a-plane>
-      <a-plane class="clickable" id="confirm-cancel-btn" width="0.95" height="0.34" color="#333333" material="shader: flat; side: double;" position="0.55 -0.25 0.01">
+      <a-plane class="clickable" id="confirm-cancel-btn" width="0.95" height="0.34" color="#333333" material="shader: flat; side: double;" position="0.55 0.05 0.01">
         <a-text id="confirm-cancel-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+      </a-plane>
+      <!-- Requerimiento 013 (ampliación): botón de prueba "login-test", visible solo al confirmar
+           "Cerrar sesión". Inicia sesión con el usuario de prueba (prueba@gmail.com / 123456) sin
+           salir de la vista, para recargar las configuraciones de ese usuario. El login real corre
+           en SyncStereoTestView.jsx (compass-do-action name=login-test), no acá — mismo criterio
+           que el resto de la persistencia. -->
+      <a-plane class="clickable" id="login-test-btn" visible="false" width="1.6" height="0.34" color="#1565C0" material="shader: flat; side: double;" position="0 -0.5 0.01">
+        <a-text id="login-test-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
       </a-plane>
     </a-entity>
   `;
@@ -189,10 +197,12 @@ function buildConfirmPanelHTML() {
 // material semitransparente de cada porción, el gris de fondo real que se ve depende de qué haya
 // detrás en el video de la cámara AR en ese punto — un rincón oscuro del cuarto hace ver esa
 // porción más oscura que las demás aunque el color/opacidad de las 4 sea idéntico, ver
-// problems_solutions.md del Requerimiento 013. Esta dona opaca fija el fondo real que el gris
-// semitransparente de arriba mezcla, así las 4 porciones se ven iguales sin importar qué haya
-// detrás en el AR. Va apenas por debajo (mismo eje Y, normal de esta dona ya que está en el
-// mismo plano rotado "-90 0 0") de las porciones de color, no dentro de #compass-wheel para no
+// problems_solutions.md del Requerimiento 013. Esta dona debe ser 100% opaca (sin `transparent`
+// ni `opacity<1`): a 0.9 el 10% restante dejaba pasar el video AR de fondo y la porción que
+// cayera sobre una zona oscura del video se veía más oscura que las demás. Fija el fondo real
+// que el gris semitransparente de arriba mezcla, así las 4 porciones se ven iguales sin importar
+// qué haya detrás en el AR. Va apenas por debajo (mismo eje Y, normal de esta dona ya que está en
+// el mismo plano rotado "-90 0 0") de las porciones de color, no dentro de #compass-wheel para no
 // heredar su rotación (es un círculo completo, da igual, pero así queda claro que es fondo fijo).
 function buildWedgeBackingHTML() {
   return `
@@ -200,8 +210,7 @@ function buildWedgeBackingHTML() {
       radius-inner="${RING_INNER_RADIUS}"
       radius-outer="${RADIUS}"
       color="#222222"
-      opacity="0.9"
-      material="shader: flat; side: double; transparent: true;"
+      material="shader: flat;"
       rotation="-90 0 0"
       position="0 -0.01 0">
     </a-ring>
@@ -216,7 +225,10 @@ function buildWedgesHTML() {
     const bisectorDeg = thetaStart + WEDGE_THETA_LENGTH / 2;
     return `
       <!-- Puramente decorativa: SIN clase .clickable ni data-* — pedido del usuario: "el click se
-           debe detectar solo en el texto de cada sección", no en toda la porción. -->
+           debe detectar solo en el texto de cada sección", no en toda la porción. 'side: front'
+           (no 'double'): con 'transparent: true' y la cámara mirando de costado (no desde arriba),
+           'side: double' también renderiza la cara trasera y duplica el blend, así que la porción
+           más inclinada respecto a la vista queda más oscura que las demás. -->
       <a-ring
         radius-inner="${RING_INNER_RADIUS}"
         radius-outer="${RADIUS}"
@@ -224,7 +236,7 @@ function buildWedgesHTML() {
         theta-length="${WEDGE_THETA_LENGTH}"
         color="${WEDGE_COLOR}"
         opacity="${WEDGE_OPACITY}"
-        material="shader: flat; side: double; transparent: true;"
+        material="shader: flat; side: front; transparent: true;"
         rotation="-90 0 0"
         position="0 0 0">
       </a-ring>
@@ -304,6 +316,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     confirmLogout: t('home.confirmLogout'),
     confirmYes: t('home.confirmYes'),
     confirmCancel: t('home.confirmCancel'),
+    loginTest: t('home.loginTest'),
   };
 
   // Ajuste pedido por el usuario: a diferencia de Requerimiento 012 (donde el pitch inicial SÍ
@@ -832,6 +845,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             function hideConfirm() {
               pendingAction = null;
               document.querySelector('#confirm-panel').setAttribute('visible', false);
+              document.querySelector('#login-test-btn').setAttribute('visible', false);
             }
             // Expuesta en window: la llama "__activateSettingsSection" (ver script anterior)
             // cuando se activa una porción tipo "panel" mientras este panel ya estaba abierto —
@@ -846,17 +860,26 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               var messageKey = action === 'logout' ? 'confirmLogout' : 'confirmBack';
               document.querySelector('#confirm-message').setAttribute('value', STATIC[messageKey]);
               document.querySelector('#confirm-panel').setAttribute('visible', true);
+              // Requerimiento 013 (ampliación): el botón "login-test" solo tiene sentido al
+              // confirmar "Cerrar sesión" — es la alternativa rápida a cerrar sesión y recargar a
+              // mano el usuario de prueba.
+              document.querySelector('#login-test-btn').setAttribute('visible', action === 'logout');
             };
 
             document.addEventListener('DOMContentLoaded', function () {
               document.querySelector('#confirm-yes-label').setAttribute('value', STATIC.confirmYes);
               document.querySelector('#confirm-cancel-label').setAttribute('value', STATIC.confirmCancel);
+              document.querySelector('#login-test-label').setAttribute('value', STATIC.loginTest);
 
               document.querySelector('#confirm-yes-btn').addEventListener('click', function () {
                 if (pendingAction) send({ action: 'compass-do-action', name: pendingAction });
                 hideConfirm();
               });
               document.querySelector('#confirm-cancel-btn').addEventListener('click', hideConfirm);
+              document.querySelector('#login-test-btn').addEventListener('click', function () {
+                send({ action: 'compass-do-action', name: 'login-test' });
+                hideConfirm();
+              });
             });
           })();
         </script>

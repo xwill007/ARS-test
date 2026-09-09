@@ -26,6 +26,7 @@ services:
       - ./db/004-normalize-user-settings-row-per-view.sql:/docker-entrypoint-initdb.d/05-normalize-user-settings-row-per-view.sql:ro
       - ./db/005-ars-sync-config-view.sql:/docker-entrypoint-initdb.d/06-ars-sync-config-view.sql:ro
       - ./db/006-user-settings-device-type.sql:/docker-entrypoint-initdb.d/07-user-settings-device-type.sql:ro
+      - ./db/007-seed-test-user.sql:/docker-entrypoint-initdb.d/08-seed-test-user.sql:ro
       - db-data:/var/lib/mysql
     ports:
       - "${DB_PORT:-3306}:3306"

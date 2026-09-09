@@ -29,7 +29,8 @@
       "confirmBack": "¿Volver al selector?",
       "confirmLogout": "¿Cerrar sesión?",
       "confirmYes": "Confirmar",
-      "confirmCancel": "Cancelar"
+      "confirmCancel": "Cancelar",
+      "loginTest": "login-test"
     },
     "buttons": {
       "vr": "VR",
