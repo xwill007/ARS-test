@@ -70,7 +70,13 @@ const ARTestMirrorButton = () => {
 
   return (
     <>
-      <button style={inicioButtonStyle} onClick={goHome} title={t('home.backToHome')}>← {t('home.backToHome')}</button>
+      {/* Requerimiento 013 (ampliación): oculto mientras AR-SYNC está abierto — la porción
+          "Cerrar sesión" de la brújula 3D lo reemplaza ahí (con una acción más fuerte: borra
+          también la credencial guardada, no solo navega a inicio). Sigue visible en el selector
+          y en AR-TEST, que no tienen brújula. */}
+      {open !== 'sync' && (
+        <button style={inicioButtonStyle} onClick={goHome} title={t('home.backToHome')}>← {t('home.backToHome')}</button>
+      )}
       {!open && (
         <>
           <button style={buttonStyle(32)} onClick={() => setOpen('mirror')}>{t('overlays.arTest')}</button>

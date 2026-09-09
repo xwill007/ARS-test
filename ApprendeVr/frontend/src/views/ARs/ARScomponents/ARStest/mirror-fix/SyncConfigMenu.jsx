@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 
 /**
@@ -16,12 +16,23 @@ import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageCont
  *    CameraOverlaySync.jsx, VRLocalVideoOverlaySync.jsx, VRConeOverlaySync.jsx y
  *    VRKaraokeOverlaySync.jsx (Requerimiento 011).
  *
+ * Requerimiento 013: la pestaña activa (`tab`) y si se muestra centrado (`centered`) pasan a ser
+ * props controladas por el padre en vez de estado interno — `SyncStereoTestView.jsx` decide qué
+ * pestaña abrir según qué porción de `SyncConfigCompassMenu.jsx` (brújula 3D) se apuntó/clickeó.
+ * Centrado (`centered`) usa `position: absolute` (no `fixed`) para centrarse dentro de SU PROPIO
+ * panel estéreo — no de toda la pantalla — porque `SyncStereoTestView.jsx` renderiza una instancia
+ * de este menú DENTRO de cada uno de los dos paneles (izquierdo/derecho), igual que la brújula:
+ * en AR-SYNC el usuario mira a través de lentes de cartón VR (un ojo por panel), así que cualquier
+ * UI tiene que existir en ambos ojos para ser legible sin sacarse las lentes — un único overlay
+ * centrado en toda la ventana solo se vería completo por un ojo.
+ *
  * Componente de prueba aislado, no se usa desde ningún archivo de producción.
  */
-const menuStyle = {
-  position: 'fixed',
-  top: 16,
-  left: 16,
+const menuStyle = (centered) => ({
+  position: centered ? 'absolute' : 'fixed',
+  top: centered ? '50%' : 16,
+  left: centered ? '50%' : 16,
+  transform: centered ? 'translate(-50%, -50%)' : 'none',
   zIndex: 4100,
   background: '#1a1a1a',
   border: '1px solid #333',
@@ -30,7 +41,7 @@ const menuStyle = {
   width: 260,
   boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
   fontFamily: 'sans-serif',
-};
+});
 
 const tabBarStyle = { display: 'flex', borderBottom: '1px solid #333' };
 
@@ -95,13 +106,14 @@ const saveButtonStyle = (saved) => ({
 
 const SyncConfigMenu = ({
   onClose,
+  tab, onTabChange,
+  centered = false,
   separation, onSeparationChange,
   width, onWidthChange,
   height, onHeightChange,
   selectedOverlays, onToggleOverlay, onSaveOverlays, overlaysSaved,
   onSaveConfig, configSaved, deviceType, userEmail,
 }) => {
-  const [tab, setTab] = useState('config');
   const { t } = useVRLanguage();
   // Requerimiento 012 (ampliación): cada botón de guardar debe indicar para qué dispositivo está
   // guardando (`getUserSetting`/`saveUserSetting` ya persisten por (usuario, vista, dispositivo) —
@@ -110,10 +122,10 @@ const SyncConfigMenu = ({
   const deviceLabel = t(deviceType === 'mobile' ? 'syncConfig.deviceMobile' : 'syncConfig.deviceWeb');
 
   return (
-    <div style={menuStyle}>
+    <div style={menuStyle(centered)}>
       <div style={tabBarStyle}>
-        <div style={tabStyle(tab === 'config')} onClick={() => setTab('config')}>{t('arsConfig.tab.config')}</div>
-        <div style={tabStyle(tab === 'overlays')} onClick={() => setTab('overlays')}>{t('arsConfig.tab.overlays')}</div>
+        <div style={tabStyle(tab === 'config')} onClick={() => onTabChange('config')}>{t('arsConfig.tab.config')}</div>
+        <div style={tabStyle(tab === 'overlays')} onClick={() => onTabChange('overlays')}>{t('arsConfig.tab.overlays')}</div>
         <div
           style={{ padding: '10px 12px', cursor: 'pointer', color: '#aaa' }}
           onClick={onClose}

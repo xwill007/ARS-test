@@ -24,7 +24,8 @@
     },
     "home": {
       "back": "Volver",
-      "backToHome": "Volver a inicio"
+      "backToHome": "Volver a inicio",
+      "logout": "Cerrar sesión"
     },
     "buttons": {
       "vr": "VR",
@@ -275,7 +276,11 @@
         "camera": "Cámara (fondo, sin sincronizar — cada panel lee su propia cámara en vivo)",
         "video": "Video local (play/pause/seek + voz)",
         "cone": "Cono de palabras",
-        "karaoke": "Karaoke (lista de canciones + agregar canción, componente A-Frame real)"
+        "karaoke": "Karaoke (lista de canciones + agregar canción, componente A-Frame real)",
+        "cameraShort": "Cámara",
+        "videoShort": "Video",
+        "coneShort": "Cono",
+        "karaokeShort": "Karaoke"
       }
     },
     "voice": {

@@ -30,7 +30,13 @@ export default defineConfig({
         aframe: path.resolve(__dirname, 'src/views/A-frame/index.html'),
         // Requerimiento 011: overlay de prueba que importa componentes A-Frame reales como
         // src/views/A-frame/index.html, para validar que se pueden reusar sin copiar código.
-        aframeOverlayModules: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.html')
+        aframeOverlayModules: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.html'),
+        // Requerimiento 013 (hallazgo): faltaba acá, así que `npm run build` nunca transformaba
+        // artest-mirror.jsx/SyncStereoTestView.jsx ni nada que importaran (SyncConfigCompassMenu.jsx
+        // incluido) — un error de sintaxis real en SyncConfigCompassMenu.jsx pasó un build entero
+        // sin que "npm run build" lo detectara, hasta agregar esta entrada. Ver problems_solutions.md
+        // del Requerimiento 013.
+        artestMirror: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/artest-mirror.html')
       }
     }
   }

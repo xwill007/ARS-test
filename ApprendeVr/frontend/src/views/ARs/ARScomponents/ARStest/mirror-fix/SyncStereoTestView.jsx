@@ -4,9 +4,10 @@ import VRLocalVideoOverlaySync from './VRLocalVideoOverlaySync';
 import VRConeOverlaySync from './VRConeOverlaySync';
 import VRKaraokeOverlaySync from './VRKaraokeOverlaySync';
 import SyncConfigMenu from './SyncConfigMenu';
-import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
+import SyncConfigCompassMenu from './SyncConfigCompassMenu';
 import { getUserSetting, saveUserSetting, detectDeviceType } from '../../../../A-frame/vrUserSettingsApi.util.js';
 import { getStoredAuth } from '../../../../A-frame/vrAuth.util.js';
+import { exitFullscreen } from './fullscreenHelper.js';
 
 // Requerimiento 012 (ajuste pedido tras revisión): persistencia de qué overlays quedan
 // seleccionados en el menú de AR-SYNC — mismo patrón `getUserSetting`/`saveUserSetting` que usa
@@ -17,37 +18,13 @@ const OVERLAYS_SETTINGS_VIEW = 'ars-sync-overlays';
 // pestaña "Configuración" (separación/ancho/alto de los paneles), vista propia para no chocar con
 // `ars-sync-overlays`.
 const CONFIG_SETTINGS_VIEW = 'ars-sync-config';
-
-const closeButtonStyle = {
-  position: 'fixed',
-  top: 16,
-  right: 24,
-  zIndex: 3101,
-  background: '#222',
-  color: 'white',
-  border: 'none',
-  borderRadius: 6,
-  padding: '8px 18px',
-  fontSize: 16,
-  cursor: 'pointer',
-  opacity: 0.85,
-};
-
-const menuButtonStyle = {
-  position: 'fixed',
-  top: 16,
-  left: 16,
-  zIndex: 3101,
-  background: '#222',
-  color: 'white',
-  border: 'none',
-  borderRadius: 6,
-  width: 36,
-  height: 36,
-  fontSize: 18,
-  cursor: 'pointer',
-  opacity: 0.85,
-};
+// Requerimiento 013 (ampliación): posición de la brújula 3D (widget 📍 + d-pad de
+// SyncConfigCompassMenu.jsx). Vista propia, mismo patrón que las dos de arriba.
+const COMPASS_POSITION_VIEW = 'ars-sync-compass-position';
+// Requerimiento 013 (ajuste pedido por el usuario): el menú vive en el origen de la escena; la
+// cámara se ubica aparte, arriba, mirando hacia abajo (ver CAMERA_POSITION en
+// SyncConfigCompassMenu.jsx) — antes el menú estaba a 4m de una cámara a la altura de los ojos.
+const DEFAULT_COMPASS_POSITION = { x: 0, y: 0, z: 0 };
 
 // Overlays sincronizables por postMessage (todos menos 'camera', que no necesita sync — ver
 // CameraOverlaySync.jsx). Cada uno se renderiza apilado (position absolute) sobre la cámara.
@@ -75,9 +52,12 @@ const layerStyle = { position: 'absolute', top: 0, left: 0, width: '100%', heigh
  * sobre la cámara, igual que en el flujo real de producción (video/overlay con zIndex 2 sobre el
  * `<video>` con zIndex 1, ver ARPanel.jsx).
  *
- * Incluye el mismo tipo de menú de configuración que la vista de espejo por captura (ARSConfig,
- * botón ☰) — ver SyncConfigMenu.jsx — para ajustar separación/ancho/alto de los paneles y elegir
- * qué overlays mostrar (selección múltiple, como el menú "Overlays" real de producción).
+ * Requerimiento 013: el menú de configuración (separación/ancho/alto de los paneles, selección
+ * múltiple de overlays) ya no se abre con un botón ☰ fijo — se abre apuntando o clickeando una
+ * porción de la brújula 3D (SyncConfigCompassMenu.jsx, una instancia por panel, siempre activa,
+ * apilada como la capa más externa) que reemplaza a esa entrada anterior. El contenido de cada
+ * sección (sliders/checkboxes) sigue siendo SyncConfigMenu.jsx, ahora mostrado centrado en
+ * pantalla ("al frente del usuario") y controlado por `activeSection` en vez de por estado propio.
  *
  * No reutiliza ARStereoView.jsx a propósito — ese componente está pensado para el mecanismo de
  * espejo por captura (Intentos 1-6), no para sincronización de estado. Mantenerlos separados
@@ -86,7 +66,6 @@ const layerStyle = { position: 'absolute', top: 0, left: 0, width: '100%', heigh
  * Componente de prueba aislado, no se usa desde ningún archivo de producción.
  */
 const SyncStereoTestView = ({ onClose }) => {
-  const { t } = useVRLanguage();
   // Un ref por tipo de overlay sincronizable, por panel — se crean todos de una, se usen o no,
   // así el relay siempre tiene dónde mirar sin tener que crear/destruir refs dinámicamente.
   // Derivado de SYNCABLE_OVERLAYS (no hardcodeado aparte) para que agregar una clave ahí alcance:
@@ -95,6 +74,10 @@ const SyncStereoTestView = ({ onClose }) => {
   const makeRefs = () => Object.fromEntries(Object.keys(SYNCABLE_OVERLAYS).map((key) => [key, React.createRef()]));
   const leftRefs = useRef(makeRefs());
   const rightRefs = useRef(makeRefs());
+  // Requerimiento 013: refs de la brújula 3D (una por panel, no keyed por tipo de overlay — solo
+  // existe un menú de configuración, no una selección de varios).
+  const leftCompassRef = useRef(null);
+  const rightCompassRef = useRef(null);
 
   // Requerimiento 012 (ampliación): no cambia durante la sesión (navigator.userAgent es estático),
   // así que no hace falta estado — se usa tanto para persistir (getUserSetting/saveUserSetting ya
@@ -108,7 +91,10 @@ const SyncStereoTestView = ({ onClose }) => {
   // que ni siquiera se intenta la llamada de red (ver vrUserSettingsApi.util.js).
   const userEmail = getStoredAuth()?.user?.email || null;
 
-  const [showMenu, setShowMenu] = useState(false);
+  // Requerimiento 013: qué sección de la brújula 3D está activa (null = ninguna) — la fija el
+  // mensaje `compass-select`/`compass-deselect` que emite SyncConfigCompassMenu.jsx al
+  // apuntar/clickear una porción, reemplazando el botón ☰ + estado `showMenu` anteriores.
+  const [activeSection, setActiveSection] = useState(null);
   const [separation, setSeparation] = useState(24);
   const [panelWidth, setPanelWidth] = useState(380);
   const [panelHeight, setPanelHeight] = useState(480);
@@ -121,9 +107,18 @@ const SyncStereoTestView = ({ onClose }) => {
   // "Configuración".
   const [configSaved, setConfigSaved] = useState(false);
 
-  // Carga la selección/config guardadas (si las hay) al montar. Sin sesión o sin ajuste guardado,
-  // getUserSetting resuelve `null` y se mantienen los defaults de arriba — mismo comportamiento
-  // "sin romper nada" que vrPositionControl.js.
+  // Requerimiento 013 (ampliación): posición de la brújula 3D, movida con el widget 📍 + d-pad de
+  // SyncConfigCompassMenu.jsx. Guardada en un ref además de en estado porque `handleMessage` (más
+  // abajo) se registra una sola vez (deps `[]`) y necesita leer siempre el valor más reciente, no
+  // el capturado en el closure del primer render — mismo motivo por el que el resto de este
+  // handler ya lee `leftRefs.current`/`rightRefs.current` en vez de depender de props/estado.
+  const [compassPosition, setCompassPosition] = useState(DEFAULT_COMPASS_POSITION);
+  const compassPositionRef = useRef(compassPosition);
+  useEffect(() => { compassPositionRef.current = compassPosition; }, [compassPosition]);
+
+  // Carga la selección/config/posición guardadas (si las hay) al montar. Sin sesión o sin ajuste
+  // guardado, getUserSetting resuelve `null` y se mantienen los defaults de arriba — mismo
+  // comportamiento "sin romper nada" que vrPositionControl.js.
   useEffect(() => {
     let cancelled = false;
     getUserSetting(OVERLAYS_SETTINGS_VIEW).then((setting) => {
@@ -151,6 +146,12 @@ const SyncStereoTestView = ({ onClose }) => {
         setPanelHeight(setting.panelHeight);
         setConfigSaved(true);
       }
+    });
+    getUserSetting(COMPASS_POSITION_VIEW).then((setting) => {
+      if (cancelled) return;
+      const hasValidPosition = setting &&
+        typeof setting.x === 'number' && typeof setting.y === 'number' && typeof setting.z === 'number';
+      if (hasValidPosition) setCompassPosition({ x: setting.x, y: setting.y, z: setting.z });
     });
     return () => { cancelled = true; };
   }, []);
@@ -185,10 +186,87 @@ const SyncStereoTestView = ({ onClose }) => {
     });
   };
 
+  // Requerimiento 013 (ampliación): las porciones "Volver"/"Cerrar sesión" de la brújula
+  // reemplazan al botón "Volver" que tenía esta vista (`closeButtonStyle`, quitado) y al botón
+  // "← Volver a inicio" de ARTestMirrorButton.jsx (oculto mientras AR-SYNC está abierto, ver ese
+  // archivo) — "cerrar sesión" de verdad borra la credencial guardada, no es solo un alias de
+  // "volver a inicio".
+  const doLogout = () => {
+    try { localStorage.removeItem('apprendevr_auth'); } catch (e) { /* localStorage no disponible */ }
+    exitFullscreen();
+    window.location.href = '/';
+  };
+
   useEffect(() => {
     const handleMessage = (ev) => {
       const msg = ev.data;
       if (!msg || msg.source !== 'ars-sync-test') return;
+
+      // Requerimiento 013 (ampliación): acciones inmediatas de la brújula (Volver/Cerrar sesión) —
+      // no abren ningún panel, solo disparan la acción correspondiente.
+      if (msg.action === 'compass-do-action') {
+        if (msg.name === 'back') onClose();
+        else if (msg.name === 'logout') doLogout();
+        return;
+      }
+
+      // Requerimiento 013: selección de sección de la brújula — no se relaya, decide directamente
+      // qué panel de SyncConfigMenu.jsx mostrar (o esconder, si se deja de apuntar la porción
+      // activa).
+      if (msg.action === 'compass-select') {
+        setActiveSection(msg.section);
+        return;
+      }
+      if (msg.action === 'compass-deselect') {
+        setActiveSection((prev) => (prev === msg.section ? null : prev));
+        return;
+      }
+
+      // Requerimiento 013 (ampliación): widget de posición de la brújula. `compass-ready` lo
+      // manda cada instancia al montar (no puede leer la DB directo, ver SyncConfigCompassMenu.jsx)
+      // — se le contesta solo a ELLA (`ev.source`, no broadcast) con la última posición conocida,
+      // ya sea la recién cargada de `getUserSetting` o la que ya esté en memoria.
+      if (msg.action === 'compass-ready') {
+        ev.source.postMessage(
+          { source: 'ars-sync-test', action: 'compass-set-position', ...compassPositionRef.current },
+          '*',
+        );
+        return;
+      }
+      // `compass-save-position` sí se guarda y además se reenvía a AMBAS brújulas (izquierda y
+      // derecha) — si el usuario reposicionó la del panel izquierdo, la derecha debe verse igual
+      // sin esperar a que alguien recargue la página.
+      if (msg.action === 'compass-save-position') {
+        const nextPosition = { x: msg.x, y: msg.y, z: msg.z };
+        setCompassPosition(nextPosition);
+        saveUserSetting(COMPASS_POSITION_VIEW, nextPosition);
+        [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
+          .filter(Boolean)
+          .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-set-position', ...nextPosition }, '*'));
+        return;
+      }
+
+      // Requerimiento 013 (hallazgo, revertido): reenviar la `camera-rotation`/`camera-position`
+      // de la brújula a los overlays de contenido (video/cono/karaoke) pisaba el pitch propio que
+      // cada uno calcula para apuntar a su propio plano (ver VRLocalVideoOverlaySync.jsx,
+      // `initialCursorPitch`), y como cada panel lo recibía en un instante distinto, el video
+      // quedaba en una altura distinta en cada panel (reportado por el usuario: "en el panel
+      // izquierdo veo el video abajo, en el derecho arriba del menú"). La brújula ahora solo
+      // relaya su propia rotación entre sus dos instancias (izquierda/derecha) — igual criterio
+      // que el resto de overlays, nunca cruzando a un tipo distinto.
+      if (msg.action === 'camera-rotation' || msg.action === 'camera-position') {
+        const leftCompassWindow = leftCompassRef.current?.contentWindow;
+        const rightCompassWindow = rightCompassRef.current?.contentWindow;
+        if (ev.source === leftCompassWindow && rightCompassWindow) {
+          rightCompassWindow.postMessage(msg, '*');
+          return;
+        }
+        if (ev.source === rightCompassWindow && leftCompassWindow) {
+          leftCompassWindow.postMessage(msg, '*');
+          return;
+        }
+      }
+
       for (const key of Object.keys(SYNCABLE_OVERLAYS)) {
         const leftWindow = leftRefs.current[key].current?.contentWindow;
         const rightWindow = rightRefs.current[key].current?.contentWindow;
@@ -216,7 +294,7 @@ const SyncStereoTestView = ({ onClose }) => {
     border: '1px solid rgba(79,195,247,0.2)',
   };
 
-  const renderPanel = (side, refs) => (
+  const renderPanel = (side, refs, compassRef) => (
     <div style={panelStyle}>
       {selectedOverlays.includes('camera') && (
         <div style={layerStyle}><CameraOverlaySync /></div>
@@ -235,6 +313,30 @@ const SyncStereoTestView = ({ onClose }) => {
             </div>
           );
         })}
+      {/* Requerimiento 013: brújula 3D siempre activa, última en el DOM (capa más externa) — ver
+          handleMessage para el reenvío de su cámara al resto de overlays de este panel. */}
+      <div style={layerStyle}>
+        <SyncConfigCompassMenu ref={compassRef} />
+      </div>
+      {/* Requerimiento 013 (corrección): el panel de la sección activa se renderiza DENTRO de
+          cada panel estéreo (una instancia por ojo), no una sola vez centrada en toda la
+          ventana — en AR-SYNC el usuario mira a través de lentes de cartón (un ojo por panel), así
+          que un overlay único solo sería visible/legible por un ojo. Ver comentario grande en
+          SyncConfigMenu.jsx. */}
+      {activeSection && (
+        <SyncConfigMenu
+          centered
+          tab={activeSection} onTabChange={setActiveSection}
+          onClose={() => setActiveSection(null)}
+          separation={separation} onSeparationChange={updateSeparation}
+          width={panelWidth} onWidthChange={updateWidth}
+          height={panelHeight} onHeightChange={updateHeight}
+          selectedOverlays={selectedOverlays} onToggleOverlay={toggleOverlay}
+          onSaveOverlays={saveSelectedOverlays} overlaysSaved={overlaysSaved}
+          onSaveConfig={saveConfig} configSaved={configSaved}
+          deviceType={deviceType} userEmail={userEmail}
+        />
+      )}
     </div>
   );
 
@@ -254,24 +356,8 @@ const SyncStereoTestView = ({ onClose }) => {
         gap: separation,
       }}
     >
-      <button style={menuButtonStyle} onClick={() => setShowMenu((v) => !v)}>☰</button>
-      <button style={closeButtonStyle} onClick={onClose}>{t('home.back')}</button>
-
-      {showMenu && (
-        <SyncConfigMenu
-          onClose={() => setShowMenu(false)}
-          separation={separation} onSeparationChange={updateSeparation}
-          width={panelWidth} onWidthChange={updateWidth}
-          height={panelHeight} onHeightChange={updateHeight}
-          selectedOverlays={selectedOverlays} onToggleOverlay={toggleOverlay}
-          onSaveOverlays={saveSelectedOverlays} overlaysSaved={overlaysSaved}
-          onSaveConfig={saveConfig} configSaved={configSaved}
-          deviceType={deviceType} userEmail={userEmail}
-        />
-      )}
-
-      {renderPanel('left', leftRefs)}
-      {renderPanel('right', rightRefs)}
+      {renderPanel('left', leftRefs, leftCompassRef)}
+      {renderPanel('right', rightRefs, rightCompassRef)}
     </div>
   );
 };
