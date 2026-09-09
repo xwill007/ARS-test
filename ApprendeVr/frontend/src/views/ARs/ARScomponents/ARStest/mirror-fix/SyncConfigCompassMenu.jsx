@@ -764,11 +764,24 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 'color', state.configSaved ? '#555555' : '#2e7d32',
               );
 
-              document.querySelectorAll('[data-overlay-check]').forEach(function (el) {
-                var selected = (state.selectedOverlays || []).indexOf(el.dataset.overlayCheck) !== -1;
-                el.setAttribute('value', selected ? '✓' : '');
-              });
-              document.querySelector('#settings-save-overlays-label').setAttribute(
+              // Requerimiento 013 (ampliación pedida por el usuario): la fila entera del overlay
+              // refleja su estado con color — activo en color claro, inactivo en gris oscuro. La
+              // etiqueta cambia a oscuro sobre el fondo claro para mantener el contraste. El menú
+              // NO se cierra al togglear: el click solo manda 'compass-toggle-overlay' y el estado
+              // vuelve por 'compass-config-state', dejando el panel abierto (ver listener de click
+              // más abajo).
+              document.querySelectorAll('[data-overlay-toggle]').forEach(function (rowEl) {
+                var key = rowEl.dataset.overlayToggle;
+                var selected = (state.selectedOverlays || []).indexOf(key) !== -1;
+                rowEl.setAttribute('color', selected ? '#4FC3F7' : '#333333');
+                var labelEl = document.querySelector('[data-overlay-label="' + key + '"]');
+                if (labelEl) labelEl.setAttribute('color', selected ? '#0D1B2A' : '#ffffff');
+                var checkEl = document.querySelector('[data-overlay-check="' + key + '"]');
+                if (checkEl) {
+                  checkEl.setAttribute('value', selected ? '✓' : '');
+                  checkEl.setAttribute('color', selected ? '#0D1B2A' : '#69F0AE');
+                }
+              });              document.querySelector('#settings-save-overlays-label').setAttribute(
                 'value', STATIC.saveOverlays + ' (' + deviceLabel(state.deviceType) + ')',
               );
               document.querySelector('#settings-save-overlays-btn').setAttribute(

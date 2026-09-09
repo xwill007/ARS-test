@@ -47,6 +47,13 @@ const CONFIG_RANGES = {
 };
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+// Requerimiento 013 (hallazgo pedido por el usuario): antirebote del toggle de overlay. La brújula
+// está duplicada por ojo (un iframe por panel estéreo) y sus cámaras van sincronizadas, así que
+// ambos paneles apuntan al MISMO overlay y disparan `compass-toggle-overlay` casi a la vez — sin
+// este antirebote el overlay se activa y desactiva al instante (dos toggles consecutivos). Se
+// ignora cualquier toggle de la MISMA clave dentro de este delay (mínimo 1 segundo pedido).
+const OVERLAY_TOGGLE_DEBOUNCE_MS = 1000;
+
 /**
  * SyncStereoTestView — Requerimiento 002, enfoque alternativo al espejo por captura de píxeles:
  * dos instancias reales e independientes de cada overlay seleccionado, sincronizadas en tiempo
@@ -89,7 +96,10 @@ const SyncStereoTestView = ({ onClose }) => {
   // existe un menú de configuración, no una selección de varios).
   const leftCompassRef = useRef(null);
   const rightCompassRef = useRef(null);
-
+  // Requerimiento 013 (antirebote del toggle, ver OVERLAY_TOGGLE_DEBOUNCE_MS): último timestamp de
+  // toggle por clave. Vive en un ref (no en estado) porque `handleMessage` (registrado una vez,
+  // deps `[]`) debe leer/escribir siempre el valor más reciente, no el capturado en el primer render.
+  const lastOverlayToggleAtRef = useRef({});
   // Requerimiento 012 (ampliación): no cambia durante la sesión (navigator.userAgent es estático),
   // así que no hace falta estado — se usa tanto para persistir (getUserSetting/saveUserSetting ya
   // lo detectan solas por su propio default, ver vrUserSettingsApi.util.js) como para que el panel
@@ -310,6 +320,13 @@ const SyncStereoTestView = ({ onClose }) => {
         return;
       }
       if (msg.action === 'compass-toggle-overlay') {
+        // Requerimiento 013 (antirebote): los dos paneles estéreo disparan este mensaje casi a la
+        // vez (cámaras sincronizadas), así que se descarta el segundo toggle de la misma clave
+        // dentro de OVERLAY_TOGGLE_DEBOUNCE_MS — evita el "se activa y se desactiva" instantáneo.
+        const now = Date.now();
+        const last = lastOverlayToggleAtRef.current[msg.key] || 0;
+        if (now - last < OVERLAY_TOGGLE_DEBOUNCE_MS) return;
+        lastOverlayToggleAtRef.current[msg.key] = now;
         toggleOverlay(msg.key);
         return;
       }
