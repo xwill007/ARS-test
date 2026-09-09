@@ -2,13 +2,27 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- viewport-fit=cover: hace que el viewport se extienda bajo la barra de estado (hora/iconos)
+         y el notch, de modo que 100vw/100vh (y el fondo negro de la vista AR) llenen la pantalla
+         completa. user-scalable=no evita el zoom por pellizco. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- Modo standalone/PWA: en iOS (Safari) la Fullscreen API NO oculta la barra de estado; solo
+         se oculta cuando la página se instala "Añadir a pantalla de inicio". Estas etiquetas hacen
+         que, instalada, se abra a pantalla completa (sin barra de URL) y con la barra de estado
+         translúcida/negra. En Android, theme-color negro pinta la barra de estado del mismo color. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ApprendeVr" />
+    <meta name="theme-color" content="#000000" />
     <title>AR Test — Espejo overlay (Requerimiento 002)</title>
     <style>
       /* Reset mínimo, propio de esta página de prueba (no importa index.css de producción).
          .ar-panel necesita position:relative para que el <video>/<iframe> internos
-         (position:absolute) se ajusten a los 380x480 del panel en vez de a toda la pantalla. */
-      html, body, #root { margin: 0; height: 100%; width: 100%; }
+         (position:absolute) se ajusten a los 380x480 del panel en vez de a toda la pantalla.
+         Con viewport-fit=cover, html/body/#root deben usar 100% del área extendida; el fondo negro
+         de body tapa también la franja bajo la barra de estado para una vista completa. */
+      html, body, #root { margin: 0; height: 100%; width: 100%; background: #000; }
       .ar-panel { position: relative; overflow: hidden; background: #111; border-radius: 8px; }
     </style>
   </head>

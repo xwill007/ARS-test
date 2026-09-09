@@ -61,10 +61,13 @@ const ARTestMirrorButton = () => {
   const { t } = useVRLanguage();
 
   // Requerimiento 012: pantalla completa mientras cualquiera de las dos vistas de prueba está
-  // abierta — se sale del navegador normal recién al cerrarla (cleanup del efecto), no antes.
+  // abierta. `enterFullscreen()` se llama de forma SÍNCRONA dentro del `onClick` de cada botón
+  // (no desde este efecto): `requestFullscreen()` exige gesto de usuario y, disparado desde un
+  // `useEffect` (que corre asíncrono, después del render), el navegador lo rechaza — la barra de
+  // dirección/navegación del navegador quedaba visible. Acá solo se sale de pantalla completa al
+  // cerrar la vista (cleanup del efecto), no antes.
   useEffect(() => {
     if (!open) return;
-    enterFullscreen();
     return () => exitFullscreen();
   }, [open]);
 
@@ -79,8 +82,8 @@ const ARTestMirrorButton = () => {
       )}
       {!open && (
         <>
-          <button style={buttonStyle(32)} onClick={() => setOpen('mirror')}>{t('overlays.arTest')}</button>
-          <button style={buttonStyle(76)} onClick={() => setOpen('sync')}>{t('overlays.arSync')}</button>
+          <button style={buttonStyle(32)} onClick={() => { enterFullscreen(); setOpen('mirror'); }}>{t('overlays.arTest')}</button>
+          <button style={buttonStyle(76)} onClick={() => { enterFullscreen(); setOpen('sync'); }}>{t('overlays.arSync')}</button>
         </>
       )}
       {open === 'mirror' && (

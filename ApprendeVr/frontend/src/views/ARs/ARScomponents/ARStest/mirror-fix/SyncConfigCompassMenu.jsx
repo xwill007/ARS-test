@@ -185,11 +185,34 @@ function buildConfirmPanelHTML() {
   `;
 }
 
+// Fondo opaco único, debajo de las 4 porciones semitransparentes (hallazgo: con solo el
+// material semitransparente de cada porción, el gris de fondo real que se ve depende de qué haya
+// detrás en el video de la cámara AR en ese punto — un rincón oscuro del cuarto hace ver esa
+// porción más oscura que las demás aunque el color/opacidad de las 4 sea idéntico, ver
+// problems_solutions.md del Requerimiento 013. Esta dona opaca fija el fondo real que el gris
+// semitransparente de arriba mezcla, así las 4 porciones se ven iguales sin importar qué haya
+// detrás en el AR. Va apenas por debajo (mismo eje Y, normal de esta dona ya que está en el
+// mismo plano rotado "-90 0 0") de las porciones de color, no dentro de #compass-wheel para no
+// heredar su rotación (es un círculo completo, da igual, pero así queda claro que es fondo fijo).
+function buildWedgeBackingHTML() {
+  return `
+    <a-ring
+      radius-inner="${RING_INNER_RADIUS}"
+      radius-outer="${RADIUS}"
+      color="#222222"
+      opacity="0.9"
+      material="shader: flat; side: double; transparent: true;"
+      rotation="-90 0 0"
+      position="0 -0.01 0">
+    </a-ring>
+  `;
+}
+
 function buildWedgesHTML() {
   // Radio medio de la franja de la dona (entre el hueco y el borde exterior) — ahí es donde va
   // el texto de cada porción, ni pegado al hueco ni al borde.
   const midRadius = (RING_INNER_RADIUS + RADIUS) / 2;
-  return SECTIONS.map(({ key, thetaStart, type, action, dwell }) => {
+  return buildWedgeBackingHTML() + SECTIONS.map(({ key, thetaStart, type, action, dwell }) => {
     const bisectorDeg = thetaStart + WEDGE_THETA_LENGTH / 2;
     return `
       <!-- Puramente decorativa: SIN clase .clickable ni data-* — pedido del usuario: "el click se

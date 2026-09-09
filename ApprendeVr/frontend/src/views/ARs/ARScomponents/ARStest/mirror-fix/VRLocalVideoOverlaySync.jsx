@@ -83,88 +83,6 @@ const VRLocalVideoOverlaySyncInner = ({
     `;
   };
 
-  // Generar controles de progreso de tiempo
-  const generateProgressControls = () => {
-    return `
-      <!-- Controles de progreso - Barra pegada exactamente al borde inferior del video -->
-      <a-entity
-        id="progress-controls"
-        position="${position[0]} ${position[1] - height/2 - 0.1} ${position[2]}"
-        class="progress-controls">
-        
-        <!-- Contenedor principal de la barra de progreso -->
-        <a-entity id="progress-bar-container">
-          
-          <!-- Barra de fondo del progreso (grosor reducido a la mitad) -->
-          <a-plane
-            id="progress-bar-bg"
-            width="${width}"
-            height="0.2"
-            material="color: #222222; shader: flat; opacity: 0.9"
-            class="clickable raycastable"
-            progress-control="action: seek">
-          </a-plane>
-          
-          <!-- Barra de progreso activa -->
-          <a-plane
-            id="progress-bar"
-            width="0"
-            height="0.15"
-            position="${-width/2} 0 0.01"
-            material="color: #1565C0; shader: flat">
-          </a-plane>
-          
-          <!-- Tiempo actual en el lado izquierdo -->
-          <a-text
-            id="current-time"
-            value="0:00"
-            position="${-width/2 + 0.5} 0 0.02"
-            align="left"
-            color="white"
-            scale="0.7 0.7 0.7">
-          </a-text>
-          
-          <!-- Tiempo total en el lado derecho -->
-          <a-text
-            id="total-time"
-            value="0:00"
-            position="${width/2 - 0.5} 0 0.02"
-            align="right"
-            color="white"
-            scale="0.7 0.7 0.7">
-          </a-text>
-          
-          <!-- Indicador de progreso en porcentaje (centro) -->
-          <a-text
-            id="progress-display"
-            value="0%"
-            position="0 0 0.02"
-            align="center"
-            color="#000000"
-            scale="0.6 0.6 0.6">
-          </a-text>
-          
-          <!-- Líneas de referencia para cuartos del video -->
-          <a-plane
-            width="0.02"
-            height="0.125"
-            position="${-width/4} 0 0.015"
-            material="color: #444444; shader: flat; opacity: 0.6">
-          </a-plane>
-          
-          <a-plane
-            width="0.02"
-            height="0.125"
-            position="${width/4} 0 0.015"
-            material="color: #444444; shader: flat; opacity: 0.6">
-          </a-plane>
-          
-        </a-entity>
-        
-      </a-entity>
-    `;
-  };
-
   // Generar controles de volumen
   const generateVolumeControls = () => {
     return `
@@ -1632,7 +1550,6 @@ const VRLocalVideoOverlaySyncInner = ({
           style="width: 100vw; height: 100vh; background: transparent;">
           
           ${generateVideoElement()}
-          ${generateProgressControls()}
           ${generateVolumeControls()}
           ${generateToggleButton()}
           ${generateVoiceControls()}
