@@ -56,7 +56,6 @@ En `VRConeOverlaySync.jsx` (líneas 370-454) y `VRLocalVideoOverlaySync.jsx` hay
 raycaster="objects: .clickable, .raycastable; ...">` dentro de `<a-camera>`, pero **no** se apoya
 en el pipeline nativo de eventos de A-Frame (`fusing`/`click`) — según el propio comentario en el
 código, ese pipeline nunca llegó a dispararse en este contexto (A-Frame 1.4.2), pese a que el
-`raycaster` sí detecta la intersección correctamente. En su lugar hay un script propio que:
 - lee `cursorEl.components['raycaster'].intersectedEls[0]` cada 50ms,
 - cuenta un dwell de `FUSE_MS` (prop `cursorFuseTimeout`, default 2500ms) mientras el objetivo no
   cambia, poniendo el reticle en rojo y achicándolo progresivamente,
@@ -145,15 +144,11 @@ de configuración que este requerimiento migra solo existe hoy en "AR-SYNC".
   (`.clickable` + `<a-cursor raycaster>` + script propio de hover/dwell/click con
   `FUSE_MS`/`COOLDOWN_MS`, agrupado por elemento lógico como corrigió el commit `dea919b`) — no se
   reintenta el pipeline nativo `cursor`/`fusing` de A-Frame.
-- Al activar una porción (dwell completo o click directo), mostrar al frente del usuario el panel
-  con las opciones de esa sección — se reutiliza el contenido/lógica ya existente de
-  `SyncConfigMenu.jsx` (sliders de separación/ancho/alto, checkboxes múltiples de overlays,
-  botones de guardar con su estado guardado/no guardado, indicador de sesión/dispositivo), sin
-  reescribir esos controles como widgets 3D. **Corregido tras la primera pasada (ver sección 9):**
-  "al frente" significa centrado DENTRO de cada panel estéreo (una instancia del panel por ojo),
-  no un único overlay centrado en toda la ventana — en AR-SYNC el usuario mira a través de lentes
-  de cartón VR, así que una UI que solo ocupe el centro de la ventana completa se vería partida o
-  invisible por uno de los dos ojos.
+- Al activar una porción (dwell completo o click directo), mostrar al frente del usuario (centro
+  de pantalla, no la esquina) el panel con las opciones de esa sección — se reutiliza el
+  contenido/lógica ya existente de `SyncConfigMenu.jsx` (sliders de separación/ancho/alto,
+  checkboxes múltiples de overlays, botones de guardar con su estado guardado/no guardado,
+  indicador de sesión/dispositivo), sin reescribir esos controles como widgets 3D.
 - El panel se oculta cuando se deja de apuntar/seleccionar esa porción (o con su botón ✕
   existente).
 - Quitar el botón ☰ y el estado `showMenu` de `SyncStereoTestView.jsx` — la brújula 3D pasa a ser
@@ -175,14 +170,11 @@ de configuración que este requerimiento migra solo existe hoy en "AR-SYNC".
   acotado que los Requerimientos 002/011/012.
 - Tocar `TestOverlayAR2.jsx` ("AR-TEST", espejo por captura) — confirmado que no usa
   `SyncConfigMenu.jsx` hoy, y sigue sin usarlo.
-- ~~Construir controles 3D nuevos tipo slider o checkbox arrastrable en A-Frame~~ —
-  **superado, pedido explícitamente por el usuario tras la primera pasada** ("el panel que se
-  despliega debe ser un elemento 3D no 2D, debe poder interactuar con el cursor del raycaster").
-  Pendiente de implementar — ver `problems_solutions.md`, entrada "Pedido explícito: el panel de
-  sección debe ser 3D interactivo".
-- ~~Agregar, quitar o renombrar secciones de configuración~~ — **superado**: el usuario pidió
-  sumar "Volver" y "Cerrar sesión" como porciones nuevas (ver sección 7, "Criterios de la
-  ampliación", y `problems_solutions.md`).
+- Construir controles 3D nuevos tipo slider o checkbox arrastrable en A-Frame — el contenido de
+  cada sección se mantiene como los controles HTML/React ya existentes (ver Diseño técnico, opción
+  elegida); solo cambia cuándo y dónde se muestran.
+- Agregar, quitar o renombrar secciones de configuración — se migran exactamente las dos que ya
+  existen. Sumar una tercera sección (o rediseñar sus controles) queda fuera de este requerimiento.
 - Diagnosticar la causa raíz de por qué el pipeline nativo `cursor`/`fusing`/`click` de A-Frame no
   dispara en este contexto (ya fuera de alcance en el Requerimiento 012); se sigue usando el
   mecanismo propio ya construido y probado.
@@ -241,94 +233,35 @@ UI de configuración) encima del stack existente en cada panel de `SyncStereoTes
 
 | Archivo | Cambio |
 |---|---|
-| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigCompassMenu.jsx` (nuevo) | Componente `forwardRef` con `<iframe srcDoc>`: escena A-Frame con la brújula (4 porciones, triángulo de norte, flechas `.clickable`), widget de posición, y **`#settings-panel`** — el panel de la sección activa como geometría A-Frame real (steppers/toggles/botones `.clickable`), hijo de `#compass-root`, no de `<a-camera>` (ver "Estado final" abajo y `problems_solutions.md`). |
-| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Quitar `menuButtonStyle`/botón ☰, el estado `showMenu` y (más tarde) `activeSection`; montar `SyncConfigCompassMenu` como capa siempre activa (`layerStyle`) en cada panel; puente bidireccional de mensajes (`compass-config-state` ↔ `compass-update-*`/`compass-toggle-overlay`/`compass-save-*`) — esta vista sigue siendo la dueña de `getUserSetting`/`saveUserSetting`. |
-| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigMenu.jsx` | **Estado final: eliminado.** La decisión intermedia (dejarlo como componente 2D controlado por props) quedó superada por el pedido explícito del usuario de que el panel fuera 3D interactivo — una vez `#settings-panel` reemplazó su contenido, `SyncConfigMenu.jsx` quedó sin ningún consumidor y se borró (`OVERLAY_OPTIONS` se duplicó, con etiquetas cortas nuevas, directamente en `SyncConfigCompassMenu.jsx`). |
-| `vite.config.js` (no estaba en el alcance original — hallazgo durante la implementación) | Se agregó `artestMirror` a `build.rollupOptions.input`: sin esa entrada, `npm run build` nunca transformaba `artest-mirror.jsx`/`SyncStereoTestView.jsx`/`SyncConfigCompassMenu.jsx`, así que ese criterio de aceptación nunca fue una verificación real para este código. Ver `problems_solutions.md`. |
-| `src/views/ARs/ARScomponents/ARStest/mirror-fix/ARTestMirrorButton.jsx` (ampliación, sección 9) | Ocultar el botón "← Volver a inicio" mientras AR-SYNC está abierto (`open !== 'sync'`) — la porción "Cerrar sesión" de la brújula lo reemplaza ahí. |
-| `src/locales/{es,en,br}.json` (ampliación, sección 9) | Nueva clave `home.logout` ("Cerrar sesión"/"Logout"/"Sair") para la porción "Cerrar sesión". Las etiquetas de las otras 3 porciones ya existían (`arsConfig.tab.config`, `arsConfig.tab.overlays`, `home.back`). |
+| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigCompassMenu.jsx` (nuevo) | Componente `forwardRef` con `<iframe srcDoc>`: escena A-Frame con la brújula (porciones, triángulo de norte, flechas `.clickable`), script de gaze/dwell + click directo (mismo patrón que `VRConeOverlaySync.jsx`), y el panel HTML de la sección activa (reusa el JSX/markup de `SyncConfigMenu.jsx`) proyectado al centro de pantalla. |
+| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Quitar `menuButtonStyle`/botón ☰ y el estado `showMenu`; montar `SyncConfigCompassMenu` como capa siempre activa (`layerStyle`) en cada panel, pasándole las mismas props que hoy recibe `SyncConfigMenu` (separación/ancho/alto, overlays seleccionados, handlers de guardado, `deviceType`, `userEmail`). |
+| `src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigMenu.jsx` | Se deja de instanciar directamente desde `SyncStereoTestView.jsx`; su JSX/markup de las dos pestañas se reutiliza (import de subcomponentes compartidos, o extracción) desde `SyncConfigCompassMenu.jsx` — a decidir en implementación si se refactoriza en piezas compartidas o el archivo se retira una vez migrado todo su contenido. |
+| `src/locales/{es,en,br}.json` | Nuevas claves de i18n solo si hacen falta textos nuevos (p. ej. instrucción de uso de la brújula o aria-label de las flechas) — las etiquetas de sección (`arsConfig.tab.config`/`arsConfig.tab.overlays`) ya existen y se reutilizan tal cual. |
 
 ## 7. Criterios de aceptación
 
-- [x] Al abrir AR-SYNC (`artest-mirror.html` → AR-SYNC) ya no aparecen el botón ☰ ni el panel fijo
+- [ ] Al abrir AR-SYNC (`artest-mirror.html` → AR-SYNC) ya no aparecen el botón ☰ ni el panel fijo
       de la esquina superior izquierda; en su lugar se ve, en el suelo de cada panel estéreo, un
-      círculo tipo brújula con un pequeño triángulo que marca el norte. Confirmado en navegador.
-- [x] El círculo está dividido en 2 porciones tipo torta, rotuladas "Configuration"/"Overlays"
-      (mismos textos, vía i18n, que hoy usan las pestañas de `SyncConfigMenu.jsx`). Confirmado.
+      círculo tipo brújula con un pequeño triángulo que marca el norte.
+- [ ] El círculo está dividido en 2 porciones tipo torta, rotuladas "CONFIGURACIÓN" y "OVERLAYS"
+      (mismos textos que hoy usan las pestañas de `SyncConfigMenu.jsx`).
 - [ ] Dos flechas visibles en el círculo rotan el grupo de porciones (por clic directo y también
       por apuntado sostenido/dwell) hasta ubicar cualquiera de las dos secciones junto al
-      triángulo de norte. **Las flechas están y son clickeables; la rotación calcula y aplica
-      correctamente (confirmado forzando el tick de render manualmente), pero no se pudo ver la
-      animación disparada por una interacción real en el entorno de automatización usado — ver
-      `problems_solutions.md`. Pendiente de confirmación manual.**
-- [x] Apuntar con el cursor/la mirada sostenidamente a una porción (dwell, mismo mecanismo que ya
+      triángulo de norte.
+- [ ] Apuntar con el cursor/la mirada sostenidamente a una porción (dwell, mismo mecanismo que ya
       usan "cono"/"video") despliega al frente del usuario (centro de pantalla) el panel con las
-      opciones de esa sección. Confirmado en navegador de punta a punta. El cierre automático al
-      dejar de apuntar está implementado pero no se pudo ejercitar en este entorno (mismo motivo).
+      opciones de esa sección; deja de mostrarse al dejar de apuntarla.
 - [ ] El click directo (sin esperar el dwell) sobre una porción o una flecha también funciona,
-      igual que en el resto de `mirror-fix`. **Implementado con el mismo patrón ya usado en
-      video/cono (un único listener `click` en el elemento, disparado tanto por el `cursor`
-      nativo de A-Frame en un click real como por el dwell manual) — no se pudo aislar y confirmar
-      el camino del click real en este entorno automatizado. Pendiente de confirmación manual.**
-- [x] El panel de "Configuración" sigue permitiendo ajustar separación/ancho/alto (sliders
-      responden); no se confirmó el guardado con sesión real en esta pasada (sin sesión en el
-      navegador de prueba, comportamiento "Sin sesión" correcto).
-- [x] El panel de "Overlays" sigue permitiendo seleccionar múltiples overlays (checkboxes),
-      mismas 4 opciones que antes. No se confirmó el guardado con sesión real.
-- [x] La brújula se ve y responde igual en ambos paneles (izquierdo/derecho) de AR-SYNC.
-      Confirmado.
-- [x] No se modificó `TestOverlayAR2.jsx` ("AR-TEST") ni ningún archivo de producción fuera de
-      `mirror-fix` (`vite.config.js` es la única excepción, ver "Archivos a modificar" — hallazgo
-      documentado, no un archivo de producción de otra vista).
-- [x] `npm run build` y `npm run check:i18n` (en `ApprendeVr/frontend`) terminan sin errores.
-
-### Criterios de la ampliación (sección 9)
-
-- [x] La brújula tiene 4 porciones: "Configuración", "Overlays" (abren panel), "Volver" y "Cerrar
-      sesión" (acciones inmediatas). Confirmado visualmente y por interacción (click directo en
-      ambas, ver `problems_solutions.md`).
-- [x] "Volver" cierra AR-SYNC (vuelve al selector AR-TEST/AR-SYNC) — mismo efecto que tenía el
-      botón "Volver" quitado. Confirmado.
-- [x] "Cerrar sesión" borra `apprendevr_auth` de `localStorage` y navega a `/`. Confirmado
-      (verificado seteando una credencial falsa, activando la porción, y comprobando que
-      `localStorage.getItem('apprendevr_auth')` da `null` después).
-- [x] El botón "← Volver a inicio" no aparece mientras AR-SYNC está abierto (lo reemplaza "Cerrar
-      sesión"); sigue apareciendo en el selector y en AR-TEST. Confirmado.
-- [x] "Cerrar sesión" NO se activa por apuntado sostenido (dwell) — solo por click directo real
-      (ver hallazgo en `problems_solutions.md`: el dwell podía dispararla sin que el usuario lo
-      pidiera). El resto de porciones sigue respondiendo a dwell.
-- [x] Existe un widget de posición (marcador 📍 + d-pad) en la brújula que mueve `#compass-root`
-      con botones de click directo, muestra las coordenadas actuales, y un botón para guardar la
-      posición. Confirmado visualmente y por interacción (movido y verificado el cambio de
-      posición).
-- [x] La posición guardada persiste vía `getUserSetting`/`saveUserSetting`
-      (`ars-sync-compass-position`) y se aplica al volver a abrir AR-SYNC. Implementado
-      (`compass-ready`/`compass-set-position`/`compass-save-position`); no se confirmó con sesión
-      real (sin sesión en el navegador de prueba).
-- [x] El panel de la sección activa (Configuración/Overlays) se ve DUPLICADO — una instancia por
-      cada panel estéreo (izquierdo y derecho), no un único overlay para toda la ventana. Confirmado
-      visualmente (título/sesión/campos/checks idénticos en ambos iframes de la brújula).
-- [x] El widget de posición (marcador + d-pad) es visible y funciona igual en ambos paneles
-      estéreo. Confirmado (misma estructura y posición inicial en ambos iframes de la brújula).
-- [x] La rotación de cámara de la brújula no desalinea el video/cono entre paneles (regresión
-      encontrada y revertida, ver `problems_solutions.md`). Confirmado: video y brújula a la misma
-      altura en ambos paneles tras el fix.
-- [x] **(Pedido explícito, sección 9)** El panel de la sección activa es geometría A-Frame real
-      dentro de la escena — no HTML 2D — interactuable con el mismo raycaster/`.clickable` que el
-      resto de la brújula (steppers +/-, filas de overlay, botones Guardar/✕). Confirmado:
-      dispatchear `click` real sobre esos elementos actualiza el estado (en `SyncStereoTestView.jsx`)
-      y lo refleja en ambos paneles.
-- [x] **(Pedido explícito, sección 9)** El menú vive en el origen de la escena (`0,0,0`) y la
-      cámara arriba (`0,3,0`), con la vista inicial mirando al frente (pitch/yaw 0°, no hacia el
-      menú) — confirmado leyendo `look-controls` directo por consola, sin interacción de mouse de
-      por medio (ver limitación de verificación por screenshot en `problems_solutions.md`).
-- [x] **(Pedido explícito, sección 9)** Ningún botón de `#settings-panel` comparte profundidad
-      exacta con el fondo del panel (hallazgo del usuario sobre z-fighting) — corregido con un
-      offset de `0.01`/`0.02` según corresponda; convención documentada en el skill
-      `aframe-elementos-3d`. Confirmado: los botones siguen respondiendo al click.
-- [x] **(Pedido explícito, sección 9)** "Volver" y "Cerrar sesión" piden confirmación
-      (`#confirm-panel`, Confirmar/Cancelar) antes de ejecutar la acción — ya no disparan directo
-      al click/dwell. Confirmado end-to-end para ambas, con Cancelar y con Confirmar.
+      igual que en el resto de `mirror-fix`.
+- [ ] El panel de "Configuración" sigue permitiendo ajustar separación/ancho/alto y guardarlos,
+      con el mismo comportamiento y persistencia (`getUserSetting`/`saveUserSetting`) que hoy.
+- [ ] El panel de "Overlays" sigue permitiendo seleccionar múltiples overlays (checkboxes) y
+      guardar la selección, con el mismo comportamiento de persistencia que hoy.
+- [ ] La brújula y su interacción se ven y funcionan igual en ambos paneles (izquierdo/derecho) de
+      AR-SYNC.
+- [ ] No se modificó `TestOverlayAR2.jsx` ("AR-TEST") ni ningún archivo de producción fuera de
+      `mirror-fix`/locales.
+- [ ] `npm run build` y `npm run check:i18n` (en `ApprendeVr/frontend`) terminan sin errores.
 
 ## 8. Referencias
 
@@ -339,8 +272,6 @@ UI de configuración) encima del stack existente en cada panel de `SyncStereoTes
 - Requerimiento 012 (mecanismo propio de gaze/dwell/click, fullscreen, sync de video — origen del
   mecanismo de interacción reutilizado acá; commit `dea919b`): `ApprendeVr/Documentation/Requerimientos/2-Developing/012-ajustes-arstest-mirror-cursor-fullscreen/`.
 - Skill `overlay-ar-sync-aframe`: `.claude/skills/overlay-ar-sync-aframe/SKILL.md`.
-- Skill `aframe-elementos-3d` (nuevo en esta sesión, ver sección 9): convención de offset de
-  profundidad para elementos 3D con botones — `.claude/skills/aframe-elementos-3d/SKILL.md`.
 - Precedente de widgets 3D clickeables y proyección mundo→pantalla:
   `src/views/A-frame/vrPositionControl.js` (`makeButton`, `setupSharedRaycast`, `worldToScreen`).
 - Interfaz de persistencia reutilizada: `src/views/A-frame/vrUserSettingsApi.util.js`

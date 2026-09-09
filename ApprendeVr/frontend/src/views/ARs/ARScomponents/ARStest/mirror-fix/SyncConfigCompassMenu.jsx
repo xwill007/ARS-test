@@ -14,10 +14,11 @@ import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageCont
 //    agrupadas en `#compass-wheel` (rotable en Y). Dos tipos de porción:
 //     - "panel" (Configuración, Overlays): muestra/oculta el grupo correspondiente de
 //       `#settings-panel` (geometría 3D de esta misma escena, ver más abajo).
-//     - "action" (Volver, Cerrar sesión): dispara de inmediato una acción vía `compass-do-action`
-//       — sin panel ni estado "abierto/cerrado" que rastrear. "Volver" reemplaza al botón "Volver"
-//       que tenía SyncStereoTestView.jsx; "Cerrar sesión" reemplaza al botón "← Volver a inicio"
-//       de ARTestMirrorButton.jsx mientras AR-SYNC está abierto (ver ese archivo).
+//     - "action" (Volver, Cerrar sesión): abre `#confirm-panel` con el mensaje correspondiente en
+//       vez de disparar la acción directo (pedido del usuario, evita un dwell/click accidental) —
+//       recién al confirmar se manda `compass-do-action`. "Volver" reemplaza al botón "Volver" que
+//       tenía SyncStereoTestView.jsx; "Cerrar sesión" reemplaza al botón "← Volver a inicio" de
+//       ARTestMirrorButton.jsx mientras AR-SYNC está abierto (ver ese archivo).
 //  - Triángulo de norte: entidad FIJA (no rota con el grupo), marca el punto de referencia/frente
 //    de la brújula — no es orientación geomagnética real (ver "No incluido" en el requerimiento).
 //  - Dos flechas `.clickable` que rotan `#compass-wheel` 360°/N grados por activación (N =
@@ -98,15 +99,15 @@ function buildConfigGroupHTML() {
   const rows = CONFIG_FIELDS.map((field, i) => {
     const y = 0.25 - i * 0.4;
     return `
-      <a-text data-field-label="${field.key}" align="center" color="#ffffff" width="2.6" position="0 ${(y + 0.16).toFixed(2)} 0.01"></a-text>
-      <a-plane class="clickable" data-step="${field.key}" data-dir="-1" width="0.32" height="0.28" color="#333333" material="shader: flat; side: double;" position="-0.85 ${y.toFixed(2)} 0"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
-      <a-plane class="clickable" data-step="${field.key}" data-dir="1" width="0.32" height="0.28" color="#333333" material="shader: flat; side: double;" position="0.85 ${y.toFixed(2)} 0"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+      <a-text data-field-label="${field.key}" align="center" color="#ffffff" width="2.6" position="0 ${(y + 0.16).toFixed(2)} 0.02"></a-text>
+      <a-plane class="clickable" data-step="${field.key}" data-dir="-1" width="0.32" height="0.28" color="#333333" material="shader: flat; side: double;" position="-0.85 ${y.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+      <a-plane class="clickable" data-step="${field.key}" data-dir="1" width="0.32" height="0.28" color="#333333" material="shader: flat; side: double;" position="0.85 ${y.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
     `;
   }).join('\n');
   return `
     <a-entity id="settings-config-group" visible="false">
       ${rows}
-      <a-plane class="clickable" id="settings-save-config-btn" width="1.3" height="0.32" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.95 0">
+      <a-plane class="clickable" id="settings-save-config-btn" width="1.3" height="0.32" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.95 0.01">
         <a-text id="settings-save-config-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
       </a-plane>
     </a-entity>
@@ -120,16 +121,16 @@ function buildOverlaysGroupHTML() {
   const rows = OVERLAY_OPTIONS.map((opt, i) => {
     const y = 0.35 - i * 0.32;
     return `
-      <a-plane class="clickable" data-overlay-toggle="${opt.key}" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 ${y.toFixed(2)} 0">
-        <a-text data-overlay-label="${opt.key}" value="__LABEL_overlay_${opt.key}__" align="left" color="#ffffff" width="5" position="-0.9 0 0.011"></a-text>
-        <a-text data-overlay-check="${opt.key}" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.011"></a-text>
+      <a-plane class="clickable" data-overlay-toggle="${opt.key}" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 ${y.toFixed(2)} 0.01">
+        <a-text data-overlay-label="${opt.key}" value="__LABEL_overlay_${opt.key}__" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
+        <a-text data-overlay-check="${opt.key}" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.01"></a-text>
       </a-plane>
     `;
   }).join('\n');
   return `
     <a-entity id="settings-overlays-group" visible="false">
       ${rows}
-      <a-plane class="clickable" id="settings-save-overlays-btn" width="1.3" height="0.32" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.9 0">
+      <a-plane class="clickable" id="settings-save-overlays-btn" width="1.3" height="0.32" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.9 0.01">
         <a-text id="settings-save-overlays-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
       </a-plane>
     </a-entity>
@@ -145,12 +146,35 @@ function buildSettingsPanelHTML() {
     <a-entity id="settings-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
       <a-plane width="2.2" height="2.2" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
       <a-text id="settings-title" align="center" color="#4FC3F7" width="2.6" position="0 0.9 0.01"></a-text>
-      <a-plane class="clickable" id="settings-close-btn" width="0.3" height="0.3" color="#333333" material="shader: flat; side: double;" position="0.95 0.9 0.01">
+      <!-- z=0.02 (no 0.01, como el título/sesión): el título centrado puede llegar a extenderse
+           hasta esta zona — un botón .clickable necesita quedar sin ambigüedad por delante, ver
+           skill aframe-elementos-3d. -->
+      <a-plane class="clickable" id="settings-close-btn" width="0.3" height="0.3" color="#333333" material="shader: flat; side: double;" position="0.95 0.9 0.02">
         <a-text value="X" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
       </a-plane>
       <a-text id="settings-session" align="center" color="#999999" width="2.4" position="0 0.65 0.01"></a-text>
       ${buildConfigGroupHTML()}
       ${buildOverlaysGroupHTML()}
+    </a-entity>
+  `;
+}
+
+// Panel de confirmación (pedido del usuario) para las porciones tipo "action" ("Volver"/"Cerrar
+// sesión") — un click/dwell en esas porciones ya no dispara la acción directo, primero abre este
+// panel con el mensaje correspondiente y espera Confirmar/Cancelar. Misma ubicación que
+// `#settings-panel` (nunca están abiertos los dos a la vez, uno es para porciones "panel" y el
+// otro para "action") para que aparezca donde el usuario ya está mirando.
+function buildConfirmPanelHTML() {
+  return `
+    <a-entity id="confirm-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
+      <a-plane width="2.2" height="1.1" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
+      <a-text id="confirm-message" align="center" color="#ffffff" width="2.4" position="0 0.3 0.01"></a-text>
+      <a-plane class="clickable" id="confirm-yes-btn" width="0.95" height="0.34" color="#c62828" material="shader: flat; side: double;" position="-0.55 -0.25 0.01">
+        <a-text id="confirm-yes-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+      </a-plane>
+      <a-plane class="clickable" id="confirm-cancel-btn" width="0.95" height="0.34" color="#333333" material="shader: flat; side: double;" position="0.55 -0.25 0.01">
+        <a-text id="confirm-cancel-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
+      </a-plane>
     </a-entity>
   `;
 }
@@ -223,6 +247,12 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     saveConfig: t('syncConfig.saveConfig'),
     saveOverlays: t('syncConfig.saveOverlays'),
     fields: Object.fromEntries(CONFIG_FIELDS.map((f) => [f.key, t(f.labelKey)])),
+    // Panel de confirmación (pedido del usuario) para las porciones tipo "action" — evita que un
+    // dwell/click accidental dispare "Volver"/"Cerrar sesión" sin que el usuario lo confirme.
+    confirmBack: t('home.confirmBack'),
+    confirmLogout: t('home.confirmLogout'),
+    confirmYes: t('home.confirmYes'),
+    confirmCancel: t('home.confirmCancel'),
   };
 
   // Ajuste pedido por el usuario: a diferencia de Requerimiento 012 (donde el pitch inicial SÍ
@@ -307,6 +337,9 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                  principio del archivo sobre por qué es geometría de escena y no HTML/hijo de la
                  cámara. -->
             ${settingsPanelHTML}
+
+            <!-- Panel de confirmación para "Volver"/"Cerrar sesión" — ver buildConfirmPanelHTML. -->
+            ${buildConfirmPanelHTML()}
           </a-entity>
 
           <!-- Cámara con reticle de gaze estático (Requerimiento 012, mismo patrón que
@@ -368,8 +401,9 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             // Las porciones tipo "panel" (Configuración/Overlays) delegan en
             // "window.__activateSettingsSection" (definida por el script del panel 3D, más abajo
             // — ahí vive el estado de qué sección está abierta, el panel es dueño de su propia
-            // visibilidad). Las de tipo "action" (Volver/Cerrar sesión) disparan una vez y no
-            // quedan abiertas ni se cierran solas.
+            // visibilidad). Las de tipo "action" (Volver/Cerrar sesión) delegan en
+            // "window.__requestConfirm" (definida por el script del panel de confirmación) — ya
+            // no disparan la acción directo, primero piden confirmar (pedido del usuario).
             document.addEventListener('DOMContentLoaded', function () {
               var leftArrow = document.querySelector('[data-arrow="left"]');
               var rightArrow = document.querySelector('[data-arrow="right"]');
@@ -379,7 +413,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               document.querySelectorAll('.compass-wedge').forEach(function (wedgeEl) {
                 wedgeEl.addEventListener('click', function () {
                   if (wedgeEl.dataset.type === 'action') {
-                    send({ action: 'compass-do-action', name: wedgeEl.dataset.action });
+                    if (window.__requestConfirm) window.__requestConfirm(wedgeEl.dataset.action);
                   } else if (window.__activateSettingsSection) {
                     window.__activateSettingsSection(wedgeEl.dataset.section);
                   }
@@ -635,6 +669,45 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'compass-config-state') return;
               state = msg;
               refreshDisplay();
+            });
+          })();
+        </script>
+
+        <script>
+          // Panel de confirmación (pedido del usuario) para las porciones tipo "action"
+          // ("Volver"/"Cerrar sesión") — reusa las mismas etiquetas estáticas que el panel de
+          // configuración ("settings-static-labels", ver script anterior).
+          (function () {
+            function send(msg) {
+              window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+            }
+
+            var STATIC = JSON.parse(document.getElementById('settings-static-labels').textContent);
+            var pendingAction = null; // 'back' | 'logout' | null
+
+            function hideConfirm() {
+              pendingAction = null;
+              document.querySelector('#confirm-panel').setAttribute('visible', false);
+            }
+
+            // Expuesta en window: la llama el script de rotación/selección cuando se activa una
+            // porción tipo "action".
+            window.__requestConfirm = function (action) {
+              pendingAction = action;
+              var messageKey = action === 'logout' ? 'confirmLogout' : 'confirmBack';
+              document.querySelector('#confirm-message').setAttribute('value', STATIC[messageKey]);
+              document.querySelector('#confirm-panel').setAttribute('visible', true);
+            };
+
+            document.addEventListener('DOMContentLoaded', function () {
+              document.querySelector('#confirm-yes-label').setAttribute('value', STATIC.confirmYes);
+              document.querySelector('#confirm-cancel-label').setAttribute('value', STATIC.confirmCancel);
+
+              document.querySelector('#confirm-yes-btn').addEventListener('click', function () {
+                if (pendingAction) send({ action: 'compass-do-action', name: pendingAction });
+                hideConfirm();
+              });
+              document.querySelector('#confirm-cancel-btn').addEventListener('click', hideConfirm);
             });
           })();
         </script>

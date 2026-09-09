@@ -25,7 +25,11 @@
     "home": {
       "back": "Back",
       "backToHome": "Back to home",
-      "logout": "Logout"
+      "logout": "Logout",
+      "confirmBack": "Go back to the selector?",
+      "confirmLogout": "Log out?",
+      "confirmYes": "Confirm",
+      "confirmCancel": "Cancel"
     },
     "buttons": {
       "vr": "VR",

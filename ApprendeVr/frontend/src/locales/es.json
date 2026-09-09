@@ -25,7 +25,11 @@
     "home": {
       "back": "Volver",
       "backToHome": "Volver a inicio",
-      "logout": "Cerrar sesión"
+      "logout": "Cerrar sesión",
+      "confirmBack": "¿Volver al selector?",
+      "confirmLogout": "¿Cerrar sesión?",
+      "confirmYes": "Confirmar",
+      "confirmCancel": "Cancelar"
     },
     "buttons": {
       "vr": "VR",

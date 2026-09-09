@@ -4,6 +4,47 @@ Recordatorio de la regla de hallazgos tardíos (ver skill `crear-requerimiento`)
 `checklist.md` o un criterio de aceptación ya marcado `[x]` resulta no estar realmente resuelto,
 corregir la marca y registrar acá el hallazgo indicando explícitamente que fue tardío.
 
+## 2026-09-09 — Hallazgo del usuario: botones a la misma profundidad que su fondo (z-fighting) + skill nuevo
+
+**Problema señalado por el usuario:** "cuando creas elementos en 3D y estos tienen botones, los
+botones no pueden estar en la misma posición del plano ya que se mezclan los colores y la
+funcionalidad del click puede fallar" — los botones del panel `#settings-panel` (steppers,
+filas de overlay, "Guardar") se habían agregado a la MISMA profundidad que el fondo del panel
+(mismo `z` relativo al padre, ya que ninguno de los dos tenía rotación propia) — z-fighting real
+(parpadeo/mezcla de color) y riesgo de que el raycaster intersecte el fondo en vez del botón.
+
+**Corrección del usuario sobre el eje del offset:** "el offset puede ser en x,y,z dependiendo de
+la perpendicularidad del plano que contiene el elemento" — el eje correcto no es siempre `z`, es
+el eje LOCAL perpendicular a la cara del plano de abajo (su normal), que cambia según la rotación
+propia de ese plano (no la de un antepasado más arriba en la jerarquía que rote el grupo entero de
+forma uniforme — eso no cambia el eje a usar entre hermanos que comparten ese mismo padre y no
+tienen rotación propia entre sí).
+
+**Solución:** se agregó un offset de `0.01` (0.02 para el título, que puede superponerse
+visualmente con el botón ✕) en el eje correspondiente a cada botón/fila de `#settings-panel`
+(steppers, filas de overlay, ambos botones "Guardar", botón ✕) — confirmado que siguen
+respondiendo al click tras el ajuste (steppers y toggle de overlay probados en navegador). Se creó
+el skill `aframe-elementos-3d` (`.agents/skills/aframe-elementos-3d/SKILL.md`) documentando la
+convención para que se aplique en cualquier elemento 3D nuevo del proyecto, no solo acá.
+
+## 2026-09-09 — Pedido: panel de confirmación para "Volver"/"Cerrar sesión"
+
+**Pedido del usuario:** "agrega un panel de confirmación para la sección de BACK y LOGOUT".
+
+**Implementado:** las porciones tipo "action" ya no disparan `compass-do-action` directo al
+click/dwell — primero abren `#confirm-panel` (mismo lugar que `#settings-panel`, nunca están
+abiertos los dos a la vez) con el mensaje correspondiente (`home.confirmBack`/`home.confirmLogout`,
+nuevas claves i18n) y dos botones ("Confirmar"/"Cancelar", `home.confirmYes`/`home.confirmCancel`).
+Solo al confirmar se manda `compass-do-action`; cancelar solo cierra el panel, sin efecto. Sigue
+usando el mismo mecanismo `.clickable` + dwell/click ya establecido, con los offsets de
+profundidad correctos (ver hallazgo de arriba). Confirmado en navegador de punta a punta para
+ambas acciones: "Volver" con Cancelar (se queda en AR-SYNC) y con Confirmar (cierra AR-SYNC);
+"Cerrar sesión" con Confirmar (borra `apprendevr_auth` y navega a `/`).
+
+`dwell: false` en "Cerrar sesión" (Requerimiento 013, hallazgo anterior) se mantuvo sin cambios:
+aunque ahora un dwell accidental solo abriría el panel de confirmación (no la acción real), sigue
+siendo una molestia evitable sin costo — las dos protecciones son complementarias, no redundantes.
+
 ## 2026-09-09 — Pedido explícito: el panel de sección debe ser 3D interactivo con el raycaster, no HTML 2D
 
 **Pedido del usuario:** "al seleccionar una sección del menú el panel que se despliega debe ser un

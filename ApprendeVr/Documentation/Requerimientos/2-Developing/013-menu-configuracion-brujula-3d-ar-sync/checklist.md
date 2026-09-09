@@ -150,3 +150,21 @@
       arriba mirando al frente por defecto (y el usuario bajando la mirada para ver el menú),
       convendría revisarlo para que quede igual de accesible que el nuevo panel de
       configuración/overlays (ver ubicación de `#settings-panel` en `SyncConfigCompassMenu.jsx`).
+
+## Fase 8 — Ajustes de profundidad (z-fighting) y confirmación para acciones destructivas/de salida
+
+- [x] Hallazgo del usuario: los botones de `#settings-panel` (steppers, filas de overlay, ambos
+      "Guardar") estaban a la misma profundidad que el fondo del panel — z-fighting real y riesgo
+      de que el raycaster intersecte el fondo en vez del botón. Corregido con un offset de `0.01`
+      (`0.02` para el botón ✕, que puede solaparse con el título) en el eje perpendicular
+      correspondiente. Confirmado que los botones siguen respondiendo al click tras el ajuste.
+- [x] Creado el skill `aframe-elementos-3d` (`.agents/skills/aframe-elementos-3d/SKILL.md`)
+      documentando la convención de offset de profundidad para cualquier elemento 3D nuevo del
+      proyecto — no reinventarla la próxima vez que se agregue un panel/botón en A-Frame.
+- [x] Panel de confirmación (`#confirm-panel`) para las porciones "Volver"/"Cerrar sesión": ya no
+      disparan la acción directo, primero piden confirmar (nuevas claves i18n
+      `home.confirmBack`/`home.confirmLogout`/`home.confirmYes`/`home.confirmCancel`). Confirmado
+      end-to-end para ambas acciones, con Cancelar (sin efecto) y con Confirmar (Volver cierra
+      AR-SYNC; Cerrar sesión borra `apprendevr_auth` y navega a `/`).
+- [x] `npm run build` y `npm run check:i18n` (en `ApprendeVr/frontend`) siguen pasando sin errores
+      después de estos ajustes.
