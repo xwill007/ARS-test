@@ -433,6 +433,29 @@ const SyncStereoTestView = ({ onClose }) => {
         }
       }
 
+      // Pedido del usuario: mover la cámara con el mouse en web (mismo criterio que el giroscopio
+      // en mobile, sin tocarlo). La brújula (SyncConfigCompassMenu.jsx) es la única capa que
+      // recibe el mousedown/mousemove real (está encima de todo, ver renderPanel), así que
+      // reenvía acá el DELTA crudo del drag (`mouse-look-delta`) — nunca una rotación absoluta —
+      // para que el overlay de contenido SELECCIONADO en ese MISMO panel lo sume a su propia
+      // cámara con su propia fórmula. No cruza al panel opuesto: eso ya lo resuelve el propio
+      // puente de cada overlay (pollCameraMovement, más abajo en el loop genérico), igual que ya
+      // hace hoy con la rotación que llega del giroscopio.
+      if (msg.action === 'mouse-look-delta') {
+        const leftCompassWindow = leftCompassRef.current?.contentWindow;
+        const rightCompassWindow = rightCompassRef.current?.contentWindow;
+        const sameSideRefs =
+          ev.source === leftCompassWindow ? leftRefs :
+          ev.source === rightCompassWindow ? rightRefs :
+          null;
+        if (sameSideRefs) {
+          Object.keys(SYNCABLE_OVERLAYS).forEach((key) => {
+            sameSideRefs.current[key].current?.contentWindow?.postMessage(msg, '*');
+          });
+        }
+        return;
+      }
+
       for (const key of Object.keys(SYNCABLE_OVERLAYS)) {
         const leftWindow = leftRefs.current[key].current?.contentWindow;
         const rightWindow = rightRefs.current[key].current?.contentWindow;

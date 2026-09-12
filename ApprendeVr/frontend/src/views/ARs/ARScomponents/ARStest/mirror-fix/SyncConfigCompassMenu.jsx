@@ -980,6 +980,51 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             });
           })();
         </script>
+
+        <script>
+          // Pedido del usuario: en web, poder mover la cámara con el mouse (click sostenido +
+          // arrastre), igual que ya se puede en mobile con el giroscopio. La brújula es la capa
+          // MÁS EXTERNA de cada panel (ver SyncStereoTestView.jsx, pointerEvents:'auto' en todas
+          // las capas), así que el mousedown/mousemove real solo le llega a ELLA, nunca al
+          // overlay real de abajo (video/cono/karaoke) — por eso, hasta ahora, arrastrar el mouse
+          // solo apuntaba el gaze de la brújula, sin mover la vista.
+          //
+          // A diferencia del bloque de arriba (que reenvía la ROTACIÓN YA CALCULADA de esta
+          // cámara y quedó documentado como bug — ver el comentario de "revertido" arriba), acá se
+          // reenvían los DELTAS crudos del mouse (mismos que consume look-controls: e.movementX/Y
+          // mientras el botón está sostenido) al overlay de contenido del MISMO panel, para que
+          // ESE overlay los sume a su PROPIA rotación con su propia fórmula (misma que usa
+          // look-controls internamente) — nunca se pisa un valor absoluto ajeno, solo se le da
+          // input a la cámara real, exactamente como ya recibe su propio drag/giroscopio. La
+          // sincronización entre panel izquierdo/derecho del overlay de contenido ya la resuelve
+          // su propio puente existente (pollCameraMovement en VRLocalVideoOverlaySync.jsx/
+          // VRConeOverlaySync.jsx/aframe-overlay-modules.js), así que acá alcanza con reenviar el
+          // delta una sola vez, al panel de este mismo lado.
+          //
+          // Mobile no se toca: ahí el giroscopio ya llega directo a cada overlay real (sin pasar
+          // por esta brújula), así que este puente ni siquiera se activa.
+          (function () {
+            var isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(navigator.userAgent || '');
+            if (isMobile) return;
+
+            function send(msg) {
+              window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+            }
+
+            var dragging = false;
+            window.addEventListener('mousedown', function (e) {
+              if (e.button === 0) dragging = true;
+            });
+            window.addEventListener('mouseup', function () { dragging = false; });
+            window.addEventListener('mousemove', function (e) {
+              if (!dragging) return;
+              var dx = e.movementX || 0;
+              var dy = e.movementY || 0;
+              if (!dx && !dy) return;
+              send({ action: 'mouse-look-delta', dx: dx, dy: dy });
+            });
+          })();
+        </script>
       </body>
     </html>
   `;

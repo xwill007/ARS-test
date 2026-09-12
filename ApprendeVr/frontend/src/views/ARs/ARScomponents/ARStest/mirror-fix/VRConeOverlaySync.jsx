@@ -511,6 +511,16 @@ const VRConeOverlaySyncInner = ({
                 lastReceivedPitch = msg.pitch;
                 lookControls.yawObject.rotation.y = msg.yaw;
                 lookControls.pitchObject.rotation.x = msg.pitch;
+              } else if (msg.action === 'mouse-look-delta' && lookControls && lookControls.yawObject && lookControls.pitchObject) {
+                // Pedido del usuario: drag de mouse en web (reenviado por SyncConfigCompassMenu.jsx,
+                // la única capa que recibe el mousedown/mousemove real — ver SyncStereoTestView.jsx).
+                // Mismo criterio que VRLocalVideoOverlaySync.jsx: se suma el delta con la fórmula de
+                // look-controls (sensibilidad 0.002) en vez de recibir un valor absoluto, para no
+                // pisar el pitch propio de este overlay.
+                var PI_2 = Math.PI / 2;
+                lookControls.yawObject.rotation.y -= 0.002 * msg.dx;
+                lookControls.pitchObject.rotation.x -= 0.002 * msg.dy;
+                lookControls.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, lookControls.pitchObject.rotation.x));
               } else if (msg.action === 'camera-position' && cameraEl) {
                 lastReceivedPos = { x: msg.x, y: msg.y, z: msg.z };
                 cameraEl.object3D.position.set(msg.x, msg.y, msg.z);

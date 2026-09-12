@@ -1474,6 +1474,18 @@ const VRLocalVideoOverlaySyncInner = ({
             lastReceivedPitch = msg.pitch;
             lookControls.yawObject.rotation.y = msg.yaw;
             lookControls.pitchObject.rotation.x = msg.pitch;
+          } else if (msg.action === 'mouse-look-delta' && lookControls && lookControls.yawObject && lookControls.pitchObject) {
+            // Pedido del usuario: drag de mouse en web (reenviado por SyncConfigCompassMenu.jsx,
+            // la única capa que recibe el mousedown/mousemove real — ver SyncStereoTestView.jsx).
+            // Se suma el delta con la MISMA fórmula que usa look-controls internamente (sensibilidad
+            // 0.002, signo de reverseMouseDrag=false), en vez de recibir un valor absoluto — así no
+            // se pisa initialCursorPitch, solo se le da input a esta cámara como si el drag hubiera
+            // ocurrido acá mismo. pollCameraMovement (arriba) toma el resultado y lo sincroniza con
+            // el panel hermano exactamente igual que ya hace con el giroscopio.
+            var PI_2 = Math.PI / 2;
+            lookControls.yawObject.rotation.y -= 0.002 * msg.dx;
+            lookControls.pitchObject.rotation.x -= 0.002 * msg.dy;
+            lookControls.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, lookControls.pitchObject.rotation.x));
           } else if (msg.action === 'camera-position' && cameraEl) {
             lastReceivedPos = { x: msg.x, y: msg.y, z: msg.z };
             cameraEl.object3D.position.set(msg.x, msg.y, msg.z);

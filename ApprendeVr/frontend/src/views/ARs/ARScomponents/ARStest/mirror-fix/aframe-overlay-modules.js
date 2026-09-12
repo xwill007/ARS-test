@@ -83,11 +83,22 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
 
   window.addEventListener('message', function (ev) {
     const msg = ev.data;
-    if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'camera-rotation' || !lookControls) return;
-    lastReceivedYaw = msg.yaw;
-    lastReceivedPitch = msg.pitch;
-    lookControls.yawObject.rotation.y = msg.yaw;
-    lookControls.pitchObject.rotation.x = msg.pitch;
+    if (!msg || msg.source !== 'ars-sync-test' || !lookControls) return;
+    if (msg.action === 'camera-rotation') {
+      lastReceivedYaw = msg.yaw;
+      lastReceivedPitch = msg.pitch;
+      lookControls.yawObject.rotation.y = msg.yaw;
+      lookControls.pitchObject.rotation.x = msg.pitch;
+    } else if (msg.action === 'mouse-look-delta' && lookControls.yawObject && lookControls.pitchObject) {
+      // Pedido del usuario: drag de mouse en web (reenviado por SyncConfigCompassMenu.jsx, la
+      // única capa que recibe el mousedown/mousemove real — ver SyncStereoTestView.jsx). Mismo
+      // criterio que VRLocalVideoOverlaySync.jsx/VRConeOverlaySync.jsx: se suma el delta con la
+      // fórmula de look-controls (sensibilidad 0.002) en vez de recibir un valor absoluto.
+      const PI_2 = Math.PI / 2;
+      lookControls.yawObject.rotation.y -= 0.002 * msg.dx;
+      lookControls.pitchObject.rotation.x -= 0.002 * msg.dy;
+      lookControls.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, lookControls.pitchObject.rotation.x));
+    }
   });
 })();
 
