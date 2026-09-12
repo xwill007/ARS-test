@@ -223,6 +223,16 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
   const pointerEl = document.getElementById('mirror-fix-pointer');
   if (!pointerEl) return;
   const FUSE_MS = 2500;
+  // Pedido del usuario: el círculo visible (el de SyncConfigCompassMenu.jsx, siempre encima —
+  // ver aframe-overlay-modules.html) no se pone rojo al apuntar un botón real de karaoke, porque
+  // su raycaster vive en OTRO iframe y no puede intersectar estos meshes (el raycasting no cruza
+  // iframes). Se avisa acá, por postMessage, el estado de hover/progreso de dwell que YA calcula
+  // este tick() — SyncStereoTestView.jsx lo relaya a la brújula del MISMO panel, que pinta SU
+  // PROPIO círculo (el único visible) en rojo con el mismo progreso, sin duplicar la lógica de
+  // raycasting ni el FUSE_MS acá.
+  function send(msg) {
+    window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+  }
   // Requerimiento 012 (corrección de bug real): antirebote tras cualquier activación — el
   // usuario reportó que un click (manual o por dwell) sobre el botón de play a veces se veía
   // "cancelarse solo" como si fuera un doble click. Causa encontrada: el `key` que identificaba
@@ -387,12 +397,14 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
 
     if (!el || el === lockedEl) {
       setPointerVisual('white', 24);
+      send({ action: 'gaze-hover', hovering: false, progress: 0 });
       return;
     }
 
     const elapsed = Date.now() - fuseStart;
     const progress = Math.min(1, elapsed / FUSE_MS);
     setPointerVisual('#ff3333', 24 * (1 - 0.9 * progress));
+    send({ action: 'gaze-hover', hovering: true, progress: progress });
 
     if (progress >= 1) {
       const now = Date.now();

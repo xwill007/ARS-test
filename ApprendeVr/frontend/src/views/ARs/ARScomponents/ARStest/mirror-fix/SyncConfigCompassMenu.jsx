@@ -59,10 +59,11 @@ const SECTIONS = [
   { key: 'config', labelKey: 'arsConfig.tab.config', thetaStart: 0, type: 'panel' },
   { key: 'overlays', labelKey: 'arsConfig.tab.overlays', thetaStart: 90, type: 'panel' },
   { key: 'back', labelKey: 'home.back', thetaStart: 180, type: 'action', action: 'back' },
-  // dwell: false — "Cerrar sesión" es destructivo (borra la credencial guardada) y NO se activa
-  // por apuntado sostenido, solo con click directo. El reticle se queda blanco/neutro sobre esta
-  // porción en vez de ponerse rojo/achicarse, para que se note que ahí el dwell no hace nada.
-  { key: 'logout', labelKey: 'home.logout', thetaStart: 270, type: 'action', action: 'logout', dwell: false },
+  // Pedido del usuario: "Cerrar sesión" se activa igual que el resto (dwell + click), sin
+  // excepción — antes el reticle se quedaba blanco/neutro sobre esta porción (sin dwell) por ser
+  // destructiva; ahora, como cualquier acción destructiva, queda protegida por el panel de
+  // confirmación (#confirm-panel, ver más abajo), no por deshabilitar el feedback de apuntado.
+  { key: 'logout', labelKey: 'home.logout', thetaStart: 270, type: 'action', action: 'logout' },
 ];
 const WEDGE_THETA_LENGTH = 360 / SECTIONS.length;
 const STEP_DEG = WEDGE_THETA_LENGTH;
@@ -177,6 +178,11 @@ function buildConfirmPanelHTML() {
     <a-entity id="confirm-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
       <a-plane width="2.2" height="1.55" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
       <a-text id="confirm-message" align="center" color="#ffffff" width="2.4" position="0 0.52 0.01"></a-text>
+      <!-- Pedido del usuario: mostrar la sesión activa debajo del mensaje de "Cerrar sesión",
+           para poder verificar de qué cuenta se está cerrando sesión antes de confirmar. Mismo
+           texto (STATIC.loggedInAs/noSession) que ya usa "#settings-session" en la pestaña
+           Configuración — ver window.__requestConfirm, más abajo, para cuándo se completa. -->
+      <a-text id="confirm-user" align="center" color="#aaaaaa" width="2.0" position="0 0.30 0.01"></a-text>
       <a-plane class="clickable" id="confirm-yes-btn" width="0.95" height="0.34" color="#c62828" material="shader: flat; side: double;" position="-0.55 0.05 0.01">
         <a-text id="confirm-yes-label" align="center" color="#fff" width="6" position="0 0 0.01"></a-text>
       </a-plane>
@@ -223,7 +229,7 @@ function buildWedgesHTML() {
   // Radio medio de la franja de la dona (entre el hueco y el borde exterior) — ahí es donde va
   // el texto de cada porción, ni pegado al hueco ni al borde.
   const midRadius = (RING_INNER_RADIUS + RADIUS) / 2;
-  return buildWedgeBackingHTML() + SECTIONS.map(({ key, thetaStart, type, action, dwell }) => {
+  return buildWedgeBackingHTML() + SECTIONS.map(({ key, thetaStart, type, action }) => {
     const bisectorDeg = thetaStart + WEDGE_THETA_LENGTH / 2;
     return `
       <!-- Puramente decorativa: SIN clase .clickable ni data-* — pedido del usuario: "el click se
@@ -272,7 +278,6 @@ function buildWedgesHTML() {
             data-section="${key}"
             data-type="${type}"
             ${action ? `data-action="${action}"` : ''}
-            ${dwell === false ? 'data-dwell="false"' : ''}
             width="1.3" height="0.4"
             material="shader: flat; side: double; transparent: true; opacity: 0.01;"
             rotation="-90 0 0">
@@ -541,6 +546,22 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             var lockedEl = null;
             var lastActivationAt = 0;
 
+            // Pedido del usuario: este círculo es el único visible de todo el panel (ver
+            // aframe-overlay-modules.html/VRConeOverlaySync.jsx), pero su raycaster solo puede
+            // intersectar elementos de ESTA escena (wedges/panel de config/widget de posición) —
+            // nunca los botones reales de un overlay de contenido (video/cono/karaoke), que vive
+            // en OTRO iframe. Ese overlay ya calcula su propio hover/progreso de dwell (ver
+            // 'gaze-hover' en aframe-overlay-modules.js) y lo reenvía acá vía SyncStereoTestView.jsx
+            // — se cachea para pintarlo cuando este círculo no tenga nada propio que mostrar.
+            var remoteGazeHovering = false;
+            var remoteGazeProgress = 0;
+            window.addEventListener('message', function (ev) {
+              var msg = ev.data;
+              if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'gaze-hover') return;
+              remoteGazeHovering = !!msg.hovering;
+              remoteGazeProgress = msg.progress || 0;
+            });
+
             function setVisual(color, scale) {
               cursorEl.setAttribute('material', 'color: ' + color + '; shader: flat; opacity: 0.85');
               cursorEl.setAttribute('scale', scale + ' ' + scale + ' ' + scale);
@@ -552,18 +573,6 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               if (!raycasterComp) return;
               var target = (raycasterComp.intersectedEls && raycasterComp.intersectedEls[0]) || null;
 
-              // Porciones marcadas data-dwell="false" (hoy: "Cerrar sesión", destructiva) no se
-              // activan por apuntado sostenido — el reticle se queda neutro sobre ellas, como si
-              // no hubiera nada que mirar. Solo responden al click directo (pipeline nativo de
-              // A-Frame, mismo listener 'click' que el resto de porciones).
-              if (target && target.dataset && target.dataset.dwell === 'false') {
-                lockedEl = null;
-                hoveredEl = target;
-                fuseStart = null;
-                setVisual('white', 1);
-                return;
-              }
-
               if (target !== lockedEl) lockedEl = null;
 
               if (target !== hoveredEl) {
@@ -572,7 +581,15 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               }
 
               if (!target || target === lockedEl) {
-                setVisual('white', 1);
+                // Nada propio que mirar acá: si el overlay de contenido reporta estar apuntando
+                // uno de sus botones, se refleja ESE hover/progreso — el click en sí lo dispara el
+                // propio overlay con su propio raycaster/dwell (ver aframe-overlay-modules.js),
+                // acá solo se pinta el único círculo visible con el mismo feedback.
+                if (remoteGazeHovering) {
+                  setVisual('#ff3333', 1 - 0.9 * remoteGazeProgress);
+                } else {
+                  setVisual('white', 1);
+                }
                 return;
               }
 
@@ -880,6 +897,16 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
 
             var STATIC = JSON.parse(document.getElementById('settings-static-labels').textContent);
             var pendingAction = null; // 'back' | 'logout' | null
+            // Pedido del usuario: cachea el último email recibido por "compass-config-state" (lo
+            // manda SyncStereoTestView.jsx, mismo mensaje que ya consume el panel de Configuración
+            // para "#settings-session") para poder mostrarlo debajo del mensaje de "Cerrar sesión"
+            // sin depender de que la pestaña Configuración haya estado abierta antes.
+            var lastUserEmail = null;
+            window.addEventListener('message', function (ev) {
+              var msg = ev.data;
+              if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'compass-config-state') return;
+              lastUserEmail = msg.userEmail || null;
+            });
 
             function hideConfirm() {
               pendingAction = null;
@@ -898,6 +925,11 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               pendingAction = action;
               var messageKey = action === 'logout' ? 'confirmLogout' : 'confirmBack';
               document.querySelector('#confirm-message').setAttribute('value', STATIC[messageKey]);
+              // Solo tiene sentido mostrar la sesión activa al confirmar "Cerrar sesión" — en
+              // "Volver" se deja vacío (mismo criterio que "login-test-btn" más abajo).
+              document.querySelector('#confirm-user').setAttribute(
+                'value', action === 'logout' ? (lastUserEmail ? (STATIC.loggedInAs + ': ' + lastUserEmail) : STATIC.noSession) : '',
+              );
               document.querySelector('#confirm-panel').setAttribute('visible', true);
               // Requerimiento 013 (ampliación): el botón "login-test" solo tiene sentido al
               // confirmar "Cerrar sesión" — es la alternativa rápida a cerrar sesión y recargar a

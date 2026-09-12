@@ -40,7 +40,16 @@
          <a-cursor> 3D porque vr-karaoke-af/vr-new-song-af no marcan sus botones con
          .clickable/.raycastable (ver aframe-overlay-modules.js): el raycaster de A-Frame no los
          intersectaría, así que el "fuse"/auto-click por gaze no está disponible para karaoke en
-         esta iteración — queda documentado como pendiente en el Requerimiento 012. */
+         esta iteración — queda documentado como pendiente en el Requerimiento 012.
+
+         Pedido del usuario: oculto visualmente (opacity: 0) — con la brújula
+         (SyncConfigCompassMenu.jsx) siempre activa encima de todo, se veían dos círculos
+         superpuestos (este + el de la brújula). El de la brújula queda como el único visible; el
+         hover/dwell/click de este (aframe-overlay-modules.js, más abajo en este archivo) sigue
+         funcionando igual — sigue siendo el único camino para activar los botones reales de
+         karaoke (lista de canciones, agregar canción, evaluación, widgets de posición), la
+         brújula no puede alcanzarlos (raycasting no cruza iframes). Solo se le quita el círculo
+         visible, no la lógica. */
       #mirror-fix-pointer {
         position: fixed;
         top: 50%;
@@ -54,6 +63,7 @@
         box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
         pointer-events: none;
         z-index: 99999;
+        opacity: 0;
       }
     </style>
   </head>

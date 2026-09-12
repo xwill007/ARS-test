@@ -456,6 +456,28 @@ const SyncStereoTestView = ({ onClose }) => {
         return;
       }
 
+      // Pedido del usuario: el único círculo visible (el de la brújula) tampoco se ponía rojo al
+      // apuntar un botón real de un overlay de contenido (hoy: karaoke) — ese overlay ya calcula
+      // su propio hover/progreso de dwell (ver aframe-overlay-modules.js), pero vive en OTRO
+      // iframe que la brújula no puede intersectar (el raycasting no cruza iframes). Se reenvía
+      // el aviso a la brújula del MISMO panel — nunca al panel opuesto ni a otro tipo de overlay
+      // — para que pinte SU propio círculo con ese estado, sin duplicar la lógica de raycasting.
+      if (msg.action === 'gaze-hover') {
+        const isFromLeftContent = Object.keys(SYNCABLE_OVERLAYS).some(
+          (key) => ev.source === leftRefs.current[key].current?.contentWindow
+        );
+        const isFromRightContent = Object.keys(SYNCABLE_OVERLAYS).some(
+          (key) => ev.source === rightRefs.current[key].current?.contentWindow
+        );
+        const targetCompassWindow = isFromLeftContent
+          ? leftCompassRef.current?.contentWindow
+          : isFromRightContent
+          ? rightCompassRef.current?.contentWindow
+          : null;
+        targetCompassWindow?.postMessage(msg, '*');
+        return;
+      }
+
       for (const key of Object.keys(SYNCABLE_OVERLAYS)) {
         const leftWindow = leftRefs.current[key].current?.contentWindow;
         const rightWindow = rightRefs.current[key].current?.contentWindow;
