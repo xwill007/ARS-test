@@ -12,6 +12,7 @@ export const KNOWN_VIEWS = [
   'evaluation-panel',
   'ars-sync-overlays',
   'ars-sync-config',
+  'ars-sync-compass-position',
 ] as const;
 
 export type SettingsView = (typeof KNOWN_VIEWS)[number];
@@ -110,12 +111,23 @@ export function isValidArsSyncConfigConfig(config: unknown): boolean {
   );
 }
 
+// ars-sync-compass-position: posición 3D de la brújula de la vista de prueba "AR-SYNC" (widget 📍
+// + d-pad de SyncConfigCompassMenu.jsx, Requerimiento 013) — una tupla `{x, y, z}` de números
+// finitos (sin restricción de signo: la brújula puede quedar en cualquier octante del espacio).
+export function isValidArsSyncCompassPositionConfig(config: unknown): boolean {
+  if (!config || typeof config !== 'object') return false;
+  const c = config as Record<string, unknown>;
+  const isFiniteNumber = (n: unknown) => typeof n === 'number' && Number.isFinite(n);
+  return isFiniteNumber(c.x) && isFiniteNumber(c.y) && isFiniteNumber(c.z);
+}
+
 const VALIDATORS: Record<SettingsView, (config: unknown) => boolean> = {
   'login-form': isValidLoginFormConfig,
   'aframe-view': isValidAframeViewConfig,
   'evaluation-panel': isValidEvaluationPanelConfig,
   'ars-sync-overlays': isValidArsSyncOverlaysConfig,
   'ars-sync-config': isValidArsSyncConfigConfig,
+  'ars-sync-compass-position': isValidArsSyncCompassPositionConfig,
 };
 
 export function isValidConfigForView(view: SettingsView, config: unknown): boolean {

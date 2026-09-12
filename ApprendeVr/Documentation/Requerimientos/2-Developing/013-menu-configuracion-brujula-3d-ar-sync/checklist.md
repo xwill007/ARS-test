@@ -188,3 +188,19 @@
       espectador fijo — resultado esperado de una orientación radial pura, no de una "siempre
       legible").
 - [x] `npm run build` y `npm run check:i18n` siguen pasando sin errores después de estos ajustes.
+
+## Fase 10 — Persistencia real de overlays/config/posición para el usuario de prueba (login-test)
+
+- [x] **Corregido tras hallazgo** (ver `problems_solutions.md` 2026-09-12): `saveSelectedOverlays`
+      y `saveConfig` en `SyncStereoTestView.jsx` leían del closure del PRIMER render (porque
+      `handleMessage` se registra con `deps: []`), guardando siempre el default
+      (`['camera','video']`, separación 24, etc.) en vez de la selección real. Ahora leen de
+      `configStateRef.current`. Confirmado en DB (la fila de `prueba@gmail.com` quedaba con el
+      default) y build de Vite limpio.
+- [x] **Corregido tras hallazgo** (ver `problems_solutions.md` 2026-09-12): la vista
+      `ars-sync-compass-position` (posición de la brújula 3D) no estaba registrada en el backend —
+      `GET`/`PUT` devolvían `400 UNKNOWN_VIEW` y la posición nunca persistía. Agregada a
+      `KNOWN_VIEWS` + validador `isValidArsSyncCompassPositionConfig` en `user-settings.util.ts`,
+      migración `db/008-ars-sync-compass-position-view.sql` (INSERT en `settings_views`) montada en
+      `docker-compose.yml`, seed aplicado al contenedor en ejecución. Suite `user-settings` 55/55
+      verde, `nest build` limpio.

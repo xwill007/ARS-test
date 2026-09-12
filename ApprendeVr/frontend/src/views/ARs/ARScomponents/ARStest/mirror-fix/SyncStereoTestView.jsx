@@ -226,8 +226,13 @@ const SyncStereoTestView = ({ onClose }) => {
   // togglear) — el usuario pidió que la selección se guarde bajo su propia acción, no en cada
   // click de checkbox. El botón se pone gris solo si el guardado terminó en éxito (200), no de
   // forma optimista.
+  // Requerimiento 013 (hallazgo): lee de `configStateRef.current` (no del closure `selectedOverlays`)
+  // porque `handleMessage` se registra UNA sola vez (deps `[]`) y captura la referencia de esta
+  // función del PRIMER render — con el closure habría guardado siempre el default `['camera',
+  // 'video']`, no la selección actual del usuario (confirmado en DB: la fila quedó con el default).
   const saveSelectedOverlays = () => {
-    saveUserSetting(OVERLAYS_SETTINGS_VIEW, { selectedOverlays }).then((ok) => {
+    const overlays = configStateRef.current ? configStateRef.current.selectedOverlays : selectedOverlays;
+    saveUserSetting(OVERLAYS_SETTINGS_VIEW, { selectedOverlays: overlays }).then((ok) => {
       if (ok) setOverlaysSaved(true);
     });
   };
@@ -240,7 +245,13 @@ const SyncStereoTestView = ({ onClose }) => {
   const updateHeight = (value) => { setConfigSaved(false); setPanelHeight(value); };
 
   const saveConfig = () => {
-    saveUserSetting(CONFIG_SETTINGS_VIEW, { separation, panelWidth, panelHeight }).then((ok) => {
+    // Requerimiento 013 (hallazgo): mismo motivo que `saveSelectedOverlays` — leer del ref, no del
+    // closure, porque `handleMessage` captura esta función del primer render (deps `[]`).
+    const current = configStateRef.current;
+    const separationVal = current ? current.separation : separation;
+    const widthVal = current ? current.width : panelWidth;
+    const heightVal = current ? current.height : panelHeight;
+    saveUserSetting(CONFIG_SETTINGS_VIEW, { separation: separationVal, panelWidth: widthVal, panelHeight: heightVal }).then((ok) => {
       if (ok) setConfigSaved(true);
     });
   };

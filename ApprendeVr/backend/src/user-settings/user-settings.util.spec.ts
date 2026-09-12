@@ -2,6 +2,7 @@ import {
   isKnownDeviceType,
   isKnownView,
   isValidAframeViewConfig,
+  isValidArsSyncCompassPositionConfig,
   isValidArsSyncConfigConfig,
   isValidArsSyncOverlaysConfig,
   isValidConfigForView,
@@ -17,6 +18,7 @@ describe('user-settings.util', () => {
       expect(isKnownView('evaluation-panel')).toBe(true);
       expect(isKnownView('ars-sync-overlays')).toBe(true);
       expect(isKnownView('ars-sync-config')).toBe(true);
+      expect(isKnownView('ars-sync-compass-position')).toBe(true);
     });
 
     it('rejects an unknown view', () => {
@@ -175,6 +177,30 @@ describe('user-settings.util', () => {
     it('rejects a non-object payload', () => {
       expect(isValidArsSyncConfigConfig(null)).toBe(false);
       expect(isValidArsSyncConfigConfig('nope')).toBe(false);
+    });
+  });
+
+  describe('isValidArsSyncCompassPositionConfig', () => {
+    it('accepts a valid {x, y, z} payload', () => {
+      expect(isValidArsSyncCompassPositionConfig({ x: 0, y: 0, z: 0 })).toBe(true);
+      expect(isValidArsSyncCompassPositionConfig({ x: -1.5, y: 2.25, z: 3 })).toBe(true);
+    });
+
+    it('rejects a missing coordinate', () => {
+      expect(isValidArsSyncCompassPositionConfig({ x: 0, y: 0 })).toBe(false);
+    });
+
+    it('rejects a non-numeric coordinate', () => {
+      expect(isValidArsSyncCompassPositionConfig({ x: 0, y: 'a', z: 0 })).toBe(false);
+    });
+
+    it('rejects a non-finite coordinate', () => {
+      expect(isValidArsSyncCompassPositionConfig({ x: 0, y: Infinity, z: 0 })).toBe(false);
+    });
+
+    it('rejects a non-object payload', () => {
+      expect(isValidArsSyncCompassPositionConfig(null)).toBe(false);
+      expect(isValidArsSyncCompassPositionConfig('nope')).toBe(false);
     });
   });
 

@@ -321,3 +321,36 @@ un navegador normal (con la pestaña realmente enfocada/visible) o en un disposi
 confirmar que la animación de rotación y el click directo (pipeline nativo de `cursor` de
 A-Frame) se ven y funcionan correctamente con el loop de render corriendo con normalidad — ver
 `checklist.md`, Fase 2.
+
+## 2026-09-12 — Hallazgo: los overlays seleccionados no se guardaban/recuperaban para `prueba@gmail.com` (login-test)
+
+**Problema:** el usuario reportó que la selección de overlays del menú de AR-SYNC no se guardaba
+ni recuperaba correctamente para el usuario de prueba (`prueba@gmail.com`), el que se activa con
+"login-test" al confirmar "Cerrar sesión". Confirmado contra la base de datos: la fila
+`ars-sync-overlays` de `prueba@gmail.com` (id 31) quedaba en `["camera","video"]` — el default — no
+en la selección real del usuario.
+
+**Causa (bug de closure de React):** en `SyncStereoTestView.jsx`, `handleMessage` se registra UNA
+sola vez (`useEffect(..., [])`), así que captura las referencias de `saveSelectedOverlays`/`saveConfig`
+del PRIMER render. Esas funciones guardaban el estado del primer render (`selectedOverlays =
+['camera','video']`, `separation = 24`, etc.), no el actual — por eso al pulsar "Guardar" desde la
+brújula se persistía siempre el default. El ref `configStateRef` ya existía (se usa en
+`compass-ready`) precisamente para este problema, pero las dos funciones de guardado no lo usaban.
+
+**Solución:** `saveSelectedOverlays` y `saveConfig` ahora leen de `configStateRef.current` (que se
+refresca tras cada render) en vez del closure. Confirmado con build de Vite limpio.
+
+**Hallazgo relacionado (mismo flujo de login-test, distinto síntoma):** la vista
+`ars-sync-compass-position` (posición 3D de la brújula, widget 📍 + d-pad) no estaba registrada en
+el backend — faltaba en `KNOWN_VIEWS` (`user-settings.util.ts`) y en el seed de `settings_views`
+(la tabla solo tenía 5 filas). Por eso su `GET`/`PUT /api/user-settings/ars-sync-compass-position`
+devolvía `400 UNKNOWN_VIEW` y la posición de la brújula nunca se persistía ni recuperaba. Se agregó
+la vista siguiendo el mismo patrón que `ars-sync-config` (Requerimiento 012): entrada en
+`KNOWN_VIEWS`, validador `isValidArsSyncCompassPositionConfig` (`{x, y, z}` números finitos),
+migración `db/008-ars-sync-compass-position-view.sql` (INSERT en `settings_views`) montada en
+`docker-compose.yml`, y aplicación manual del seed al contenedor ya iniciado (`docker-entrypoint-
+initdb.d` solo corre en la primera inicialización del volumen). Suite `user-settings` 55/55 verde,
+`nest build` limpio.
+
+**Estado:** resuelto — corregido en `SyncStereoTestView.jsx` (guardado lee del ref) y en el
+backend (vista `ars-sync-compass-position` registrada + seed aplicado).
