@@ -138,3 +138,21 @@ restablecieron a sus valores por defecto vía API antes de cerrar la verificaci�
       cierra el d-pad sin mover el panel, las coordenadas se actualizan al mover, el botón GUARDAR
       persiste (`PUT /api/user-settings/evaluation-panel` → 200) y el botón "X" de cerrar queda
       visible sin solaparse con el marcador ni con las flechas.
+
+## Fase 7 — Ampliación: marcador de karaoke dinámico + posición independiente de la lista
+
+- [x] **Corregido tras feedback del usuario** (ver `problems_solutions.md` #9): el offset del
+      marcador de `karaoke` era fijo `[-7.5, 7.3, -3]` y quedaba "muy lejos en z" en el overlay de
+      AR-SYNC (video en `z=-6`). Ahora `resolveOffset()` calcula el offset del video real
+      (`videoPosition`/`videoWidth`/`videoHeight` de `vr-karaoke-af`), pegado a la esquina superior
+      izquierda a su misma profundidad z.
+- [x] **Ampliado a pedido del usuario** (ver `problems_solutions.md` #10): nuevo elemento `songList`
+      en `ELEMENTS`, que posiciona la lista de canciones (`this._videoListContainer`) de forma
+      independiente al reproductor, con `resolveTarget()` (getPos/setPos), `reanchor()` para que el
+      📍 siga a la lista al moverla, y vigilancia por referencia para re-aplicar la posición cuando
+      `_initSongList` re-crea el contenedor al agregar una canción.
+- [x] Backend: `AFRAME_VIEW_ELEMENTS` actualizado a `['karaoke', 'songList', 'newSong']` en
+      `user-settings.util.ts` (+ spec). Suite `user-settings` completa en verde (50/50).
+- [x] **Ajustado a pedido del usuario** ("bajalo un poco"): el marcador de `songList` se ancla al
+      borde superior del fondo de la lista (`y local 0.4` de `_buildSongListUI`) + 0.3 de margen,
+      en vez de flotar por encima del panel.

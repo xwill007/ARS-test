@@ -154,6 +154,60 @@ del input en vez de formar un solo conjunto.
 
 **Estado:** resuelto y verificado en navegador.
 
+## 9. El marcador de karaoke quedaba "muy lejos en z" en el overlay de AR-SYNC
+
+**Problema:** el usuario reportó que el 📍 de configuración de posición de karaoke quedaba
+descolocado en dirección z, lejos del panel del reproductor de video, y pidió que quedara en la
+esquina superior izquierda junto al botón "EVALUATE SONG".
+
+**Causa raíz:** el offset del marcador de `karaoke` estaba hardcodeado en `[-7.5, 7.3, -3]`,
+calculado para la vista A-frame original (donde el video vive en `z=-3`). Pero en el overlay de
+AR-SYNC/mirror-fix (`aframe-overlay-modules.html`) el video vive en `z=-6`, así que el marcador
+terminaba flotando ~3 unidades más cerca de la cámara que el video, sin apoyarse sobre él.
+
+**Solución:** el offset de `karaoke` ya no es un valor fijo: `resolveOffset()` lee
+`videoPosition`/`videoWidth`/`videoHeight` reales del componente `vr-karaoke-af` y ancla el marcador
+a la esquina superior izquierda del video **a su misma profundidad z**. Con la vista original
+(`0 2.5 -3`, 15×9) devuelve `[-7.5, 7.3, -3]` (comportamiento previo intacto); con el overlay
+(`-3.2 1.6 -6`, 6×3.6) devuelve `[-6.2, 3.7, -6]`, pegado al video.
+
+**Estado:** resuelto y verificado en navegador.
+
+## 10. Posición ajustable de la lista de canciones, independiente del reproductor
+
+**Pedido del usuario:** "agrega también el componente para actualizar la posición independiente de
+la lista de canciones" (y luego "bajalo un poco, debe quedar justo en la esquina superior
+izquierda").
+
+**Problema:** la lista de canciones (SONGS LIST) es un hijo del panel de karaoke, no una entidad
+independiente — hasta ahora solo se podía mover el grupo `karaoke` completo (video), no la lista por
+separado. Además, al agregar una canción nueva `_initSongList()` re-crea `_videoListContainer` con
+`listPosition` del schema, perdiendo cualquier posición editada.
+
+**Solución:** se agregó el elemento `songList` a `ELEMENTS` en `vrPositionControl.js`, que comparte
+el MISMO host (`#karaoke-vr-component`) que `karaoke` pero edita la posición de
+`this._videoListContainer`. `resolveTarget()` desacopla "dónde vive el marcador" (host) de "qué
+posición se edita" (getPos/setPos):
+- `setPos` mueve el contenedor de la lista y actualiza `comp.data.listPosition` (para que una
+  re-creación futura arranque desde ahí).
+- `resolveSongListOffset()` ancla el 📍 a la esquina superior izquierda de la lista, respetando
+  `listPosition` + `escalaLista` (el marcador vive en el host, sin heredar el scale de la lista).
+- Al mover la lista, `reanchor()` re-acomoda marcador/d-pad para que sigan pegados a la lista (el
+  host no se mueve, así que el marcador no se movería solo).
+- Un `setInterval` vigila por referencia `_videoListContainer` (mismo patrón que el puente de video
+  de `aframe-overlay-modules.js`) y re-aplica posición + re-ancla al contenedor nuevo cuando
+  `_initSongList` lo re-crea.
+- `createWidget` acepta un `getDisplayPos` opcional para que el d-pad muestre las coordenadas de la
+  lista (no las del grupo karaoke); `formatCoords` acepta array u objeto.
+
+En el backend, `AFRAME_VIEW_ELEMENTS` pasó a `['karaoke', 'songList', 'newSong']` (con su spec
+actualizado), así que el `PUT /api/user-settings/aframe-view` exige y persiste las tres claves.
+
+**Nota:** como la validación usa `.every()`, las configs guardadas antes (solo `karaoke`/`newSong`)
+se cargan sin romper en el frontend y se regeneran completas al siguiente GUARDAR.
+
+**Estado:** resuelto y verificado en navegador; tests de backend (`user-settings`) 50/50 pasan.
+
 > Recordatorio: si un item de `checklist.md` o un criterio de aceptación ya marcado `[x]` resulta
 > no estar realmente resuelto, hay que corregir la marca y registrar acá el hallazgo como
 > **hallazgo tardío**, sin esperar a que se pida.

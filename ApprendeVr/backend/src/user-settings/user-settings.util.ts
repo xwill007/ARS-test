@@ -60,9 +60,10 @@ export function isValidLoginFormConfig(config: unknown): boolean {
 
 // aframe-view: posición de los elementos ajustables de la vista A-Frame (Requerimiento 009). El
 // video del karaoke vive DENTRO del propio panel de karaoke (no es una entidad independiente en
-// el DOM), así que no tiene una entrada propia acá — solo karaoke y newSong son posicionables por
-// separado.
-const AFRAME_VIEW_ELEMENTS = ['karaoke', 'newSong'] as const;
+// el DOM), así que no tiene una entrada propia acá. `songList` es la lista de canciones (también
+// dentro del panel de karaoke, pero posicionable por separado vía this._videoListContainer de
+// VRKaraokeAf.js) — karaoke, songList y newSong son posicionables por separado.
+const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong'] as const;
 
 export function isValidAframeViewConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;

@@ -19,21 +19,61 @@ import { t } from './vrI18n.util.js';
 const DEFAULT_STEP = 3.0;
 const VIEW = 'aframe-view';
 
-// offset: posición local (relativa al propio elemento) donde se ancla el marcador 📍 — siempre en
-// la esquina SUPERIOR IZQUIERDA del panel visible de cada elemento (borde izquierdo, un poco por
-// encima del borde superior), igual convención que `UbicacionControl` (corner="top-left").
-// `karaoke` es un grupo compuesto (video + lista de canciones, lejos entre sí en X) — se ancla a
-// la esquina superior izquierda de su video (videoPosition/videoWidth/videoHeight de
-// VRKaraokeAf.js en index.html: "0 2.5 -3", 15x9), que es su elemento visualmente principal. El
-// video no tiene entrada propia acá: vive dentro del panel de karaoke (no es una entidad
+// offset: posición local (relativa al `host`, el elemento donde vive el marcador 📍) en la que se
+// ancla el marcador — siempre en la esquina SUPERIOR IZQUIERDA del panel visible de cada elemento
+// (borde izquierdo, un poco por encima del borde superior), igual convención que `UbicacionControl`
+// (corner="top-left").
+// `karaoke` es un grupo compuesto (video + lista de canciones, lejos entre sí en X). `karaoke` y
+// `songList` comparten el MISMO host (`#karaoke-vr-component`) pero editan posiciones distintas:
+// `karaoke` edita la posición del propio grupo (el video), `songList` edita la posición del
+// contenedor de la lista de canciones (this._videoListContainer de VRKaraokeAf.js). Por eso el
+// marcador de cada uno se ancla al host (sin heredar el `escalaLista` que sí tiene la lista) y
+// `resolveTarget()` decide, según la clave, qué se lee/escribe como posición.
+// El video no tiene entrada propia acá: vive dentro del panel de karaoke (no es una entidad
 // independiente en el DOM), así que no es posicionable por separado — hubo una entrada `video`
 // con selector `#video-container` que nunca existió, dejando ese elemento fuera de la config
-// guardada y haciendo fallar la validación del backend (que exigía las tres claves) en cada
+// guardada y haciendo fallar la validación del backend (que exigía las claves exactas) en cada
 // GUARDAR (hallazgo tardío, ver problems_solutions.md del Requerimiento 010).
 const ELEMENTS = [
-  { key: 'karaoke', selector: '#karaoke-vr-component', offset: [-7.5, 7.3, -3] },
+  { key: 'karaoke', selector: '#karaoke-vr-component' },
+  { key: 'songList', selector: '#karaoke-vr-component' },
   { key: 'newSong', selector: '#new-song-component', offset: [-1.6, 2.875, 0.05] },
 ];
+
+// offset del marcador de `karaoke` calculado del video real que monta vr-karaoke-af: esquina
+// superior izquierda (borde izquierdo, 0.3 por encima del borde superior, a la MISMA profundidad
+// z del video). Con los valores de la vista original ("0 2.5 -3", 15x9) devuelve [-7.5, 7.3, -3],
+// igual que el offset hardcodeado anterior; con el overlay (-3.2 1.6 -6, 6x3.6) devuelve
+// [-6.2, 3.7, -6], pegado al video en vez de flotar delante de la cámara.
+function resolveOffset(el, key) {
+  if (key !== 'karaoke') return null;
+  const comp = el.components && el.components['vr-karaoke-af'];
+  if (!comp || !comp.data) return [-7.5, 7.3, -3];
+  const vp = String(comp.data.videoPosition || '0 2.5 -3').trim().split(/\s+/).map(Number);
+  const vx = Number.isFinite(vp[0]) ? vp[0] : 0;
+  const vy = Number.isFinite(vp[1]) ? vp[1] : 2.5;
+  const vz = Number.isFinite(vp[2]) ? vp[2] : -3;
+  const vw = Number.isFinite(comp.data.videoWidth) ? comp.data.videoWidth : 15;
+  const vh = Number.isFinite(comp.data.videoHeight) ? comp.data.videoHeight : 9;
+  return [vx - vw / 2, vy + vh / 2 + 0.3, vz];
+}
+
+// offset del marcador de `songList`, en coordenadas del host `#karaoke-vr-component` (que no tiene
+// scale): listPosition + esquina superior izquierda de la lista * escalaLista. La lista (ancho 4)
+// está escalada por `escalaLista`; su fondo arranca en y local 0.4 (ver _buildSongListUI de
+// VRKaraokeAf.js: `-backgroundHeight/2 + 0.4`), así que el borde superior queda en 0.4 y el
+// marcador se ancla 0.3 por encima (mismo margen que el video). Con la vista original
+// ("12.0 6.15 -3", escala 2.2) devuelve [7.6, 7.69, -3]; con el overlay ("3.2 1.6 -6", escala 0.85)
+// devuelve [1.5, 2.2, -6].
+function resolveSongListOffset(comp) {
+  if (!comp || !comp.data) return [6, 2.2, -3];
+  const lp = String(comp.data.listPosition || '6 2.5 -3').trim().split(/\s+/).map(Number);
+  const lx = Number.isFinite(lp[0]) ? lp[0] : 6;
+  const ly = Number.isFinite(lp[1]) ? lp[1] : 2.5;
+  const lz = Number.isFinite(lp[2]) ? lp[2] : -3;
+  const scale = Number.isFinite(comp.data.escalaLista) ? comp.data.escalaLista : 1.0;
+  return [lx - 2 * scale, ly + 0.7 * scale, lz];
+}
 
 function parsePosition(attrValue) {
   if (attrValue && typeof attrValue === 'object') {
@@ -43,7 +83,10 @@ function parsePosition(attrValue) {
 }
 
 function formatCoords(pos) {
-  return `${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}`;
+  const x = Array.isArray(pos) ? pos[0] : pos.x;
+  const y = Array.isArray(pos) ? pos[1] : pos.y;
+  const z = Array.isArray(pos) ? pos[2] : pos.z;
+  return `${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}`;
 }
 
 // Un widget por elemento: marcador clickeable (círculo rojo) que despliega/oculta un d-pad con
@@ -52,7 +95,7 @@ function formatCoords(pos) {
 // — todos hijos del propio elemento salvo el input (HTML, proyectado sobre pantalla). Mover con
 // el d-pad solo actualiza la posición en pantalla; el ajuste recién se registra en la base de
 // datos al pulsar GUARDAR (a pedido explícito, en vez de guardar en cada click).
-export function createWidget(el, offset, onMove, onSave) {
+export function createWidget(el, offset, onMove, onSave, getDisplayPos) {
   const [ox, oy, oz] = offset;
   const clickables = []; // { el, onClick }
 
@@ -91,7 +134,8 @@ export function createWidget(el, offset, onMove, onSave) {
   front.appendChild(coordsLabel);
 
   const refreshCoordsLabel = () => {
-    coordsLabel.setAttribute('value', formatCoords(el.getAttribute('position')));
+    const displayPos = getDisplayPos ? getDisplayPos() : el.getAttribute('position');
+    coordsLabel.setAttribute('value', formatCoords(displayPos));
   };
   refreshCoordsLabel();
 
@@ -184,7 +228,16 @@ export function createWidget(el, offset, onMove, onSave) {
   marker.addEventListener('click', toggle);
   clickables.push({ el: marker, onClick: toggle });
 
-  return { clickables, dpad, inputAnchor, stepInput, refreshCoordsLabel };
+  // Reposiciona el marcador + d-pad sobre un nuevo anclaje (offset relativo al `el`). Se usa en
+  // `songList`: su marcador vive en el host `#karaoke-vr-component`, pero la lista (hija del host)
+  // se mueve sin mover el host, así que al mover la lista hay que re-anclar el widget para que el
+  // 📍 siga pegado a la esquina de la lista en vez de quedarse en la posición original.
+  const setAnchor = ([nx, ny, nz]) => {
+    marker.setAttribute('position', `${nx} ${ny} ${nz}`);
+    dpad.setAttribute('position', `${nx} ${ny - 0.9} ${nz}`);
+  };
+
+  return { clickables, dpad, marker, inputAnchor, stepInput, refreshCoordsLabel, setAnchor };
 }
 
 // Registro compartido de botones clickeables de TODOS los widgets de esta vista (los tres fijos
@@ -278,6 +331,46 @@ function startNumericInputProjection(sceneEl) {
   requestAnimationFrame(tick);
 }
 
+// Resuelve un elemento de `ELEMENTS` a un target de posición: `host` es el elemento al que se
+// ancla el widget (marcador + d-pad); `getPos`/`setPos` desacoplan "dónde vive el widget" de "qué
+// posición se edita". Para `karaoke`/`newSong` host === elemento y la posición es la del propio
+// host; para `songList` el host es `#karaoke-vr-component` pero la posición editada es la del
+// contenedor de la lista (this._videoListContainer de VRKaraokeAf.js), que se crea dinámicamente
+// y se re-crea al agregar una canción.
+function resolveTarget(hostEl, key) {
+  if (key === 'songList') {
+    const comp = hostEl.components && hostEl.components['vr-karaoke-af'];
+    if (!comp) return null;
+    const getListEl = () => comp._videoListContainer;
+    return {
+      key,
+      host: hostEl,
+      offset: resolveSongListOffset(comp),
+      getPos: () => {
+        const listEl = getListEl();
+        return listEl ? parsePosition(listEl.getAttribute('position')) : parsePosition(comp.data.listPosition);
+      },
+      setPos: (p) => {
+        const listEl = getListEl();
+        if (listEl) listEl.setAttribute('position', `${p[0]} ${p[1]} ${p[2]}`);
+        try { comp.data.listPosition = `${p[0]} ${p[1]} ${p[2]}`; } catch (e) {}
+      },
+      // Al mover la lista, el marcador (hijo del host) no se mueve solo — re-anclarlo a la nueva
+      // esquina de la lista para que el 📍 siga pegado a ella.
+      reanchor: (widget) => widget.setAnchor(resolveSongListOffset(comp)),
+    };
+  }
+  const def = ELEMENTS.find((e) => e.key === key);
+  const offset = (def && def.offset) || resolveOffset(hostEl, key);
+  return {
+    key,
+    host: hostEl,
+    offset,
+    getPos: () => parsePosition(hostEl.getAttribute('position')),
+    setPos: (p) => hostEl.setAttribute('position', `${p[0]} ${p[1]} ${p[2]}`),
+  };
+}
+
 export function initPositionControl() {
   const sceneEl = document.querySelector('a-scene');
   if (!sceneEl) return;
@@ -285,16 +378,19 @@ export function initPositionControl() {
   setupSharedRaycast(sceneEl);
   startNumericInputProjection(sceneEl);
 
-  const targets = ELEMENTS.map((e) => ({ ...e, el: document.querySelector(e.selector) })).filter(
-    (e) => e.el,
-  );
+  const targets = ELEMENTS.map((e) => {
+    const hostEl = document.querySelector(e.selector);
+    if (!hostEl) return null;
+    return resolveTarget(hostEl, e.key);
+  }).filter(Boolean);
   if (!targets.length) return;
 
-  // Estado en memoria: arranca con lo que cada entidad ya trae en el DOM (hardcodeado en
-  // index.html), y se reemplaza por lo guardado (si existe) al cargar más abajo.
+  // Estado en memoria: arranca con lo que cada elemento ya trae en el DOM (hardcodeado en
+  // index.html o en el schema del componente), y se reemplaza por lo guardado (si existe) al
+  // cargar más abajo.
   const state = {};
   targets.forEach((t) => {
-    state[t.key] = parsePosition(t.el.getAttribute('position'));
+    state[t.key] = t.getPos();
   });
 
   const persist = () => {
@@ -308,6 +404,7 @@ export function initPositionControl() {
   targets.forEach((t) => {
     // Mover con el d-pad solo actualiza la posición en memoria/pantalla; el botón GUARDAR de
     // cada widget es el que la registra en la base de datos (a pedido explícito del usuario).
+    let widget = null;
     const onMove = (dx, dy, dz) => {
       const pos = state[t.key];
       const next = [
@@ -316,9 +413,10 @@ export function initPositionControl() {
         +(pos[2] + dz).toFixed(2),
       ];
       state[t.key] = next;
-      t.el.setAttribute('position', `${next[0]} ${next[1]} ${next[2]}`);
+      t.setPos(next);
+      if (t.reanchor) t.reanchor(widget);
     };
-    const widget = createWidget(t.el, t.offset, onMove, persist);
+    widget = createWidget(t.host, t.offset, onMove, persist, t.getPos);
     t.widget = widget;
     registerPositionWidgetClickables(widget.clickables);
     registerNumericInput(widget.stepInput, widget.dpad, widget.inputAnchor);
@@ -331,9 +429,31 @@ export function initPositionControl() {
       const elConfig = saved[t.key];
       if (elConfig && Array.isArray(elConfig.position) && elConfig.position.length === 3) {
         state[t.key] = elConfig.position;
-        t.el.setAttribute('position', `${elConfig.position[0]} ${elConfig.position[1]} ${elConfig.position[2]}`);
+        t.setPos(elConfig.position);
+        if (t.reanchor) t.reanchor(t.widget);
         t.widget.refreshCoordsLabel();
       }
     });
   });
+
+  // La lista de canciones se re-crea al agregar una canción (VRKaraokeAf._initSongList crea un
+  // `_videoListContainer` nuevo con listPosition del schema, perdiendo la posición editada). Se
+  // vigila por referencia (mismo patrón que el puente de video de aframe-overlay-modules.js) para
+  // re-aplicar la posición en memoria al contenedor nuevo, sin tocar VRKaraokeAf.js.
+  const songListTarget = targets.find((t) => t.key === 'songList');
+  if (songListTarget) {
+    const karaokeEl = document.querySelector('#karaoke-vr-component');
+    const comp = () => karaokeEl && karaokeEl.components && karaokeEl.components['vr-karaoke-af'];
+    let lastListEl = comp() && comp()._videoListContainer;
+    setInterval(() => {
+      const c = comp();
+      const listEl = c && c._videoListContainer;
+      if (listEl && listEl !== lastListEl) {
+        lastListEl = listEl;
+        songListTarget.setPos(state.songList);
+        songListTarget.reanchor(songListTarget.widget);
+        songListTarget.widget.refreshCoordsLabel();
+      }
+    }, 300);
+  }
 }

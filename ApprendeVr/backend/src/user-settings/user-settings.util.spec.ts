@@ -74,6 +74,7 @@ describe('user-settings.util', () => {
   describe('isValidAframeViewConfig', () => {
     const valid = {
       karaoke: { position: [10, 2.5, 3] },
+      songList: { position: [12, 6.15, -3] },
       newSong: { position: [0, 5, 0] },
     };
 
