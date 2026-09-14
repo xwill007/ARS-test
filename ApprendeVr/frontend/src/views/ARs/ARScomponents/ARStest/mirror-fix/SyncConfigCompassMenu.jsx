@@ -1072,6 +1072,48 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             function hidePositionDpad() {
               selectedPositionKey = null;
               document.querySelector('#position-dpad-group').setAttribute('visible', false);
+              setDpadInteractive(false);
+            }
+
+            // Pedido del usuario: el raycaster de A-Frame NO filtra por visibilidad — una sección
+            // oculta (visible=false) seguía siendo detectable/clickeable con el mouse o la mirada,
+            // así que se podían "activar" botones de una sección que no se estaba viendo. Solución:
+            // el cursor usa raycaster="objects: .clickable", así que lo único que define qué es
+            // detectable es la clase ".clickable" — se la quita/reagrega según qué grupo está
+            // visible. Se captura UNA vez la lista original de clickeables por grupo (al cargar,
+            // antes de tocar clases) y se reusa para quitar/reponer la clase sin perder el set.
+            var SECTION_GROUP_IDS = ['config', 'overlays', 'interface', 'exit'];
+            var groupClickables = {};
+            var dpadClickables = [];
+            function captureGroupClickables() {
+              SECTION_GROUP_IDS.forEach(function (s) {
+                var group = document.querySelector('#settings-' + s + '-group');
+                if (!group) { groupClickables[s] = []; return; }
+                var els = Array.prototype.slice.call(group.querySelectorAll('.clickable'));
+                // El d-pad de "Interfaz" tiene su PROPIA visibilidad (depende de si hay un elemento
+                // seleccionado), no de la sección completa — se excluye acá y se gestiona aparte
+                // con setDpadInteractive().
+                var dpad = group.querySelector('#position-dpad-group');
+                if (dpad) els = els.filter(function (el) { return !dpad.contains(el); });
+                groupClickables[s] = els;
+              });
+              var dpad = document.querySelector('#position-dpad-group');
+              dpadClickables = dpad ? Array.prototype.slice.call(dpad.querySelectorAll('.clickable')) : [];
+            }
+            function setGroupInteractive(section, active) {
+              (groupClickables[section] || []).forEach(function (el) {
+                if (active) el.classList.add('clickable');
+                else el.classList.remove('clickable');
+              });
+            }
+            function setAllGroupsInteractive(active) {
+              SECTION_GROUP_IDS.forEach(function (s) { setGroupInteractive(s, active); });
+            }
+            function setDpadInteractive(active) {
+              dpadClickables.forEach(function (el) {
+                if (active) el.classList.add('clickable');
+                else el.classList.remove('clickable');
+              });
             }
 
             // Expuesta en window: la cierra tanto su propio botón ✕ como el panel de confirmación
@@ -1080,6 +1122,9 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             function closeSettingsPanel() {
               currentSection = null;
               document.querySelector('#settings-panel').setAttribute('visible', false);
+              setAllGroupsInteractive(false);
+              var closeBtn = document.querySelector('#settings-close-btn');
+              if (closeBtn) closeBtn.classList.remove('clickable');
             }
             window.__closeSettingsPanel = closeSettingsPanel;
 
@@ -1103,10 +1148,20 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               document.querySelector('#settings-overlays-group').setAttribute('visible', section === 'overlays');
               document.querySelector('#settings-interface-group').setAttribute('visible', section === 'interface');
               document.querySelector('#settings-exit-group').setAttribute('visible', section === 'exit');
+              // Solo la sección activa queda detectable (pedido del usuario, ver helper arriba).
+              setAllGroupsInteractive(false);
+              setGroupInteractive(section, true);
+              var closeBtn = document.querySelector('#settings-close-btn');
+              if (closeBtn) closeBtn.classList.add('clickable');
               refreshDisplay();
             };
 
             document.addEventListener('DOMContentLoaded', function () {
+              // Pedido del usuario: al cargar no hay sección activa — capturar el set original de
+              // clickeables y dejarlos todos no-detectables (ninguna sección visible).
+              captureGroupClickables();
+              setAllGroupsInteractive(false);
+              setDpadInteractive(false);
               // Mismo criterio que el click de las porciones (ver script de arriba): no cierra
               // localmente, manda la intención y espera a que el padre la rebroadcastee a los dos
               // paneles.
@@ -1237,6 +1292,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 selectedPositionValue = msg.position.slice();
                 selectedRotationValue = (msg.rotation || [0, 0, 0]).slice();
                 document.querySelector('#position-dpad-group').setAttribute('visible', true);
+                setDpadInteractive(true);
                 refreshPositionDpad();
               }
             });
@@ -1265,10 +1321,27 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               lastUserEmail = msg.userEmail || null;
             });
 
+            // Pedido del usuario: igual que las secciones del panel de Configuración (ver su
+            // helper), el raycaster de A-Frame no filtra por visibilidad — se quita/reagrega la
+            // clase ".clickable" de los botones del modal según esté abierto/cerrado, para que el
+            // modal oculto no sea detectable.
+            function setConfirmBtn(selector, active) {
+              var el = document.querySelector(selector);
+              if (!el) return;
+              if (active) el.classList.add('clickable');
+              else el.classList.remove('clickable');
+            }
+            function setConfirmInteractive(active) {
+              setConfirmBtn('#confirm-yes-btn', active);
+              setConfirmBtn('#confirm-cancel-btn', active);
+            }
+
             function hideConfirm() {
               pendingAction = null;
               document.querySelector('#confirm-panel').setAttribute('visible', false);
               document.querySelector('#login-test-btn').setAttribute('visible', false);
+              setConfirmInteractive(false);
+              setConfirmBtn('#login-test-btn', false);
             }
             // Expuesta en window: la llama "__activateSettingsSection" (ver script anterior)
             // cuando se activa una porción tipo "panel" mientras este panel ya estaba abierto —
@@ -1292,12 +1365,19 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               // confirmar "Cerrar sesión" — es la alternativa rápida a cerrar sesión y recargar a
               // mano el usuario de prueba.
               document.querySelector('#login-test-btn').setAttribute('visible', action === 'logout');
+              // Solo lo visible queda detectable (pedido del usuario, ver setConfirmInteractive).
+              setConfirmInteractive(true);
+              setConfirmBtn('#login-test-btn', action === 'logout');
             };
 
             document.addEventListener('DOMContentLoaded', function () {
               document.querySelector('#confirm-yes-label').setAttribute('value', STATIC.confirmYes);
               document.querySelector('#confirm-cancel-label').setAttribute('value', STATIC.confirmCancel);
               document.querySelector('#login-test-label').setAttribute('value', STATIC.loginTest);
+              // Pedido del usuario: al cargar el modal está cerrado — dejar sus botones
+              // no-detectables (el HTML los trae con .clickable por defecto).
+              setConfirmInteractive(false);
+              setConfirmBtn('#login-test-btn', false);
 
               document.querySelector('#confirm-yes-btn').addEventListener('click', function () {
                 if (pendingAction) send({ action: 'compass-do-action', name: pendingAction });
