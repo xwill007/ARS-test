@@ -558,26 +558,28 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
 
             <!-- Flechas: rotan #compass-wheel 180° por click/dwell, en cada sentido. Llevan
                  "wheel-visibility-dependent" porque solo tienen sentido con la dona visible (se
-                 ocultan y muestran junto con #compass-wheel, ver el botón "X"). -->
+                 ocultan y muestran junto con #compass-wheel, ver el botón "X"). Pedido del
+                 usuario: reubicadas junto a la "X" (arriba/abajo) formando cruz con "+"/"-"
+                 (izquierda/derecha), mismo tamaño que estos — quedan en el hueco de la dona. -->
             <a-plane
               class="clickable compass-arrow wheel-visibility-dependent"
               data-arrow="left"
-              width="0.4" height="0.4"
+              width="0.22" height="0.22"
               color="#333333"
               material="shader: flat; side: double;"
-              position="${(-(RADIUS + 0.45)).toFixed(2)} 0.02 0"
+              position="0 0.01 ${(-(RING_INNER_RADIUS * 0.55)).toFixed(2)}"
               rotation="-90 0 0">
-              <a-text value="◄" align="center" color="#ffffff" width="6" position="0 0 0.01"></a-text>
+              <a-text value="<-" align="center" color="#ffffff" width="6" position="0 0 0.01"></a-text>
             </a-plane>
             <a-plane
               class="clickable compass-arrow wheel-visibility-dependent"
               data-arrow="right"
-              width="0.4" height="0.4"
+              width="0.22" height="0.22"
               color="#333333"
               material="shader: flat; side: double;"
-              position="${(RADIUS + 0.45).toFixed(2)} 0.02 0"
+              position="0 0.01 ${(RING_INNER_RADIUS * 0.55).toFixed(2)}"
               rotation="-90 0 0">
-              <a-text value="►" align="center" color="#ffffff" width="6" position="0 0 0.01"></a-text>
+              <a-text value="->" align="center" color="#ffffff" width="6" position="0 0 0.01"></a-text>
             </a-plane>
 
             <!-- Widget de posición (Requerimiento 013, ampliación): marcador 📍 clickeable que
@@ -690,8 +692,8 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             document.addEventListener('DOMContentLoaded', function () {
               var leftArrow = document.querySelector('[data-arrow="left"]');
               var rightArrow = document.querySelector('[data-arrow="right"]');
-              if (leftArrow) leftArrow.addEventListener('click', function () { rotateWheel(-1); });
-              if (rightArrow) rightArrow.addEventListener('click', function () { rotateWheel(1); });
+              if (leftArrow) leftArrow.addEventListener('click', function () { rotateWheel(1); });
+              if (rightArrow) rightArrow.addEventListener('click', function () { rotateWheel(-1); });
 
               document.querySelectorAll('.compass-wedge').forEach(function (wedgeEl) {
                 wedgeEl.addEventListener('click', function () {
