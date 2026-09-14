@@ -371,3 +371,33 @@ larga de todo lo construido en esta sesión; un error de nombre de acción/campo
 saltos no lo detecta ni el build ni el chequeo de i18n, sería visible.
 
 **Estado:** pendiente de confirmación manual — ver checklist.md ítem 12.9.
+
+## 2026-09-14 — Ampliación (sección 12): "Volver"/"Cerrar sesión" no tenían panel anclado como las demás porciones
+
+**Contexto:** tras verificar que el panel de sección (Configuración/Overlays/Interfaz) quedaba
+correctamente anclado y tangente a su porción (ver hallazgo anterior sobre `PANEL_RADIUS`/rotación
+`-90 0 -90`), el usuario notó que "Volver" y "Cerrar sesión" seguían sin ese comportamiento:
+eran porciones tipo `action` que abrían directo el modal fijo `#confirm-panel` en un punto ajeno a
+la porción clickeada, sin ningún panel propio que rotara/tangenciara junto a su bisectriz.
+
+**Causa:** el diseño original (Fase 8 del checklist) trató "acción destructiva" y "sección de
+configuración" como dos mecanismos distintos desde el principio — `type: 'action'` vs.
+`type: 'panel'` — y solo el segundo se integró más tarde al sistema genérico de anclaje de la
+sección 11. Nunca hubo intención explícita de dejarlas así; simplemente no se había pedido
+consolidarlas hasta este momento.
+
+**Solución:** se eliminó el tipo `action` por completo. "Volver"/"Cerrar sesión" pasaron a ser dos
+filas (`buildExitGroupHTML()`) dentro de una única porción nueva `exit` (tipo `panel`, igual que
+las otras tres) — queda incluida gratis en el mecanismo de anclaje/tangencia genérico, sin ningún
+caso especial. Cada fila sigue llamando a `window.__requestConfirm(action)` (sin cambios), así que
+el modal de confirmación se comporta exactamente igual que antes; lo único que cambió es que ahora
+se llega a él desde un panel propio, tangente a la porción "EXIT", en vez de una porción sin panel.
+
+**Verificación:** medido en vivo con `object3D.localToWorld()` (misma técnica que la sección 11) —
+bisectriz del ancla en 315° (= 270° + 90°/2), borde inferior del panel a radio 1.200 (= `RADIUS`,
+tangente), igual que las otras tres secciones. Flujo de confirmación (clic en fila → cierra panel →
+abre `#confirm-panel` con el mensaje correcto) verificado sin errores de consola. `npm run build`
+y `npm run check:i18n` verdes.
+
+**Estado:** resuelto y verificado en navegador (a diferencia del hallazgo anterior sobre
+Interfaz/Position, este sí se pudo probar end-to-end en esta sesión).

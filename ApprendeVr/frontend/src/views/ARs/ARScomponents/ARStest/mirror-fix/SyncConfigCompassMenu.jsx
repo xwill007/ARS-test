@@ -11,14 +11,15 @@ import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageCont
 //
 // Geometría:
 //  - Círculo en el suelo con 4 porciones tipo "torta" (cuartos de cilindro, theta-length: 90°),
-//    agrupadas en `#compass-wheel` (rotable en Y). Dos tipos de porción:
-//     - "panel" (Configuración, Overlays): muestra/oculta el grupo correspondiente de
-//       `#settings-panel` (geometría 3D de esta misma escena, ver más abajo).
-//     - "action" (Volver, Cerrar sesión): abre `#confirm-panel` con el mensaje correspondiente en
-//       vez de disparar la acción directo (pedido del usuario, evita un dwell/click accidental) —
-//       recién al confirmar se manda `compass-do-action`. "Volver" reemplaza al botón "Volver" que
-//       tenía SyncStereoTestView.jsx; "Cerrar sesión" reemplaza al botón "← Volver a inicio" de
-//       ARTestMirrorButton.jsx mientras AR-SYNC está abierto (ver ese archivo).
+//    agrupadas en `#compass-wheel` (rotable en Y). Las 4 son de un único tipo "panel"
+//    (Configuración, Overlays, Interfaz, EXIT): cada una muestra/oculta el grupo correspondiente
+//    de `#settings-panel` (geometría 3D de esta misma escena, ver más abajo), anclado y tangente a
+//    su propia bisectriz. Dentro del grupo "EXIT" (ver buildExitGroupHTML), las filas "Volver"/
+//    "Cerrar sesión" abren `#confirm-panel` con el mensaje correspondiente en vez de disparar la
+//    acción directo (pedido del usuario, evita un click accidental) — recién al confirmar se manda
+//    `compass-do-action`. "Volver" reemplaza al botón "Volver" que tenía SyncStereoTestView.jsx;
+//    "Cerrar sesión" reemplaza al botón "← Volver a inicio" de ARTestMirrorButton.jsx mientras
+//    AR-SYNC está abierto (ver ese archivo).
 //  - Triángulo de norte: entidad FIJA (no rota con el grupo), marca el punto de referencia/frente
 //    de la brújula — no es orientación geomagnética real (ver "No incluido" en el requerimiento).
 //  - Dos flechas `.clickable` que rotan `#compass-wheel` 360°/N grados por activación (N =
@@ -57,19 +58,20 @@ import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageCont
 // Componente de prueba aislado, no se usa desde ningún archivo de producción.
 // Pedido del usuario (ampliación, sección 11 del requerimiento): quinta porción "Interfaz", con
 // una opción "Position" que activa los marcadores rojos de vrPositionControl.js y muestra su
-// d-pad al lado de la brújula. Con 5 secciones el ángulo por porción pasa de 90° a 72°
-// (WEDGE_THETA_LENGTH = 360 / SECTIONS.length, más abajo) — los thetaStart de todas se
-// recalcularon acorde, no solo el de la nueva.
+// d-pad al lado de la brújula.
+// Pedido del usuario (ampliación posterior): "Volver" y "Cerrar sesión" ya no son dos porciones
+// tipo "action" sueltas (que solo abrían el modal fijo `#confirm-panel`, sin un panel propio
+// anclado a su porción como el resto) — se consolidan en UNA porción "EXIT" tipo "panel" (mismo
+// mecanismo genérico que Configuración/Overlays/Interfaz: panel anclado y tangente a su bisectriz,
+// ver PANEL_RADIUS/SECTION_BISECTOR), con las dos opciones como filas dentro de ese panel (ver
+// buildExitGroupHTML) — cada fila sigue abriendo `#confirm-panel` antes de ejecutar la acción,
+// igual que antes. Por eso ya no queda ninguna porción tipo "action": las 4 son "panel", ángulo
+// fijo de 360/4 = 90° cada una (WEDGE_THETA_LENGTH = 360 / SECTIONS.length, más abajo).
 const SECTIONS = [
   { key: 'config', labelKey: 'arsConfig.tab.config', thetaStart: 0, type: 'panel' },
-  { key: 'overlays', labelKey: 'arsConfig.tab.overlays', thetaStart: 72, type: 'panel' },
-  { key: 'interface', labelKey: 'arsConfig.tab.interface', thetaStart: 144, type: 'panel' },
-  { key: 'back', labelKey: 'home.back', thetaStart: 216, type: 'action', action: 'back' },
-  // Pedido del usuario: "Cerrar sesión" se activa igual que el resto (dwell + click), sin
-  // excepción — antes el reticle se quedaba blanco/neutro sobre esta porción (sin dwell) por ser
-  // destructiva; ahora, como cualquier acción destructiva, queda protegida por el panel de
-  // confirmación (#confirm-panel, ver más abajo), no por deshabilitar el feedback de apuntado.
-  { key: 'logout', labelKey: 'home.logout', thetaStart: 288, type: 'action', action: 'logout' },
+  { key: 'overlays', labelKey: 'arsConfig.tab.overlays', thetaStart: 90, type: 'panel' },
+  { key: 'interface', labelKey: 'arsConfig.tab.interface', thetaStart: 180, type: 'panel' },
+  { key: 'exit', labelKey: 'arsConfig.tab.exit', thetaStart: 270, type: 'panel' },
 ];
 const WEDGE_THETA_LENGTH = 360 / SECTIONS.length;
 const STEP_DEG = WEDGE_THETA_LENGTH;
@@ -248,6 +250,24 @@ function buildInterfaceGroupHTML() {
   `;
 }
 
+// Pedido del usuario (ampliación): grupo "EXIT" — reemplaza a las antiguas porciones "action"
+// sueltas (Volver/Cerrar sesión). Mismo patrón de fila clickeable que buildOverlaysGroupHTML()
+// (toda la fila, no un botón chico); a diferencia de esas filas, estas no togglean nada — cada
+// click llama directo a "window.__requestConfirm(action)" (mismo modal `#confirm-panel` que ya
+// usaban las porciones "action"), no manda postMessage al padre.
+function buildExitGroupHTML() {
+  return `
+    <a-entity id="settings-exit-group" visible="false">
+      <a-plane class="clickable" data-exit-action="back" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 0.35 0.01">
+        <a-text id="settings-exit-back-label" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
+      </a-plane>
+      <a-plane class="clickable" data-exit-action="logout" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 0.03 0.01">
+        <a-text id="settings-exit-logout-label" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
+      </a-plane>
+    </a-entity>
+  `;
+}
+
 // Panel completo: fondo + título + cerrar + sesión + los grupos de arriba (uno visible a la
 // vez, según qué porción se activó). Se ubica 3m al frente del origen (misma dirección -Z en la
 // que ya mira la cámara por defecto, ver CAMERA_POSITION/pitch inicial) para que aparezca cerca de
@@ -277,15 +297,16 @@ function buildSettingsPanelHTML() {
       ${buildConfigGroupHTML()}
       ${buildOverlaysGroupHTML()}
       ${buildInterfaceGroupHTML()}
+      ${buildExitGroupHTML()}
     </a-entity>
   `;
 }
 
-// Panel de confirmación (pedido del usuario) para las porciones tipo "action" ("Volver"/"Cerrar
-// sesión") — un click/dwell en esas porciones ya no dispara la acción directo, primero abre este
-// panel con el mensaje correspondiente y espera Confirmar/Cancelar. Misma ubicación que
-// `#settings-panel` (nunca están abiertos los dos a la vez, uno es para porciones "panel" y el
-// otro para "action") para que aparezca donde el usuario ya está mirando.
+// Panel de confirmación (pedido del usuario) para las filas "Volver"/"Cerrar sesión" del panel
+// "EXIT" (ver buildExitGroupHTML) — un click en esas filas ya no dispara la acción directo,
+// primero abre este panel con el mensaje correspondiente y espera Confirmar/Cancelar. Misma
+// ubicación que `#settings-panel` (nunca están abiertos los dos a la vez) para que aparezca donde
+// el usuario ya está mirando.
 function buildConfirmPanelHTML() {
   return `
     <a-entity id="confirm-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
@@ -342,7 +363,7 @@ function buildWedgesHTML() {
   // Radio medio de la franja de la dona (entre el hueco y el borde exterior) — ahí es donde va
   // el texto de cada porción, ni pegado al hueco ni al borde.
   const midRadius = (RING_INNER_RADIUS + RADIUS) / 2;
-  return buildWedgeBackingHTML() + SECTIONS.map(({ key, thetaStart, type, action }) => {
+  return buildWedgeBackingHTML() + SECTIONS.map(({ key, thetaStart, type }) => {
     const bisectorDeg = thetaStart + WEDGE_THETA_LENGTH / 2;
     return `
       <!-- Puramente decorativa: SIN clase .clickable ni data-* — pedido del usuario: "el click se
@@ -390,7 +411,6 @@ function buildWedgesHTML() {
             class="clickable compass-wedge"
             data-section="${key}"
             data-type="${type}"
-            ${action ? `data-action="${action}"` : ''}
             width="1.3" height="0.4"
             material="shader: flat; side: double; transparent: true; opacity: 0.01;"
             rotation="-90 0 0">
@@ -442,8 +462,12 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     positionAxes: { x: t('config.positionX'), y: t('config.positionY'), z: t('config.positionZ') },
     rotationAxes: { x: t('config.rotationX'), y: t('config.rotationY'), z: t('config.rotationZ') },
     step: t('config.step'),
-    // Panel de confirmación (pedido del usuario) para las porciones tipo "action" — evita que un
-    // dwell/click accidental dispare "Volver"/"Cerrar sesión" sin que el usuario lo confirme.
+    exitTitle: t('arsConfig.tab.exit'),
+    exitBack: t('home.back'),
+    exitLogout: t('home.logout'),
+    // Panel de confirmación (pedido del usuario) — evita que un dwell/click accidental dispare
+    // "Volver"/"Cerrar sesión" sin que el usuario lo confirme (ahora disparado desde las filas del
+    // panel "EXIT", ver buildExitGroupHTML, no desde una porción propia).
     confirmBack: t('home.confirmBack'),
     confirmLogout: t('home.confirmLogout'),
     confirmYes: t('home.confirmYes'),
@@ -653,16 +677,16 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               });
             }
 
-            // Las porciones tipo "panel" (Configuración/Overlays) YA NO aplican
+            // Las porciones (todas tipo "panel", incluida "EXIT") NO aplican
             // "window.__activateSettingsSection" localmente al clickear — pedido del usuario:
             // el padre (SyncStereoTestView.jsx) es la fuente de verdad de qué sección está
             // abierta en AMBOS paneles (antes solo se abría en el panel que clickeó, y un panel
             // recién montado en "Doble panel" arrancaba sin saberlo). Se manda la intención
             // ('compass-section-changed') y se espera a que el padre la rebroadcastee — mismo
             // patrón que 'compass-wheel-visibility-toggle', ver script del panel 3D más abajo
-            // para el listener que de verdad aplica el cambio. Las de tipo "action" (Volver/
-            // Cerrar sesión) siguen delegando en "window.__requestConfirm" sin cambios — ese
-            // modal es por panel, no se pidió sincronizarlo.
+            // para el listener que de verdad aplica el cambio. "Volver"/"Cerrar sesión" ya no son
+            // porciones propias: son filas DENTRO del panel de "EXIT" (ver buildExitGroupHTML),
+            // que siguen delegando en "window.__requestConfirm" sin cambios.
             document.addEventListener('DOMContentLoaded', function () {
               var leftArrow = document.querySelector('[data-arrow="left"]');
               var rightArrow = document.querySelector('[data-arrow="right"]');
@@ -671,11 +695,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
 
               document.querySelectorAll('.compass-wedge').forEach(function (wedgeEl) {
                 wedgeEl.addEventListener('click', function () {
-                  if (wedgeEl.dataset.type === 'action') {
-                    if (window.__requestConfirm) window.__requestConfirm(wedgeEl.dataset.action);
-                  } else {
-                    send({ action: 'compass-section-changed', section: wedgeEl.dataset.section });
-                  }
+                  send({ action: 'compass-section-changed', section: wedgeEl.dataset.section });
                 });
               });
             });
@@ -949,6 +969,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 'value',
                 currentSection === 'overlays' ? STATIC.overlaysTitle :
                 currentSection === 'interface' ? STATIC.interfaceTitle :
+                currentSection === 'exit' ? STATIC.exitTitle :
                 STATIC.configTitle,
               );
               document.querySelector('#settings-session').setAttribute(
@@ -1079,6 +1100,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               document.querySelector('#settings-config-group').setAttribute('visible', section === 'config');
               document.querySelector('#settings-overlays-group').setAttribute('visible', section === 'overlays');
               document.querySelector('#settings-interface-group').setAttribute('visible', section === 'interface');
+              document.querySelector('#settings-exit-group').setAttribute('visible', section === 'exit');
               refreshDisplay();
             };
 
@@ -1110,6 +1132,18 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               });
               document.querySelector('#settings-save-overlays-btn').addEventListener('click', function () {
                 send({ action: 'compass-save-overlays' });
+              });
+
+              // Pedido del usuario (ampliación): filas del panel "EXIT" — a diferencia de las de
+              // arriba, NO mandan postMessage al padre: llaman directo a "window.__requestConfirm"
+              // (definida en el script del modal de confirmación, más abajo, expuesta en window),
+              // mismo comportamiento que antes tenían las porciones "action" sueltas.
+              document.querySelector('#settings-exit-back-label').setAttribute('value', STATIC.exitBack);
+              document.querySelector('#settings-exit-logout-label').setAttribute('value', STATIC.exitLogout);
+              document.querySelectorAll('[data-exit-action]').forEach(function (el) {
+                el.addEventListener('click', function () {
+                  if (window.__requestConfirm) window.__requestConfirm(el.dataset.exitAction);
+                });
               });
 
               // Pedido del usuario (ampliación, sección 11): fila "Position" — mismo criterio que

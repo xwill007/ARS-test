@@ -475,6 +475,55 @@ tal cual en el iframe de karaoke; lo que cambia es que el d-pad deja de vivir ah
 | `aframe-overlay-modules.js` | Puente de mensajes: `position-mode-changed` (mostrar/ocultar marcadores), `position-move`/`position-save` entrantes (aplicar al elemento por `key`). |
 | `src/locales/{es,en,br}.json` | Clave nueva `arsConfig.tab.interface` ("Interfaz") y `config.position`/similares para la fila "Position". |
 
+## 9d. Sección 12 — Ampliación: porción "EXIT" consolidada, anclada y tangente como las demás
+
+Pedido del usuario: "logout y back no se ubican como los demas, agregalos dos en una seccion
+llamada EXIT y ubicalo tangente vertical a esta como los demas". Antes, "Volver" y "Cerrar sesión"
+eran dos porciones tipo `action` sueltas (`thetaStart` 216°/288°) que no tenían panel propio
+anclado a su bisectriz — un clic abría directo el modal fijo `#confirm-panel` en un punto de la
+escena ajeno a la porción clickeada, a diferencia de Configuración/Overlays/Interfaz, cuyo panel
+aparece tangente al círculo justo en su propia porción (ver sección 11 y el hallazgo de
+`PANEL_RADIUS`/rotación `-90 0 -90` documentado en `problems_solutions.md`).
+
+### Diseño
+
+- **`SECTIONS`** pasa de 5 entradas a 4: se elimina el tipo `action` por completo (ya no queda
+  ninguna porción de ese tipo) y se reemplazan `back`/`logout` por una única porción `exit`, tipo
+  `panel` igual que las otras tres. Con 4 secciones el ángulo vuelve a 90° por porción
+  (`config`@0°, `overlays`@90°, `interface`@180°, `exit`@270°), calculado automáticamente por
+  `WEDGE_THETA_LENGTH = 360 / SECTIONS.length` — no hay que retocar ningún valor a mano.
+- Al ser tipo `panel`, "EXIT" queda incluida gratis en el mecanismo genérico de anclaje/tangencia
+  (`SECTION_BISECTOR`, `#settings-panel-anchor`, `PANEL_RADIUS`) ya usado por las otras tres — no
+  hizo falta ningún caso especial de posicionamiento.
+- **`buildExitGroupHTML()`** (nuevo, mismo patrón de fila clickeable que
+  `buildOverlaysGroupHTML()`): dos filas, "Volver" y "Cerrar sesión", dentro de
+  `#settings-exit-group`. A diferencia de las demás filas del panel (que mandan `postMessage` al
+  padre), cada fila llama directo a `window.__requestConfirm(action)` — la misma función que ya
+  usaban las porciones `action`, sin cambios — así el modal de confirmación (`#confirm-panel`,
+  mensaje + Confirmar/Cancelar + botón "login-test" en "Cerrar sesión") sigue funcionando igual
+  que antes.
+- El click handler genérico de las porciones (`.compass-wedge`) se simplificó: al no quedar
+  ninguna porción tipo `action`, se eliminó la rama `if (wedgeEl.dataset.type === 'action')` — toda
+  porción manda `compass-section-changed` sin excepción.
+
+### Verificación
+
+Medido en vivo (misma técnica que la sección 11: `object3D.localToWorld()` sobre `#settings-panel`
+tras activar `exit` con `window.__activateSettingsSection('exit')`): bisectriz del ancla en 315°
+(= 270° + 90°/2, correcto), borde inferior del panel a distancia radial 1.200 (= `RADIUS`, tangente
+igual que las otras tres secciones), borde superior a 5.800, bordes izquierdo/derecho simétricos a
+3.669 — mismos valores ya verificados para Configuración/Overlays/Interfaz. Se confirmó además que
+clickear "Volver"/"Cerrar sesión" dentro del panel "EXIT" cierra `#settings-panel` y abre
+`#confirm-panel` con el mensaje correcto (`confirmBack`/`confirmLogout`) y, en el caso de "Cerrar
+sesión", el botón "login-test" visible — sin errores de consola.
+
+### Archivos a modificar (además de la tabla de la sección 6)
+
+| Archivo | Cambio |
+|---|---|
+| `SyncConfigCompassMenu.jsx` | `SECTIONS` (4 porciones, todas `panel`, `exit` reemplaza a `back`/`logout`); `buildExitGroupHTML()`; simplificación del click handler de porciones (sin rama `action`); `settings-title`/`__activateSettingsSection` reconocen `exit`. |
+| `src/locales/{es,en,br}.json` | Clave nueva `arsConfig.tab.exit` ("🚪 EXIT", mismo literal en los 3 idiomas por pedido explícito del usuario). Reusa `home.back`/`home.logout`/`home.confirmBack`/`home.confirmLogout` ya existentes para las filas y el modal. |
+
 ## 8. Referencias
 
 - Requerimiento 002 (descartado, origen de `mirror-fix`): `ApprendeVr/Documentation/Requerimientos/4-Rejected/Discarded/002-boton-ar-y-fix-espejo-overlay-estereo/`.

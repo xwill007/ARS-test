@@ -273,3 +273,28 @@
 `createWidget()` directo, sin pasar por `initPositionControl()` — sigue en modo local (d-pad
 propio en la esquina) incluso dentro de mirror-fix, no se migró a `external: true` en esta
 ampliación.
+
+## Fase 13 — Ampliación: porción "EXIT" consolidada, anclada y tangente como las demás (sección 12 del requerimiento)
+
+- [x] 13.1 `SECTIONS` en `SyncConfigCompassMenu.jsx`: `back`/`logout` (tipo `action`, sin panel
+      propio) reemplazados por una única porción `exit` (tipo `panel`, igual que Configuración/
+      Overlays/Interfaz). 4 porciones a 90° cada una (`config`@0°, `overlays`@90°, `interface`@180°,
+      `exit`@270°).
+- [x] 13.2 `buildExitGroupHTML()`: filas "Volver"/"Cerrar sesión" dentro de
+      `#settings-exit-group`, cada una llamando directo a `window.__requestConfirm(action)` (misma
+      función/modal `#confirm-panel` que ya usaban las porciones `action`, sin cambios de
+      comportamiento).
+- [x] 13.3 Simplificación del click handler `.compass-wedge`: se elimina la rama `type === 'action'`
+      (ya no queda ninguna porción de ese tipo); toda porción manda `compass-section-changed`.
+- [x] 13.4 `settings-title` y `window.__activateSettingsSection` reconocen la sección `exit`
+      (título, visibilidad de `#settings-exit-group`).
+- [x] 13.5 Clave i18n `arsConfig.tab.exit` ("🚪 EXIT", mismo literal en `es/en/br.json` por pedido
+      explícito del usuario) — reusa `home.back`/`home.logout`/`home.confirmBack`/
+      `home.confirmLogout` ya existentes.
+- [x] 13.6 Verificado en navegador (medición `object3D.localToWorld()`, misma técnica que la Fase
+      12/sección 11): panel "EXIT" anclado a su bisectriz (315° = 270° + 90°/2) y tangente por su
+      borde inferior (radio 1.200 = `RADIUS`), igual que Configuración/Overlays/Interfaz. Flujo de
+      confirmación (clic en "Volver"/"Cerrar sesión" → cierra panel de sección → abre
+      `#confirm-panel` con el mensaje correcto, botón "login-test" visible solo en "Cerrar sesión")
+      verificado sin errores de consola.
+- [x] 13.7 `npm run build` y `npm run check:i18n` (frontend) verdes.

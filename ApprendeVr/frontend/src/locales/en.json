@@ -131,7 +131,8 @@
       "tab": {
         "config": "🎛️ Configuration",
         "overlays": "📋 Overlays",
-        "interface": "🎯 Interface"
+        "interface": "🎯 Interface",
+        "exit": "🚪 EXIT"
       },
       "title": "AR Stereoscopic Configuration",
       "resolution": "📹 Resolution",
