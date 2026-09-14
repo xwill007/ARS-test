@@ -96,6 +96,14 @@
       "width": "Largura",
       "height": "Altura",
       "dualPanel": "Painel duplo",
+      "position": "Posição",
+      "positionX": "X",
+      "positionY": "Y",
+      "positionZ": "Z",
+      "rotationX": "Rot X",
+      "rotationY": "Rot Y",
+      "rotationZ": "Rot Z",
+      "step": "Passo",
       "options": "Opções de configuração",
       "help": "Ajuda",
       "arsConfig": "Configuração AR",
@@ -122,7 +130,8 @@
       "showMenu": "Mostrar menu",
       "tab": {
         "config": "🎛️ Configuração",
-        "overlays": "📋 Overlays"
+        "overlays": "📋 Overlays",
+        "interface": "🎯 Interface"
       },
       "title": "Configuração Estereoscópica AR",
       "resolution": "📹 Resolução",

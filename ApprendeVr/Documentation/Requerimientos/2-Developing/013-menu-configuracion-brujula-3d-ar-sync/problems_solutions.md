@@ -354,3 +354,20 @@ initdb.d` solo corre en la primera inicialización del volumen). Suite `user-set
 
 **Estado:** resuelto — corregido en `SyncStereoTestView.jsx` (guardado lee del ref) y en el
 backend (vista `ars-sync-compass-position` registrada + seed aplicado).
+
+## 2026-09-14 — Ampliación (sección 10-11): sin verificación manual en navegador para la sección "Interfaz"/Position
+
+**Contexto:** implementación de la sección "Interfaz" + d-pad unificado de posición (Fase 12 del
+checklist). A diferencia del resto de la ampliación de esta sesión (Doble panel, cámara,
+sincronización, volumen, centésimas — todas probadas con clics reales/simulados en la pestaña del
+usuario), esta pieza se implementó y se verificó solo con `npm run build`/`npm run check:i18n`
+(ambos limpios) — la pestaña de Chrome disponible estaba en uso activo del usuario durante esta
+parte de la sesión, así que no se hizo la prueba manual end-to-end (activar "Position", clickear un
+marcador, mover con el d-pad de la brújula, Guardar, recargar).
+
+**Riesgo principal no descartado por build**: la comunicación entre 3 iframes (marcador en
+karaoke → padre → d-pad en brújula → padre → aplicación en karaoke) es la cadena de mensajes más
+larga de todo lo construido en esta sesión; un error de nombre de acción/campo entre alguno de los
+saltos no lo detecta ni el build ni el chequeo de i18n, sería visible.
+
+**Estado:** pendiente de confirmación manual — ver checklist.md ítem 12.9.

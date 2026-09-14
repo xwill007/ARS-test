@@ -29,12 +29,18 @@ import '../../../../A-frame/components/VREvaluacionAf/VREvaluacionAf.js';
 // `index.js` de la vista A-Frame original: esperar a que la escena termine de cargar antes de
 // llamarla (necesita `sceneEl.camera`/`sceneEl.canvas` ya listos).
 import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
+// Pedido del usuario (ampliación, Requerimiento 013 sección 11): `external: true` — en mirror-fix
+// los marcadores arrancan ocultos (los muestra el toggle "Position" de la sección "Interfaz" de
+// la brújula) y, al clickearlos, ya no abren un d-pad local acá — mandan la selección a la
+// brújula por postMessage, que arma su propio d-pad al lado del menú. Ver el comentario grande
+// junto a `createWidget`/`initPositionControl` en vrPositionControl.js para el detalle de por qué
+// este flag existe (la vista de producción sigue usando el d-pad local, sin cambios).
 (function () {
   const sceneEl = document.querySelector('a-scene');
   if (sceneEl.hasLoaded) {
-    initPositionControl();
+    initPositionControl({ external: true });
   } else {
-    sceneEl.addEventListener('loaded', () => initPositionControl());
+    sceneEl.addEventListener('loaded', () => initPositionControl({ external: true }));
   }
 })();
 

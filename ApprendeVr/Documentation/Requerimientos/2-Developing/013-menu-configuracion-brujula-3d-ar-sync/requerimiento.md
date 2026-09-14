@@ -330,6 +330,151 @@ UI de configuración) encima del stack existente en cada panel de `SyncStereoTes
       (`#confirm-panel`, Confirmar/Cancelar) antes de ejecutar la acción — ya no disparan directo
       al click/dwell. Confirmado end-to-end para ambas, con Cancelar y con Confirmar.
 
+## 9b. Sección 10 — Ampliación: modo Dual Panel, sincronización avanzada, corrección de audio, y sistema de posición unificado
+
+Retomado (`3-Completed` → `2-Developing`) para esta ampliación. Todo lo de esta sección son pedidos
+del usuario en la misma sesión, en orden cronológico.
+
+### 10.1 Investigación previa: por qué el clic real en "GUARDAR CANCIÓN" no respondía
+
+Durante la verificación del Requerimiento 014 (alta de canciones), el usuario reportó que el clic
+real en el botón "GUARDAR CANCION" del panel `VRNewSongAf` no hacía nada. Se confirmó simulando un
+`pointerdown` real en la posición 3D exacta del botón (vía `object3D.getWorldPosition` +
+`camera.project()`): el clic SÍ funciona — el hallazgo fue que el botón queda muy cerca/fuera del
+borde superior del viewport con el encuadre de cámara por defecto (NDC y≈1.24, apenas fuera de
+[-1,1]). No se corrigió la posición del panel en esta sesión (queda como hallazgo documentado).
+
+### 10.2 Modo "Doble panel" (pestaña Configuración)
+
+Nueva fila clickeable "Doble panel" en `#settings-config-group` (mismo patrón visual que las filas
+de Overlays: fila entera resaltada + check), debajo de los steppers de separación/ancho/alto y
+antes del botón Guardar — el fondo del panel (`#settings-panel`) se agrandó de `height="2.8"` a
+`"3.2"` para que entre sin superponerse. Estado `dualPanel` (`useState(true)`, default `true` para
+no cambiar el comportamiento existente) en `SyncStereoTestView.jsx`, persistido junto con
+separación/ancho/alto en el mismo `ars-sync-config` (`saveUserSetting`). Al desactivarlo,
+`SyncStereoTestView.jsx` **desmonta por completo** el panel derecho
+(`{dualPanel && renderPanel('right', ...)}`, no `display:none`) — mismo criterio que ya usa esta
+vista para los overlays individuales seleccionados.
+
+### 10.3 Cámara: flechas mueven el contenido, no el menú
+
+Hallazgo: la cámara de la brújula (`<a-camera>` en `SyncConfigCompassMenu.jsx`) traía activo el
+`wasd-controls` por defecto de A-Frame, y **es la única capa que recibe el teclado real** en modo
+web (mismo motivo que el mouse, ver sección 10.4 del código original) — así que las flechas
+alejaban la brújula del menú en vez de acercar el contenido. Se corrigió:
+- `wasd-controls="enabled: false"` explícito en la cámara de la brújula (nunca se mueve; el menú
+  queda siempre en su lugar) y en la del overlay `karaoke` (`aframe-overlay-modules.html`) — todo
+  el movimiento pasa ahora por el mensaje explícito de abajo, no por el control genérico de
+  A-Frame.
+- La brújula captura `keydown` de las 4 flechas y manda `{action: 'camera-zoom-delta', delta,
+  axis: 'forward'|'strafe'}` al padre — ↑/↓ mueven la cámara del overlay a lo largo de hacia dónde
+  mira (`getWorldDirection()`, **negado**: sin negar, ↑ alejaba en vez de acercar — three.js
+  devuelve el eje +Z local, contrario a "adelante" para esta cámara), ←/→ perpendicular a esa
+  misma dirección sin componente Y (strafe estilo FPS).
+- `SyncStereoTestView.jsx` reenvía el mismo delta a **ambos** paneles (izquierdo y derecho) del
+  modo "Doble panel" — no solo al que originó la tecla — para que el movimiento se aplique a los
+  dos a la vez, sin cruzar una posición/rotación absoluta entre paneles (eso es lo que ya se había
+  revertido antes por un bug real, ver sección 9 original).
+
+### 10.4 Sincronización con fuente de verdad en el padre (no polling)
+
+Al activar "Doble panel", el panel recién montado arrancaba desincronizado del que ya venía
+funcionando: un video reproduciendo y el otro no, un menú de Configuración/Overlays abierto y el
+otro cerrado. Causa: la arquitectura previa solo relayaba EVENTOS en el momento en que ocurrían,
+sin ninguna fuente de verdad que un panel nuevo pudiera consultar al montar. Se agregó ese patrón
+(ya usado por `compassWheelVisibleRef`) a dos estados más, ambos en refs de `SyncStereoTestView.jsx`
+(fuente de verdad única):
+- **`compassSectionRef`** ('config' | 'overlays' | null): las porciones de la brújula y el botón ✕
+  ya NO aplican `__activateSettingsSection`/`closeSettingsPanel` localmente al clickear — mandan la
+  intención (`compass-section-changed`) y esperan a que el padre la rebroadcastee a los DOS
+  paneles (broadcast idempotente, incluido el emisor). Un panel recién montado la recibe en el
+  handshake `compass-ready`.
+- **`karaokePlayingRef`** + reloj calculado (`karaokeTimeAtRef`/`karaokeTimeSetAtRef`,
+  `getKaraokeCurrentTime()`): el padre NO recibe reportes periódicos de tiempo — lleva su propio
+  cronómetro matemático, actualizado solo en los 3 momentos que importan (play/pause/seek): guarda
+  en qué segundo estaba el video y cuándo (`Date.now()`) pasó eso, y calcula el tiempo actual
+  sumando lo transcurrido si está reproduciendo. A diferencia de `compassSectionRef`, el eco de
+  play/pause SÍ excluye al panel emisor (no es idempotente: `video.play()` en un video que ya
+  reproduce no vuelve a disparar el evento `'play'`, dejando `suppressNextPlay` trabado en el
+  emisor). Un panel de karaoke recién (re)montado manda `karaoke-ready` una sola vez (nunca hace
+  polling) y el padre contesta con `karaoke-seek` (tiempo calculado) + play/pause vigente.
+
+### 10.5 Centésimas de segundo en el reproductor
+
+`formatTime()` de `VRKaraokeAf.js` pasó de `M:SS` a `M:SS.CC` (centésimas). Se agregó un loop a
+60fps con auto-parada (compara `this._htmlVideo` contra el `video` capturado por closure; en
+cuanto dejan de ser el mismo objeto — cambio de canción — el loop se corta solo, sin necesitar un
+`remove()` del componente) porque el evento nativo `timeupdate` dispara solo ~4 veces/segundo, muy
+poco para que las centésimas se vean correr en vez de saltar. La sincronización entre paneles ya
+usaba precisión completa (sin ningún `Math.floor`/`Math.round`/`toFixed` en el pipeline); no hizo
+falta cambiar nada ahí.
+
+### 10.6 Volumen en modo "un solo panel"
+
+Hallazgo: el criterio anti-eco existente (panel izquierdo/primario al 1% de volumen, derecho al
+100%, para no escuchar las dos pistas superpuestas cuando hay DOS paneles) dejaba el único panel
+existente en modo "un solo panel" casi mudo, porque ese criterio no sabía que no había un segundo
+panel encargándose del audio — el volumen "subía" recién al activar "Doble panel" en vez de sonar
+fuerte desde el principio. Se agregó una prop `singlePanel` (`!dualPanel`, calculada en
+`SyncStereoTestView.jsx` y pasada a todos los `SYNCABLE_OVERLAYS`) que fuerza volumen 100% sin
+importar si el panel único "sería" izquierdo o derecho — aplicado tanto al overlay `karaoke`
+(`aframe-overlay-modules.js`, vía query string del iframe) como al overlay `video`
+(`VRLocalVideoOverlaySync.jsx`, vía dato del componente A-Frame, mismo criterio). El criterio
+0.01/1.0 original sigue aplicando solo cuando de verdad hay dos paneles sonando a la vez.
+
+## 9c. Sección 11 — Ampliación: sección "Interfaz" y sistema unificado de posición
+
+Pedido del usuario: una nueva sección de la brújula ("Interfaz") con una opción "Position" que
+activa los marcadores rojos de `vrPositionControl.js` (hoy siempre visibles, sin ningún toggle) y,
+al seleccionar un elemento, muestra su d-pad de movimiento **junto a la brújula** (como
+Configuración/Overlays) en vez de anclado a la esquina de cada elemento en la escena del karaoke.
+
+### Decisión de arquitectura (confirmada explícitamente con el usuario)
+
+Se plantearon dos opciones: (a) reubicar el d-pad dentro del MISMO iframe de karaoke (más simple,
+sin tocar el protocolo entre iframes, pero no queda realmente "al lado" de la brújula — son
+iframes distintos superpuestos), o (b) reconstruir el sistema de d-pad **dentro del iframe de la
+brújula**, con el clic en un marcador rojo (iframe de karaoke) viajando por mensaje hasta la
+brújula, que muestra su propio d-pad, y cada clic de flecha viajando de vuelta al elemento real.
+El usuario eligió (b) explícitamente. Los marcadores rojos y el mecanismo de guardado
+(`getUserSetting`/`saveUserSetting`, vista `aframe-view`) de `vrPositionControl.js` se mantienen
+tal cual en el iframe de karaoke; lo que cambia es que el d-pad deja de vivir ahí.
+
+### Diseño
+
+- **Brújula**: nueva sección `interface` en `SECTIONS` (junto a `config`/`overlays`/`back`/
+  `logout`; con 5 secciones el ángulo por porción pasa de 90° a 72°, calculado automáticamente por
+  `WEDGE_THETA_LENGTH = 360 / SECTIONS.length`). `#settings-interface-group` con una fila
+  "Position" (mismo patrón checkbox-fila que Overlays) y, debajo, un d-pad genérico (X/Y/Z con
+  steppers +/-, mismo patrón visual que los steppers de separación/ancho/alto) que solo se muestra
+  cuando hay un elemento seleccionado.
+- **Modo posición** (`positionModeRef` en el padre, mismo patrón `compassSectionRef`): togglear
+  "Position" manda `compass-toggle-position-mode`; el padre rebroadcastea a las brújulas (para el
+  check) y a los overlays de karaoke de AMBOS paneles (para mostrar/ocultar los marcadores rojos).
+  Se incluye en el handshake `karaoke-ready` para que un panel de karaoke recién montado arranque
+  con la visibilidad correcta de los marcadores sin esperar el próximo toggle.
+- **Selección de elemento**: al clickear un marcador rojo en el iframe de karaoke (ya no abre su
+  propio d-pad local), se manda `position-element-selected` (`key`, posición actual `[x,y,z]`) al
+  padre, que lo guarda como fuente de verdad (`positionSelectedRef`) y lo rebroadcastea a ambas
+  brújulas (para que muestren el d-pad con esos valores) — tratado como configuración compartida
+  entre paneles, igual criterio que `compass-section-changed`, no como input transitorio de un solo
+  panel (a diferencia de `mouse-look-delta`).
+- **Mover/Guardar**: cada clic de flecha en el d-pad de la brújula manda `position-move` (`axis`,
+  `delta`) al padre, que lo rebroadcastea a los overlays de karaoke de ambos paneles; ahí se aplica
+  con la MISMA lógica de `onMove`/`resolveTarget` que ya tenía `vrPositionControl.js` (reutilizada,
+  no reescrita), solo que disparada por el mensaje entrante en vez del clic local del d-pad viejo.
+  "Guardar" (`position-save`) dispara el mismo `persist()`/`saveUserSetting` ya existente.
+
+### Archivos a modificar (además de la tabla de la sección 6)
+
+| Archivo | Cambio |
+|---|---|
+| `SyncConfigCompassMenu.jsx` | Sección `interface` en `SECTIONS`; `buildInterfaceGroupHTML()` (fila "Position" + d-pad genérico X/Y/Z); manejo de `position-element-selected`/eco de `position-move`. |
+| `SyncStereoTestView.jsx` | `positionModeRef`, `positionSelectedRef`; handlers de `compass-toggle-position-mode`, `position-element-selected`, `position-move`, `position-save` (broadcast a ambos paneles, igual criterio que `compass-section-changed`). |
+| `src/views/A-frame/vrPositionControl.js` | Los marcadores arrancan ocultos por defecto; ya no abren un d-pad local al clickear — mandan `position-element-selected` por `postMessage`; exponen una forma de aplicar `position-move`/`position-save` por `key` desde afuera (reutilizando `onMove`/`resolveTarget`/`persist` existentes). |
+| `aframe-overlay-modules.js` | Puente de mensajes: `position-mode-changed` (mostrar/ocultar marcadores), `position-move`/`position-save` entrantes (aplicar al elemento por `key`). |
+| `src/locales/{es,en,br}.json` | Clave nueva `arsConfig.tab.interface` ("Interfaz") y `config.position`/similares para la fila "Position". |
+
 ## 8. Referencias
 
 - Requerimiento 002 (descartado, origen de `mirror-fix`): `ApprendeVr/Documentation/Requerimientos/4-Rejected/Discarded/002-boton-ar-y-fix-espejo-overlay-estereo/`.

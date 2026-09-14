@@ -96,6 +96,14 @@
       "width": "Width",
       "height": "Height",
       "dualPanel": "Dual panel",
+      "position": "Position",
+      "positionX": "X",
+      "positionY": "Y",
+      "positionZ": "Z",
+      "rotationX": "Rot X",
+      "rotationY": "Rot Y",
+      "rotationZ": "Rot Z",
+      "step": "Step",
       "options": "Configuration options",
       "help": "Help",
       "arsConfig": "AR Configuration",
@@ -122,7 +130,8 @@
       "showMenu": "Show menu",
       "tab": {
         "config": "🎛️ Configuration",
-        "overlays": "📋 Overlays"
+        "overlays": "📋 Overlays",
+        "interface": "🎯 Interface"
       },
       "title": "AR Stereoscopic Configuration",
       "resolution": "📹 Resolution",

@@ -204,3 +204,72 @@
       migración `db/008-ars-sync-compass-position-view.sql` (INSERT en `settings_views`) montada en
       `docker-compose.yml`, seed aplicado al contenedor en ejecución. Suite `user-settings` 55/55
       verde, `nest build` limpio.
+
+## Fase 11 — Ampliación: Doble panel, cámara, sincronización, volumen, centésimas (sección 10 del requerimiento)
+
+- [x] 11.1 Fila "Doble panel" en `#settings-config-group` + fondo del panel agrandado
+      (`height="3.2"`). Estado `dualPanel` en `SyncStereoTestView.jsx`, persistido en
+      `ars-sync-config`. Panel derecho se desmonta por completo cuando está desactivado.
+- [x] 11.2 `wasd-controls="enabled: false"` en la cámara de la brújula y en la del overlay
+      `karaoke`. Las 4 flechas capturadas en la brújula mandan `camera-zoom-delta`
+      (`axis: 'forward'|'strafe'`), aplicado en `aframe-overlay-modules.js` sobre la cámara real
+      del overlay. Signo de "adelante" corregido (hallazgo: `getWorldDirection()` da el eje
+      contrario). Reenviado a AMBOS paneles del modo "Doble panel".
+- [x] 11.3 `compassSectionRef` (fuente de verdad del padre para qué sección de ajustes está
+      abierta) + `compass-section-changed`: las porciones/✕ ya no aplican localmente, mandan la
+      intención y esperan el rebroadcast del padre (a ambos paneles, incluido el emisor).
+- [x] 11.4 `karaokePlayingRef` + reloj calculado (`karaokeTimeAtRef`/`karaokeTimeSetAtRef`/
+      `getKaraokeCurrentTime()`) en vez de polling: play/pause/seek actualizan la referencia;
+      `karaoke-ready` (una sola vez al montar, no periódico) contesta con el tiempo calculado +
+      play/pause vigente.
+- [x] 11.5 `formatTime()` con centésimas (`M:SS.CC`) + loop de refresco a 60fps con auto-parada
+      (compara `this._htmlVideo` contra el video capturado por closure).
+- [x] 11.6 Prop `singlePanel` (`!dualPanel`) pasada a todos los `SYNCABLE_OVERLAYS`; volumen 100%
+      forzado en modo "un solo panel" tanto en `aframe-overlay-modules.js` (karaoke) como en
+      `VRLocalVideoOverlaySync.jsx` (video).
+- [x] 11.7 `npm run build` y `npm run check:i18n` (frontend) verdes después de cada cambio de esta
+      fase.
+
+## Fase 12 — Ampliación: sección "Interfaz" y sistema unificado de posición (sección 11 del requerimiento)
+
+- [x] 12.1 Sección `interface` en `SECTIONS` de `SyncConfigCompassMenu.jsx` (5 porciones, 72° cada
+      una); clave i18n `arsConfig.tab.interface` en `es/en/br.json`.
+- [x] 12.2 `buildInterfaceGroupHTML()`: fila "Position" (checkbox-fila, mismo patrón que Overlays)
+      + d-pad genérico X/Y/Z (steppers +/-, paso fijo `POSITION_STEP = 0.25` — sin input numérico
+      editable, a diferencia del widget original, ver Diseño técnico) oculto hasta que haya un
+      elemento seleccionado. Claves i18n `config.position`/`config.positionX/Y/Z`.
+- [x] 12.3 Click en la fila "Position" manda `compass-toggle-position-mode` (no aplica local).
+- [x] 12.4 `positionModeRef` en `SyncStereoTestView.jsx`: rebroadcast a ambas brújulas (via
+      `compass-config-state` fresco, con antirebote `OVERLAY_TOGGLE_DEBOUNCE_MS`) y a los overlays
+      de karaoke de ambos paneles (`position-mode-changed`). Incluido en el handshake
+      `karaoke-ready`.
+- [x] 12.5 `vrPositionControl.js`: `createWidget`/`initPositionControl` ahora aceptan
+      `options.external` (default `false`, sin cambiar la vista de producción que llama sin
+      argumentos). En `external: true` (mirror-fix): el marcador arranca oculto, no construye
+      d-pad/input local, y el clic manda `position-element-selected` por `postMessage` en vez de
+      togglear un d-pad propio.
+- [x] 12.6 `aframe-overlay-modules.js`: `initPositionControl({ external: true })`. El listener de
+      mensajes agregado dentro de `initPositionControl` (solo si `external`) atiende
+      `position-mode-changed` (visibilidad de todos los marcadores), `position-move` (aplica por
+      `key`, reusando el mismo `onMove` que ya tenía cada target) y `position-save` (reusa
+      `persist()` existente, guarda todos los elementos igual que el botón original).
+- [x] 12.7 `positionSelectedRef` en `SyncStereoTestView.jsx`: guarda `{key, position}` vigente;
+      rebroadcast de `position-element-selected` a AMBAS brújulas, de `position-move`/
+      `position-save` a los overlays de karaoke de ambos paneles (configuración compartida, no
+      transitoria de un solo panel) — `positionSelectedRef` también se actualiza con cada
+      `position-move` para que una brújula recién montada reciba el valor más reciente, no el de
+      la selección original.
+- [x] 12.8 D-pad de la brújula: cada clic de flecha manda `position-move` (`axis`, `delta`) y
+      actualiza la etiqueta localmente de forma optimista; botón Guardar manda `position-save` con
+      el mismo flash verde que el widget original.
+- [ ] 12.9 Prueba manual: activar "Position" desde Interfaz, ver los marcadores rojos en el
+      karaoke, clickear uno, ver el d-pad aparecer al lado de la brújula (no en la esquina del
+      elemento), mover con las flechas, Guardar, recargar y confirmar que persiste. **Pendiente —
+      no verificado en navegador en esta sesión** (ver problems_solutions.md).
+- [x] 12.10 `npm run build` y `npm run check:i18n` (frontend) verdes.
+
+**Limitación conocida (alcance no cubierto en esta pasada):** el marcador propio de
+`VREvaluacionAf.js` (panel de evaluación, creado bajo demanda al pulsar "EVALUATE SONG") llama a
+`createWidget()` directo, sin pasar por `initPositionControl()` — sigue en modo local (d-pad
+propio en la esquina) incluso dentro de mirror-fix, no se migró a `external: true` en esta
+ampliación.

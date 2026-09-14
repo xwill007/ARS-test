@@ -95,7 +95,20 @@ function formatCoords(pos) {
 // — todos hijos del propio elemento salvo el input (HTML, proyectado sobre pantalla). Mover con
 // el d-pad solo actualiza la posición en pantalla; el ajuste recién se registra en la base de
 // datos al pulsar GUARDAR (a pedido explícito, en vez de guardar en cada click).
-export function createWidget(el, offset, onMove, onSave, getDisplayPos) {
+// Pedido del usuario (ampliación, Requerimiento 013 sección 11): en la vista de prueba mirror-fix
+// (AR-SYNC), el d-pad ya no vive junto a cada elemento — se movió al lado de la brújula 3D, en
+// OTRO iframe. `options.external` (default false, sin tocar el comportamiento de siempre) cambia
+// el modo del marcador:
+// - `external: false` (default, vista de producción `src/views/A-frame`, sin cambios): el
+//   marcador arranca visible, y clickearlo abre/cierra su propio d-pad local — exactamente como
+//   antes de esta ampliación.
+// - `external: true` (mirror-fix, ver aframe-overlay-modules.js): el marcador arranca OCULTO
+//   (visibilidad la controla `initPositionControl` según el modo "Position" del menú, ver más
+//   abajo) y clickearlo llama a `options.onSelect()` en vez de abrir un d-pad acá — la brújula es
+//   la que arma y muestra el d-pad, en otro iframe, mensaje mediante.
+export function createWidget(el, offset, onMove, onSave, getDisplayPos, options) {
+  const external = !!(options && options.external);
+  const onSelect = options && options.onSelect;
   const [ox, oy, oz] = offset;
   const clickables = []; // { el, onClick }
 
@@ -106,7 +119,16 @@ export function createWidget(el, offset, onMove, onSave, getDisplayPos) {
   marker.setAttribute('position', `${ox} ${oy} ${oz}`);
   marker.setAttribute('material', 'shader: flat; side: double;');
   marker.setAttribute('scale', '2 2 2');
+  if (external) marker.setAttribute('visible', false);
   el.appendChild(marker);
+
+  if (external) {
+    const onClick = () => onSelect();
+    marker.addEventListener('click', onClick);
+    clickables.push({ el: marker, onClick });
+    const setAnchor = ([nx, ny, nz]) => marker.setAttribute('position', `${nx} ${ny} ${nz}`);
+    return { clickables, marker, setAnchor };
+  }
 
   const dpad = document.createElement('a-entity');
   // 0.9 (no 0.5): con las flechas agrandadas, la "^" (local y=0.48 dentro del d-pad) quedaba a
@@ -355,6 +377,18 @@ function resolveTarget(hostEl, key) {
         if (listEl) listEl.setAttribute('position', `${p[0]} ${p[1]} ${p[2]}`);
         try { comp.data.listPosition = `${p[0]} ${p[1]} ${p[2]}`; } catch (e) {}
       },
+      // Pedido del usuario (ampliación): mismo criterio que getPos/setPos, pero para el ángulo de
+      // giro de la lista (no hay `comp.data` equivalente a `listPosition` para rotación en el
+      // schema de vr-karaoke-af — se lee/escribe directo del elemento, se pierde si la lista se
+      // recrea igual que pasaba con la posición antes de este ajuste, ver reanchor).
+      getRot: () => {
+        const listEl = getListEl();
+        return listEl ? parsePosition(listEl.getAttribute('rotation')) : [0, 0, 0];
+      },
+      setRot: (r) => {
+        const listEl = getListEl();
+        if (listEl) listEl.setAttribute('rotation', `${r[0]} ${r[1]} ${r[2]}`);
+      },
       // Al mover la lista, el marcador (hijo del host) no se mueve solo — re-anclarlo a la nueva
       // esquina de la lista para que el 📍 siga pegado a ella.
       reanchor: (widget) => widget.setAnchor(resolveSongListOffset(comp)),
@@ -368,10 +402,20 @@ function resolveTarget(hostEl, key) {
     offset,
     getPos: () => parsePosition(hostEl.getAttribute('position')),
     setPos: (p) => hostEl.setAttribute('position', `${p[0]} ${p[1]} ${p[2]}`),
+    // Pedido del usuario (ampliación): ángulo de giro de cada eje, junto a la posición.
+    getRot: () => parsePosition(hostEl.getAttribute('rotation')),
+    setRot: (r) => hostEl.setAttribute('rotation', `${r[0]} ${r[1]} ${r[2]}`),
   };
 }
 
-export function initPositionControl() {
+// Pedido del usuario (ampliación, Requerimiento 013 sección 11): `options.external` (default
+// false) activa el modo mirror-fix — ver el comentario grande sobre `createWidget`. En ese modo,
+// esta función además escucha por `postMessage` ('position-mode-changed' para mostrar/ocultar
+// TODOS los marcadores, 'position-move'/'position-save' para mover/guardar el elemento indicado
+// por `key`, llegando desde la brújula vía SyncStereoTestView.jsx) — en modo local (default) no
+// registra ningún listener nuevo, cero cambio de comportamiento para la vista de producción.
+export function initPositionControl(options) {
+  const external = !!(options && options.external);
   const sceneEl = document.querySelector('a-scene');
   if (!sceneEl) return;
 
@@ -389,17 +433,26 @@ export function initPositionControl() {
   // index.html o en el schema del componente), y se reemplaza por lo guardado (si existe) al
   // cargar más abajo.
   const state = {};
+  // Pedido del usuario (ampliación): mismo criterio que `state`, pero para el ángulo de giro de
+  // cada eje — objeto aparte (no mezclado en `state`) para no romper la forma que ya esperaba
+  // `persist()`/`onMove` en modo local (vista de producción, sin cambios).
+  const rotState = {};
   targets.forEach((t) => {
     state[t.key] = t.getPos();
+    rotState[t.key] = t.getRot ? t.getRot() : [0, 0, 0];
   });
 
   const persist = () => {
     const config = {};
     targets.forEach((t) => {
-      config[t.key] = { position: state[t.key] };
+      config[t.key] = { position: state[t.key], rotation: rotState[t.key] };
     });
     saveUserSetting(VIEW, config);
   };
+
+  function send(msg) {
+    window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+  }
 
   targets.forEach((t) => {
     // Mover con el d-pad solo actualiza la posición en memoria/pantalla; el botón GUARDAR de
@@ -416,11 +469,52 @@ export function initPositionControl() {
       t.setPos(next);
       if (t.reanchor) t.reanchor(widget);
     };
-    widget = createWidget(t.host, t.offset, onMove, persist, t.getPos);
+    // Pedido del usuario (ampliación): mismo patrón que onMove, para rotación — solo tiene efecto
+    // real si el target sabe rotar (getRot/setRot, ver resolveTarget); si no, es un no-op.
+    const onRotate = (drx, dry, drz) => {
+      if (!t.setRot) return;
+      const rot = rotState[t.key];
+      const next = [
+        +(rot[0] + drx).toFixed(2),
+        +(rot[1] + dry).toFixed(2),
+        +(rot[2] + drz).toFixed(2),
+      ];
+      rotState[t.key] = next;
+      t.setRot(next);
+    };
+    const onSelect = external
+      ? () => send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key] })
+      : undefined;
+    widget = createWidget(t.host, t.offset, onMove, persist, t.getPos, { external, onSelect });
     t.widget = widget;
+    t.onMove = onMove;
+    t.onRotate = onRotate;
     registerPositionWidgetClickables(widget.clickables);
-    registerNumericInput(widget.stepInput, widget.dpad, widget.inputAnchor);
+    if (!external) registerNumericInput(widget.stepInput, widget.dpad, widget.inputAnchor);
   });
+
+  if (external) {
+    window.addEventListener('message', (ev) => {
+      const msg = ev.data;
+      if (!msg || msg.source !== 'ars-sync-test') return;
+      if (msg.action === 'position-mode-changed') {
+        targets.forEach((t) => t.widget.marker.setAttribute('visible', !!msg.enabled));
+      } else if (msg.action === 'position-move') {
+        const t = targets.find((tt) => tt.key === msg.key);
+        if (!t) return;
+        const delta = [0, 0, 0];
+        const axisIndex = ['x', 'y', 'z'].indexOf(msg.axis);
+        if (axisIndex === -1) return;
+        delta[axisIndex] = msg.delta;
+        // Pedido del usuario (ampliación): `kind` distingue posición (default, por compatibilidad
+        // con mensajes previos a esta ampliación) de rotación.
+        if (msg.kind === 'rotation') t.onRotate(delta[0], delta[1], delta[2]);
+        else t.onMove(delta[0], delta[1], delta[2]);
+      } else if (msg.action === 'position-save' && targets.some((tt) => tt.key === msg.key)) {
+        persist();
+      }
+    });
+  }
 
   // Cargar configuración guardada (si hay sesión) y aplicarla sobre lo hardcodeado en index.html.
   getUserSetting(VIEW).then((saved) => {
@@ -431,7 +525,11 @@ export function initPositionControl() {
         state[t.key] = elConfig.position;
         t.setPos(elConfig.position);
         if (t.reanchor) t.reanchor(t.widget);
-        t.widget.refreshCoordsLabel();
+        if (t.widget.refreshCoordsLabel) t.widget.refreshCoordsLabel();
+      }
+      if (t.setRot && elConfig && Array.isArray(elConfig.rotation) && elConfig.rotation.length === 3) {
+        rotState[t.key] = elConfig.rotation;
+        t.setRot(elConfig.rotation);
       }
     });
   });
@@ -452,7 +550,7 @@ export function initPositionControl() {
         lastListEl = listEl;
         songListTarget.setPos(state.songList);
         songListTarget.reanchor(songListTarget.widget);
-        songListTarget.widget.refreshCoordsLabel();
+        if (songListTarget.widget.refreshCoordsLabel) songListTarget.widget.refreshCoordsLabel();
       }
     }, 300);
   }

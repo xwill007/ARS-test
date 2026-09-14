@@ -55,15 +55,21 @@ import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageCont
 // `compass-save-position`) — ver esa vista para el `getUserSetting`/`saveUserSetting`.
 //
 // Componente de prueba aislado, no se usa desde ningún archivo de producción.
+// Pedido del usuario (ampliación, sección 11 del requerimiento): quinta porción "Interfaz", con
+// una opción "Position" que activa los marcadores rojos de vrPositionControl.js y muestra su
+// d-pad al lado de la brújula. Con 5 secciones el ángulo por porción pasa de 90° a 72°
+// (WEDGE_THETA_LENGTH = 360 / SECTIONS.length, más abajo) — los thetaStart de todas se
+// recalcularon acorde, no solo el de la nueva.
 const SECTIONS = [
   { key: 'config', labelKey: 'arsConfig.tab.config', thetaStart: 0, type: 'panel' },
-  { key: 'overlays', labelKey: 'arsConfig.tab.overlays', thetaStart: 90, type: 'panel' },
-  { key: 'back', labelKey: 'home.back', thetaStart: 180, type: 'action', action: 'back' },
+  { key: 'overlays', labelKey: 'arsConfig.tab.overlays', thetaStart: 72, type: 'panel' },
+  { key: 'interface', labelKey: 'arsConfig.tab.interface', thetaStart: 144, type: 'panel' },
+  { key: 'back', labelKey: 'home.back', thetaStart: 216, type: 'action', action: 'back' },
   // Pedido del usuario: "Cerrar sesión" se activa igual que el resto (dwell + click), sin
   // excepción — antes el reticle se quedaba blanco/neutro sobre esta porción (sin dwell) por ser
   // destructiva; ahora, como cualquier acción destructiva, queda protegida por el panel de
   // confirmación (#confirm-panel, ver más abajo), no por deshabilitar el feedback de apuntado.
-  { key: 'logout', labelKey: 'home.logout', thetaStart: 270, type: 'action', action: 'logout' },
+  { key: 'logout', labelKey: 'home.logout', thetaStart: 288, type: 'action', action: 'logout' },
 ];
 const WEDGE_THETA_LENGTH = 360 / SECTIONS.length;
 const STEP_DEG = WEDGE_THETA_LENGTH;
@@ -74,6 +80,23 @@ const RADIUS = 1.2;
 const WEDGE_COLOR = '#888888';
 const WEDGE_OPACITY = 0.45;
 const RING_INNER_RADIUS = RADIUS * 0.4;
+// Pedido del usuario (ampliación): el panel de la sección activa (Configuración/Overlays/
+// Interfaz) ya no vive en un punto fijo — se ancla a la MISMA bisectriz angular que su porción
+// (ver SECTION_BISECTOR más abajo) y queda TANGENTE al círculo de la brújula en ese punto, por su
+// borde INFERIOR (no el lateral — pedido explícito del usuario, para que se lea bien desde el
+// centro del menú).
+const PANEL_WIDTH = 2.2;
+const PANEL_HEIGHT = 4.6;
+// Hallazgo real (verificado dos veces: primero midiendo en el navegador, después con una réplica
+// exacta de la composición de matrices de rotación de THREE.js hecha aparte para confirmarlo sin
+// depender del navegador — ambas coinciden): con `rotation="-90 0 0"` en #settings-panel (el
+// primer intento), el eje LOCAL X (ancho) queda alineado radialmente y el Y (alto) queda
+// tangencial — el borde que tocaba el círculo era el LATERAL izquierdo, no el inferior. Con
+// `rotation="-90 0 -90"` (ver más abajo, en #settings-panel) el mapeo se invierte limpiamente:
+// alto → radial, ancho → tangencial, y además con el signo correcto (Y negativo, la parte de
+// abajo del panel donde está el botón Guardar, queda MÁS CERCA del centro) — así que ahora el
+// radio se calcula con PANEL_HEIGHT, no PANEL_WIDTH.
+const PANEL_RADIUS = RADIUS + PANEL_HEIGHT / 2;
 // Ubicación pedida por el usuario: el menú (compass-root) en el origen de la escena, la cámara
 // directamente arriba mirando hacia abajo — en vez del esquema anterior (menú a GROUND_Z=-4 frente
 // a una cámara a la altura de los ojos, CAMERA_Y=1.8, mirando casi horizontal).
@@ -155,14 +178,94 @@ function buildOverlaysGroupHTML() {
   `;
 }
 
-// Panel completo: fondo + título + cerrar + sesión + los dos grupos de arriba (uno visible a la
+// Pedido del usuario (ampliación, sección 11): grupo "Interfaz" — una fila "Position" (mismo
+// patrón checkbox-fila que buildOverlaysGroupHTML()) que activa/desactiva los marcadores rojos de
+// vrPositionControl.js en el overlay real (mensaje 'compass-toggle-position-mode', ver
+// SyncStereoTestView.jsx), y debajo un d-pad genérico X/Y/Z (mismo patrón de steppers que
+// buildConfigGroupHTML()) que solo se muestra cuando hay un elemento seleccionado
+// ('position-element-selected', al clickear un marcador en el overlay). A diferencia de los
+// steppers de Configuración (`data-step`, `fieldStep()` busca en CONFIG_FIELDS), estos usan
+// `data-position-step` — un atributo distinto a propósito, para no colarse en ese handler
+// compartido, que no sabe nada de ejes x/y/z.
+const POSITION_AXES = ['x', 'y', 'z'];
+// Paso INICIAL, ajustable en vivo por el usuario con su propia fila "+/-" (pedido: "el paso o
+// valor de edición para aplicar") — a diferencia del widget original de vrPositionControl.js, que
+// tenía un input HTML editable proyectado sobre el d-pad, acá es una fila más del panel (mismo
+// patrón que el resto), sin reconstruir ese sistema de proyección mundo→pantalla dentro del
+// iframe. Rango acotado para que no se vaya a un extremo inútil (0 o gigante) por error.
+const DEFAULT_POSITION_STEP = 0.25;
+const POSITION_STEP_RANGE = { min: 0.05, max: 5 };
+const POSITION_STEP_INCREMENT = 0.05;
+// Fila genérica reusada por posición (data-position-step) y rotación (data-rotation-step) — misma
+// forma visual que un CONFIG_FIELDS, con un atributo distinto por tipo a propósito (para que el
+// handler de clicks de cada uno no se pise con el otro ni con `data-step` de Configuración).
+function buildAxisStepperRow(dataAttr, axis, y) {
+  return `
+    <a-text data-${dataAttr}-label="${axis}" align="center" color="#ffffff" width="2.6" position="0 ${(y + 0.13).toFixed(2)} 0.02"></a-text>
+    <a-plane class="clickable" data-${dataAttr}="${axis}" data-dir="-1" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.85 ${y.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+    <a-plane class="clickable" data-${dataAttr}="${axis}" data-dir="1" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.85 ${y.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+  `;
+}
+function buildInterfaceGroupHTML() {
+  // Todo el layout vertical calculado con un solo paso fijo entre filas — agregar/quitar filas acá
+  // no requiere retocar posiciones a mano en el resto del bloque.
+  const ROW_SPACING = 0.28;
+  let y = 0.34; // debajo de la fila "Position" (0.55)
+  // Hallazgo real (reportado por el usuario tras la primera versión de este panel): la etiqueta
+  // del elemento seleccionado estaba hardcodeada en y=0.13, casi pegada a la fila de posición X
+  // (que con el layout de esta ampliación cae cerca de ese mismo valor) — ahora es una fila más
+  // de la MISMA secuencia calculada, así que nunca puede volver a chocar con la siguiente.
+  const elementLabelY = y; y -= ROW_SPACING;
+  const stepRowY = y; y -= ROW_SPACING;
+  const positionRowsY = POSITION_AXES.map(() => { const rowY = y; y -= ROW_SPACING; return rowY; });
+  const rotationRowsY = POSITION_AXES.map(() => { const rowY = y; y -= ROW_SPACING; return rowY; });
+  const saveY = y - 0.06;
+
+  const stepRow = `
+    <a-text id="dpad-step-label" align="center" color="#ffffff" width="2.6" position="0 ${(stepRowY + 0.13).toFixed(2)} 0.02"></a-text>
+    <a-plane class="clickable" id="dpad-step-minus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.85 ${stepRowY.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+    <a-plane class="clickable" id="dpad-step-plus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.85 ${stepRowY.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+  `;
+  const positionRows = POSITION_AXES.map((axis, i) => buildAxisStepperRow('position-step', axis, positionRowsY[i])).join('\n');
+  const rotationRows = POSITION_AXES.map((axis, i) => buildAxisStepperRow('rotation-step', axis, rotationRowsY[i])).join('\n');
+
+  return `
+    <a-entity id="settings-interface-group" visible="false">
+      <a-plane class="clickable" id="settings-position-toggle" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 0.55 0.01">
+        <a-text id="settings-position-label" value="" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
+        <a-text id="settings-position-check" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.01"></a-text>
+      </a-plane>
+      <a-entity id="position-dpad-group" visible="false">
+        <a-text id="dpad-element-label" align="center" color="#4FC3F7" width="2.6" position="0 ${elementLabelY.toFixed(2)} 0.01"></a-text>
+        ${stepRow}
+        ${positionRows}
+        ${rotationRows}
+        <a-plane class="clickable" id="dpad-save-btn" width="1.0" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 ${saveY.toFixed(2)} 0.01">
+          <a-text id="dpad-save-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+  `;
+}
+
+// Panel completo: fondo + título + cerrar + sesión + los grupos de arriba (uno visible a la
 // vez, según qué porción se activó). Se ubica 3m al frente del origen (misma dirección -Z en la
 // que ya mira la cámara por defecto, ver CAMERA_POSITION/pitch inicial) para que aparezca cerca de
 // donde el usuario ya está mirando al bajar la vista hacia la brújula, no en un punto arbitrario.
 function buildSettingsPanelHTML() {
   return `
-    <a-entity id="settings-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
-      <a-plane width="2.2" height="3.2" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
+    <!-- position "0 0 0" (no "0 0.02 -3" como antes): el offset radial ahora lo pone el ancla
+         "#settings-panel-anchor" (ver más abajo, donde se inserta esto), que además es hijo de
+         #compass-wheel para que el panel gire CON la rueda y quede siempre junto a su sección —
+         pedido del usuario. -->
+    <!-- rotation "-90 0 -90" (no "-90 0 0"): el -90 extra en Z es lo que invierte cuál de los dos
+         ejes locales (ancho/alto) queda radial — ver el comentario grande junto a PANEL_RADIUS
+         más arriba para la derivación completa. -->
+    <a-entity id="settings-panel" visible="false" rotation="-90 0 -90" position="0 0 0">
+      <!-- height 4.6 (no 3.2): el grupo "Interfaz" ahora tiene etiqueta de elemento + fila "Step"
+           + 3 filas de posición + 3 de rotación + Guardar (8 filas en total) — las demás
+           secciones (Configuración/Overlays) quedan con más margen libre abajo, sin problema. -->
+      <a-plane width="${PANEL_WIDTH}" height="${PANEL_HEIGHT}" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
       <a-text id="settings-title" align="center" color="#4FC3F7" width="2.6" position="0 0.9 0.01"></a-text>
       <!-- z=0.02 (no 0.01, como el título/sesión): el título centrado puede llegar a extenderse
            hasta esta zona — un botón .clickable necesita quedar sin ambigüedad por delante, ver
@@ -173,6 +276,7 @@ function buildSettingsPanelHTML() {
       <a-text id="settings-session" align="center" color="#999999" width="2.4" position="0 0.65 0.01"></a-text>
       ${buildConfigGroupHTML()}
       ${buildOverlaysGroupHTML()}
+      ${buildInterfaceGroupHTML()}
     </a-entity>
   `;
 }
@@ -333,6 +437,11 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     saveOverlaysSub: t('syncConfig.saveOverlaysSub'),
     fields: Object.fromEntries(CONFIG_FIELDS.map((f) => [f.key, t(f.labelKey)])),
     dualPanel: t('config.dualPanel'),
+    interfaceTitle: t('arsConfig.tab.interface'),
+    position: t('config.position'),
+    positionAxes: { x: t('config.positionX'), y: t('config.positionY'), z: t('config.positionZ') },
+    rotationAxes: { x: t('config.rotationX'), y: t('config.rotationY'), z: t('config.rotationZ') },
+    step: t('config.step'),
     // Panel de confirmación (pedido del usuario) para las porciones tipo "action" — evita que un
     // dwell/click accidental dispare "Volver"/"Cerrar sesión" sin que el usuario lo confirme.
     confirmBack: t('home.confirmBack'),
@@ -359,6 +468,18 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             <!-- Grupo rotable: las dos porciones tipo torta -->
             <a-entity id="compass-wheel" rotation="0 0 0">
               ${wedgesHTML}
+              <!-- Pedido del usuario (ampliación): el panel de la sección activa (Configuración/
+                   Overlays/Interfaz) hijo de #compass-wheel, para que gire CON la rueda cuando se
+                   usan las flechas — ancla su rotación.y a la bisectriz de la sección que se
+                   activó (JS, ver __activateSettingsSection: SECTION_BISECTOR/#settings-panel-anchor),
+                   y la entidad interna lo empuja PANEL_RADIUS hacia afuera en esa misma dirección
+                   ya rotada — mismo patrón de 2 niveles (rotar, después trasladar en el frame ya
+                   rotado) que ya usa buildWedgesHTML() para el texto de cada porción. -->
+              <a-entity id="settings-panel-anchor" rotation="0 0 0">
+                <a-entity rotation="0 -90 0" position="0 0.02 ${PANEL_RADIUS.toFixed(2)}">
+                  ${settingsPanelHTML}
+                </a-entity>
+              </a-entity>
             </a-entity>
 
             <!-- Requerimiento 013 (ampliación): botón "X" en el hueco de la dona que
@@ -460,12 +581,11 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               <a-plane id="position-save-btn" class="clickable" width="0.85" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 -1.4 0"><a-text value="${saveLabel}" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
             </a-entity>
 
-            <!-- Panel 3D de la sección activa (Configuración/Overlays) — ver comentario grande al
-                 principio del archivo sobre por qué es geometría de escena y no HTML/hijo de la
-                 cámara. -->
-            ${settingsPanelHTML}
-
-            <!-- Panel de confirmación para "Volver"/"Cerrar sesión" — ver buildConfirmPanelHTML. -->
+            <!-- Panel de confirmación para "Volver"/"Cerrar sesión" — ver buildConfirmPanelHTML.
+                 A diferencia del panel de sección (ver #settings-panel-anchor, ahora hijo de
+                 #compass-wheel), este se queda FIJO acá: no corresponde a ninguna porción
+                 concreta que gire con la rueda (es un modal de confirmación, no un panel de
+                 ajustes por sección). -->
             ${buildConfirmPanelHTML()}
           </a-entity>
 
@@ -787,6 +907,27 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
 
             var STATIC = JSON.parse(document.getElementById('settings-static-labels').textContent);
             var FIELDS = ${JSON.stringify(CONFIG_FIELDS)};
+            // Hallazgo real (reportado por el usuario: etiquetas de eje vacías y el +/- "desvinculaba"
+            // el elemento): POSITION_AXES/POSITION_STEP son constantes del archivo React (afuera),
+            // no existen dentro de este iframe en tiempo de ejecución — sin este var, cada click de
+            // +/- tiraba un ReferenceError silencioso (nunca llegaba a mandar 'position-move' ni a
+            // refrescar las etiquetas), y encima combinado con el hallazgo de más abajo (positionMode
+            // faltante en el broadcast periódico del padre) se veía como si el elemento se soltara.
+            var POSITION_AXES = ${JSON.stringify(POSITION_AXES)};
+            var POSITION_STEP_RANGE = ${JSON.stringify(POSITION_STEP_RANGE)};
+            var POSITION_STEP_INCREMENT = ${POSITION_STEP_INCREMENT};
+            // Pedido del usuario (ampliación): el paso ya no es fijo — su propia fila +/- lo
+            // ajusta en vivo (ver dpad-step-minus/plus más abajo), arrancando en
+            // DEFAULT_POSITION_STEP y usado tanto para mover posición como rotación.
+            var currentStep = ${DEFAULT_POSITION_STEP};
+            // Pedido del usuario (ampliación): bisectriz angular de cada sección tipo "panel"
+            // (Configuración/Overlays/Interfaz) — usada para rotar #settings-panel-anchor hacia
+            // la misma dirección que la porción activa, ver __activateSettingsSection más abajo.
+            var SECTION_BISECTOR = ${JSON.stringify(
+              Object.fromEntries(
+                SECTIONS.filter((s) => s.type === 'panel').map((s) => [s.key, s.thetaStart + WEDGE_THETA_LENGTH / 2]),
+              ),
+            )};
             var currentSection = null; // 'config' | 'overlays' | null
             var state = null; // último "compass-config-state" recibido
 
@@ -805,7 +946,10 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               if (!state || !currentSection) return;
 
               document.querySelector('#settings-title').setAttribute(
-                'value', currentSection === 'overlays' ? STATIC.overlaysTitle : STATIC.configTitle,
+                'value',
+                currentSection === 'overlays' ? STATIC.overlaysTitle :
+                currentSection === 'interface' ? STATIC.interfaceTitle :
+                STATIC.configTitle,
               );
               document.querySelector('#settings-session').setAttribute(
                 'value', state.userEmail ? (STATIC.loggedInAs + ': ' + state.userEmail) : STATIC.noSession,
@@ -861,6 +1005,50 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               document.querySelector('#settings-save-overlays-btn').setAttribute(
                 'color', state.overlaysSaved ? '#555555' : '#2e7d32',
               );
+
+              // Pedido del usuario (ampliación, sección 11): fila "Position" — mismo criterio
+              // visual que "Doble panel"/Overlays (fondo claro + check cuando está activo).
+              // "Activo" acá = modo edición de posición encendido (muestra los marcadores rojos
+              // en el overlay real, ver SyncStereoTestView.jsx → 'position-mode-changed').
+              document.querySelector('#settings-position-label').setAttribute('value', STATIC.position);
+              var positionModeOn = !!state.positionMode;
+              document.querySelector('#settings-position-toggle').setAttribute('color', positionModeOn ? '#4FC3F7' : '#333333');
+              document.querySelector('#settings-position-label').setAttribute('color', positionModeOn ? '#0D1B2A' : '#ffffff');
+              document.querySelector('#settings-position-check').setAttribute('value', positionModeOn ? '✓' : '');
+              document.querySelector('#settings-position-check').setAttribute('color', positionModeOn ? '#0D1B2A' : '#69F0AE');
+              document.querySelector('#dpad-save-label').setAttribute('value', STATIC.saveShort);
+              // Si se apaga el modo posición, no tiene sentido seguir mostrando el d-pad de un
+              // elemento que ya no se puede seleccionar de nuevo — se oculta también acá.
+              if (!positionModeOn) hidePositionDpad();
+            }
+
+            // Pedido del usuario (ampliación, sección 11): d-pad genérico de mover el elemento
+            // seleccionado — a diferencia de los grupos de arriba, su visibilidad/contenido NO
+            // depende de 'compass-config-state' (eso es config compartida entre TODO lo demás),
+            // sino de 'position-element-selected' (qué elemento del overlay real se clickeó, con
+            // su posición actual) — ver el listener de message más abajo.
+            var selectedPositionKey = null;
+            var selectedPositionValue = [0, 0, 0]; // último valor conocido, se actualiza optimista tras cada +/-
+            // Pedido del usuario (ampliación): 3 valores más para el ángulo de giro de cada eje,
+            // junto a la posición — mismo criterio optimista que selectedPositionValue.
+            var selectedRotationValue = [0, 0, 0];
+            function refreshPositionDpad() {
+              document.querySelector('#dpad-element-label').setAttribute('value', selectedPositionKey || '');
+              document.querySelector('#dpad-step-label').setAttribute('value', STATIC.step + ': ' + currentStep.toFixed(2));
+              POSITION_AXES.forEach(function (axis, i) {
+                var posLabelEl = document.querySelector('[data-position-step-label="' + axis + '"]');
+                if (posLabelEl) {
+                  posLabelEl.setAttribute('value', STATIC.positionAxes[axis] + ': ' + selectedPositionValue[i].toFixed(2));
+                }
+                var rotLabelEl = document.querySelector('[data-rotation-step-label="' + axis + '"]');
+                if (rotLabelEl) {
+                  rotLabelEl.setAttribute('value', STATIC.rotationAxes[axis] + ': ' + selectedRotationValue[i].toFixed(2) + '°');
+                }
+              });
+            }
+            function hidePositionDpad() {
+              selectedPositionKey = null;
+              document.querySelector('#position-dpad-group').setAttribute('visible', false);
             }
 
             // Expuesta en window: la cierra tanto su propio botón ✕ como el panel de confirmación
@@ -879,9 +1067,18 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             window.__activateSettingsSection = function (section) {
               if (window.__closeConfirmPanel) window.__closeConfirmPanel();
               currentSection = section;
+              // Pedido del usuario (ampliación): el panel aparece junto a SU sección — rota el
+              // ancla (hijo de #compass-wheel) a la bisectriz de la porción activada. Como el
+              // ancla es hijo de la rueda, si después se gira con las flechas, panel y porción
+              // giran juntos sin que haga falta ningún código extra acá.
+              var bisector = SECTION_BISECTOR[section];
+              if (bisector !== undefined) {
+                document.querySelector('#settings-panel-anchor').setAttribute('rotation', '0 ' + bisector + ' 0');
+              }
               document.querySelector('#settings-panel').setAttribute('visible', true);
               document.querySelector('#settings-config-group').setAttribute('visible', section === 'config');
               document.querySelector('#settings-overlays-group').setAttribute('visible', section === 'overlays');
+              document.querySelector('#settings-interface-group').setAttribute('visible', section === 'interface');
               refreshDisplay();
             };
 
@@ -914,6 +1111,69 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               document.querySelector('#settings-save-overlays-btn').addEventListener('click', function () {
                 send({ action: 'compass-save-overlays' });
               });
+
+              // Pedido del usuario (ampliación, sección 11): fila "Position" — mismo criterio que
+              // "Doble panel" (no aplica local, manda la intención y espera el rebroadcast).
+              document.querySelector('#settings-position-toggle').addEventListener('click', function () {
+                send({ action: 'compass-toggle-position-mode' });
+              });
+              // Fila "Paso" (pedido del usuario: el valor de edición a aplicar es ajustable, ya
+              // no fijo) — solo cambia currentStep, no manda nada por su cuenta: el próximo
+              // click de posición/rotación ya lo usa.
+              document.querySelector('#dpad-step-minus').addEventListener('click', function () {
+                currentStep = Math.max(POSITION_STEP_RANGE.min, +(currentStep - POSITION_STEP_INCREMENT).toFixed(2));
+                refreshPositionDpad();
+              });
+              document.querySelector('#dpad-step-plus').addEventListener('click', function () {
+                currentStep = Math.min(POSITION_STEP_RANGE.max, +(currentStep + POSITION_STEP_INCREMENT).toFixed(2));
+                refreshPositionDpad();
+              });
+              // Steppers X/Y/Z de posición del d-pad genérico: solo tienen sentido si hay un
+              // elemento seleccionado (selectedPositionKey) — si no, el grupo está oculto y no
+              // deberían ser clickeables, pero por las dudas (raycast compartido) se valida acá
+              // también.
+              document.querySelectorAll('[data-position-step]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                  if (!selectedPositionKey) return;
+                  var axis = btn.dataset.positionStep;
+                  var dir = Number(btn.dataset.dir);
+                  var delta = dir * currentStep;
+                  send({ action: 'position-move', key: selectedPositionKey, kind: 'position', axis: axis, delta: delta });
+                  // Actualización optimista del valor mostrado (mismo criterio que el d-pad
+                  // original de vrPositionControl.js: mover ya refresca la etiqueta, sin esperar
+                  // confirmación de vuelta).
+                  var axisIndex = POSITION_AXES.indexOf(axis);
+                  if (axisIndex !== -1) {
+                    selectedPositionValue[axisIndex] = +(selectedPositionValue[axisIndex] + delta).toFixed(2);
+                    refreshPositionDpad();
+                  }
+                });
+              });
+              // Pedido del usuario (ampliación): 3 steppers más, uno por eje de rotación — mismo
+              // patrón que los de posición, con kind: 'rotation' para que
+              // vrPositionControl.js sepa qué campo tocar (ver aframe-overlay-modules.js).
+              document.querySelectorAll('[data-rotation-step]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                  if (!selectedPositionKey) return;
+                  var axis = btn.dataset.rotationStep;
+                  var dir = Number(btn.dataset.dir);
+                  var delta = dir * currentStep;
+                  send({ action: 'position-move', key: selectedPositionKey, kind: 'rotation', axis: axis, delta: delta });
+                  var axisIndex = POSITION_AXES.indexOf(axis);
+                  if (axisIndex !== -1) {
+                    selectedRotationValue[axisIndex] = +(selectedRotationValue[axisIndex] + delta).toFixed(2);
+                    refreshPositionDpad();
+                  }
+                });
+              });
+              document.querySelector('#dpad-save-btn').addEventListener('click', function () {
+                if (!selectedPositionKey) return;
+                send({ action: 'position-save', key: selectedPositionKey });
+                var btn = document.querySelector('#dpad-save-btn');
+                var prevColor = btn.getAttribute('color');
+                btn.setAttribute('color', '#117711');
+                setTimeout(function () { btn.setAttribute('color', prevColor); }, 400);
+              });
             });
 
             window.addEventListener('message', function (ev) {
@@ -930,6 +1190,18 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 // no-op visual.
                 if (msg.section) window.__activateSettingsSection(msg.section);
                 else closeSettingsPanel();
+              } else if (msg.action === 'position-element-selected') {
+                // Pedido del usuario (ampliación, sección 11): un marcador rojo del overlay real
+                // se clickeó — muestra el d-pad genérico con la posición actual de ESE elemento.
+                // No cambia currentSection ni abre el panel por su cuenta: si el usuario todavía
+                // no entró a "Interfaz", el grupo entero sigue oculto (visible solo cuando
+                // currentSection === 'interface', ver __activateSettingsSection) — el d-pad queda
+                // listo pero no se le impone la sección al usuario.
+                selectedPositionKey = msg.key;
+                selectedPositionValue = msg.position.slice();
+                selectedRotationValue = (msg.rotation || [0, 0, 0]).slice();
+                document.querySelector('#position-dpad-group').setAttribute('visible', true);
+                refreshPositionDpad();
               }
             });
           })();

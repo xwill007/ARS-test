@@ -142,7 +142,18 @@ const SyncStereoTestView = ({ onClose }) => {
     if (!karaokePlayingRef.current) return karaokeTimeAtRef.current;
     return karaokeTimeAtRef.current + (Date.now() - karaokeTimeSetAtRef.current) / 1000;
   };
-  const compassSectionRef = useRef(null); // 'config' | 'overlays' | null (panel de ajustes cerrado)
+  const compassSectionRef = useRef(null); // 'config' | 'overlays' | 'interface' | null (panel de ajustes cerrado)
+  // Pedido del usuario (ampliación, sección 11): modo edición de posición — activa/desactiva los
+  // marcadores rojos de vrPositionControl.js en el overlay real. Mismo patrón de fuente de verdad
+  // que `compassSectionRef`: se guarda acá (parte de `configStateRef`, igual que `dualPanel`) y se
+  // relaya a ambas brújulas (para el check) y a ambos overlays de karaoke (para mostrar/ocultar
+  // los marcadores) — nunca aplica nada local antes del rebroadcast.
+  const positionModeRef = useRef(false);
+  const lastPositionModeToggleAtRef = useRef(0);
+  // Qué elemento del overlay real está seleccionado para mover ahora mismo (o null) — fuente de
+  // verdad para que una brújula recién montada muestre el d-pad ya abierto con el elemento
+  // correcto, en vez de perder la selección al activar "Doble panel".
+  const positionSelectedRef = useRef(null); // { key, position: [x,y,z] } | null
   // Requerimiento 012 (ampliación): no cambia durante la sesión (navigator.userAgent es estático),
   // así que no hace falta estado — se usa tanto para persistir (getUserSetting/saveUserSetting ya
   // lo detectan solas por su propio default, ver vrUserSettingsApi.util.js) como para que el panel
@@ -195,7 +206,7 @@ const SyncStereoTestView = ({ onClose }) => {
   // (ver `saveConfig`).
   const configStateRef = useRef(null);
   useEffect(() => {
-    configStateRef.current = { separation, width: panelWidth, height: panelHeight, dualPanel, configSaved, selectedOverlays, overlaysSaved };
+    configStateRef.current = { separation, width: panelWidth, height: panelHeight, dualPanel, positionMode: positionModeRef.current, configSaved, selectedOverlays, overlaysSaved };
   });
 
   // Carga la selección/config/posición guardadas (si las hay). Se usa tanto al montar como al
@@ -344,7 +355,14 @@ const SyncStereoTestView = ({ onClose }) => {
   // que todavía no cargó (antes de mandar su primer `compass-ready`) lo cubre el propio handler de
   // `compass-ready` más abajo, así que perder este primer broadcast no es un problema.
   useEffect(() => {
-    const state = { separation, width: panelWidth, height: panelHeight, dualPanel, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail };
+    // Hallazgo real (reportado por el usuario: el d-pad de posición "se desvinculaba" solo al
+    // moverlo): este broadcast periódico NO incluía `positionMode` — cualquier cambio de los
+    // otros campos (guardar overlays, tocar separación, etc.) mientras el d-pad estaba abierto
+    // reenviaba un `compass-config-state` con `positionMode` ausente, y `refreshDisplay()` del
+    // lado de la brújula lo leía como `false` y ocultaba el d-pad (`hidePositionDpad()`).
+    // `positionModeRef` es un ref (no dispara este efecto por sí solo, no puede ir en deps), pero
+    // se lee su valor vigente cada vez que el efecto corre por cualquier otro motivo.
+    const state = { separation, width: panelWidth, height: panelHeight, dualPanel, positionMode: positionModeRef.current, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail };
     [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
       .filter(Boolean)
       .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-config-state', ...state }, '*'));
@@ -390,6 +408,69 @@ const SyncStereoTestView = ({ onClose }) => {
         toggleDualPanel();
         return;
       }
+      // Pedido del usuario (ampliación, sección 11): fila "Position" — mismo antirebote que
+      // "Doble panel" (los dos ojos sincronizados pueden disparar el dwell casi a la vez).
+      // A diferencia de 'compass-section-changed', esto SÍ necesita empujar un
+      // 'compass-config-state' fresco de una (no alcanza con esperar el próximo broadcast
+      // reactivo: `positionModeRef` es un ref, no dispara el efecto de arriba solo) para que el
+      // check de la fila se vea al toque en las dos brújulas, y además avisa a los overlays de
+      // karaoke de ambos paneles para mostrar/ocultar sus marcadores rojos.
+      if (msg.action === 'compass-toggle-position-mode') {
+        const now = Date.now();
+        if (now - lastPositionModeToggleAtRef.current < OVERLAY_TOGGLE_DEBOUNCE_MS) return;
+        lastPositionModeToggleAtRef.current = now;
+        positionModeRef.current = !positionModeRef.current;
+        // Apagar el modo posición sin una selección vigente no tiene sentido: el marcador que la
+        // generó deja de ser clickeable/visible.
+        if (!positionModeRef.current) positionSelectedRef.current = null;
+        const freshState = { ...configStateRef.current, positionMode: positionModeRef.current };
+        [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
+          .filter(Boolean)
+          .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-config-state', ...freshState, deviceType, userEmail }, '*'));
+        [leftRefs, rightRefs].forEach((refs) => {
+          refs.current.karaoke?.current?.contentWindow?.postMessage(
+            { source: 'ars-sync-test', action: 'position-mode-changed', enabled: positionModeRef.current },
+            '*',
+          );
+        });
+        return;
+      }
+      // Un marcador rojo del overlay real se clickeó (o dejó de estar seleccionado) — se guarda
+      // como fuente de verdad y se rebroadcastea a AMBAS brújulas: es configuración compartida
+      // (qué elemento se está editando), no un input transitorio de un solo panel.
+      if (msg.action === 'position-element-selected') {
+        positionSelectedRef.current = { key: msg.key, position: msg.position, rotation: msg.rotation || [0, 0, 0] };
+        [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
+          .filter(Boolean)
+          .forEach((w) => w.postMessage(msg, '*'));
+        return;
+      }
+      // Un +/- (o Guardar) del d-pad genérico de la brújula — se reenvía a los overlays de
+      // karaoke de AMBOS paneles (ahí vive el elemento real que hay que mover/guardar), no solo
+      // al opuesto: mismo criterio que 'position-element-selected'.
+      if (msg.action === 'position-move' || msg.action === 'position-save') {
+        if (msg.action === 'position-move' && positionSelectedRef.current && positionSelectedRef.current.key === msg.key) {
+          const axisIndex = ['x', 'y', 'z'].indexOf(msg.axis);
+          if (axisIndex !== -1) {
+            // Pedido del usuario (ampliación): `kind` distingue qué campo del elemento
+            // seleccionado hay que actualizar en la fuente de verdad — mismo criterio que ya usa
+            // vrPositionControl.js para aplicar el delta real.
+            if (msg.kind === 'rotation') {
+              const nextRot = (positionSelectedRef.current.rotation || [0, 0, 0]).slice();
+              nextRot[axisIndex] = +(nextRot[axisIndex] + msg.delta).toFixed(2);
+              positionSelectedRef.current = { ...positionSelectedRef.current, rotation: nextRot };
+            } else {
+              const nextPos = positionSelectedRef.current.position.slice();
+              nextPos[axisIndex] = +(nextPos[axisIndex] + msg.delta).toFixed(2);
+              positionSelectedRef.current = { ...positionSelectedRef.current, position: nextPos };
+            }
+          }
+        }
+        [leftRefs, rightRefs].forEach((refs) => {
+          refs.current.karaoke?.current?.contentWindow?.postMessage(msg, '*');
+        });
+        return;
+      }
       if (msg.action === 'compass-save-config') {
         saveConfig();
         return;
@@ -432,6 +513,15 @@ const SyncStereoTestView = ({ onClose }) => {
           { source: 'ars-sync-test', action: 'compass-section-changed', section: compassSectionRef.current },
           '*',
         );
+        // Pedido del usuario (ampliación, sección 11): si hay un elemento seleccionado para mover
+        // ahora mismo, una brújula recién montada también debe ver su d-pad, no perder la
+        // selección al activar "Doble panel".
+        if (positionSelectedRef.current) {
+          ev.source.postMessage(
+            { source: 'ars-sync-test', action: 'position-element-selected', ...positionSelectedRef.current },
+            '*',
+          );
+        }
         // Requerimiento 013 (sync): también se contesta con la visibilidad actual de la dona, para
         // que una brújula que monte/remonte en desfasaje se alinee al estado vigente.
         ev.source.postMessage(
@@ -521,6 +611,13 @@ const SyncStereoTestView = ({ onClose }) => {
         );
         ev.source.postMessage(
           { source: 'ars-sync-test', action: karaokePlayingRef.current ? 'karaoke-play' : 'karaoke-pause' },
+          '*',
+        );
+        // Pedido del usuario (ampliación, sección 11): también la visibilidad vigente de los
+        // marcadores rojos — un panel de karaoke recién montado no debería mostrarlos si el modo
+        // posición está apagado, ni ocultarlos si ya estaba encendido en el panel hermano.
+        ev.source.postMessage(
+          { source: 'ars-sync-test', action: 'position-mode-changed', enabled: positionModeRef.current },
           '*',
         );
         return;
