@@ -210,9 +210,9 @@ const POSITION_STEP_INCREMENT = 0.05;
 // handler de clicks de cada uno no se pise con el otro ni con `data-step` de Configuración).
 function buildAxisStepperRow(dataAttr, axis, y) {
   return `
-    <a-text data-${dataAttr}-label="${axis}" align="center" color="#ffffff" width="2.6" position="0 ${(y + 0.13).toFixed(2)} 0.02"></a-text>
-    <a-plane class="clickable" data-${dataAttr}="${axis}" data-dir="-1" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.85 ${y.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
-    <a-plane class="clickable" data-${dataAttr}="${axis}" data-dir="1" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.85 ${y.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+    <a-text data-${dataAttr}-label="${axis}" align="center" color="#ffffff" width="2.6" position="0 ${y.toFixed(2)} 0.02"></a-text>
+    <a-plane class="clickable" data-${dataAttr}="${axis}" data-dir="-1" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.55 ${y.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+    <a-plane class="clickable" data-${dataAttr}="${axis}" data-dir="1" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.55 ${y.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
   `;
 }
 function buildInterfaceGroupHTML() {
@@ -231,9 +231,9 @@ function buildInterfaceGroupHTML() {
   const saveY = y - 0.06;
 
   const stepRow = `
-    <a-text id="dpad-step-label" align="center" color="#ffffff" width="2.6" position="0 ${(stepRowY + 0.13).toFixed(2)} 0.02"></a-text>
-    <a-plane class="clickable" id="dpad-step-minus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.85 ${stepRowY.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
-    <a-plane class="clickable" id="dpad-step-plus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.85 ${stepRowY.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+    <a-text id="dpad-step-label" align="center" color="#ffffff" width="2.6" position="0 ${stepRowY.toFixed(2)} 0.02"></a-text>
+    <a-plane class="clickable" id="dpad-step-minus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.55 ${stepRowY.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+    <a-plane class="clickable" id="dpad-step-plus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.55 ${stepRowY.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
   `;
   const positionRows = POSITION_AXES.map((axis, i) => buildAxisStepperRow('position-step', axis, positionRowsY[i])).join('\n');
   const rotationRows = POSITION_AXES.map((axis, i) => buildAxisStepperRow('rotation-step', axis, rotationRowsY[i])).join('\n');
@@ -249,8 +249,15 @@ function buildInterfaceGroupHTML() {
         ${stepRow}
         ${positionRows}
         ${rotationRows}
-        <a-plane class="clickable" id="dpad-save-btn" width="1.0" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 ${saveY.toFixed(2)} 0.01">
+        <!-- Pedido del usuario (ampliación): botón "Cancel" junto a "Guardar" — restaura la
+             posición/rotación del elemento seleccionado a su último valor guardado (la fuente de
+             verdad es vrPositionControl.js, que es quien conoce el snapshot guardado; ver mensaje
+             'position-reset' en SyncStereoTestView.jsx/aframe-overlay-modules.js). -->
+        <a-plane class="clickable" id="dpad-save-btn" width="0.9" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="-0.55 ${saveY.toFixed(2)} 0.01">
           <a-text id="dpad-save-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
+        </a-plane>
+        <a-plane class="clickable" id="dpad-cancel-btn" width="0.9" height="0.34" color="#333333" material="shader: flat; side: double;" position="0.55 ${saveY.toFixed(2)} 0.01">
+          <a-text id="dpad-cancel-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
         </a-plane>
       </a-entity>
     </a-entity>
@@ -1058,6 +1065,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               document.querySelector('#settings-position-check').setAttribute('value', positionModeOn ? '✓' : '');
               document.querySelector('#settings-position-check').setAttribute('color', positionModeOn ? '#0D1B2A' : '#69F0AE');
               document.querySelector('#dpad-save-label').setAttribute('value', STATIC.saveShort);
+              document.querySelector('#dpad-cancel-label').setAttribute('value', STATIC.confirmCancel);
               // Si se apaga el modo posición, no tiene sentido seguir mostrando el d-pad de un
               // elemento que ya no se puede seleccionar de nuevo — se oculta también acá.
               if (!positionModeOn) hidePositionDpad();
@@ -1073,6 +1081,36 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             // Pedido del usuario (ampliación): 3 valores más para el ángulo de giro de cada eje,
             // junto a la posición — mismo criterio optimista que selectedPositionValue.
             var selectedRotationValue = [0, 0, 0];
+            // Pedido del usuario (ampliación): snapshot del último valor GUARDADO del elemento
+            // seleccionado — es la referencia para saber si hay "cambios sin guardar" y para que el
+            // botón "Cancel" (que solo se activa en ese caso) restaure. La fuente de verdad real
+            // del guardado vive en vrPositionControl.js (ver 'position-reset'); acá se mantiene una
+            // copia optimista para decidir en vivo si mostrar/ocultar Cancel.
+            var savedPositionValue = [0, 0, 0];
+            var savedRotationValue = [0, 0, 0];
+            // Pedido del usuario (ampliación): true cuando posición/rotación actuales difieren de
+            // las guardadas — controla si el botón "Cancel" está visible/clickeable.
+            var hasUnsavedChanges = false;
+            function refreshCancelState() {
+              var diff = false;
+              POSITION_AXES.forEach(function (axis, i) {
+                if (selectedPositionValue[i] !== savedPositionValue[i]) diff = true;
+                if (selectedRotationValue[i] !== savedRotationValue[i]) diff = true;
+              });
+              hasUnsavedChanges = diff;
+              var cancelBtn = document.querySelector('#dpad-cancel-btn');
+              // Pedido del usuario (ampliación): el botón Guardar refleja si hay cambios sin
+              // guardar — gris (#555555) cuando no hay nada que guardar, verde (#2e7d32) cuando sí.
+              // Mismo criterio que Configuración/Overlays (configSaved/overlaysSaved → #555555).
+              var saveBtn = document.querySelector('#dpad-save-btn');
+              if (saveBtn) saveBtn.setAttribute('color', hasUnsavedChanges ? '#2e7d32' : '#555555');
+              if (!cancelBtn) return;
+              cancelBtn.setAttribute('visible', hasUnsavedChanges);
+              // Igual que el resto del panel: la detectabilidad sigue a la visibilidad (el raycaster
+              // no filtra por visible), así que se quita/reagrega la clase .clickable.
+              if (hasUnsavedChanges) cancelBtn.classList.add('clickable');
+              else cancelBtn.classList.remove('clickable');
+            }
             function refreshPositionDpad() {
               document.querySelector('#dpad-element-label').setAttribute('value', selectedPositionKey || '');
               document.querySelector('#dpad-step-label').setAttribute('value', STATIC.step + ': ' + currentStep.toFixed(2));
@@ -1086,6 +1124,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                   rotLabelEl.setAttribute('value', STATIC.rotationAxes[axis] + ': ' + selectedRotationValue[i].toFixed(2) + '°');
                 }
               });
+              refreshCancelState();
             }
             function hidePositionDpad() {
               selectedPositionKey = null;
@@ -1278,10 +1317,24 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               document.querySelector('#dpad-save-btn').addEventListener('click', function () {
                 if (!selectedPositionKey) return;
                 send({ action: 'position-save', key: selectedPositionKey });
+                // Pedido del usuario (ampliación): lo recién guardado pasa a ser el nuevo baseline
+                // — Cancel se oculta porque ya no hay cambios sin guardar.
+                savedPositionValue = selectedPositionValue.slice();
+                savedRotationValue = selectedRotationValue.slice();
+                refreshCancelState();
                 var btn = document.querySelector('#dpad-save-btn');
                 var prevColor = btn.getAttribute('color');
                 btn.setAttribute('color', '#117711');
                 setTimeout(function () { btn.setAttribute('color', prevColor); }, 400);
+              });
+              // Pedido del usuario (ampliación): botón "Cancel" — solo clickeable cuando hay
+              // cambios sin guardar (refreshCancelState lo muestra/oculta). Manda 'position-reset'
+              // y espera a que vrPositionControl.js restaure el último valor guardado y conteste
+              // con 'position-element-selected' (que acá actualiza el d-pad y vuelve a ocultar
+              // Cancel, ver el listener de message más abajo).
+              document.querySelector('#dpad-cancel-btn').addEventListener('click', function () {
+                if (!selectedPositionKey || !hasUnsavedChanges) return;
+                send({ action: 'position-reset', key: selectedPositionKey });
               });
             });
 
@@ -1309,6 +1362,11 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 selectedPositionKey = msg.key;
                 selectedPositionValue = msg.position.slice();
                 selectedRotationValue = (msg.rotation || [0, 0, 0]).slice();
+                // Pedido del usuario (ampliación): al seleccionar (o al restaurar tras Cancel), el
+                // valor recibido es el estado guardado — baseline = actual, sin cambios pendientes,
+                // así que Cancel arranca oculto.
+                savedPositionValue = selectedPositionValue.slice();
+                savedRotationValue = selectedRotationValue.slice();
                 document.querySelector('#position-dpad-group').setAttribute('visible', true);
                 setDpadInteractive(true);
                 refreshPositionDpad();

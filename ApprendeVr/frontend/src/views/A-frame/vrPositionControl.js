@@ -127,7 +127,11 @@ export function createWidget(el, offset, onMove, onSave, getDisplayPos, options)
     marker.addEventListener('click', onClick);
     clickables.push({ el: marker, onClick });
     const setAnchor = ([nx, ny, nz]) => marker.setAttribute('position', `${nx} ${ny} ${nz}`);
-    return { clickables, marker, setAnchor };
+    // Pedido del usuario (ampliación): al seleccionar un elemento para moverlo, su marcador cambia
+    // de rojo a azul (los demás vuelven a rojo) — feedback visual de cuál se está editando. El
+    // color lo pinta initPositionControl (ver 'position-element-selected' más abajo), no el click.
+    const setSelected = (selected) => marker.setAttribute('color', selected ? '#2196F3' : '#d21919');
+    return { clickables, marker, setAnchor, setSelected };
   }
 
   const dpad = document.createElement('a-entity');
@@ -437,15 +441,27 @@ export function initPositionControl(options) {
   // cada eje — objeto aparte (no mezclado en `state`) para no romper la forma que ya esperaba
   // `persist()`/`onMove` en modo local (vista de producción, sin cambios).
   const rotState = {};
+  // Pedido del usuario (ampliación): snapshot del último valor GUARDADO (o cargado de la BD) de
+  // cada elemento — es lo que permite el botón "Cancel" del d-pad de la brújula: restaurar
+  // posición/rotación al último estado persistido cuando hay cambios sin guardar. Se inicializa
+  // con los valores de arranque del DOM (que son el "estado base" antes de cualquier edición) y se
+  // refresca en persist() y al cargar de la BD.
+  const savedState = {};
+  const savedRotState = {};
   targets.forEach((t) => {
     state[t.key] = t.getPos();
     rotState[t.key] = t.getRot ? t.getRot() : [0, 0, 0];
+    savedState[t.key] = state[t.key].slice();
+    savedRotState[t.key] = rotState[t.key].slice();
   });
 
   const persist = () => {
     const config = {};
     targets.forEach((t) => {
       config[t.key] = { position: state[t.key], rotation: rotState[t.key] };
+      // Lo recién guardado pasa a ser el nuevo "último guardado" (baseline para Cancel).
+      savedState[t.key] = state[t.key].slice();
+      savedRotState[t.key] = rotState[t.key].slice();
     });
     saveUserSetting(VIEW, config);
   };
@@ -498,7 +514,36 @@ export function initPositionControl(options) {
       const msg = ev.data;
       if (!msg || msg.source !== 'ars-sync-test') return;
       if (msg.action === 'position-mode-changed') {
-        targets.forEach((t) => t.widget.marker.setAttribute('visible', !!msg.enabled));
+        targets.forEach((t) => {
+          t.widget.marker.setAttribute('visible', !!msg.enabled);
+          // Pedido del usuario (ampliación): al apagar el modo posición no queda selección vigente,
+          // así que cualquier marcador que hubiera quedado azul vuelve a rojo (al reactivar el modo
+          // arrancan todos rojos/deseleccionados, no azul de una edición anterior).
+          if (!msg.enabled && t.widget.setSelected) t.widget.setSelected(false);
+        });
+      } else if (msg.action === 'position-element-selected') {
+        // Pedido del usuario (ampliación): pinta azul el marcador del elemento seleccionado y rojo
+        // los demás — la fuente de verdad es SyncStereoTestView.jsx (que rebroadcastea este mensaje
+        // a AMBOS overlays), así que los dos paneles muestran el mismo marcador azul.
+        targets.forEach((t) => {
+          if (t.widget.setSelected) t.widget.setSelected(t.key === msg.key);
+        });
+      } else if (msg.action === 'position-reset') {
+        // Pedido del usuario (ampliación): botón "Cancel" del d-pad de la brújula — restaura la
+        // posición/rotación del elemento al último valor guardado (savedState/savedRotState) y
+        // re-aplica sobre el DOM. Luego contesta con 'position-element-selected' (mismo mensaje que
+        // al clickear un marcador) para que SyncStereoTestView.jsx actualice su fuente de verdad y
+        // rebroadcastee el estado restaurado a la brújula (que refresca su d-pad) y al overlay
+        // hermano (que pinta el marcador correspondiente).
+        const t = targets.find((tt) => tt.key === msg.key);
+        if (!t) return;
+        state[t.key] = (savedState[t.key] || state[t.key]).slice();
+        rotState[t.key] = (savedRotState[t.key] || rotState[t.key]).slice();
+        t.setPos(state[t.key]);
+        if (t.setRot) t.setRot(rotState[t.key]);
+        if (t.reanchor) t.reanchor(t.widget);
+        if (t.widget.refreshCoordsLabel) t.widget.refreshCoordsLabel();
+        send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key] });
       } else if (msg.action === 'position-move') {
         const t = targets.find((tt) => tt.key === msg.key);
         if (!t) return;
@@ -531,6 +576,12 @@ export function initPositionControl(options) {
         rotState[t.key] = elConfig.rotation;
         t.setRot(elConfig.rotation);
       }
+    });
+    // Pedido del usuario (ampliación): tras aplicar lo cargado de la BD, ese pasa a ser el nuevo
+    // "último guardado" (baseline para Cancel) de cada elemento.
+    targets.forEach((t) => {
+      savedState[t.key] = state[t.key].slice();
+      savedRotState[t.key] = rotState[t.key].slice();
     });
   });
 

@@ -443,12 +443,19 @@ const SyncStereoTestView = ({ onClose }) => {
         [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
           .filter(Boolean)
           .forEach((w) => w.postMessage(msg, '*'));
+        // Pedido del usuario (ampliación): también se reenvía a los overlays de karaoke de AMBOS
+        // paneles, para que pinten azul el marcador del elemento seleccionado (y rojo el resto) —
+        // ver vrPositionControl.js 'position-element-selected'. Sin esto, el panel hermano (o el
+        // propio, que no recibe su propio postMessage) no enteraría el cambio de selección visual.
+        [leftRefs, rightRefs].forEach((refs) => {
+          refs.current.karaoke?.current?.contentWindow?.postMessage(msg, '*');
+        });
         return;
       }
       // Un +/- (o Guardar) del d-pad genérico de la brújula — se reenvía a los overlays de
       // karaoke de AMBOS paneles (ahí vive el elemento real que hay que mover/guardar), no solo
       // al opuesto: mismo criterio que 'position-element-selected'.
-      if (msg.action === 'position-move' || msg.action === 'position-save') {
+      if (msg.action === 'position-move' || msg.action === 'position-save' || msg.action === 'position-reset') {
         if (msg.action === 'position-move' && positionSelectedRef.current && positionSelectedRef.current.key === msg.key) {
           const axisIndex = ['x', 'y', 'z'].indexOf(msg.axis);
           if (axisIndex !== -1) {
