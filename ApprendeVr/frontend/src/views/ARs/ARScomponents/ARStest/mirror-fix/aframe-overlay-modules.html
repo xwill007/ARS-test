@@ -110,7 +110,11 @@
            sceneEl.canvas (mousedown/touchstart), no depende de ningún cursor de A-Frame, solo de
            que sceneEl.camera exista. El puntero visible (#mirror-fix-pointer) es un div 2D
            estático centrado por CSS, no una entidad 3D — ver comentario junto a ese estilo. -->
-      <a-camera position="0 1.8 6" rotation="0 0 0"></a-camera>
+      <!-- wasd-controls deshabilitado explícitamente: el acercar/alejar ahora es un delta
+           explícito relevado desde la brújula (flechas ↑/↓, ver aframe-overlay-modules.js →
+           'camera-zoom-delta'), no el movimiento genérico de 6 grados de libertad de A-Frame
+           (que además usaría Q/E para arriba/abajo, no pedido por el usuario). -->
+      <a-camera position="0 1.8 6" rotation="0 0 0" wasd-controls="enabled: false"></a-camera>
     </a-scene>
   </body>
 </html>

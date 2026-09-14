@@ -62,7 +62,8 @@ const VRLocalVideoOverlaySyncInner = ({
   cursorFuseTimeout = 2500, // Requerimiento 012: ms de dwell del reticle antes del click automático
   isPrimaryPanel = true, // Nueva prop para determinar si es el panel principal
   isRightPanel = false, // Nueva prop para determinar si es el panel derecho
-  ...props 
+  singlePanel = false, // Pedido del usuario: único panel activo (Doble panel desactivado) — ver aframe-overlay-modules.js para el mismo criterio en el overlay "karaoke"
+  ...props
 }) => {
   const { t } = useVRLanguage();
 
@@ -314,7 +315,8 @@ const VRLocalVideoOverlaySyncInner = ({
             doubleSided: ${doubleSided};
             invertBackSide: ${invertBackSide};
             isPrimaryPanel: ${isPrimaryPanel};
-            isRightPanel: ${isRightPanel}
+            isRightPanel: ${isRightPanel};
+            singlePanel: ${singlePanel}
           ">
         </a-entity>
         
@@ -348,7 +350,8 @@ const VRLocalVideoOverlaySyncInner = ({
           doubleSided: { type: 'boolean', default: true },
           invertBackSide: { type: 'boolean', default: true },
           isPrimaryPanel: { type: 'boolean', default: true },
-          isRightPanel: { type: 'boolean', default: false }
+          isRightPanel: { type: 'boolean', default: false },
+          singlePanel: { type: 'boolean', default: false }
         },
 
         init: function() {
@@ -370,19 +373,25 @@ const VRLocalVideoOverlaySyncInner = ({
           // Configurar audio según el panel para evitar eco
           // Panel izquierdo (primario) = volumen muy bajo (5%) para evitar eco pero mantener sincronización
           // Panel derecho = volumen normal (100%)
-          if (this.data.isPrimaryPanel && !this.data.isRightPanel) {
-            this.video.muted = false;
+          this.video.muted = false;
+          if (this.data.singlePanel) {
+            // Pedido del usuario (mismo hallazgo/criterio ya aplicado al overlay "karaoke" en
+            // aframe-overlay-modules.js): con "Doble panel" desactivado este es el ÚNICO panel
+            // activo — la rama de abajo lo dejaba casi mudo (0.01) pensando que el panel derecho
+            // (100%) se iba a encargar del audio, así que sonaba bajo hasta activar el segundo
+            // panel en vez de sonar fuerte desde el principio.
+            this.video.volume = 1.0;
+            console.log('🔊 Panel único (Doble panel desactivado): audio a volumen completo');
+          } else if (this.data.isPrimaryPanel && !this.data.isRightPanel) {
             this.video.volume = 0.01; // 1% del volumen para minimizar eco pero permitir reproducción
-            console.log('� Panel izquierdo: Audio a 1% de volumen para evitar eco');
+            console.log('🔉 Panel izquierdo: Audio a 1% de volumen para evitar eco');
           } else if (this.data.isRightPanel) {
-            this.video.muted = false;
             this.video.volume = 1.0; // 100% del volumen
             console.log('🔊 Panel derecho: Audio a volumen completo');
           } else {
             // Fallback para casos no especificados
-            this.video.muted = false;
             this.video.volume = 0.05; // Volumen bajo por defecto
-            console.log('� Panel no identificado: Audio a volumen bajo por defecto');
+            console.log('🔈 Panel no identificado: Audio a volumen bajo por defecto');
           }
 
           // Configurar listeners

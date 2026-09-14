@@ -117,6 +117,32 @@ const SyncStereoTestView = ({ onClose }) => {
   // Requerimiento 013 (antirebote del toggle de la X, ver COMPASS_WHEEL_TOGGLE_DEBOUNCE_MS): último
   // timestamp del toggle de visibilidad. Ref por el mismo motivo que `compassWheelVisibleRef`.
   const compassWheelToggleAtRef = useRef(0);
+  // Pedido del usuario: al pasar de un panel a dos (o viceversa), el panel recién montado
+  // arrancaba desincronizado del que ya venía funcionando — un video reproduciendo y el otro no,
+  // un menú de Configuración/Overlays abierto y el otro cerrado. Causa: hasta ahora solo se
+  // relayaban EVENTOS (play/pause, abrir sección) en el momento en que ocurrían, sin ninguna
+  // fuente de verdad que un panel nuevo pudiera consultar al montar. Estos dos refs son esa
+  // fuente de verdad (mismo patrón que `compassWheelVisibleRef`): el padre los actualiza cuando
+  // ve el evento real, y responde con el valor vigente cuando un panel recién montado lo pide
+  // ('karaoke-ready'/dentro de 'compass-ready') — ver esos handlers más abajo.
+  const karaokePlayingRef = useRef(false);
+  // Pedido del usuario (ampliación, segunda vuelta): en vez de que cada panel reporte su tiempo
+  // cada 1s (descartado — polling innecesario), el padre lleva su PROPIO reloj matemático: guarda
+  // en qué segundo del video estaba la última vez que cambió algo (play/pause/seek) y CUÁNDO
+  // (reloj real, `Date.now()`) pasó eso. El tiempo actual se calcula sumando el tiempo transcurrido
+  // desde entonces (si está reproduciendo) — ver `getKaraokeCurrentTime()` más abajo. Los paneles
+  // ya no reportan nada en vivo; solo preguntan UNA VEZ al montar ('karaoke-ready').
+  const karaokeTimeAtRef = useRef(0); // segundo del video en karaokeTimeSetAtRef
+  const karaokeTimeSetAtRef = useRef(0); // Date.now() de esa referencia
+  // Segundo actual del karaoke, calculado a partir de la última referencia conocida — nunca
+  // "adivina" preguntándole a un panel, siempre es una cuenta matemática con lo que el padre ya
+  // sabe. Solo suma tiempo real transcurrido si está reproduciendo; en pausa devuelve la
+  // referencia congelada tal cual.
+  const getKaraokeCurrentTime = () => {
+    if (!karaokePlayingRef.current) return karaokeTimeAtRef.current;
+    return karaokeTimeAtRef.current + (Date.now() - karaokeTimeSetAtRef.current) / 1000;
+  };
+  const compassSectionRef = useRef(null); // 'config' | 'overlays' | null (panel de ajustes cerrado)
   // Requerimiento 012 (ampliación): no cambia durante la sesión (navigator.userAgent es estático),
   // así que no hace falta estado — se usa tanto para persistir (getUserSetting/saveUserSetting ya
   // lo detectan solas por su propio default, ver vrUserSettingsApi.util.js) como para que el panel
@@ -399,6 +425,13 @@ const SyncStereoTestView = ({ onClose }) => {
           { source: 'ars-sync-test', action: 'compass-config-state', ...configStateRef.current, deviceType, userEmail },
           '*',
         );
+        // Pedido del usuario: además, con qué sección de Configuración/Overlays está vigente
+        // ahora mismo (o ninguna) — para que un panel recién montado abra/cierre el mismo panel
+        // de ajustes que ya tiene el hermano, en vez de arrancar siempre cerrado.
+        ev.source.postMessage(
+          { source: 'ars-sync-test', action: 'compass-section-changed', section: compassSectionRef.current },
+          '*',
+        );
         // Requerimiento 013 (sync): también se contesta con la visibilidad actual de la dona, para
         // que una brújula que monte/remonte en desfasaje se alinee al estado vigente.
         ev.source.postMessage(
@@ -423,6 +456,76 @@ const SyncStereoTestView = ({ onClose }) => {
           .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-wheel-visibility', visible: nextVisible }, '*'));
         return;
       }
+      // Pedido del usuario: una brújula abre/cierra su panel de Configuración/Overlays
+      // (`__activateSettingsSection`/`closeSettingsPanel`, ver SyncConfigCompassMenu.jsx) y avisa
+      // acá con la sección resultante ('config' | 'overlays' | null). El padre guarda ese valor
+      // como fuente de verdad (mismo criterio que `compass-wheel-visibility-toggle`: SIEMPRE
+      // rebroadcastea a las DOS instancias, incluida la que originó el cambio — aplicar la misma
+      // sección otra vez es un no-op idempotente ahí, así que no hace falta excluir al emisor) y
+      // así ambos paneles quedan con el mismo panel de ajustes abierto o cerrado.
+      if (msg.action === 'compass-section-changed') {
+        compassSectionRef.current = msg.section;
+        [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
+          .filter(Boolean)
+          .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-section-changed', section: msg.section }, '*'));
+        return;
+      }
+
+      // Pedido del usuario: el padre lleva su PROPIO reloj de "en qué segundo va el karaoke" en
+      // vez de que los paneles lo reporten (ver `getKaraokeCurrentTime` más arriba de este
+      // efecto) — play/pause/seek son los ÚNICOS 3 momentos en que ese reloj se actualiza. A
+      // diferencia de 'compass-section-changed', el reenvío del evento en sí (play/pause) SÍ
+      // excluye al panel que lo originó: no es idempotente (video.play() en un video que ya está
+      // reproduciendo no vuelve a disparar el evento 'play', así que la bandera
+      // `suppressNextPlay` del panel emisor quedaría trabada en `true` — ver wireVideo() en
+      // aframe-overlay-modules.js — y silenciaría el próximo evento real de ESE panel). El panel
+      // recién montado se pone al día por separado con 'karaoke-ready' (más abajo), no por eco.
+      if (msg.action === 'karaoke-play' || msg.action === 'karaoke-pause') {
+        const isPlaying = msg.action === 'karaoke-play';
+        // Al pasar de pausado a reproduciendo, o de reproduciendo a pausado, se "congela" el
+        // segundo actual (calculado con el estado ANTERIOR) como nueva referencia, y se reinicia
+        // el cronómetro desde ahora — getKaraokeCurrentTime() sigue siendo correcto en cualquier
+        // momento posterior sin importar cuántos play/pause hayan pasado en el medio.
+        karaokeTimeAtRef.current = getKaraokeCurrentTime();
+        karaokeTimeSetAtRef.current = Date.now();
+        karaokePlayingRef.current = isPlaying;
+        const leftKaraokeWindow = leftRefs.current.karaoke?.current?.contentWindow;
+        const rightKaraokeWindow = rightRefs.current.karaoke?.current?.contentWindow;
+        if (ev.source === leftKaraokeWindow && rightKaraokeWindow) {
+          rightKaraokeWindow.postMessage(msg, '*');
+        } else if (ev.source === rightKaraokeWindow && leftKaraokeWindow) {
+          leftKaraokeWindow.postMessage(msg, '*');
+        }
+        return;
+      }
+      // Un scrub manual (arrastre de la línea de progreso) también actualiza la referencia del
+      // reloj — y, a diferencia de play/pause, sigue cayendo en el relevo genérico de más abajo
+      // (no hace `return` acá) para llegar al panel hermano exactamente igual que ya hacía antes
+      // de este cambio.
+      if (msg.action === 'karaoke-seek') {
+        karaokeTimeAtRef.current = msg.time;
+        karaokeTimeSetAtRef.current = Date.now();
+      }
+
+      // Un panel de karaoke recién (re)montado (montaje inicial o cambio de canción, ver
+      // wireVideo() en aframe-overlay-modules.js) pregunta UNA sola vez al montar en vez de
+      // arrancar siempre en pausa y desde 0:00 — se le contesta solo a ÉL (`ev.source`, no
+      // broadcast), mismo patrón que 'compass-ready'. Primero el tiempo (calculado ahora mismo,
+      // no el de la última vez que cambió algo), después play/pause: así si ya estaba
+      // reproduciendo, arranca a reproducir DESDE la posición correcta en vez de un salto visible
+      // desde 0:00 al segundo siguiente.
+      if (msg.action === 'karaoke-ready') {
+        ev.source.postMessage(
+          { source: 'ars-sync-test', action: 'karaoke-seek', time: getKaraokeCurrentTime() },
+          '*',
+        );
+        ev.source.postMessage(
+          { source: 'ars-sync-test', action: karaokePlayingRef.current ? 'karaoke-play' : 'karaoke-pause' },
+          '*',
+        );
+        return;
+      }
+
       // `compass-save-position` sí se guarda y además se reenvía a AMBAS brújulas (izquierda y
       // derecha) — si el usuario reposicionó la del panel izquierdo, la derecha debe verse igual
       // sin esperar a que alguien recargue la página.
@@ -475,6 +578,29 @@ const SyncStereoTestView = ({ onClose }) => {
         if (sameSideRefs) {
           Object.keys(SYNCABLE_OVERLAYS).forEach((key) => {
             sameSideRefs.current[key].current?.contentWindow?.postMessage(msg, '*');
+          });
+        }
+        return;
+      }
+
+      // Pedido del usuario: flechas para mover la cámara del overlay de contenido, sin mover la
+      // de la brújula (ver wasd-controls="enabled: false" en SyncConfigCompassMenu.jsx).
+      // A diferencia de 'mouse-look-delta' (solo al panel que generó el evento — el mouse solo
+      // "está" en un panel a la vez), acá el usuario pidió explícitamente que en modo "Doble
+      // panel" el movimiento se aplique a LOS DOS paneles a la vez, no solo al que tiene el
+      // teclado: se reenvía el MISMO delta a ambos lados (izquierdo y derecho), cada uno lo suma
+      // a su propia cámara de forma independiente — nunca se cruza una posición/rotación absoluta
+      // entre paneles (eso fue lo que se revirtió más arriba, ver el comentario de
+      // 'camera-rotation'/'camera-position'), así que no reintroduce ese bug.
+      if (msg.action === 'camera-zoom-delta') {
+        const leftCompassWindow = leftCompassRef.current?.contentWindow;
+        const rightCompassWindow = rightCompassRef.current?.contentWindow;
+        const isFromCompass = ev.source === leftCompassWindow || ev.source === rightCompassWindow;
+        if (isFromCompass) {
+          [leftRefs, rightRefs].forEach((refs) => {
+            Object.keys(SYNCABLE_OVERLAYS).forEach((key) => {
+              refs.current[key].current?.contentWindow?.postMessage(msg, '*');
+            });
           });
         }
         return;
@@ -544,6 +670,7 @@ const SyncStereoTestView = ({ onClose }) => {
                 ref={refs.current[key]}
                 isPrimaryPanel={side === 'left'}
                 isRightPanel={side === 'right'}
+                singlePanel={!dualPanel}
               />
             </div>
           );

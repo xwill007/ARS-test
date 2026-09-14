@@ -475,7 +475,15 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                color/escala/dwell/click a mano). El <a-cursor> primitivo sigue trayendo consigo el
                componente "cursor" por defecto (sin fuse), que es lo que hace que el click DIRECTO
                (real, no dwell) también dispare 'click' en el elemento intersectado. -->
-          <a-camera position="${CAMERA_POSITION.x} ${CAMERA_POSITION.y} ${CAMERA_POSITION.z}" rotation="0 0 0">
+          <!-- Pedido del usuario: las flechas deben acercar/alejar la cámara del overlay de
+               contenido (karaoke/video/cono), no la de esta brújula — la brújula siempre debe
+               quedarse fija en CAMERA_POSITION, mirando hacia abajo al menú ("el menú siempre
+               esté debajo"). El componente wasd-controls viene activo por defecto en a-camera y
+               sí recibe las flechas (a diferencia del mouse, el teclado no depende de qué capa
+               está encima). Sin deshabilitarlo acá, apretar una flecha alejaba esta cámara de la
+               geometría fija del menú, dando la sensación de que "el menú se aleja" en vez de
+               acercar el contenido. -->
+          <a-camera position="${CAMERA_POSITION.x} ${CAMERA_POSITION.y} ${CAMERA_POSITION.z}" rotation="0 0 0" wasd-controls="enabled: false">
             <a-cursor
               id="main-cursor"
               position="0 0 -1"
@@ -525,12 +533,16 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               });
             }
 
-            // Las porciones tipo "panel" (Configuración/Overlays) delegan en
-            // "window.__activateSettingsSection" (definida por el script del panel 3D, más abajo
-            // — ahí vive el estado de qué sección está abierta, el panel es dueño de su propia
-            // visibilidad). Las de tipo "action" (Volver/Cerrar sesión) delegan en
-            // "window.__requestConfirm" (definida por el script del panel de confirmación) — ya
-            // no disparan la acción directo, primero piden confirmar (pedido del usuario).
+            // Las porciones tipo "panel" (Configuración/Overlays) YA NO aplican
+            // "window.__activateSettingsSection" localmente al clickear — pedido del usuario:
+            // el padre (SyncStereoTestView.jsx) es la fuente de verdad de qué sección está
+            // abierta en AMBOS paneles (antes solo se abría en el panel que clickeó, y un panel
+            // recién montado en "Doble panel" arrancaba sin saberlo). Se manda la intención
+            // ('compass-section-changed') y se espera a que el padre la rebroadcastee — mismo
+            // patrón que 'compass-wheel-visibility-toggle', ver script del panel 3D más abajo
+            // para el listener que de verdad aplica el cambio. Las de tipo "action" (Volver/
+            // Cerrar sesión) siguen delegando en "window.__requestConfirm" sin cambios — ese
+            // modal es por panel, no se pidió sincronizarlo.
             document.addEventListener('DOMContentLoaded', function () {
               var leftArrow = document.querySelector('[data-arrow="left"]');
               var rightArrow = document.querySelector('[data-arrow="right"]');
@@ -541,8 +553,8 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 wedgeEl.addEventListener('click', function () {
                   if (wedgeEl.dataset.type === 'action') {
                     if (window.__requestConfirm) window.__requestConfirm(wedgeEl.dataset.action);
-                  } else if (window.__activateSettingsSection) {
-                    window.__activateSettingsSection(wedgeEl.dataset.section);
+                  } else {
+                    send({ action: 'compass-section-changed', section: wedgeEl.dataset.section });
                   }
                 });
               });
@@ -874,7 +886,12 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             };
 
             document.addEventListener('DOMContentLoaded', function () {
-              document.querySelector('#settings-close-btn').addEventListener('click', closeSettingsPanel);
+              // Mismo criterio que el click de las porciones (ver script de arriba): no cierra
+              // localmente, manda la intención y espera a que el padre la rebroadcastee a los dos
+              // paneles.
+              document.querySelector('#settings-close-btn').addEventListener('click', function () {
+                send({ action: 'compass-section-changed', section: null });
+              });
 
               document.querySelectorAll('[data-step]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
@@ -901,9 +918,19 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
 
             window.addEventListener('message', function (ev) {
               var msg = ev.data;
-              if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'compass-config-state') return;
-              state = msg;
-              refreshDisplay();
+              if (!msg || msg.source !== 'ars-sync-test') return;
+              if (msg.action === 'compass-config-state') {
+                state = msg;
+                refreshDisplay();
+              } else if (msg.action === 'compass-section-changed') {
+                // Único lugar que de verdad abre/cierra el panel — la fuente de verdad es
+                // SyncStereoTestView.jsx (ver 'compass-section-changed' en handleMessage ahí),
+                // este listener solo aplica lo que el padre ya decidió. Idempotente: si esta
+                // MISMA instancia originó el cambio, volver a aplicar la misma sección es un
+                // no-op visual.
+                if (msg.section) window.__activateSettingsSection(msg.section);
+                else closeSettingsPanel();
+              }
             });
           })();
         </script>
@@ -1076,6 +1103,22 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               var dy = e.movementY || 0;
               if (!dx && !dy) return;
               send({ action: 'mouse-look-delta', dx: dx, dy: dy });
+            });
+
+            // Pedido del usuario: las 4 flechas mueven la cámara del overlay de contenido
+            // (karaoke/video/cono) del MISMO panel — arriba/abajo adelante/atrás (hacia donde
+            // mira), izquierda/derecha lateral (strafe, perpendicular a hacia donde mira) — mismo
+            // criterio que el drag de mouse de arriba (esta brújula es la única capa que recibe
+            // el teclado real en web, ver wasd-controls deshabilitado en el a-camera de más
+            // abajo, que ahora deja de consumir las flechas acá). El campo axis distingue qué eje
+            // mover; delta el signo.
+            window.addEventListener('keydown', function (e) {
+              var isForward = e.key === 'ArrowUp' || e.key === 'ArrowDown';
+              var isStrafe = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+              if (!isForward && !isStrafe) return;
+              e.preventDefault();
+              var delta = (e.key === 'ArrowUp' || e.key === 'ArrowRight') ? 1 : -1;
+              send({ action: 'camera-zoom-delta', delta: delta, axis: isStrafe ? 'strafe' : 'forward' });
             });
           })();
         </script>

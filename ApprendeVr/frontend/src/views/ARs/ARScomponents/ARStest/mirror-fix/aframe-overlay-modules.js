@@ -98,6 +98,33 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
       lookControls.yawObject.rotation.y -= 0.002 * msg.dx;
       lookControls.pitchObject.rotation.x -= 0.002 * msg.dy;
       lookControls.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, lookControls.pitchObject.rotation.x));
+    } else if (msg.action === 'camera-zoom-delta' && cameraEl) {
+      // Pedido del usuario: las 4 flechas (reenviadas por SyncConfigCompassMenu.jsx, ver
+      // wasd-controls="enabled: false" ahí — la brújula ya no se mueve con las flechas, solo
+      // reenvía el delta) mueven ESTA cámara respecto a los paneles del overlay (video/lista/
+      // New Song), en vez de mover la de la brújula: ↑/↓ (`axis: 'forward'`) adelante/atrás a lo
+      // largo de hacia dónde MIRA la cámara ahora mismo (no un eje fijo world -Z, para que
+      // "acercarse" tenga sentido sin importar hacia dónde giró con el mouse/giroscopio);
+      // ←/→ (`axis: 'strafe'`) lateral, perpendicular a esa misma dirección y sin componente Y
+      // (no sube/baja al mirar hacia arriba/abajo, mismo criterio que un strafe FPS estándar).
+      const STEP = 0.6;
+      const THREE = AFRAME.THREE;
+      const move = new THREE.Vector3();
+      if (msg.axis === 'strafe') {
+        const quat = new THREE.Quaternion();
+        cameraEl.object3D.getWorldQuaternion(quat);
+        move.set(1, 0, 0).applyQuaternion(quat);
+        move.y = 0;
+        if (move.lengthSq() > 0) move.normalize();
+      } else {
+        // Hallazgo real (reportado por el usuario tras probar): sin negar, ArrowUp alejaba la
+        // cámara de los paneles del overlay en vez de acercarla — getWorldDirection() da el eje
+        // +Z local del objeto en espacio mundo, que para esta cámara resulta ser el sentido
+        // contrario a "hacia donde mira"/"adelante". Se niega para que ArrowUp acerque.
+        cameraEl.object3D.getWorldDirection(move);
+        move.negate();
+      }
+      cameraEl.object3D.position.addScaledVector(move, msg.delta * STEP);
     }
   });
 })();
@@ -122,11 +149,17 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
 
   // Requerimiento 012: volumen por panel para evitar eco (mismo criterio que
   // VRLocalVideoOverlaySync.jsx — ambos paneles de AR-SYNC suenan por el mismo dispositivo
-  // físico). isPrimaryPanel/isRightPanel llegan como query string desde VRKaraokeOverlaySync.jsx
-  // (esta página no puede recibir props de React directamente).
+  // físico). isPrimaryPanel/isRightPanel/singlePanel llegan como query string desde
+  // VRKaraokeOverlaySync.jsx (esta página no puede recibir props de React directamente).
   const params = new URLSearchParams(window.location.search);
   const isPrimaryPanel = params.get('isPrimaryPanel') !== 'false';
   const isRightPanel = params.get('isRightPanel') === 'true';
+  // Hallazgo real (reportado por el usuario): con "Doble panel" desactivado, este es el ÚNICO
+  // panel que existe — pero por default cae en la rama "izquierdo/primario" de abajo, que lo deja
+  // casi mudo (0.01) pensando que el otro panel (derecho, 100%) se va a encargar del audio. Sin
+  // este caso, el audio "subía" recién al activar el segundo panel en vez de sonar fuerte desde
+  // el principio.
+  const isSinglePanel = params.get('singlePanel') === 'true';
 
   let karaokeComp = null;
   let video = null;
@@ -156,16 +189,18 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
   }
 
   function wireVideo(v) {
-    // Bajar el volumen del panel izquierdo (primario) para no escuchar las dos pistas
-    // superpuestas — mismo valor que usa VRLocalVideoOverlaySync.jsx para su video.
-    if (isPrimaryPanel && !isRightPanel) {
-      v.muted = false;
+    v.muted = false;
+    if (isSinglePanel) {
+      // Único panel activo (Doble panel desactivado): nada más con quien hacer eco, siempre
+      // fuerte sin importar si este panel "sería" el izquierdo o el derecho.
+      v.volume = 1.0;
+    } else if (isPrimaryPanel && !isRightPanel) {
+      // Bajar el volumen del panel izquierdo (primario) para no escuchar las dos pistas
+      // superpuestas — mismo valor que usa VRLocalVideoOverlaySync.jsx para su video.
       v.volume = 0.01;
     } else if (isRightPanel) {
-      v.muted = false;
       v.volume = 1.0;
     } else {
-      v.muted = false;
       v.volume = 0.05;
     }
     v.addEventListener('play', function () {
@@ -180,6 +215,15 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
       if (suppressNextSeeked) { suppressNextSeeked = false; return; }
       send({ action: 'karaoke-seek', time: v.currentTime });
     });
+
+    // Pedido del usuario: al activar "Doble panel" (o al recrear este video por cambio de
+    // canción), este panel puede arrancar en pausa mientras el panel hermano ya venía
+    // reproduciendo — hasta ahora solo se sincronizaba por EVENTOS (play/pause/seek disparados
+    // en el momento), sin ninguna forma de que un panel recién montado se ponga al día del
+    // estado YA vigente. SyncStereoTestView.jsx es la única fuente de verdad de "¿está
+    // reproduciendo?" (ver karaokePlayingRef ahí) — se le pide el estado actual acá, mismo
+    // patrón que 'compass-ready'/'compass-config-state'.
+    send({ action: 'karaoke-ready' });
   }
 
   window.addEventListener('message', function (ev) {

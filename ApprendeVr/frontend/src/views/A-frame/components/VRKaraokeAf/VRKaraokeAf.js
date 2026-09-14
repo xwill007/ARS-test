@@ -709,11 +709,18 @@ AFRAME.registerComponent('vr-karaoke-af', {
 
     const video = htmlVideo;
 
+    // Pedido del usuario: mostrar centésimas de segundo (no solo minutos:segundos), para que la
+    // precisión visible coincida con la precisión real que ya usa la sincronización entre
+    // paneles (SyncStereoTestView.jsx pasa video.currentTime tal cual, sin redondear — ver
+    // getKaraokeCurrentTime()/karaoke-seek).
     const formatTime = (sec) => {
-      if (isNaN(sec)) return '0:00';
-      const s = Math.floor(sec % 60).toString().padStart(2, '0');
-      const m = Math.floor(sec / 60);
-      return `${m}:${s}`;
+      if (isNaN(sec)) return '0:00.00';
+      const totalCentis = Math.floor(sec * 100);
+      const centis = (totalCentis % 100).toString().padStart(2, '0');
+      const totalSeconds = Math.floor(totalCentis / 100);
+      const s = (totalSeconds % 60).toString().padStart(2, '0');
+      const m = Math.floor(totalSeconds / 60);
+      return `${m}:${s}.${centis}`;
     };
 
     let isDragging = false;
@@ -735,6 +742,25 @@ AFRAME.registerComponent('vr-karaoke-af', {
 
     video.addEventListener('timeupdate', updateUI);
     video.addEventListener('loadedmetadata', updateUI);
+
+    // Pedido del usuario: centésimas visibles de verdad, no solo el dígito de más (el evento
+    // 'timeupdate' del navegador dispara solo ~4 veces por segundo, así que el número quedaría
+    // saltando de a "saltos" en vez de correr). Loop a 60fps mientras reproduce, con auto-parada:
+    // compara `this._htmlVideo` (el video VIGENTE del componente, puede cambiar al elegir otra
+    // canción, ver loadVideo()) contra este `video` capturado por closure — en cuanto dejan de
+    // ser el mismo objeto, el loop se corta solo, sin necesitar un `remove()` del componente.
+    const tickWhilePlaying = () => {
+      if (this._htmlVideo !== video) return;
+      if (!video.paused) {
+        updateUI();
+        requestAnimationFrame(tickWhilePlaying);
+      } else {
+        // En pausa no cambia nada: bajar el ritmo a un chequeo liviano en vez de 60fps inútiles,
+        // solo para notar cuándo vuelve a reproducir.
+        setTimeout(() => requestAnimationFrame(tickWhilePlaying), 200);
+      }
+    };
+    requestAnimationFrame(tickWhilePlaying);
     video.addEventListener('play', () => { try { playText.setAttribute('value', 'Pause'); } catch (e) {} });
     video.addEventListener('pause', () => { try { playText.setAttribute('value', 'Play'); } catch (e) {} });
 

@@ -31,12 +31,20 @@ import React from 'react';
  * karaoke en el panel izquierdo (mismo criterio anti-eco que ya usa VRLocalVideoOverlaySync.jsx:
  * ambos paneles suenan por el mismo dispositivo físico, así que sin esto se escuchan las dos
  * pistas superpuestas).
+ *
+ * Pedido del usuario (hallazgo real): con "Doble panel" desactivado, SOLO existe el panel
+ * izquierdo/primario (ver `dualPanel` en SyncStereoTestView.jsx) — pero ese es justo el que este
+ * criterio deja casi mudo (volumen 0.01), así que el audio "subía" al activar el segundo panel
+ * (recién ahí se monta el derecho, al 100%) en vez de sonar fuerte desde el principio. `singlePanel`
+ * (`!dualPanel`, el único caso en que este panel está solo) fuerza volumen alto sin importar si es
+ * izquierdo o derecho — el criterio anti-eco 0.01/1.0 solo aplica cuando de verdad hay DOS paneles
+ * sonando a la vez.
  */
-const VRKaraokeOverlaySyncInner = ({ forwardedRef, isPrimaryPanel = true, isRightPanel = false }) => (
+const VRKaraokeOverlaySyncInner = ({ forwardedRef, isPrimaryPanel = true, isRightPanel = false, singlePanel = false }) => (
   <iframe
     ref={forwardedRef}
     title="VR Karaoke Overlay (Sync)"
-    src={`./aframe-overlay-modules.html?isPrimaryPanel=${isPrimaryPanel}&isRightPanel=${isRightPanel}`}
+    src={`./aframe-overlay-modules.html?isPrimaryPanel=${isPrimaryPanel}&isRightPanel=${isRightPanel}&singlePanel=${singlePanel}`}
     style={{ width: '100%', height: '100%', border: 'none', background: 'transparent', pointerEvents: 'auto' }}
     allow="xr-spatial-tracking; fullscreen"
   />
