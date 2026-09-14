@@ -99,6 +99,13 @@ const PANEL_HEIGHT = 4.6;
 // abajo del panel donde está el botón Guardar, queda MÁS CERCA del centro) — así que ahora el
 // radio se calcula con PANEL_HEIGHT, no PANEL_WIDTH.
 const PANEL_RADIUS = RADIUS + PANEL_HEIGHT / 2;
+// Pedido del usuario (ampliación): el panel de confirmación de la sección "EXIT" (Volver/Cerrar
+// sesión) ahora se ancla/tangencia igual que el panel de configuración de cada sección (ver
+// #settings-panel-anchor más abajo) — misma rotación "-90 0 -90" y mismo patrón de radio por borde
+// inferior, pero con su propia altura (más baja que PANEL_HEIGHT), de ahí un radio propio.
+const CONFIRM_PANEL_WIDTH = 2.2;
+const CONFIRM_PANEL_HEIGHT = 1.55;
+const CONFIRM_PANEL_RADIUS = RADIUS + CONFIRM_PANEL_HEIGHT / 2;
 // Ubicación pedida por el usuario: el menú (compass-root) en el origen de la escena, la cámara
 // directamente arriba mirando hacia abajo — en vez del esquema anterior (menú a GROUND_Z=-4 frente
 // a una cámara a la altura de los ojos, CAMERA_Y=1.8, mirando casi horizontal).
@@ -304,13 +311,18 @@ function buildSettingsPanelHTML() {
 
 // Panel de confirmación (pedido del usuario) para las filas "Volver"/"Cerrar sesión" del panel
 // "EXIT" (ver buildExitGroupHTML) — un click en esas filas ya no dispara la acción directo,
-// primero abre este panel con el mensaje correspondiente y espera Confirmar/Cancelar. Misma
-// ubicación que `#settings-panel` (nunca están abiertos los dos a la vez) para que aparezca donde
-// el usuario ya está mirando.
+// primero abre este panel con el mensaje correspondiente y espera Confirmar/Cancelar.
+//
+// Pedido del usuario (ampliación): ya no vive en un punto fijo — se ancla/tangencia a la sección
+// "EXIT" igual que el panel de configuración de cada sección (ver #settings-panel-anchor en el
+// srcDoc). Por eso ahora lleva la MISMA rotación "-90 0 -90" (no "-90 0 0") y `position="0 0 0"`
+// (el offset radial lo pone su ancla `#confirm-panel-anchor` + el entity interno que lo empuja
+// CONFIRM_PANEL_RADIUS hacia afuera). Nunca está abierto a la vez que #settings-panel (ver
+// __requestConfirm, que cierra este último).
 function buildConfirmPanelHTML() {
   return `
-    <a-entity id="confirm-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
-      <a-plane width="2.2" height="1.55" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
+    <a-entity id="confirm-panel" visible="false" rotation="-90 0 -90" position="0 0 0">
+      <a-plane width="${CONFIRM_PANEL_WIDTH}" height="${CONFIRM_PANEL_HEIGHT}" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
       <a-text id="confirm-message" align="center" color="#ffffff" width="2.4" position="0 0.52 0.01"></a-text>
       <!-- Pedido del usuario: mostrar la sesión activa debajo del mensaje de "Cerrar sesión",
            para poder verificar de qué cuenta se está cerrando sesión antes de confirmar. Mismo
@@ -435,6 +447,8 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     buildSettingsPanelHTML(),
   );
 
+  const confirmPanelHTML = buildConfirmPanelHTML();
+
   // Etiquetas estáticas que el script del panel combina en tiempo real con los valores dinámicos
   // recibidos por `compass-config-state` (separación/ancho/alto/email/etc. viven en
   // SyncStereoTestView.jsx, no acá) — mismo criterio que las porciones de la brújula, pero pasadas
@@ -502,6 +516,17 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               <a-entity id="settings-panel-anchor" rotation="0 0 0">
                 <a-entity rotation="0 -90 0" position="0 0.02 ${PANEL_RADIUS.toFixed(2)}">
                   ${settingsPanelHTML}
+                </a-entity>
+              </a-entity>
+              <!-- Pedido del usuario (ampliación): el panel de confirmación de "EXIT" se ancla/
+                   tangencia igual que el de configuración (mismo patrón de 2 niveles: rotar el
+                   ancla a la bisectriz, después empujar CONFIRM_PANEL_RADIUS en el frame rotado).
+                   Su ancla (#confirm-panel-anchor) se rota a la bisectriz de "EXIT" en
+                   __requestConfirm (ver JS más abajo) — vive dentro de #compass-wheel, así que
+                   gira con la rueda junto a su sección, igual que #settings-panel-anchor. -->
+              <a-entity id="confirm-panel-anchor" rotation="0 0 0">
+                <a-entity rotation="0 -90 0" position="0 0.02 ${CONFIRM_PANEL_RADIUS.toFixed(2)}">
+                  ${confirmPanelHTML}
                 </a-entity>
               </a-entity>
             </a-entity>
@@ -606,13 +631,6 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               <a-plane class="clickable" data-move="0,0,0.3" width="0.44" height="0.36" color="#333333" material="shader: flat; side: double;" position="0.3 -0.95 0"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
               <a-plane id="position-save-btn" class="clickable" width="0.85" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 -1.4 0"><a-text value="${saveLabel}" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
             </a-entity>
-
-            <!-- Panel de confirmación para "Volver"/"Cerrar sesión" — ver buildConfirmPanelHTML.
-                 A diferencia del panel de sección (ver #settings-panel-anchor, ahora hijo de
-                 #compass-wheel), este se queda FIJO acá: no corresponde a ninguna porción
-                 concreta que gire con la rueda (es un modal de confirmación, no un panel de
-                 ajustes por sección). -->
-            ${buildConfirmPanelHTML()}
           </a-entity>
 
           <!-- Cámara con reticle de gaze estático (Requerimiento 012, mismo patrón que
@@ -1300,9 +1318,9 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
         </script>
 
         <script>
-          // Panel de confirmación (pedido del usuario) para las porciones tipo "action"
-          // ("Volver"/"Cerrar sesión") — reusa las mismas etiquetas estáticas que el panel de
-          // configuración ("settings-static-labels", ver script anterior).
+          // Panel de confirmación (pedido del usuario) para las filas "Volver"/"Cerrar sesión" de
+          // la sección "EXIT" — reusa las mismas etiquetas estáticas que el panel de configuración
+          // ("settings-static-labels", ver script anterior).
           (function () {
             function send(msg) {
               window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
@@ -1310,6 +1328,10 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
 
             var STATIC = JSON.parse(document.getElementById('settings-static-labels').textContent);
             var pendingAction = null; // 'back' | 'logout' | null
+            // Pedido del usuario (ampliación): bisectriz de la sección "EXIT" para anclar el panel
+            // de confirmación tangente a esa porción (ver __requestConfirm). Se interpola acá (este
+            // es un <script> distinto al que define SECTION_BISECTOR, así que no comparten scope).
+            var EXIT_BISECTOR = ${SECTIONS.find((s) => s.key === 'exit').thetaStart + WEDGE_THETA_LENGTH / 2};
             // Pedido del usuario: cachea el último email recibido por "compass-config-state" (lo
             // manda SyncStereoTestView.jsx, mismo mensaje que ya consume el panel de Configuración
             // para "#settings-session") para poder mostrarlo debajo del mensaje de "Cerrar sesión"
@@ -1348,11 +1370,22 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             // pedido del usuario: solo un panel puede estar abierto a la vez.
             window.__closeConfirmPanel = hideConfirm;
 
-            // Expuesta en window: la llama el script de rotación/selección cuando se activa una
-            // porción tipo "action". Cierra primero el panel de configuración si estaba abierto.
+            // Expuesta en window: la llaman las filas "Volver"/"Cerrar sesión" de la sección "EXIT"
+            // (ver buildExitGroupHTML). Cierra primero el panel de configuración si estaba abierto.
             window.__requestConfirm = function (action) {
               if (window.__closeSettingsPanel) window.__closeSettingsPanel();
               pendingAction = action;
+              // Pedido del usuario (ampliación): el panel de confirmación se ancla/tangencia a la
+              // sección "EXIT" como el panel de configuración de cada sección — rota su ancla
+              // (#confirm-panel-anchor, hijo de #compass-wheel) a la bisectriz de "EXIT" antes de
+              // mostrarlo. Como __closeSettingsPanel() de arriba solo oculta #settings-panel (no
+              // toca #settings-panel-anchor), y #settings-panel ya estaba anclado a "EXIT" en este
+              // punto (el click vino de una fila de esa sección), los dos quedan sobre la misma
+              // tangente — pero se rota explícitamente para no depender de ese flujo.
+              var confirmAnchor = document.querySelector('#confirm-panel-anchor');
+              if (confirmAnchor) {
+                confirmAnchor.setAttribute('rotation', '0 ' + EXIT_BISECTOR + ' 0');
+              }
               var messageKey = action === 'logout' ? 'confirmLogout' : 'confirmBack';
               document.querySelector('#confirm-message').setAttribute('value', STATIC[messageKey]);
               // Solo tiene sentido mostrar la sesión activa al confirmar "Cerrar sesión" — en
