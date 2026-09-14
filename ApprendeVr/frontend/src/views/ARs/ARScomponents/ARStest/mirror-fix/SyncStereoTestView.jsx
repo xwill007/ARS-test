@@ -150,6 +150,15 @@ const SyncStereoTestView = ({ onClose }) => {
     if (!karaokePlayingRef.current) return karaokeTimeAtRef.current;
     return karaokeTimeAtRef.current + (Date.now() - karaokeTimeSetAtRef.current) / 1000;
   };
+  // Pedido del usuario: "al poner pause el tiempo se iguale al menor tiempo de ambos paneles...
+  // el usuario no puede ver numeros diferentes en ambos paneles" — cada panel reproduce su propio
+  // <video> de forma independiente, así que aunque arrancaron juntos pueden ir levemente
+  // desalineados en `currentTime`. Guarda el `currentTime` real del panel que originó el pause
+  // (mensaje 'karaoke-pause', ver más abajo) mientras se espera la confirmación del panel hermano
+  // ('karaoke-pause-landed', que manda `applyPlayCommand` al aplicar el pause remoto) para poder
+  // comparar ambos y fijar a los dos el MENOR, en vez de dejar que cada uno se congele donde le
+  // tocó.
+  const pendingPauseOriginTimeRef = useRef(null);
   const compassSectionRef = useRef(null); // 'config' | 'overlays' | 'interface' | null (panel de ajustes cerrado)
   // Pedido del usuario (ampliación, sección 11): modo edición de posición — activa/desactiva los
   // marcadores rojos de vrPositionControl.js en el overlay real. Mismo patrón de fuente de verdad
@@ -641,8 +650,34 @@ const SyncStereoTestView = ({ onClose }) => {
         karaokeTimeAtRef.current = getKaraokeCurrentTime();
         karaokeTimeSetAtRef.current = Date.now();
         karaokePlayingRef.current = isPlaying;
+        // El `currentTime` real del panel que originó el pause (ver comentario junto a
+        // `pendingPauseOriginTimeRef`) — se espera la confirmación del hermano
+        // ('karaoke-pause-landed') para reconciliar ambos al MENOR de los dos.
+        pendingPauseOriginTimeRef.current = (!isPlaying && typeof msg.time === 'number') ? msg.time : null;
         const targetRefs = msg.fromRight ? leftRefs : rightRefs;
         targetRefs.current.karaoke?.current?.contentWindow?.postMessage(msg, '*');
+        return;
+      }
+      // Pedido del usuario: "al poner pause el tiempo se iguale al menor tiempo de ambos
+      // paneles... el usuario no puede ver numeros diferentes en ambos paneles". El panel que
+      // acaba de aplicar un pause REMOTO (ver `applyPlayCommand` en aframe-overlay-modules.js)
+      // reporta acá dónde quedó su `currentTime` real. Con el tiempo del panel que ORIGINÓ el
+      // pause (guardado arriba) ya se tienen los dos — se fija a AMBOS paneles el MENOR de los
+      // dos con un `karaoke-seek` explícito, en vez de dejar que cada uno se congele en su propio
+      // `currentTime` (que puede diferir unas pocas centésimas entre los dos <video> reales).
+      if (msg.action === 'karaoke-pause-landed') {
+        const originTime = pendingPauseOriginTimeRef.current;
+        pendingPauseOriginTimeRef.current = null;
+        if (originTime === null || typeof msg.time !== 'number') return;
+        const minTime = Math.min(originTime, msg.time);
+        karaokeTimeAtRef.current = minTime;
+        karaokeTimeSetAtRef.current = Date.now();
+        [leftRefs, rightRefs].forEach((refs) => {
+          refs.current.karaoke?.current?.contentWindow?.postMessage(
+            { source: 'ars-sync-test', action: 'karaoke-seek', time: minTime },
+            '*',
+          );
+        });
         return;
       }
       // Un scrub manual (arrastre de la línea de progreso) también actualiza la referencia del

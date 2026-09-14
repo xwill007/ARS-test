@@ -269,7 +269,15 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
     v.addEventListener('pause', function () {
       console.log('[PLAY-DEBUG] bridge (' + (isRightPanel ? 'DERECHO' : 'IZQUIERDO') + ') evento "pause" — suppressNextPause=' + suppressNextPause + ' currentTime=' + v.currentTime.toFixed(2));
       if (suppressNextPause) { suppressNextPause = false; return; }
-      send({ action: 'karaoke-pause', fromRight: isRightPanel });
+      // Pedido del usuario: "al poner pause el tiempo se iguale al menor tiempo de ambos
+      // paneles... el usuario no puede ver numeros diferentes en ambos paneles" — cada panel
+      // reproduce su PROPIO <video> de forma independiente (no es literalmente el mismo reloj de
+      // medio), así que pueden ir levemente desalineados en `currentTime` aunque arrancaron
+      // juntos. Se manda el `currentTime` real de ESTE panel en el momento exacto del pause — el
+      // padre lo compara contra el que reporte el panel hermano al aplicar el pause remoto (ver
+      // 'karaoke-pause-landed' en `applyPlayCommand`) y termina fijando a AMBOS el MENOR de los
+      // dos, en vez de dejar que cada uno se congele donde le tocó.
+      send({ action: 'karaoke-pause', fromRight: isRightPanel, time: v.currentTime });
     });
     v.addEventListener('seeked', function () {
       if (suppressNextSeeked) { suppressNextSeeked = false; return; }
@@ -332,6 +340,14 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
       suppressNextPause = true;
       video.pause();
       setTimeout(function () { suppressNextPause = false; }, 800);
+      // Pedido del usuario: "al poner pause el tiempo se iguale al menor tiempo de ambos
+      // paneles... el usuario no puede ver numeros diferentes en ambos paneles" — este panel
+      // acaba de pausar por una orden REMOTA (el evento nativo 'pause' de arriba queda
+      // suprimido, así que nunca manda su propio 'karaoke-pause'); igual reporta dónde quedó su
+      // `currentTime` real con un mensaje aparte, puramente informativo, para que el padre pueda
+      // comparar ambos tiempos y fijar a los dos paneles el MENOR — ver el handler de
+      // 'karaoke-pause-landed' en SyncStereoTestView.jsx.
+      send({ action: 'karaoke-pause-landed', time: video.currentTime, fromRight: isRightPanel });
     }
   }
 
