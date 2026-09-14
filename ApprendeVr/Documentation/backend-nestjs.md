@@ -249,8 +249,8 @@ data actual porque los ids ya son consistentes).
 | `usuarios/login_usuario.php` | `/auth/login` | POST | `{email, password}` | `{access_token, user}` |
 | `usuarios/registrar_usuario.php` | `/auth/register` | POST | `{name, email, password, level}` | `{user}` (201) |
 | `usuarios/current_user.php` | `/users/me` | GET | JWT | `{user}` |
-| `canciones/registrar_canciones.php` (listar) | `/songs` | GET | — | `{songs: []}` |
-| `canciones/registrar_canciones.php` (alta/upsert) | `/songs` | POST | `{title, author, file_name, language?}` | `{songs: []}` |
+| `canciones/registrar_canciones.php` (listar) | `/songs` | GET | — (público) | `Song[]` — **implementado, Requerimiento 014** |
+| `canciones/registrar_canciones.php` (alta) | `/songs` | POST | `{title, author?, fileName, language?}` + JWT | `Song` (201) o `409 SONG_ALREADY_EXISTS` — **implementado, Requerimiento 014** (sin upsert: a diferencia del PHP, un duplicado por `title`+`author` normalizados devuelve error en vez de sobrescribir) |
 | `palabras/obtener_palabras.php` | `/songs/:id/words` | GET | `:id` | `{words: []}` |
 | `frases/obtener_frases.php` | `/songs/:id/phrases` | GET | `:id` | `{phrases: []}` |
 | `evaluaciones/guardar_evaluacion.php` | `/evaluations` | POST | `{song_id, total, note?, finished?, level?}` | `{id_evaluacion}` |
@@ -333,7 +333,10 @@ VIDEOS_DIR=/Users/xwill007/Documents/GITHUB/ARS-test/A-frame/english-vr/VR/video
    renombrado español→inglés.
 3. **AuthModule + UsersModule** — login (bcrypt), register, `GET /users/me` (JWT). Primero, porque
    songs/evaluations dependen del usuario identificado.
-4. **SongsModule** — `GET /songs`, `POST /songs` (alta/upsert), entidad `Song`.
+4. **SongsModule** — `GET /songs`, `POST /songs` (alta), entidad `Song`. **Implementado
+   (Requerimiento 014)** sin upsert (ver sección 6) y sin la migración de renombrado del punto 2
+   (que sigue pendiente/diferida — `Song` mapea `canciones_vr` con nombres en español, ver
+   `song.entity.ts`).
 5. **WordsModule + PhrasesModule** — `GET /songs/:id/words` y `/phrases` (Nivel 1/2/3).
 6. **EvaluationsModule** — `GET /evaluations`, `POST /evaluations` (guardar `level` 1/2/3).
 7. **VideosModule** — streaming con `Range`.

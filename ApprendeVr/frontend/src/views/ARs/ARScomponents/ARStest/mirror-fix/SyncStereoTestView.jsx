@@ -106,6 +106,9 @@ const SyncStereoTestView = ({ onClose }) => {
   // toggle por clave. Vive en un ref (no en estado) porque `handleMessage` (registrado una vez,
   // deps `[]`) debe leer/escribir siempre el valor más reciente, no el capturado en el primer render.
   const lastOverlayToggleAtRef = useRef({});
+  // Mismo antirebote que `lastOverlayToggleAtRef`, pero para el toggle único "Doble panel" (pedido
+  // del usuario): un timestamp simple alcanza, no hace falta un objeto por clave.
+  const lastDualPanelToggleAtRef = useRef(0);
   // Requerimiento 013 (sync de visibilidad del menú, pedido por el usuario): estado fuente de
   // verdad de si la dona (`#compass-wheel`) está visible. Ambas brújulas arrancan visibles; cada
   // vez que una cambia el estado, el padre lo guarda acá y lo relaya a la otra, así nunca se
@@ -133,6 +136,10 @@ const SyncStereoTestView = ({ onClose }) => {
   const [separation, setSeparation] = useState(24);
   const [panelWidth, setPanelWidth] = useState(380);
   const [panelHeight, setPanelHeight] = useState(480);
+  // Pedido del usuario: ver un solo panel (en vez de los dos estéreo) para probar sin gafas VR,
+  // sin perder la sincronización/config cuando se vuelve a activar. Vive en la pestaña
+  // "Configuración" junto a separación/ancho/alto (mismo botón "Guardar", ver saveConfig).
+  const [dualPanel, setDualPanel] = useState(true);
   const [selectedOverlays, setSelectedOverlays] = useState(['camera', 'video']);
   // Requerimiento 012 (ajuste pedido tras revisión): feedback visual del botón "Guardar
   // selección" — gris mientras la selección actual coincide con lo último guardado con éxito,
@@ -162,7 +169,7 @@ const SyncStereoTestView = ({ onClose }) => {
   // (ver `saveConfig`).
   const configStateRef = useRef(null);
   useEffect(() => {
-    configStateRef.current = { separation, width: panelWidth, height: panelHeight, configSaved, selectedOverlays, overlaysSaved };
+    configStateRef.current = { separation, width: panelWidth, height: panelHeight, dualPanel, configSaved, selectedOverlays, overlaysSaved };
   });
 
   // Carga la selección/config/posición guardadas (si las hay). Se usa tanto al montar como al
@@ -175,6 +182,7 @@ const SyncStereoTestView = ({ onClose }) => {
     setSeparation(24);
     setPanelWidth(380);
     setPanelHeight(480);
+    setDualPanel(true);
     setSelectedOverlays(['camera', 'video']);
     setOverlaysSaved(false);
     setConfigSaved(false);
@@ -200,6 +208,10 @@ const SyncStereoTestView = ({ onClose }) => {
         setSeparation(setting.separation);
         setPanelWidth(setting.panelWidth);
         setPanelHeight(setting.panelHeight);
+        // Campo agregado después de que ya existieran filas guardadas sin él (ver Requerimiento
+        // de "Doble panel"): un ajuste guardado viejo simplemente no lo trae, y el default (true,
+        // ya seteado por loadUserSettings arriba) sigue aplicando sin romper nada.
+        if (typeof setting.dualPanel === 'boolean') setDualPanel(setting.dualPanel);
         setConfigSaved(true);
       }
     });
@@ -243,6 +255,7 @@ const SyncStereoTestView = ({ onClose }) => {
   const updateSeparation = (value) => { setConfigSaved(false); setSeparation(value); };
   const updateWidth = (value) => { setConfigSaved(false); setPanelWidth(value); };
   const updateHeight = (value) => { setConfigSaved(false); setPanelHeight(value); };
+  const toggleDualPanel = () => { setConfigSaved(false); setDualPanel((prev) => !prev); };
 
   const saveConfig = () => {
     // Requerimiento 013 (hallazgo): mismo motivo que `saveSelectedOverlays` — leer del ref, no del
@@ -251,7 +264,8 @@ const SyncStereoTestView = ({ onClose }) => {
     const separationVal = current ? current.separation : separation;
     const widthVal = current ? current.width : panelWidth;
     const heightVal = current ? current.height : panelHeight;
-    saveUserSetting(CONFIG_SETTINGS_VIEW, { separation: separationVal, panelWidth: widthVal, panelHeight: heightVal }).then((ok) => {
+    const dualPanelVal = current ? current.dualPanel : dualPanel;
+    saveUserSetting(CONFIG_SETTINGS_VIEW, { separation: separationVal, panelWidth: widthVal, panelHeight: heightVal, dualPanel: dualPanelVal }).then((ok) => {
       if (ok) setConfigSaved(true);
     });
   };
@@ -304,11 +318,11 @@ const SyncStereoTestView = ({ onClose }) => {
   // que todavía no cargó (antes de mandar su primer `compass-ready`) lo cubre el propio handler de
   // `compass-ready` más abajo, así que perder este primer broadcast no es un problema.
   useEffect(() => {
-    const state = { separation, width: panelWidth, height: panelHeight, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail };
+    const state = { separation, width: panelWidth, height: panelHeight, dualPanel, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail };
     [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
       .filter(Boolean)
       .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-config-state', ...state }, '*'));
-  }, [separation, panelWidth, panelHeight, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail]);
+  }, [separation, panelWidth, panelHeight, dualPanel, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail]);
 
   useEffect(() => {
     const handleMessage = (ev) => {
@@ -338,6 +352,16 @@ const SyncStereoTestView = ({ onClose }) => {
       }
       if (msg.action === 'compass-update-height') {
         updateHeight((prev) => clamp(prev + msg.delta, CONFIG_RANGES.height.min, CONFIG_RANGES.height.max));
+        return;
+      }
+      if (msg.action === 'compass-toggle-dual-panel') {
+        // Mismo antirebote que 'compass-toggle-overlay': los dos paneles disparan este mensaje
+        // casi a la vez (cámaras sincronizadas) — sin esto, el segundo toggle instantáneo lo
+        // dejaría como estaba.
+        const now = Date.now();
+        if (now - lastDualPanelToggleAtRef.current < OVERLAY_TOGGLE_DEBOUNCE_MS) return;
+        lastDualPanelToggleAtRef.current = now;
+        toggleDualPanel();
         return;
       }
       if (msg.action === 'compass-save-config') {
@@ -552,7 +576,11 @@ const SyncStereoTestView = ({ onClose }) => {
       }}
     >
       {renderPanel('left', leftRefs, leftCompassRef)}
-      {renderPanel('right', rightRefs, rightCompassRef)}
+      {/* Pedido del usuario: "Doble panel" desactivado deja un solo panel (el izquierdo/primario)
+          para probar sin gafas VR, sin desmontar nada del lado izquierdo. El derecho se desmonta
+          por completo (no display:none) — mismo criterio que ya usa esta vista para los overlays
+          individuales (selectedOverlays.map): togglear vuelve a montar su iframe desde cero. */}
+      {dualPanel && renderPanel('right', rightRefs, rightCompassRef)}
     </div>
   );
 };

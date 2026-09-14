@@ -154,20 +154,31 @@ dominios).
 
 ## 7. Criterios de aceptación
 
-- [ ] `npm run build` y `npm test` (backend) pasan sin levantar MySQL.
-- [ ] `GET /api/songs` devuelve las canciones del dump (`Stand By Me`, `its My Life`, `Gangstas
-      Paradise`) más cualquiera creada en la sesión de pruebas.
-- [ ] `POST /api/songs` sin `Authorization` devuelve `401`.
-- [ ] `POST /api/songs` con sesión válida y `{ title, fileName }` (sin `author`/`language`) crea la
-      canción y la BD completa `idioma_cancion`/`fecha_hora_cancion` con sus defaults.
-- [ ] `POST /api/songs` con el mismo `title`+`author` que una canción existente devuelve un error
-      controlado (no un 500, no un duplicado silencioso).
+- [x] `npm run build` y `npm test` (backend) pasan sin levantar MySQL.
+- [x] `GET /api/songs` devuelve las canciones del dump (`Stand By Me`, `its My Life`, `Gangstas
+      Paradise`) más cualquiera creada en la sesión de pruebas. Verificado con `curl` contra
+      `docker compose up` real, y desde el navegador (`GET /api/songs` → 200 en `VRKaraokeAf`).
+- [x] `POST /api/songs` sin `Authorization` devuelve `401`. Verificado con `curl`.
+- [x] `POST /api/songs` con sesión válida y `{ title, fileName }` (sin `author`/`language`) crea la
+      canción y la BD completa `idioma_cancion`/`fecha_hora_cancion` con sus defaults. Verificado
+      con `curl` + consulta directa a MySQL — encontró y corrigió un bug real en el camino (ver
+      `problems_solutions.md` #1: `language` quedaba `NULL` explícito en vez de aplicar el
+      `DEFAULT` de la BD).
+- [x] `POST /api/songs` con el mismo `title`+`author` que una canción existente devuelve un error
+      controlado (no un 500, no un duplicado silencioso). Verificado con `curl` (`409
+      SONG_ALREADY_EXISTS`).
 - [ ] Desde el panel `VRNewSongAf` en el navegador: agregar una canción nueva, refrescar la
       página, y verla en la lista de `VRKaraokeAf` (prueba de que quedó en BD, no solo en
-      `localStorage` de esa pestaña).
+      `localStorage` de esa pestaña). **No verificado end-to-end por click real**: la pestaña de
+      Chrome disponible pasó a una sesión de `mirror-fix` con cámara en vivo y se cortó la prueba
+      por privacidad. Sí se confirmó que la vista carga sin errores y que `GET /api/songs`
+      responde; la lógica de `_saveSong()` llama al mismo endpoint ya probado por `curl`.
 - [ ] Con el backend apagado, agregar una canción desde `VRNewSongAf` sigue guardándola en
-      `localStorage` (respaldo) y el panel muestra un aviso de que no se pudo sincronizar.
-- [ ] `npm run test:cov` (backend) no baja la cobertura global de 80% con los archivos nuevos.
+      `localStorage` (respaldo) y el panel muestra un aviso de que no se pudo sincronizar. **No
+      verificado en vivo** por el mismo motivo — revisar manualmente antes de mover este
+      requerimiento a `3-Completed`.
+- [x] `npm run test:cov` (backend) no baja la cobertura global de 80% con los archivos nuevos
+      (`src/songs/**` quedó en 100% statements/branches/functions/lines).
 
 ## 8. Referencias
 

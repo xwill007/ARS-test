@@ -4,6 +4,7 @@ import './components/VRNewSongAf/VRNewSongAf.js';
 import { fetchCurrentUser } from '../../vrAuth.util.js';
 import { getLocalSongs } from '../../vrSongCatalog.util.js';
 import { getPointerNDC } from '../../vrPointerRaycast.util.js';
+import { getSongs } from '../../vrSongsApi.util.js';
 
 // Control de logs: usar Logs(true|false) para activar/desactivar
 let showLogs = true; // cambiar a false para silenciar logs por defecto
@@ -381,25 +382,39 @@ AFRAME.registerComponent('vr-karaoke-af', {
     }
   },
 
-  // Construye la lista de canciones a mostrar combinando `videoList` (schema, canciones por
-  // defecto) con el catálogo local agregado desde VRNewSongAf (ver vrSongCatalog.util.js).
-  // ApprendeVr no tiene todavía un backend de canciones (Requerimiento 009, "No incluido"), así
-  // que a diferencia del proyecto de origen esto no consulta ningún servidor.
+  // Combina varias listas de entradas `"fileName|autor"`, sin duplicar por `fileName` (la primera
+  // lista que trae un `fileName` dado gana).
+  _mergeSongEntries: function (lists) {
+    const seen = new Set();
+    const merged = [];
+    lists.forEach((list) => {
+      list.forEach((entry) => {
+        const fileName = entry.split('|')[0];
+        if (seen.has(fileName)) return;
+        seen.add(fileName);
+        merged.push(entry);
+      });
+    });
+    return merged;
+  },
+
+  // Construye la lista de canciones a mostrar. Requerimiento 014: primero pinta un resultado
+  // inmediato con lo que hay en memoria (catálogo local + `videoList` del schema como respaldo,
+  // sin esperar red), y en paralelo consulta `GET /api/songs` (catálogo compartido del backend);
+  // si responde con canciones, reconstruye la lista poniéndolas primero. Si `getSongs()` falla
+  // (sin red, backend apagado), ya devuelve `[]` por su cuenta (ver vrSongsApi.util.js) y esta
+  // vista se queda con el resultado inmediato, sin romperse.
   _initSongList: function () {
     const fallbackVideos = this.data.videoList.split(',').map((v) => v.trim()).filter(Boolean);
     const localSongs = getLocalSongs().map((s) => `${s.archivo}|${s.autor || 'Artista desconocido'}`);
 
-    // Las canciones locales van primero (más recientes arriba), sin duplicar por archivo.
-    const seen = new Set();
-    const merged = [];
-    localSongs.concat(fallbackVideos).forEach((entry) => {
-      const fileName = entry.split('|')[0];
-      if (seen.has(fileName)) return;
-      seen.add(fileName);
-      merged.push(entry);
-    });
+    this._buildSongListUI(this._mergeSongEntries([localSongs, fallbackVideos]));
 
-    this._buildSongListUI(merged);
+    getSongs().then((backendSongs) => {
+      if (!backendSongs.length) return;
+      const backendEntries = backendSongs.map((s) => `${s.fileName}|${s.author || 'Artista desconocido'}`);
+      this._buildSongListUI(this._mergeSongEntries([backendEntries, localSongs, fallbackVideos]));
+    });
   },
 
   // Resalta en negro el botón de la canción actualmente seleccionada y devuelve el resto de

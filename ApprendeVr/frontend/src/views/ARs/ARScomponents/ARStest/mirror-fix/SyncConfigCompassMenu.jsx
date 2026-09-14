@@ -111,13 +111,22 @@ function buildConfigGroupHTML() {
       <a-plane class="clickable" data-step="${field.key}" data-dir="1" width="0.32" height="0.28" color="#333333" material="shader: flat; side: double;" position="0.85 ${y.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
     `;
   }).join('\n');
+  // Fila "Doble panel" (pedido del usuario): togglea si SyncStereoTestView.jsx renderiza los dos
+  // paneles estéreo o uno solo, centrado, para ver mejor sin gafas VR. Misma fila clickeable +
+  // check a la derecha que ya usa buildOverlaysGroupHTML() (toda la fila, no un cuadradito chico),
+  // debajo de los 3 steppers y antes del botón Guardar — comparte el mismo botón/persistencia de
+  // "Guardar" que separación/ancho/alto (ver SyncStereoTestView.jsx: CONFIG_SETTINGS_VIEW).
   return `
     <a-entity id="settings-config-group" visible="false">
       ${rows}
-      <a-plane class="clickable" id="settings-save-config-btn" width="1.0" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 -0.95 0.01">
+      <a-plane class="clickable" id="settings-dual-panel-toggle" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 -0.90 0.01">
+        <a-text id="settings-dual-panel-label" value="" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
+        <a-text id="settings-dual-panel-check" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.01"></a-text>
+      </a-plane>
+      <a-plane class="clickable" id="settings-save-config-btn" width="1.0" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 -1.25 0.01">
         <a-text id="settings-save-config-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
       </a-plane>
-      <a-text id="settings-save-config-sub" align="center" color="#999999" width="3.2" position="0 -1.22 0.01"></a-text>
+      <a-text id="settings-save-config-sub" align="center" color="#999999" width="3.2" position="0 -1.50 0.01"></a-text>
     </a-entity>
   `;
 }
@@ -153,7 +162,7 @@ function buildOverlaysGroupHTML() {
 function buildSettingsPanelHTML() {
   return `
     <a-entity id="settings-panel" visible="false" rotation="-90 0 0" position="0 0.02 -3">
-      <a-plane width="2.2" height="2.8" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
+      <a-plane width="2.2" height="3.2" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
       <a-text id="settings-title" align="center" color="#4FC3F7" width="2.6" position="0 0.9 0.01"></a-text>
       <!-- z=0.02 (no 0.01, como el título/sesión): el título centrado puede llegar a extenderse
            hasta esta zona — un botón .clickable necesita quedar sin ambigüedad por delante, ver
@@ -323,6 +332,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     saveConfigSub: t('syncConfig.saveConfigSub'),
     saveOverlaysSub: t('syncConfig.saveOverlaysSub'),
     fields: Object.fromEntries(CONFIG_FIELDS.map((f) => [f.key, t(f.labelKey)])),
+    dualPanel: t('config.dualPanel'),
     // Panel de confirmación (pedido del usuario) para las porciones tipo "action" — evita que un
     // dwell/click accidental dispare "Volver"/"Cerrar sesión" sin que el usuario lo confirme.
     confirmBack: t('home.confirmBack'),
@@ -793,6 +803,15 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 var labelEl = document.querySelector('[data-field-label="' + field.key + '"]');
                 if (labelEl) labelEl.setAttribute('value', STATIC.fields[field.key] + ': ' + state[field.key] + 'px');
               });
+              // Fila "Doble panel" (pedido del usuario): mismo criterio visual que las filas de
+              // Overlays (fondo claro + check cuando está activo), pero acá "activo" = dualPanel
+              // true (dos paneles, el default de siempre) y desactivarlo dibuja un solo panel.
+              document.querySelector('#settings-dual-panel-label').setAttribute('value', STATIC.dualPanel);
+              var dualPanelOn = state.dualPanel !== false;
+              document.querySelector('#settings-dual-panel-toggle').setAttribute('color', dualPanelOn ? '#4FC3F7' : '#333333');
+              document.querySelector('#settings-dual-panel-label').setAttribute('color', dualPanelOn ? '#0D1B2A' : '#ffffff');
+              document.querySelector('#settings-dual-panel-check').setAttribute('value', dualPanelOn ? '✓' : '');
+              document.querySelector('#settings-dual-panel-check').setAttribute('color', dualPanelOn ? '#0D1B2A' : '#69F0AE');
               document.querySelector('#settings-save-config-label').setAttribute(
                 'value', STATIC.saveShort,
               );
@@ -862,6 +881,9 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                   var key = btn.dataset.step;
                   send({ action: 'compass-update-' + key, delta: Number(btn.dataset.dir) * fieldStep(key) });
                 });
+              });
+              document.querySelector('#settings-dual-panel-toggle').addEventListener('click', function () {
+                send({ action: 'compass-toggle-dual-panel' });
               });
               document.querySelector('#settings-save-config-btn').addEventListener('click', function () {
                 send({ action: 'compass-save-config' });

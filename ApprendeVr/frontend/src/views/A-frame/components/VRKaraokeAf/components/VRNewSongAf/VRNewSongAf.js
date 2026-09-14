@@ -12,6 +12,7 @@
 // (ver `public/fonts/Ultra-msdf/`, cargada como fuente por defecto de <a-text> en index.html).
 import { addLocalSong } from '../../../../vrSongCatalog.util.js';
 import { getPointerNDC } from '../../../../vrPointerRaycast.util.js';
+import { createSong } from '../../../../vrSongsApi.util.js';
 
 const KEY_ROWS = [
   ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
@@ -436,9 +437,12 @@ AFRAME.registerComponent('vr-new-song-af', {
     this._refreshFieldText(field);
   },
 
-  // ApprendeVr no tiene todavía un backend de canciones (ver Requerimiento 009, "No incluido"):
-  // la canción se guarda en el catálogo local (localStorage, ver vrSongCatalog.util.js) en vez de
-  // enviarse a un endpoint. VRKaraokeAf escucha `cancion-agregada` y refresca su lista.
+  // Requerimiento 014: intenta persistir la canción en el backend NestJS (`POST /api/songs`); si
+  // falla (sin sesión, red caída, backend apagado) cae al catálogo local (localStorage, ver
+  // vrSongCatalog.util.js) para no perder lo que el usuario escribió. Si el backend rechaza por
+  // duplicado (mismo título+autor ya registrado), NO cae al catálogo local — guardarla ahí también
+  // volvería a chocar la próxima vez que el backend esté disponible. VRKaraokeAf escucha
+  // `cancion-agregada` y refresca su lista en cualquiera de los dos casos.
   _saveSong: function () {
     const titulo = (this._values.titulo || '').trim();
     const autor = (this._values.autor || '').trim();
@@ -451,23 +455,37 @@ AFRAME.registerComponent('vr-new-song-af', {
     }
 
     const song = { titulo, autor, archivo };
-    addLocalSong(song);
 
     this._statusText.setAttribute('color', '#aaffaa');
-    this._statusText.setAttribute('value', 'Cancion "' + titulo + '" guardada.');
+    this._statusText.setAttribute('value', 'Guardando...');
 
-    this._values = { titulo: '', autor: '', archivo: '', youtubeUrl: '' };
-    Object.keys(this._fieldEls).forEach((n) => this._refreshFieldText(n));
+    createSong({ title: titulo, author: autor, fileName: archivo }).then((result) => {
+      if (result.ok) {
+        this._statusText.setAttribute('color', '#aaffaa');
+        this._statusText.setAttribute('value', 'Cancion "' + titulo + '" guardada.');
+      } else if (result.error === 'SONG_ALREADY_EXISTS') {
+        this._statusText.setAttribute('color', '#ff8888');
+        this._statusText.setAttribute('value', 'Ya existe una cancion con ese titulo y autor.');
+        return;
+      } else {
+        addLocalSong(song);
+        this._statusText.setAttribute('color', '#ffcc66');
+        this._statusText.setAttribute('value', 'Cancion "' + titulo + '" guardada localmente (no se pudo sincronizar con el servidor).');
+      }
 
-    try { window.dispatchEvent(new CustomEvent('cancion-agregada', { detail: song })); } catch (e) { /* ignore */ }
+      this._values = { titulo: '', autor: '', archivo: '', youtubeUrl: '' };
+      Object.keys(this._fieldEls).forEach((n) => this._refreshFieldText(n));
 
-    // Aviso no bloqueante si el archivo de video no parece existir en disco (public/videos/karaoke/)
-    fetch('/videos/karaoke/' + encodeURIComponent(archivo), { method: 'HEAD' })
-      .then((res) => {
-        if (!res.ok) {
-          this._statusText.setAttribute('value', this._statusText.getAttribute('value') + ' Aviso: no se encontro el archivo en public/videos/karaoke/.');
-        }
-      })
-      .catch(() => { /* verificacion opcional */ });
+      try { window.dispatchEvent(new CustomEvent('cancion-agregada', { detail: song })); } catch (e) { /* ignore */ }
+
+      // Aviso no bloqueante si el archivo de video no parece existir en disco (public/videos/karaoke/)
+      fetch('/videos/karaoke/' + encodeURIComponent(archivo), { method: 'HEAD' })
+        .then((res) => {
+          if (!res.ok) {
+            this._statusText.setAttribute('value', this._statusText.getAttribute('value') + ' Aviso: no se encontro el archivo en public/videos/karaoke/.');
+          }
+        })
+        .catch(() => { /* verificacion opcional */ });
+    });
   },
 });
