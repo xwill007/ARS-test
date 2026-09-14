@@ -401,3 +401,44 @@ y `npm run check:i18n` verdes.
 
 **Estado:** resuelto y verificado en navegador (a diferencia del hallazgo anterior sobre
 Interfaz/Position, este sí se pudo probar end-to-end en esta sesión).
+
+## 2026-09-14 — Flechas de giro reubicadas e invertidas + secciones ocultas seguían siendo clickeables
+
+Tres pedidos encadenados sobre `SyncConfigCompassMenu.jsx`:
+
+1. **"<-" / "->" en las flechas de giro.** Las flechas de rotación pasaron de `◄`/`►` a `<-`/`->`.
+   A pedido del usuario, la flecha indica el sentido REAL del giro (no el del símbolo): `<-` rota
+   `#compass-wheel` en sentido horario (+1) y `->` en antihorario (−1) — se invirtió el signo que
+   pasaba cada una a `rotateWheel()`.
+
+2. **Reubicación junto a la "X".** Las dos flechas estaban afuera de la dona (`RADIUS + 0.45`), en
+   los extremos izquierdo/derecho. Se movieron al hueco central junto a la "X": `<-` arriba y `->`
+   abajo (eje Z), formando cruz con `+` (izquierda) y `-` (derecha), con el mismo tamaño (0.22×0.22)
+   y la misma distancia al centro (`RING_INNER_RADIUS * 0.55`) que `+`/`-`, y mismo `y=0.01`.
+
+3. **Secciones no visibles seguían detectables por el raycaster (hallazgo real).** Con una sección
+   abierta (p.ej. Configuración), el mouse/la mirada podían "activar" botones de las otras secciones
+   (`Overlays`, `Interfaz`, `Exit`) aunque sus grupos tuvieran `visible=false`, porque el cursor usa
+   `raycaster="objects: .clickable"` y el raycaster de A-Frame **no filtra por visibilidad** — lo
+   único que define qué es detectable es la clase `.clickable`, que esas secciones conservaban.
+
+   **Solución:** la detectabilidad ahora sigue a la visibilidad quitando/reagregando `.clickable`:
+   - Al abrir una sección se desactivan todos los grupos y se activa solo el de la sección elegida;
+     al cerrar el panel se desactivan todos.
+   - El set original de `.clickable` por grupo se captura UNA vez al cargar (`captureGroupClickables()`)
+     y se reusa, para poder reponer la clase sin perder qué elementos eran clickeables.
+   - El d-pad de "Interfaz" (`#position-dpad-group`) se gestiona aparte (`setDpadInteractive()`) porque
+     su visibilidad depende de si hay un elemento seleccionado, no de la sección completa.
+   - El modal de confirmación (`#confirm-panel`) y su botón `login-test` aplican el mismo criterio:
+     solo son clickeables mientras el modal está visible.
+
+   **Verificación técnica del mecanismo:** se inspeccionó `aframe.min.js` (1.4.2) del repo — el
+   raycaster levanta sus objetos con `refreshObjects()` (`querySelectorAll(".clickable")` +
+   `flattenObject3DMaps`) y marca `dirty` ante cambios de DOM vía `MutationObserver`
+   (`{childList:true, attributes:true, subtree:true}`) y los eventos `object3dset`/`object3dremove`.
+   Como `classList.add/remove('clickable')` es un cambio de atributo en un descendiente de la escena,
+   dispara `setDirty` y el próximo tick re-consulta la lista, sacando/reingresando los elementos
+   del raycast según corresponda.
+
+   **Estado:** resuelto. Pendiente confirmación manual end-to-end en navegador (abrir Configuración,
+   apuntar hacia la zona de las otras secciones y verificar que ya no dispare click/dwell).
