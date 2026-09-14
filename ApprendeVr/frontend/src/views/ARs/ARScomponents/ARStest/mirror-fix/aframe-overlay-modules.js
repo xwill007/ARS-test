@@ -172,6 +172,26 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
   let suppressNextPlay = false;
   let suppressNextPause = false;
   let suppressNextSeeked = false;
+  // Hallazgo real (reportado por el usuario: "al iniciar le di al boton play y solo inicio el
+  // video en un panel"): un 'karaoke-play'/'karaoke-pause' remoto que llega ANTES de que este
+  // panel termine de wirear su propio `video` (carrera real al recién abrir AR-SYNC: el panel
+  // hermano puede reaccionar al click del usuario más rápido de lo que este panel tarda en montar
+  // A-Frame + encontrar `#karaoke-vr-component`) se descartaba en silencio (`if (!video) return`
+  // más abajo) y no tenía ninguna segunda oportunidad de aplicarse — dependía por completo de que
+  // el propio 'karaoke-ready' de este panel (ver wireVideo) alcanzara a este mismo mensaje, lo
+  // cual no está garantizado si el wireo tarda. Se guarda el ÚLTIMO comando recibido mientras
+  // `video` es null y se aplica en cuanto `wireVideo()` corre, en vez de perderlo.
+  let pendingPlayCommand = null; // true = play, false = pause, null = nada pendiente
+  // Pedido del usuario: "al seleccionar desde la lista de canciones aun no sincronizan, debe
+  // funcionar como un stop que pare cualquier cancion que este sonando y reinicie la seleccionada
+  // desde el comienzo" — hasta ahora este puente solo sincronizaba play/pause/seek del video YA
+  // cargado, nunca CUÁL canción está cargada: clickear una canción en la lista de un panel solo
+  // recreaba el `<video>` de ESE panel (ver loadVideo() en VRKaraokeAf.js), el hermano seguía con
+  // lo que tenía. `lastReportedFileName` guarda la última canción que ESTE panel ya le avisó al
+  // padre (o que el padre le aplicó a este panel), para detectar solo cambios REALES de canción
+  // (no cada rebuild de video) y no re-reportar en loop una selección que llegó por mensaje.
+  let lastReportedFileName = null;
+  let suppressNextSongReport = false;
 
   function findKaraokeComponent() {
     const entity = document.querySelector('#karaoke-vr-component');
@@ -186,7 +206,33 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
 
   // vr-karaoke-af reemplaza this._htmlVideo en cada cambio de canción — comparar por referencia
   // para reenganchar los listeners cuando cambia, en vez de asumir que sigue siendo el mismo video.
+  //
+  // Hallazgo real (verificado en vivo: tras seleccionar una canción nueva, el panel que la eligió
+  // terminaba reproduciendo esa canción pero en un `currentTime` heredado de la ANTERIOR, en vez
+  // de 0): el chequeo de "cambió la canción" corría DESPUÉS de `wireVideo(video)` — y
+  // `wireVideo()` manda 'karaoke-ready' (le pregunta al padre "¿qué debería estar reproduciendo
+  // ahora?"). Como los mensajes a un mismo destino se procesan en el orden en que llegan, si
+  // 'karaoke-ready' salía ANTES que 'karaoke-song-select', el padre todavía no sabía que la
+  // canción había cambiado (`karaokeSongRef`/el reloj seguían reflejando la ANTERIOR, que podía
+  // estar reproduciendo) y contestaba con ESE estado viejo — este panel aplicaba esa respuesta
+  // (volvía a la canción vieja, en el segundo donde iba) y recién en un ciclo posterior se
+  // terminaba corrigiendo solo, de forma no determinística. Se invierte el orden: primero se
+  // avisa el cambio de canción (si lo hay) y recién después se wirea/pide 'karaoke-ready' — así
+  // la respuesta que este panel reciba ya refleja el cambio que él mismo acaba de reportar.
   function watchVideoElement() {
+    // Independiente de si el <video> cambió justo en este tick (puede haber cambiado un tick
+    // antes, junto con el video, o quedar sin cambios si el rebuild de la lista no disparó
+    // `loadVideo()` — ver el fix de `_buildSongListUI` en VRKaraokeAf.js): se chequea la canción
+    // vigente por separado, comparando SIEMPRE contra la última reportada.
+    const currentFileName = karaokeComp && karaokeComp._currentSong && karaokeComp._currentSong.fileName;
+    if (currentFileName && currentFileName !== lastReportedFileName) {
+      const isEcho = suppressNextSongReport;
+      lastReportedFileName = currentFileName;
+      suppressNextSongReport = false;
+      if (!isEcho) {
+        send({ action: 'karaoke-song-select', fileName: currentFileName, fromRight: isRightPanel });
+      }
+    }
     const current = karaokeComp && karaokeComp._htmlVideo;
     if (current && current !== video) {
       video = current;
@@ -210,12 +256,20 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
       v.volume = 0.05;
     }
     v.addEventListener('play', function () {
+      // [PLAY-DEBUG] Log temporal pedido por el usuario — panel (izq/der) + si se reenvía o se
+      // absorbe como eco. Buscar "[PLAY-DEBUG]" en consola.
+      console.log('[PLAY-DEBUG] bridge (' + (isRightPanel ? 'DERECHO' : 'IZQUIERDO') + ') evento "play" — suppressNextPlay=' + suppressNextPlay + ' currentTime=' + v.currentTime.toFixed(2));
       if (suppressNextPlay) { suppressNextPlay = false; return; }
-      send({ action: 'karaoke-play' });
+      // `fromRight` (ya conocido por el query string, ver arriba): le dice al padre de qué lado
+      // vino este mensaje SIN que el padre tenga que comparar `ev.source` contra sus propios refs
+      // por igualdad de referencia — ver el hallazgo grande en SyncStereoTestView.jsx sobre por
+      // qué esa comparación podía fallar y dejar el mensaje sin reenviar a ningún panel.
+      send({ action: 'karaoke-play', fromRight: isRightPanel });
     });
     v.addEventListener('pause', function () {
+      console.log('[PLAY-DEBUG] bridge (' + (isRightPanel ? 'DERECHO' : 'IZQUIERDO') + ') evento "pause" — suppressNextPause=' + suppressNextPause + ' currentTime=' + v.currentTime.toFixed(2));
       if (suppressNextPause) { suppressNextPause = false; return; }
-      send({ action: 'karaoke-pause' });
+      send({ action: 'karaoke-pause', fromRight: isRightPanel });
     });
     v.addEventListener('seeked', function () {
       if (suppressNextSeeked) { suppressNextSeeked = false; return; }
@@ -230,12 +284,34 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
     // reproduciendo?" (ver karaokePlayingRef ahí) — se le pide el estado actual acá, mismo
     // patrón que 'compass-ready'/'compass-config-state'.
     send({ action: 'karaoke-ready' });
+
+    // Si mientras este panel todavía no tenía `video` wireado llegó un comando remoto de
+    // play/pause (ver `pendingPlayCommand` más arriba), aplicarlo ahora — no hace falta esperar
+    // a la respuesta de 'karaoke-ready' de arriba (que igual también corregiría el estado, pero
+    // recién en el próximo tick de mensajes).
+    if (pendingPlayCommand !== null) {
+      applyPlayCommand(pendingPlayCommand);
+      pendingPlayCommand = null;
+    }
   }
 
-  window.addEventListener('message', function (ev) {
-    const msg = ev.data;
-    if (!msg || msg.source !== 'ars-sync-test' || !video) return;
-    if (msg.action === 'karaoke-play') {
+  // Hallazgo real (reportado por el usuario tras probar play/pause repetido entre paneles: "no
+  // aun no se sincronizan"): con clicks seguidos (play, pause, play... en cualquiera de los dos
+  // paneles, en sucesión rápida), el navegador puede ABORTAR un `video.play()` en curso si llega
+  // un `pause()` antes de que la promesa resuelva (visto en consola como
+  // "AbortError: The play() request was interrupted by a call to pause()"). Cuando eso pasa, el
+  // evento nativo 'play' NUNCA llega a disparar en ese panel — y como `suppressNextPlay` recién se
+  // libera DENTRO de ese listener (ver `wireVideo` más abajo), quedaba trabado en `true` para
+  // siempre: el PRÓXIMO click real del usuario en ese mismo panel dejaba de reenviarse al hermano
+  // en silencio, sin ningún error visible. Por eso el fallo era intermitente (dependía de qué tan
+  // rápido se alternaran los clicks), no de la ruta del mensaje en sí (`fromRight`, ya verificada
+  // por separado). Se libera la bandera explícitamente en el `catch` (se sabe ahí mismo que el
+  // evento no va a disparar) y además con un timeout de red de seguridad por si el navegador no
+  // llega a rechazar la promesa pero el evento tampoco dispara por algún otro motivo — en el caso
+  // normal (el evento sí dispara) el timeout no hace nada, porque el propio listener ya dejó la
+  // bandera en `false` antes de que el timeout corra.
+  function applyPlayCommand(shouldPlay) {
+    if (shouldPlay) {
       suppressNextPlay = true;
       const wasMuted = video.muted;
       video.muted = true;
@@ -245,15 +321,65 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
           .then(function () { video.muted = wasMuted; })
           .catch(function (err) {
             video.muted = wasMuted;
-            console.warn('vr-karaoke-af: play remoto bloqueado por el navegador incluso muted:', err);
+            suppressNextPlay = false;
+            console.warn('vr-karaoke-af: play remoto bloqueado/abortado por el navegador incluso muted:', err);
           });
       } else {
         video.muted = wasMuted;
       }
-    } else if (msg.action === 'karaoke-pause') {
+      setTimeout(function () { suppressNextPlay = false; }, 800);
+    } else {
       suppressNextPause = true;
       video.pause();
-    } else if (msg.action === 'karaoke-seek') {
+      setTimeout(function () { suppressNextPause = false; }, 800);
+    }
+  }
+
+  // Aplica remotamente la selección de una canción por `fileName`, reusando el MISMO camino que
+  // ya usa el sistema de gaze/dwell más abajo en este archivo para clickear botones de la lista
+  // por fuera de un click real (`btnEl._activateSelection(...)`, expuesto por VRKaraokeAf.js en
+  // cada botón) — así el "stop y reinicio desde el comienzo" pedido por el usuario lo hace el
+  // propio `loadVideo()` real del componente (recrea el `<video>` desde 0, con su mismo
+  // countdown/autoplay), sin duplicar esa lógica acá ni tocar VRKaraokeAf.js.
+  function applySongSelect(fileName) {
+    const buttons = (karaokeComp && karaokeComp._songButtons) || [];
+    const button = buttons.find(function (b) { return b._fileName === fileName; });
+    if (!button || typeof button._activateSelection !== 'function') {
+      // La lista de este panel todavía no tiene esa canción (getSongs() no respondió todavía, o
+      // difiere por alguna razón) — no hay nada que activar; se degrada a "sin sync" para esta
+      // selección puntual en vez de romper, mismo criterio que el resto de este archivo.
+      console.warn('vr-karaoke-af: no se encontró el botón de la canción remota para sincronizar:', fileName);
+      return;
+    }
+    suppressNextSongReport = true;
+    button._activateSelection({ type: 'pointerdown', defaultPrevented: false });
+  }
+
+  window.addEventListener('message', function (ev) {
+    const msg = ev.data;
+    if (!msg || msg.source !== 'ars-sync-test') return;
+    if (msg.action === 'karaoke-play' || msg.action === 'karaoke-pause') {
+      const shouldPlay = msg.action === 'karaoke-play';
+      // [PLAY-DEBUG] Log temporal pedido por el usuario — distingue un comando REMOTO (llegó por
+      // postMessage, originado en el OTRO panel) de un evento nativo local (log de arriba).
+      console.log('[PLAY-DEBUG] bridge (' + (isRightPanel ? 'DERECHO' : 'IZQUIERDO') + ') RECIBE remoto:', msg.action, 'video wireado=' + !!video);
+      if (!video) {
+        // Este panel todavía no terminó de montar/wirear su video — no hay nada que pausar/
+        // reproducir todavía. Se guarda la intención para aplicarla en cuanto `wireVideo()` corra
+        // (ver ahí), en vez de perderla como antes de este fix.
+        pendingPlayCommand = shouldPlay;
+        return;
+      }
+      applyPlayCommand(shouldPlay);
+      return;
+    }
+    if (msg.action === 'karaoke-song-select') {
+      if (msg.fileName === lastReportedFileName) return; // ya es esta canción, nada que hacer
+      applySongSelect(msg.fileName);
+      return;
+    }
+    if (!video) return;
+    if (msg.action === 'karaoke-seek') {
       suppressNextSeeked = true;
       video.currentTime = msg.time;
     }
@@ -294,12 +420,30 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
   // seguridad adicional: ninguna activación nueva se procesa hasta pasado COOLDOWN_MS desde la
   // última, sin importar el objetivo.
   const COOLDOWN_MS = 600;
+  // Hallazgo real (reportado por el usuario, confirmado con logs "[PLAY-DEBUG]" en vivo, moviendo
+  // la cámara con el raycaster real): el botón Play/Pause del karaoke se togglea solo poco
+  // después de usarlo — no es un bug de sincronización entre paneles (esos logs mostraban el
+  // reenvío funcionando bien), sino este mismo sistema de dwell disparándose una SEGUNDA vez.
+  // Causa: `lockedEl` solo evita repetir la activación mientras el reticle sigue exactamente
+  // sobre el mismo elemento — apenas el raycaster deja de intersectarlo por UN solo tick (50ms,
+  // un micro-movimiento normal de cámara) se limpia `lockedEl`, y si vuelve a caer sobre el MISMO
+  // botón un instante después (típicamente porque el usuario se quedó mirando el resultado de su
+  // propio click), arranca un fuse COMPLETAMENTE NUEVO de `FUSE_MS` — pero como el usuario ya
+  // estaba "parado" ahí desde antes, ese fuse se completa casi de inmediato en términos
+  // perceptivos y el botón se re-activa solo, deshaciendo lo que el usuario acababa de hacer. Para
+  // un botón de una sola acción (p.ej. "Guardar") esto ya era una molestia menor; para un TOGGLE
+  // como Play/Pause es directamente disruptivo (arranca y se detiene solo). `lastActivatedEl`
+  // guarda QUÉ elemento se activó por última vez además de CUÁNDO — se usa más abajo para no
+  // arrancar un fuse nuevo sobre ESE MISMO elemento hasta pasado `REACTIVATION_GRACE_MS`, aunque
+  // el reticle lo haya perdido y recuperado en el medio.
+  const REACTIVATION_GRACE_MS = 2000;
   let camera = null;
   let raycaster = null;
   let hoveredEl = null;
   let fuseStart = null;
   let lockedEl = null;
   let lastActivationAt = 0;
+  let lastActivatedEl = null;
 
   function collectTargets() {
     const targets = [];
@@ -440,12 +584,23 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
 
     if (el !== lockedEl) lockedEl = null;
 
+    // El elemento sigue siendo el mismo que se activó hace menos de REACTIVATION_GRACE_MS: no
+    // arranca un fuse nuevo (aunque el reticle lo haya perdido y recuperado en el medio) — evita
+    // el re-toggle espontáneo documentado arriba. Pasado ese margen, se comporta como cualquier
+    // otro elemento (dwell normal).
+    const inReactivationGrace = el && el === lastActivatedEl && (Date.now() - lastActivationAt) < REACTIVATION_GRACE_MS;
+
     if (el !== hoveredEl) {
       hoveredEl = el;
-      fuseStart = (el && el !== lockedEl) ? Date.now() : null;
+      fuseStart = (el && el !== lockedEl && !inReactivationGrace) ? Date.now() : null;
+      // [PLAY-DEBUG] Log temporal — confirma que el margen de reactivación efectivamente evitó
+      // arrancar un fuse nuevo sobre un elemento recién activado.
+      if (inReactivationGrace) {
+        console.log('[PLAY-DEBUG] gaze/dwell IGNORA re-fuse sobre', el.id || el.className || el.tagName, '(activado hace', Date.now() - lastActivationAt, 'ms, margen', REACTIVATION_GRACE_MS, 'ms)');
+      }
     }
 
-    if (!el || el === lockedEl) {
+    if (!el || el === lockedEl || inReactivationGrace) {
       setPointerVisual('white', 24);
       send({ action: 'gaze-hover', hovering: false, progress: 0 });
       return;
@@ -459,8 +614,14 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
     if (progress >= 1) {
       const now = Date.now();
       if (now - lastActivationAt >= COOLDOWN_MS) {
+        // [PLAY-DEBUG] Log temporal pedido por el usuario — para confirmar/descartar si este
+        // sistema de dwell (cursor circular apuntando 2.5s) es el que dispara pausas/reanudaciones
+        // espontáneas del karaoke (ver hallazgo "el intervalo ~9s no coincide con ninguna
+        // constante de este código" en problems_solutions.md). Buscar "[PLAY-DEBUG]" en consola.
+        console.log('[PLAY-DEBUG] gaze/dwell ACTIVA elemento:', el.id || el.className || el.tagName, 'en', new Date(now).toISOString());
         hitTarget.activate(hitIntersection);
         lastActivationAt = now;
+        lastActivatedEl = el;
       }
       lockedEl = el;
       fuseStart = null;

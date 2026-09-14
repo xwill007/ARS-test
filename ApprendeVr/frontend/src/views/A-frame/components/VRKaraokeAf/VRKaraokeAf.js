@@ -17,6 +17,18 @@ function L() { if (showLogs) console.log.apply(console, arguments); }
 function W() { if (showLogs) console.warn.apply(console, arguments); }
 function E() { if (showLogs) console.error.apply(console, arguments); }
 
+// Verificado (pedido del usuario: "verifica si el boton play pause tiene delay antirebote"): NO
+// lo tenía. El único antirebote de esta zona del proyecto es `COOLDOWN_MS = 600` en el sistema de
+// gaze/dwell del cursor circular (aframe-overlay-modules.js), que protege esa vía de activación
+// (apuntar+esperar) — pero un click/mousedown REAL sobre #karaoke-btn-play (ya sea directo o vía
+// el raycast propio de este componente, ver `handlePointer` más abajo) llega acá sin pasar por
+// ese cooldown. Clicks reales seguidos alternando play/pause disparaban un `video.play()` que el
+// navegador podía abortar por un `pause()` casi inmediato (`AbortError: The play() request was
+// interrupted by a call to pause()`, ver el bridge de sincronización en aframe-overlay-modules.js
+// que tuvo que defenderse de esto del lado receptor) — el antirebote de acá ataca la causa en el
+// origen, en vez de solo mitigar el síntoma después.
+const PLAY_TOGGLE_COOLDOWN_MS = 600;
+
 // Componente vr-karaoke-af
 // Requiere aframe-htmlembed-component para mostrar iframes de YouTube (no usado por ahora en
 // esta vista; se deja documentado igual que en el proyecto de origen).
@@ -292,6 +304,10 @@ AFRAME.registerComponent('vr-karaoke-af', {
       const videoDuration = duration ? duration : 'Duración desconocida';
 
       const button = document.createElement('a-plane');
+      // Guardado para poder re-encontrar este botón por canción tras un rebuild de la lista (ver
+      // `_buildSongListUI` más abajo: al refrescar por la respuesta de `getSongs()` no hay que
+      // reseleccionar la primera canción si el usuario ya venía reproduciendo otra).
+      button._fileName = fileName;
       button.setAttribute('width', 3.5);
       button.setAttribute('height', 0.7);
       button.setAttribute('color', this._buttonColor);
@@ -368,10 +384,30 @@ AFRAME.registerComponent('vr-karaoke-af', {
     this.el.appendChild(videoListContainer);
     this._videoListContainer = videoListContainer;
 
-    // Al iniciar (o refrescar tras agregar una canción), seleccionar por defecto la primera
-    // canción de la lista en vez del video genérico de `videoPath`.
+    // Hallazgo real (reportado por el usuario: "se ha perdido la sincronizacion... al dar click
+    // con el cursor circular para reproducir en la lista, ademas elimina la cancion que no esta
+    // en base de datos"): `_buildSongListUI` se llama DOS veces por cada `_initSongList()` —
+    // una vez de inmediato (catálogo local + `videoList`) y otra vez cuando responde
+    // `getSongs()` (red, timing variable). Si el usuario ya había clickeado una canción de la
+    // lista ENTRE esas dos llamadas (p.ej. una que solo existe en local, no en el backend), este
+    // bloque volvía a seleccionar y cargar la PRIMERA canción de la lista reconstruida sin
+    // condición alguna — pisando en silencio la selección real del usuario apenas terminaba de
+    // cargar. Como el timing de red difiere entre el panel izquierdo y el derecho (cada iframe
+    // hace su propio `getSongs()`), cada panel podía terminar "pisado" en un momento distinto,
+    // reproduciendo canciones distintas — de ahí la pérdida de sincronización entre paneles. La
+    // canción local nunca se borraba de verdad (`getLocalSongs()`/localStorage no se tocan acá),
+    // pero al dejar de ser la seleccionada/reproducida daba la impresión de haber "desaparecido".
     if (this.el.getAttribute('visible')) {
-      if (videos.length) {
+      if (this._currentSong && this._currentSong.fileName) {
+        // Ya había una canción cargada (selección propia del usuario, o la carga inicial de una
+        // llamada anterior a este mismo método) — no la reemplazamos, solo re-resaltamos su botón
+        // en la lista reconstruida (las referencias de <a-plane> anteriores ya no existen en el
+        // DOM tras el rebuild de más arriba).
+        const currentButton = this._songButtons.find((b) => b._fileName === this._currentSong.fileName);
+        if (currentButton) { try { this._selectSongButton(currentButton); } catch (e) {} }
+      } else if (videos.length) {
+        // Primera vez que se construye la lista en esta instancia (no hay ninguna canción cargada
+        // todavía): sí corresponde seleccionar y reproducir la primera por defecto.
         const [firstFileName, firstArtist] = videos[0].split('|');
         const firstArtistName = firstArtist ? firstArtist : 'Artista desconocido';
         try { this._selectSongButton(this._songButtons[0]); } catch (e) {}
@@ -540,8 +576,24 @@ AFRAME.registerComponent('vr-karaoke-af', {
                       } catch (e) { W('Error during muted fallback:', e); }
                     });
                   };
+                  // Hallazgo real (reportado por el usuario: "el play se ve que se activa y
+                  // desactiva de inmediato y no inicia la cancion"; reproducido en vivo con dos
+                  // paneles y verificado que NO es el botón/raycaster — ver problems_solutions.md):
+                  // en AR-SYNC (mirror-fix), al seleccionar una canción el panel HERMANO puede
+                  // recibir la orden remota de "reproducir" (ver `karaoke-play` en
+                  // aframe-overlay-modules.js) ANTES de que termine SU PROPIO countdown local de 3
+                  // segundos — el video ya está `paused: false` (por esa orden remota) pero
+                  // `readyState` todavía puede estar bajo (recién está empezando a bufferear).
+                  // Llamar a `htmlVideo.load()` en ese momento (como hacía este código antes)
+                  // REINICIA/ABORTA la reproducción en curso — es el comportamiento real y
+                  // documentado de `<video>.load()` — lo que se ve como "arrancó y se detuvo
+                  // solo". Si el video YA está reproduciendo (`!htmlVideo.paused`), no hay nada
+                  // que este countdown local tenga que hacer: ya se logró el objetivo (sonando),
+                  // así que se salta el intento propio en vez de pisarlo.
                   if (htmlVideo.readyState >= 2) {
                     tryUnmuted();
+                  } else if (!htmlVideo.paused) {
+                    L('Countdown local: el video ya está reproduciendo (orden remota adelantada) — se omite el autoplay propio.');
                   } else {
                     htmlVideo.addEventListener('canplay', tryUnmuted, { once: true });
                     try { htmlVideo.load(); } catch (e) {}
@@ -761,10 +813,47 @@ AFRAME.registerComponent('vr-karaoke-af', {
       }
     };
     requestAnimationFrame(tickWhilePlaying);
-    video.addEventListener('play', () => { try { playText.setAttribute('value', 'Pause'); } catch (e) {} });
-    video.addEventListener('pause', () => { try { playText.setAttribute('value', 'Play'); } catch (e) {} });
+    // Hallazgo real (reportado por el usuario: "se activa y desactiva de inmediato... como si
+    // recibiera dos clicks instantaneos de ambas vistas"): en modo Doble panel cada panel tiene su
+    // PROPIO sistema de apuntado/dwell totalmente independiente (ver aframe-overlay-modules.js) —
+    // si las dos cámaras quedan mirando el mismo botón (suele pasar, están espejadas), pueden
+    // completar su propio dwell casi al mismo instante y CADA UNO decide localmente qué hacer
+    // mirando su PROPIO `video.paused`. Si en ese instante los dos paneles ya estaban desalineados
+    // entre sí (uno reproduciendo, el otro no — puede pasar por cualquier carrera previa), cada uno
+    // togglea hacia un lado distinto, y el reenvío entre paneles (que hace bien su trabajo) termina
+    // pisando de vuelta lo que cada uno acaba de hacer — visto desde cualquiera de los dos paneles,
+    // el video "se activa y se desactiva solo". El antirebote de acá (`lastPlayToggleAt`) antes
+    // solo se armaba con un click LOCAL — no protegía contra un cambio de estado que acababa de
+    // llegar por sincronización remota (aplicada en el bridge, sin pasar por este botón). Ahora se
+    // arma también en los eventos nativos 'play'/'pause' (disparan por CUALQUIER motivo, local o
+    // remoto) — así un click/dwell que cae dentro de los `PLAY_TOGGLE_COOLDOWN_MS` posteriores a
+    // que ESTE panel cambió de estado (por la razón que sea) se ignora, dándole tiempo al reenvío
+    // entre paneles (casi instantáneo, unos pocos ms por postMessage) a terminar de asentarse antes
+    // de aceptar una nueva decisión local.
+    let lastPlayToggleAt = 0;
+    // [PLAY-DEBUG] Logs temporales pedidos por el usuario para diagnosticar en vivo (moviendo la
+    // cámara/apuntando con el raycaster real, no simulado) el hallazgo de pausas/reanudaciones
+    // espontáneas — ver problems_solutions.md, entrada "activa y desactiva de inmediato". Buscar
+    // "[PLAY-DEBUG]" en la consola del navegador para filtrar.
+    video.addEventListener('play', () => {
+      lastPlayToggleAt = Date.now();
+      L('[PLAY-DEBUG] evento nativo "play" — currentTime=' + video.currentTime.toFixed(2) + ' readyState=' + video.readyState);
+      try { playText.setAttribute('value', 'Pause'); } catch (e) {}
+    });
+    video.addEventListener('pause', () => {
+      lastPlayToggleAt = Date.now();
+      L('[PLAY-DEBUG] evento nativo "pause" — currentTime=' + video.currentTime.toFixed(2) + ' readyState=' + video.readyState);
+      try { playText.setAttribute('value', 'Play'); } catch (e) {}
+    });
 
     btnPlay.addEventListener('click', () => {
+      const now = Date.now();
+      if (now - lastPlayToggleAt < PLAY_TOGGLE_COOLDOWN_MS) {
+        L('[PLAY-DEBUG] click en btnPlay IGNORADO por antirebote (faltan ' + (PLAY_TOGGLE_COOLDOWN_MS - (now - lastPlayToggleAt)) + 'ms)');
+        return;
+      }
+      L('[PLAY-DEBUG] click en btnPlay ACEPTADO — video.paused antes del toggle: ' + video.paused);
+      lastPlayToggleAt = now;
       try {
         if (video.paused) {
           try { if (this._autoplayHintEl && this._autoplayHintEl.parentNode) this._autoplayHintEl.parentNode.removeChild(this._autoplayHintEl); } catch (e) {}

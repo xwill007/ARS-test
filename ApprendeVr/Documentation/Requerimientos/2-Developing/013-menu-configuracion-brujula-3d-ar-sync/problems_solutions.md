@@ -402,6 +402,284 @@ y `npm run check:i18n` verdes.
 **Estado:** resuelto y verificado en navegador (a diferencia del hallazgo anterior sobre
 Interfaz/Position, este sí se pudo probar end-to-end en esta sesión).
 
+## 2026-09-14 — Reporte del usuario: "al iniciar le di al boton play y solo inicio el video en un panel"
+
+**Contexto:** el usuario pidió primero verificar en los commits recientes si esto ya estaba
+resuelto antes y qué cambió. Se revisó el historial de `SyncStereoTestView.jsx` y
+`aframe-overlay-modules.js` (`git log -G"karaoke-play"` y `git diff` completo desde el commit
+`9479e5c` que implementó la sincronización play/pause/seek por reloj del padre): **ningún commit
+posterior tocó ese mecanismo** — los commits recientes de la otra sesión concurrente (ver hallazgo
+anterior sobre commits inesperados) solo tocaron `SyncConfigCompassMenu.jsx`/`vrPositionControl.js`
+(edición de posición), no el puente de video de karaoke. No hay entonces una "regresión por commit"
+que revertir.
+
+**Causa real (gap de diseño preexistente, no una regresión):** `aframe-overlay-modules.js` wirea
+el `<video>` real de cada panel recién cuando `watchVideoElement()` (poll cada 300ms) detecta que
+`vr-karaoke-af` ya creó `this._htmlVideo` — hasta ese momento, `video` es `null` en el bridge de
+ESE panel. El listener de `postMessage` que aplica un `karaoke-play`/`karaoke-pause` remoto tenía
+una guarda `if (!video) return;`: si el usuario tocaba el botón Play muy rápido justo al abrir
+AR-SYNC (antes de que el panel hermano terminara de montar A-Frame + encontrar
+`#karaoke-vr-component`), ese mensaje se descartaba en silencio, sin ningún reintento — dependía
+por completo de que el propio 'karaoke-ready' de ESE panel (disparado recién cuando termina de
+wirear) alcanzara a corregir el estado por otra vía, lo cual no está garantizado que ocurra a
+tiempo (o del todo, si esa rama del video no se vuelve a montar).
+
+**Solución:** se agrega un buffer (`pendingPlayCommand`) en el bridge: si llega un
+`karaoke-play`/`karaoke-pause` remoto mientras `video` todavía es `null`, se guarda la intención en
+vez de descartarla, y se aplica automáticamente apenas `wireVideo()` corre por primera vez — sin
+depender del round-trip de `karaoke-ready`. Se extrajo `applyPlayCommand(shouldPlay)` para no
+duplicar la lógica de mute-then-play entre el camino normal y el buffer.
+
+**Estado:** corregido (`aframe-overlay-modules.js`). `npm run build` verde. No se pudo reproducir
+de punta a punta en navegador en esta sesión por la misma limitación de tab compartida con otra
+sesión activa del usuario — pendiente de verificación manual con dos paneles reales.
+
+## 2026-09-14 (continuación) — El buffer solo no alcanzó: dos causas más, encontradas verificando en vivo
+
+**Reporte del usuario:** "no aun no se sincronizan, quedamos en que esto lo manejaria un padre y
+cada panel validaria con el" — el fix del buffer (hallazgo anterior) no resolvió el problema.
+Se consiguió acceso al navegador compartido y se reprodujo/depuró en vivo con dos paneles reales
+(midiendo `_htmlVideo.paused`/`currentTime` directo por JS en cada iframe, no por captura de
+pantalla), encontrando DOS causas reales adicionales, ninguna relacionada con el buffer:
+
+**Causa 1 — el reenvío al panel hermano elegía destino por igualdad de referencia de `ev.source`,**
+que podía no matchear contra `leftRefs.current.karaoke.current.contentWindow` /
+`rightRefs...`. `SyncStereoTestView.jsx` ahora recibe de cada bridge un campo `fromRight` (ya lo
+sabe por su propio query string `isRightPanel`) y elige el destino directo por ese dato, sin
+comparar objetos `window`.
+
+**Causa 2 (la más esquiva — solo se vio con clicks reales seguidos, no con uno solo):** con
+play/pause alternados rápido en cualquiera de los dos paneles, el navegador aborta un
+`video.play()` en curso si llega un `pause()` antes de que la promesa resuelva (confirmado en
+consola: `AbortError: The play() request was interrupted by a call to pause()`). Cuando eso pasa,
+el evento nativo `'play'` NUNCA dispara en ese panel — y como la bandera `suppressNextPlay` (anti-
+eco) solo se liberaba DENTRO del listener de ese evento, quedaba trabada en `true` para siempre: el
+PRÓXIMO click real del usuario en ese mismo panel dejaba de reenviarse al panel hermano, en
+silencio, sin ningún error visible para el usuario. Esto explica por qué el fallo era intermitente
+(dependía de qué tan seguido se alternaran los clicks) en vez de reproducirse siempre igual.
+Solución: `suppressNextPlay`/`suppressNextPause` ahora se liberan también desde el `catch()` de la
+promesa de `play()` (se sabe ahí mismo que el evento no va a disparar) y con un timeout de red de
+seguridad de 800ms por si el navegador no llega a rechazar la promesa pero el evento tampoco
+dispara por algún otro motivo.
+
+**Verificación en vivo (esta vez sí de punta a punta):** con acceso al navegador compartido, se
+click-testeó directamente sobre `#karaoke-btn-play` de cada panel (izquierdo y derecho,
+alternando), incluida una ráfaga rápida (150ms entre clicks) diseñada a propósito para forzar la
+condición de carrera del `AbortError` — los 7 toggles de la secuencia, incluidos los rápidos,
+quedaron sincronizados en ambos paneles (`paused` idéntico en los dos) en cada paso, sin ningún
+fallo. Confirmado con medición directa de `_htmlVideo.paused`/`currentTime`, no por inspección
+visual.
+
+**Estado:** resuelto y verificado end-to-end en navegador con dos paneles reales, incluida la
+condición de carrera de clicks rápidos que había causado el reporte original del usuario.
+
+## 2026-09-14 (continuación) — Seleccionar una canción de la lista no sincronizaba entre paneles
+
+**Pedido del usuario:** "al seleccionar desde la lista de canciones aun no sincronizan, debe
+fuincionar como un stop que pare cualquier cancion que este sonsnado y reinicie la seleccionada
+desde el comienzo" — hasta este punto el puente de `aframe-overlay-modules.js` solo sincronizaba
+play/pause/seek del video YA cargado en cada panel; clickear una canción DISTINTA en la lista de
+un panel (`VRKaraokeAf.js`, `activateSelection`/`loadVideo`) solo recreaba el `<video>` de ESE
+panel — el hermano seguía con lo que tenía.
+
+**Solución (misma arquitectura "padre fuente de verdad + `fromRight`" que play/pause):** cada
+bridge detecta cuándo cambia `karaokeComp._currentSong.fileName` (comparado contra la última
+canción que él mismo reportó) y manda `karaoke-song-select` (con `fromRight`) al padre.
+`SyncStereoTestView.jsx` guarda `karaokeSongRef` como fuente de verdad, resetea el reloj
+compartido a 0 (`karaokeTimeAtRef`/`karaokeTimeSetAtRef`) y reenvía al panel opuesto. El panel que
+recibe el mensaje busca el botón de esa canción en su PROPIA lista (por `button._fileName`,
+agregado en el fix anterior de esta misma sesión) y le dispara `_activateSelection(...)` — el
+mismo mecanismo que ya usa el sistema de gaze/dwell para clickear botones desde afuera — así el
+"stop y reinicio desde 0" lo hace el propio `loadVideo()` real del componente, sin duplicar esa
+lógica ni tocar `VRKaraokeAf.js`.
+
+**Dos bugs reales encontrados y corregidos DURANTE la verificación en vivo (ninguno se hubiera
+visto solo con lectura de código):**
+
+1. **Reloj adelantado durante el countdown local:** `loadVideo(..., { countdown: true })` no
+   reproduce al instante — cada panel corre su PROPIO countdown de 3 segundos antes de llamar a
+   `video.play()` de verdad. Marcar `karaokePlayingRef.current = true` en el momento de la
+   selección (asumiendo que "seleccionar" ya significa "reproduciendo desde ahora") hacía que el
+   reloj del padre avanzara DURANTE esos 3 segundos; medido en vivo, los dos paneles terminaban
+   ~18 segundos desincronizados entre sí. Corregido: la selección deja el reloj en 0 y
+   `karaokePlayingRef.current = false` (fiel al "stop" pedido) — es el evento `'karaoke-play'`
+   REAL (el que cada panel dispara solo cuando su propio countdown termina) el que recién ahí
+   marca "reproduciendo" con el instante real, mismo mecanismo ya usado y verificado para el botón
+   Play.
+2. **Orden de mensajes:** el chequeo de "cambió la canción" corría DESPUÉS de `wireVideo()` (que
+   manda `'karaoke-ready'`, pidiéndole al padre el estado vigente) — si `'karaoke-ready'` salía
+   ANTES que `'karaoke-song-select'`, el padre todavía no sabía del cambio y contestaba con el
+   estado de la canción VIEJA, haciendo que el panel volviera a ella brevemente antes de
+   corregirse solo en un ciclo posterior (no determinístico). Medido en vivo: el panel que había
+   elegido la canción nueva terminaba reproduciéndola pero en el `currentTime` heredado de la
+   anterior (~22s) en vez de 0. Corregido invirtiendo el orden: se avisa el cambio de canción
+   primero, y recién después se wirea el video/pide `'karaoke-ready'`.
+
+**Verificación en vivo (dos paneles reales, medición directa de `_currentSong.fileName`/
+`_htmlVideo.paused`/`currentTime`, no visual):** con una canción sonando en ambos paneles en
+sincronía (~8.2s), seleccionar una canción distinta desde el panel derecho cambió AMBOS paneles a
+la nueva canción, ambos en pausa y en `currentTime: 0` de inmediato (antes de que corriera el
+countdown), y ambos arrancaron a reproducir tras el countdown con una diferencia de 0.02s entre
+sí. Repetido en sentido inverso (selección desde el panel izquierdo) con el mismo resultado.
+
+**Estado:** resuelto y verificado end-to-end en navegador con dos paneles reales, en ambos
+sentidos (izquierda→derecha y derecha→izquierda), incluida la corrección de los dos bugs de
+timing/orden encontrados durante la propia verificación.
+
+## 2026-09-14 (continuación) — Verificación pedida: "el boton play pause tiene delay antirebote"
+
+**Pregunta del usuario** tras el hallazgo del `AbortError` (ver entrada anterior sobre clicks
+rápidos): si `#karaoke-btn-play` tenía algún antirebote propio. Se verificó por lectura de código:
+**no lo tenía**. El único `COOLDOWN_MS = 600` de toda esta zona pertenece a un sistema DISTINTO
+(el gaze/dwell del cursor circular en `aframe-overlay-modules.js`, que protege la activación por
+apuntado+espera) — un click/mousedown REAL sobre el botón (directo, o vía el raycast propio de
+`VRKaraokeAf.js`, `_setupPointerRaycast`/`handlePointer`) llegaba sin ninguna protección al
+`addEventListener('click', ...)` que hace `video.play()`/`pause()`. Esta es precisamente la causa
+en el ORIGEN del `AbortError` documentado antes — el fix anterior solo mitigaba el síntoma del
+lado receptor (`suppressNextPlay` con timeout de seguridad), no evitaba que el navegador abortara
+el `play()` en primer lugar.
+
+**Solución:** se agregó un antirebote de 600ms (`PLAY_TOGGLE_COOLDOWN_MS`, misma duración que el
+`COOLDOWN_MS` ya usado en el proyecto para este tipo de protección) directo en el
+`addEventListener('click', ...)` de `#karaoke-btn-play` (`VRKaraokeAf.js`) — se reinicia solo con
+cada canción nueva (vive dentro de `loadVideo()`, que recrea el botón), así que el primer click
+sobre un botón recién creado nunca queda bloqueado por el cooldown de la canción anterior.
+
+**Verificación en vivo:** con el video en pausa, se dispararon 6 clicks reales pegados entre sí
+(0.3ms de diferencia total) sobre el botón — resultado: UN solo toggle real (pasó a reproducir),
+los otros 5 se ignoraron. Repetido partiendo de "reproduciendo": mismo resultado, un solo toggle.
+Confirmado además que el botón sigue respondiendo con normalidad a un click aislado una vez pasado
+el cooldown (no queda "trabado").
+
+**Estado:** resuelto y verificado en navegador.
+
+## 2026-09-14 (continuación) — "el play se ve que se activa y desactiva de inmediato y no inicia la cancion"
+
+**Verificación pedida por el usuario:** confirmar primero que el botón en sí (con su antirebote
+recién agregado) respondía bien usando el RAYCASTER real, no un `dispatchEvent` directo — se
+disparó un `mousedown` real sobre el `<canvas>`, en las coordenadas de pantalla proyectadas desde
+la posición 3D real de `#karaoke-btn-play` (mismo cálculo que usa `handlePointer` internamente),
+confirmando un toggle limpio y correcto por ese camino. El botón y su antirebote no eran la causa.
+
+**Reproducción real (con dos paneles, midiendo eventos `play`/`pause`/`playing` con marca de
+tiempo en ambos videos):** al seleccionar una canción, ambos paneles arrancaban a reproducir
+correctamente tras el countdown — pero ~270ms después, AMBOS se pausaban solos, y ~190ms después
+volvían a reproducir solos. Justo el patrón descrito por el usuario.
+
+**Causa:** el panel que recibe la orden remota de "reproducir" (`karaoke-play`, ver hallazgos
+anteriores) puede arrancar a reproducir (`video.play()`, `paused: false`) ANTES de que su propio
+countdown local de 3 segundos siquiera termine — el video queda con `paused: false` pero
+`readyState` todavía bajo (recién empezando a bufferear). El código del countdown, al terminar,
+comprobaba `readyState` para decidir si llamar `.play()` directo o primero `.load()` — y llamaba
+`.load()` sin importar si el video YA estaba reproduciendo. `<video>.load()` reinicia/aborta
+cualquier reproducción en curso (comportamiento estándar del elemento, no un bug del navegador) —
+eso es la pausa espontánea observada; el `canplay` que sigue relanza el play, de ahí la
+recuperación inmediata después.
+
+**Solución:** el countdown ahora comprueba primero si el video YA está reproduciendo
+(`!htmlVideo.paused`) antes de decidir llamar `.load()` — si ya está sonando (por la orden
+remota que se adelantó), no hace nada, en vez de pisar esa reproducción con un `.load()`.
+
+**Verificación en vivo (repetida tras el fix, misma medición de eventos):** seleccionar una
+canción con ambos paneles ya en marcha produjo una transición ÚNICA y limpia a `play`/`playing`
+en el instante del countdown (t≈3000ms), sin ningún `pause` espontáneo posterior.
+
+**Hallazgo adicional (NO relacionado con lo anterior, detectado durante esta misma verificación,
+sin resolver todavía):** con la reproducción ya estable, se observaron dos pausas+reanudaciones
+espontáneas más, sincronizadas entre ambos paneles, con un intervalo de ~9.15s entre sí — no
+coincide con ninguna constante de este código (`PLAY_TOGGLE_COOLDOWN_MS`/`COOLDOWN_MS` = 600ms,
+`FUSE_MS` = 2500ms, timeout de `applyPlayCommand` = 800ms, countdown = 3000ms). Sospecha (no
+confirmada): el sistema de gaze/dwell del cursor circular (`aframe-overlay-modules.js`, reticle
+fijo al centro de pantalla) podría estar re-disparando sobre el botón Play si la cámara (que en
+este entorno de prueba puede moverse por la otra sesión concurrente compartiendo la misma pestaña,
+ver hallazgo de commits inesperados) queda apuntándolo. No reproducido de forma aislada ni
+confirmado como causa — queda pendiente de investigación en una sesión sin interferencia de tab
+compartida.
+
+**Estado:** el bug reportado por el usuario, resuelto y verificado. El hallazgo adicional del
+párrafo anterior queda documentado como pendiente, no confirmado.
+
+## 2026-09-14 (continuación) — Causa real del hallazgo pendiente: el propio sistema de gaze/dwell re-togglea Play/Pause
+
+**Verificación pedida por el usuario:** "debes seleccionar play pause moviendo la camara par apuntar
+con ray caster es la forma de detectar el error" — se agregaron logs `[PLAY-DEBUG]` en los tres
+puntos relevantes (evento nativo del `<video>`, bridge de sincronización por panel, y el padre) y
+el usuario reprodujo el problema moviendo la cámara de verdad (no simulado) y pegó la traza de
+consola.
+
+**Causa confirmada por esa traza (no es un bug de sincronización — el reenvío entre paneles
+funcionaba bien):** el sistema de gaze/dwell del cursor circular
+(`aframe-overlay-modules.js`, reticle fijo al centro de pantalla, dwell de `FUSE_MS`=2500ms) volvía
+a activar `#karaoke-btn-play` poco después de que el usuario ya lo hubiera usado. Causa raíz:
+`lockedEl` solo evita repetir la activación mientras el reticle sigue apuntando exactamente al
+mismo elemento sin interrupción — apenas el raycaster deja de intersectarlo por UN solo tick
+(50ms, un micro-movimiento de cámara normal, o simplemente el usuario quedándose mirando el
+resultado de su propio click) se limpia el lock, y si el reticle vuelve a caer sobre el MISMO
+botón, arranca un fuse completamente nuevo — que se completa y vuelve a togglear el botón sin que
+el usuario haya "clickeado" nada nuevo. Para un botón de una sola acción esto ya era una molestia
+documentada en Requerimiento 012 ("un click... a veces se veía cancelarse solo"); para un TOGGLE
+como Play/Pause es directamente disruptivo: arranca y se detiene solo. Cada panel (izquierdo/
+derecho) tiene su PROPIO sistema de dwell independiente — la traza mostró a los dos togglear casi
+al mismo instante porque ambas cámaras suelen quedar orientadas de forma similar (mirror), no
+porque hubiera coordinación entre ellos.
+
+**Solución:** se agrega un margen de reactivación (`REACTIVATION_GRACE_MS` = 2000ms): si el
+reticle vuelve a caer sobre el MISMO elemento que se activó hace menos de ese margen, no arranca
+un fuse nuevo (se ignora en silencio, con un log `[PLAY-DEBUG]` que confirma cuándo pasa). Pasado
+el margen, se comporta como cualquier otro elemento — sigue siendo posible reactivarlo
+deliberadamente, solo que no por quedarse mirando el resultado del click anterior.
+
+**Estado:** corregido (`aframe-overlay-modules.js`). `npm run build`/`npm run check:i18n` verdes.
+Pendiente de que el usuario lo reverifique con el mismo método (cámara real + raycaster) que usó
+para encontrarlo — los logs `[PLAY-DEBUG]` quedan en el código para esa verificación.
+
+## 2026-09-14 (continuación) — Sigue fallando: "como si recibiera dos clicks instantaneos de ambas vistas"
+
+**Aclaración del usuario tras el fix anterior:** el fix del margen de reactivación (2s) no era la
+causa completa. Descripción del usuario: "no funciona el boton play pause, se activa y dessctiva
+de inmeditao sin para la cancion, como si el antirebote no funcionara y recibiera dos clicks
+instantaneos de ambas vistas" — es decir, no es un RE-disparo sobre el mismo botón con el tiempo
+(lo que arregla el margen de reactivación), sino que AMBOS paneles parecen togglear casi al mismo
+instante, cada uno por su cuenta.
+
+**Causa (razonada, no reproducida en vivo por la misma limitación de tab compartida):** en modo
+Doble panel, cada panel corre su PROPIO sistema de apuntado/dwell (`aframe-overlay-modules.js`,
+`tick()`) totalmente independiente del otro — no hay ningún acoplamiento entre ellos más que la
+sincronización de CÁMARA (`mouse-look-delta`, que hace que ambas cámaras queden mirando
+prácticamente al mismo punto, casi siempre el mismo botón). Si ambos completan su propio dwell casi
+al mismo instante (muy probable, justamente porque las cámaras están espejadas) y en ese momento
+los dos paneles NO estaban perfectamente sincronizados entre sí (uno reproduciendo, el otro no —
+puede pasar por cualquier carrera anterior, por mínima que sea), cada uno decide LOCALMENTE qué
+hacer mirando solo su PROPIO `video.paused` — y togglean hacia direcciones opuestas. El reenvío
+entre paneles (que funciona bien, ver hallazgos anteriores) entonces le "devuelve" a cada uno el
+estado que el OTRO acababa de fijar, produciendo el efecto "se activa y se desactiva solo" descrito
+por el usuario. El antirebote existente (`lastPlayToggleAt`) solo se armaba con un CLICK LOCAL —
+no protegía contra un cambio de estado que este mismo panel acababa de recibir por SINCRONIZACIÓN
+REMOTA (aplicado en el bridge, sin pasar por el botón), así que no frenaba la cascada de
+correcciones que sigue al primer desacuerdo.
+
+**Mitigación aplicada:** `lastPlayToggleAt` ahora se arma también dentro de los listeners nativos
+'play'/'pause' del `<video>` (disparan por CUALQUIER motivo, local o remoto) — no solo al hacer
+click. Esto no evita que las DOS decisiones locales iniciales (si ambos dweels completan en el
+mismo tick, antes de que cualquier mensaje haya viajado) puedan seguir divergiendo una vez — pero
+sí corta la CASCADA posterior: cualquier click/dwell adicional dentro de los
+`PLAY_TOGGLE_COOLDOWN_MS` (600ms) siguientes al último cambio de estado de ESTE panel (por la razón
+que sea) se ignora, dándole tiempo a que el reenvío entre paneles (unos pocos ms por postMessage)
+termine de asentarse antes de aceptar una nueva decisión local.
+
+**Pregunta arquitectónica abierta, no resuelta en esta pasada:** la causa raíz de fondo es que
+"Doble panel" son hoy DOS sesiones interactivas completamente independientes (cada una con su
+propio raycaster/dwell/click), no una vista maestra + una espejada — lo que hace posible este tipo
+de carrera cada vez que ambas cámaras (espejadas) resultan apuntando al mismo control a la vez. Una
+solución de raíz requeriría decidir si el panel SECUNDARIO debería dejar de disparar acciones
+LOCALES sobre controles compartidos como Play/Pause (limitarse a reflejar lo que decide el panel
+PRIMARIO) — un cambio de diseño, no solo un bugfix, que no se implementó todavía a la espera de
+confirmarlo con el usuario.
+
+**Estado:** mitigado, no confirmado como resuelto (no se pudo verificar en vivo por la limitación
+de tab compartida). `npm run build`/`npm run check:i18n` verdes. Logs `[PLAY-DEBUG]` siguen
+disponibles para que el usuario lo reverifique.
+
 ## 2026-09-14 — Flechas de giro reubicadas e invertidas + secciones ocultas seguían siendo clickeables
 
 Tres pedidos encadenados sobre `SyncConfigCompassMenu.jsx`:

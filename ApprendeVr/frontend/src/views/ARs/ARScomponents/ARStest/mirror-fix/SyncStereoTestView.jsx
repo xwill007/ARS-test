@@ -126,6 +126,14 @@ const SyncStereoTestView = ({ onClose }) => {
   // ve el evento real, y responde con el valor vigente cuando un panel recién montado lo pide
   // ('karaoke-ready'/dentro de 'compass-ready') — ver esos handlers más abajo.
   const karaokePlayingRef = useRef(false);
+  // Pedido del usuario: "al seleccionar desde la lista de canciones aun no sincronizan, debe
+  // funcionar como un stop que pare cualquier cancion que este sonando y reinicie la seleccionada
+  // desde el comienzo" — fuente de verdad de QUÉ canción (`fileName`) está activa en ambos
+  // paneles, mismo patrón que `karaokePlayingRef`/`compassSectionRef`: se actualiza cuando llega
+  // 'karaoke-song-select' de cualquier panel y se le contesta a un panel recién montado en su
+  // propio 'karaoke-ready' (ver más abajo), para que no arranque con la canción por defecto si el
+  // hermano ya había elegido otra antes de que este existiera (p.ej. al activar "Doble panel").
+  const karaokeSongRef = useRef(null);
   // Pedido del usuario (ampliación, segunda vuelta): en vez de que cada panel reporte su tiempo
   // cada 1s (descartado — polling innecesario), el padre lleva su PROPIO reloj matemático: guarda
   // en qué segundo del video estaba la última vez que cambió algo (play/pause/seek) y CUÁNDO
@@ -577,8 +585,55 @@ const SyncStereoTestView = ({ onClose }) => {
       // `suppressNextPlay` del panel emisor quedaría trabada en `true` — ver wireVideo() en
       // aframe-overlay-modules.js — y silenciaría el próximo evento real de ESE panel). El panel
       // recién montado se pone al día por separado con 'karaoke-ready' (más abajo), no por eco.
+      //
+      // Hallazgo real (reportado por el usuario: "no aun no se sincronizan, quedamos en que esto
+      // lo manejaria un padre y cada panel validaria con el"): el destino del reenvío se elegía
+      // comparando `ev.source` (el `window` del iframe emisor) contra
+      // `leftRefs.current.karaoke.current.contentWindow` por IGUALDAD DE REFERENCIA — fragil: el
+      // padre es quien tiene que decidir con una fuente de verdad propia (los refs por lado,
+      // `leftRefs`/`rightRefs`, que él mismo arma en `renderPanel('left'|'right', ...)`), no
+      // depender de que el objeto `window` que llegó en el mensaje siga siendo bit-a-bit el mismo
+      // que el guardado en el ref (basta con que la referencia del ref esté un tick desactualizada
+      // para que NINGUNA de las dos comparaciones matchee y el mensaje no se reenvíe a ningún
+      // lado). Ahora cada bridge (`aframe-overlay-modules.js`) etiqueta su propio mensaje con
+      // `fromRight` (ya sabe si es el panel derecho por el query string `isRightPanel`) y acá se
+      // elige el destino DIRECTO por ese dato, sin comparar `ev.source` contra nada.
+      // Pedido del usuario: "al seleccionar desde la lista de canciones aun no sincronizan, debe
+      // funcionar como un stop que pare cualquier cancion que este sonando y reinicie la
+      // seleccionada desde el comienzo" — una selección de canción es, para el reloj del padre,
+      // un "stop": se resetea a 0 (no se "congela" el segundo actual como hace play/pause, la
+      // canción NUEVA no tiene relación con dónde iba la anterior). Mismo criterio de destino por
+      // `fromRight` que play/pause — ver el hallazgo grande de acá arriba.
+      //
+      // Hallazgo real (verificado en vivo: al medir `currentTime` en ambos paneles tras una
+      // selección quedaban ~18s desincronizados entre sí): `loadVideo(..., { countdown: true })`
+      // en VRKaraokeAf.js NO reproduce al instante — cada panel corre su PROPIO countdown local de
+      // 3 segundos antes de llamar a `video.play()` de verdad. Marcar acá
+      // `karaokePlayingRef.current = true` de una (asumiendo que "seleccionar" == "ya está
+      // reproduciendo desde ahora") hacía que el reloj del padre avanzara DURANTE esos 3 segundos
+      // de countdown de cada panel; si un tercer momento pedía 'karaoke-ready' mientras tanto (o
+      // el propio countdown tardaba de más por carga de red), `getKaraokeCurrentTime()` ya
+      // devolvía varios segundos de más y el panel arrancaba adelantado en vez de en 0:00. Se deja
+      // en `false` acá — el reloj queda en 0 y PAUSADO (fiel al pedido del usuario: "un stop") — y
+      // es el evento 'karaoke-play' REAL (el que ya dispara cada panel solo, cuando su propio
+      // countdown termina y de verdad llama a `video.play()`, ver el handler de arriba) el que
+      // recién ahí marca `karaokePlayingRef.current = true` con el instante real en que empezó a
+      // sonar — mismo mecanismo ya usado y verificado para el botón Play, sin duplicar lógica.
+      if (msg.action === 'karaoke-song-select') {
+        karaokeSongRef.current = msg.fileName;
+        karaokeTimeAtRef.current = 0;
+        karaokeTimeSetAtRef.current = Date.now();
+        karaokePlayingRef.current = false;
+        const targetRefs = msg.fromRight ? leftRefs : rightRefs;
+        targetRefs.current.karaoke?.current?.contentWindow?.postMessage(msg, '*');
+        return;
+      }
+
       if (msg.action === 'karaoke-play' || msg.action === 'karaoke-pause') {
         const isPlaying = msg.action === 'karaoke-play';
+        // [PLAY-DEBUG] Log temporal pedido por el usuario — el padre es el único lugar que ve
+        // AMBOS lados a la vez, útil para correlacionar con los logs de cada bridge/panel.
+        console.log('[PLAY-DEBUG] padre RECIBE', msg.action, 'de', msg.fromRight ? 'DERECHO' : 'IZQUIERDO', '→ reenvía a', msg.fromRight ? 'IZQUIERDO' : 'DERECHO');
         // Al pasar de pausado a reproduciendo, o de reproduciendo a pausado, se "congela" el
         // segundo actual (calculado con el estado ANTERIOR) como nueva referencia, y se reinicia
         // el cronómetro desde ahora — getKaraokeCurrentTime() sigue siendo correcto en cualquier
@@ -586,13 +641,8 @@ const SyncStereoTestView = ({ onClose }) => {
         karaokeTimeAtRef.current = getKaraokeCurrentTime();
         karaokeTimeSetAtRef.current = Date.now();
         karaokePlayingRef.current = isPlaying;
-        const leftKaraokeWindow = leftRefs.current.karaoke?.current?.contentWindow;
-        const rightKaraokeWindow = rightRefs.current.karaoke?.current?.contentWindow;
-        if (ev.source === leftKaraokeWindow && rightKaraokeWindow) {
-          rightKaraokeWindow.postMessage(msg, '*');
-        } else if (ev.source === rightKaraokeWindow && leftKaraokeWindow) {
-          leftKaraokeWindow.postMessage(msg, '*');
-        }
+        const targetRefs = msg.fromRight ? leftRefs : rightRefs;
+        targetRefs.current.karaoke?.current?.contentWindow?.postMessage(msg, '*');
         return;
       }
       // Un scrub manual (arrastre de la línea de progreso) también actualiza la referencia del
@@ -612,6 +662,16 @@ const SyncStereoTestView = ({ onClose }) => {
       // reproduciendo, arranca a reproducir DESDE la posición correcta en vez de un salto visible
       // desde 0:00 al segundo siguiente.
       if (msg.action === 'karaoke-ready') {
+        // Si el panel hermano ya había elegido una canción antes de que ESTE panel existiera
+        // (p.ej. se activó "Doble panel" después de elegir una canción en modo un solo panel),
+        // este panel recién montado arrancó con la canción por defecto de su propia lista — se le
+        // avisa cuál es la vigente ANTES del seek/play, para que la busque y la cargue.
+        if (karaokeSongRef.current) {
+          ev.source.postMessage(
+            { source: 'ars-sync-test', action: 'karaoke-song-select', fileName: karaokeSongRef.current },
+            '*',
+          );
+        }
         ev.source.postMessage(
           { source: 'ars-sync-test', action: 'karaoke-seek', time: getKaraokeCurrentTime() },
           '*',
