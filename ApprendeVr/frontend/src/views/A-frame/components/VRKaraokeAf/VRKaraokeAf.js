@@ -2,7 +2,6 @@
 // Puerto de A-frame/english-vr/VR/componentes/karaoke-vr/karaoke-vr.js (ver Requerimiento 009).
 import './components/VRNewSongAf/VRNewSongAf.js';
 import { fetchCurrentUser } from '../../vrAuth.util.js';
-import { getLocalSongs } from '../../vrSongCatalog.util.js';
 import { getPointerNDC } from '../../vrPointerRaycast.util.js';
 import { getSongs } from '../../vrSongsApi.util.js';
 
@@ -83,8 +82,8 @@ AFRAME.registerComponent('vr-karaoke-af', {
     L('Color del fondo (normalizado):', backgroundColor);
     L('Color del texto (normalizado):', textColor);
 
-    // Construir la lista de canciones a mostrar (videoList del schema + catálogo local agregado
-    // desde VRNewSongAf) y la UI del panel karaoke completa.
+    // Construir la lista de canciones a mostrar (solo desde la base de datos, vía `getSongs()`) y
+    // la UI del panel karaoke completa.
     this._initSongList();
 
     // Refrescar la lista cuando VRNewSongAf agrega una canción, para que aparezca sin recargar
@@ -235,8 +234,8 @@ AFRAME.registerComponent('vr-karaoke-af', {
   },
 
   // Construye el panel de la lista de canciones (fondo, título, botones) a partir de un array de
-  // entradas "archivo|autor[|duracion]" y selecciona la primera por defecto. Se llama tanto con
-  // `videoList` (schema) como con el catálogo local agregado desde VRNewSongAf. Ver `_initSongList`.
+  // entradas "archivo|autor[|duracion]" y selecciona la primera por defecto. Se llama con el
+  // catálogo del backend (`canciones_vr`). Ver `_initSongList`.
   _buildSongListUI: function (videos) {
     const textColor = this._textColor;
 
@@ -394,19 +393,10 @@ AFRAME.registerComponent('vr-karaoke-af', {
     this.el.appendChild(videoListContainer);
     this._videoListContainer = videoListContainer;
 
-    // Hallazgo real (reportado por el usuario: "se ha perdido la sincronizacion... al dar click
-    // con el cursor circular para reproducir en la lista, ademas elimina la cancion que no esta
-    // en base de datos"): `_buildSongListUI` se llama DOS veces por cada `_initSongList()` —
-    // una vez de inmediato (catálogo local + `videoList`) y otra vez cuando responde
-    // `getSongs()` (red, timing variable). Si el usuario ya había clickeado una canción de la
-    // lista ENTRE esas dos llamadas (p.ej. una que solo existe en local, no en el backend), este
-    // bloque volvía a seleccionar y cargar la PRIMERA canción de la lista reconstruida sin
-    // condición alguna — pisando en silencio la selección real del usuario apenas terminaba de
-    // cargar. Como el timing de red difiere entre el panel izquierdo y el derecho (cada iframe
-    // hace su propio `getSongs()`), cada panel podía terminar "pisado" en un momento distinto,
-    // reproduciendo canciones distintas — de ahí la pérdida de sincronización entre paneles. La
-    // canción local nunca se borraba de verdad (`getLocalSongs()`/localStorage no se tocan acá),
-    // pero al dejar de ser la seleccionada/reproducida daba la impresión de haber "desaparecido".
+    // La lista ya se construye UNA sola vez, únicamente desde el backend (`getSongs()`), así que
+    // este bloque ya no tiene la carrera de doble-build que había antes (localStorage + videoList
+    // primero, backend después). Si ya hay una canción cargada se re-resalta su botón; si no, se
+    // selecciona la primera de la lista por defecto.
     if (this.el.getAttribute('visible')) {
       if (this._currentSong && this._currentSong.fileName) {
         // Ya había una canción cargada (selección propia del usuario, o la carga inicial de una
@@ -428,38 +418,16 @@ AFRAME.registerComponent('vr-karaoke-af', {
     }
   },
 
-  // Combina varias listas de entradas `"fileName|autor"`, sin duplicar por `fileName` (la primera
-  // lista que trae un `fileName` dado gana).
-  _mergeSongEntries: function (lists) {
-    const seen = new Set();
-    const merged = [];
-    lists.forEach((list) => {
-      list.forEach((entry) => {
-        const fileName = entry.split('|')[0];
-        if (seen.has(fileName)) return;
-        seen.add(fileName);
-        merged.push(entry);
-      });
-    });
-    return merged;
-  },
-
-  // Construye la lista de canciones a mostrar. Requerimiento 014: primero pinta un resultado
-  // inmediato con lo que hay en memoria (catálogo local + `videoList` del schema como respaldo,
-  // sin esperar red), y en paralelo consulta `GET /api/songs` (catálogo compartido del backend);
-  // si responde con canciones, reconstruye la lista poniéndolas primero. Si `getSongs()` falla
-  // (sin red, backend apagado), ya devuelve `[]` por su cuenta (ver vrSongsApi.util.js) y esta
-  // vista se queda con el resultado inmediato, sin romperse.
+  // Construye la lista de canciones a mostrar. Pedido del usuario: la lista debe obtenerse
+  // ÚNICAMENTE de la base de datos (`GET /api/songs` → tabla `canciones_vr`) — ya NO se mezcla con
+  // el catálogo local de `localStorage` ni con el `videoList` hardcodeado del schema, que era la
+  // causa de que apareciera en la lista una canción que no está en la BD. Si `getSongs()` falla
+  // (sin red, backend apagado), devuelve `[]` por su cuenta (ver vrSongsApi.util.js) y la lista
+  // queda vacía, sin romperse.
   _initSongList: function () {
-    const fallbackVideos = this.data.videoList.split(',').map((v) => v.trim()).filter(Boolean);
-    const localSongs = getLocalSongs().map((s) => `${s.archivo}|${s.autor || 'Artista desconocido'}`);
-
-    this._buildSongListUI(this._mergeSongEntries([localSongs, fallbackVideos]));
-
     getSongs().then((backendSongs) => {
-      if (!backendSongs.length) return;
       const backendEntries = backendSongs.map((s) => `${s.fileName}|${s.author || 'Artista desconocido'}`);
-      this._buildSongListUI(this._mergeSongEntries([backendEntries, localSongs, fallbackVideos]));
+      this._buildSongListUI(backendEntries);
     });
   },
 
@@ -743,7 +711,9 @@ AFRAME.registerComponent('vr-karaoke-af', {
     fwdTime.setAttribute('align', 'left');
     fwdTime.setAttribute('color', '#ffffff');
     fwdTime.setAttribute('width', '1.4');
-    fwdTime.setAttribute('position', '3.0 0 0.01');
+    // Pegado a la derecha del botón ">>" (radio 0.2): arranca justo después de su borde, así el
+    // tiempo total queda dentro del plano del video en vez de flotar a 3 unidades del botón.
+    fwdTime.setAttribute('position', '0.25 0 0.01');
     fwdTime.setAttribute('scale', '6.0 6.0 6.0');
     btnForward.appendChild(fwdTime);
 
