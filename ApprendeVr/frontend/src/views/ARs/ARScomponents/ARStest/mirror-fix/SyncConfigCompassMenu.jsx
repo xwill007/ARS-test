@@ -970,8 +970,12 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             var POSITION_STEP_INCREMENT = ${POSITION_STEP_INCREMENT};
             // Pedido del usuario (ampliación): el paso ya no es fijo — su propia fila +/- lo
             // ajusta en vivo (ver dpad-step-minus/plus más abajo), arrancando en
-            // DEFAULT_POSITION_STEP y usado tanto para mover posición como rotación.
-            var currentStep = ${DEFAULT_POSITION_STEP};
+            // DEFAULT_POSITION_STEP y usado tanto para mover posición como rotación. Se interpola
+            // como VAR (no solo como valor de arranque) porque el handler de
+            // 'position-element-selected' lo reusa como fallback cuando el elemento no tiene step
+            // guardado — sin este var, ese fallback tiraba ReferenceError (hallazgo real).
+            var DEFAULT_POSITION_STEP = ${DEFAULT_POSITION_STEP};
+            var currentStep = DEFAULT_POSITION_STEP;
             // Pedido del usuario (ampliación): bisectriz angular de cada sección tipo "panel"
             // (Configuración/Overlays/Interfaz) — usada para rotar #settings-panel-anchor hacia
             // la misma dirección que la porción activa, ver __activateSettingsSection más abajo.
@@ -1093,8 +1097,13 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             // copia optimista para decidir en vivo si mostrar/ocultar Cancel.
             var savedPositionValue = [0, 0, 0];
             var savedRotationValue = [0, 0, 0];
-            // Pedido del usuario (ampliación): true cuando posición/rotación actuales difieren de
-            // las guardadas — controla si el botón "Cancel" está visible/clickeable.
+            // Pedido del usuario (ampliación): baseline del step GUARDADO del elemento — incluido en
+            // la comparación de "cambios sin guardar", así cambiar solo el step también activa
+            // Save (verde) y muestra Cancel.
+            var savedStep = DEFAULT_POSITION_STEP;
+            // Pedido del usuario (ampliación): true cuando posición/rotación/step actuales difieren
+            // de las guardadas — controla si el botón "Cancel" está visible/clickeable y si Save
+            // está verde (con cambios) o gris (sin cambios).
             var hasUnsavedChanges = false;
             function refreshCancelState() {
               var diff = false;
@@ -1102,6 +1111,8 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 if (selectedPositionValue[i] !== savedPositionValue[i]) diff = true;
                 if (selectedRotationValue[i] !== savedRotationValue[i]) diff = true;
               });
+              // Pedido del usuario (ampliación): el step también cuenta como cambio sin guardar.
+              if (currentStep !== savedStep) diff = true;
               hasUnsavedChanges = diff;
               var cancelBtn = document.querySelector('#dpad-cancel-btn');
               // Pedido del usuario (ampliación): el botón Guardar refleja si hay cambios sin
@@ -1275,10 +1286,15 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               // click de posición/rotación ya lo usa.
               document.querySelector('#dpad-step-minus').addEventListener('click', function () {
                 currentStep = Math.max(POSITION_STEP_RANGE.min, +(currentStep - POSITION_STEP_INCREMENT).toFixed(2));
+                // Pedido del usuario (ampliación): el step se guarda POR ELEMENTO — al cambiarlo se
+                // manda al overlay (vía padre), que lo persiste junto con position/rotation al
+                // pulsar Guardar (ver 'position-step' en vrPositionControl.js).
+                if (selectedPositionKey) send({ action: 'position-step', key: selectedPositionKey, step: currentStep });
                 refreshPositionDpad();
               });
               document.querySelector('#dpad-step-plus').addEventListener('click', function () {
                 currentStep = Math.min(POSITION_STEP_RANGE.max, +(currentStep + POSITION_STEP_INCREMENT).toFixed(2));
+                if (selectedPositionKey) send({ action: 'position-step', key: selectedPositionKey, step: currentStep });
                 refreshPositionDpad();
               });
               // Steppers X/Y/Z de posición del d-pad genérico: solo tienen sentido si hay un
@@ -1323,9 +1339,10 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 if (!selectedPositionKey) return;
                 send({ action: 'position-save', key: selectedPositionKey });
                 // Pedido del usuario (ampliación): lo recién guardado pasa a ser el nuevo baseline
-                // — Cancel se oculta porque ya no hay cambios sin guardar.
+                // — Cancel se oculta porque ya no hay cambios sin guardar. Incluye el step.
                 savedPositionValue = selectedPositionValue.slice();
                 savedRotationValue = selectedRotationValue.slice();
+                savedStep = currentStep;
                 refreshCancelState();
                 var btn = document.querySelector('#dpad-save-btn');
                 var prevColor = btn.getAttribute('color');
@@ -1367,11 +1384,21 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 selectedPositionKey = msg.key;
                 selectedPositionValue = msg.position.slice();
                 selectedRotationValue = (msg.rotation || [0, 0, 0]).slice();
+                // Pedido del usuario (ampliación): el "step" se guarda por elemento — al seleccionar
+                // uno, se restaura su step guardado (o el default si no hay ninguno para ESE
+                // elemento). El overlay lo incluye en 'position-element-selected' (ver
+                // vrPositionControl.js: onSelect y carga de BD).
+                if (typeof msg.step === 'number' && Number.isFinite(msg.step)) {
+                  currentStep = Math.min(POSITION_STEP_RANGE.max, Math.max(POSITION_STEP_RANGE.min, msg.step));
+                } else {
+                  currentStep = DEFAULT_POSITION_STEP;
+                }
                 // Pedido del usuario (ampliación): al seleccionar (o al restaurar tras Cancel), el
                 // valor recibido es el estado guardado — baseline = actual, sin cambios pendientes,
-                // así que Cancel arranca oculto.
+                // así que Cancel arranca oculto. Incluye el step.
                 savedPositionValue = selectedPositionValue.slice();
                 savedRotationValue = selectedRotationValue.slice();
+                savedStep = currentStep;
                 document.querySelector('#position-dpad-group').setAttribute('visible', true);
                 setDpadInteractive(true);
                 refreshPositionDpad();

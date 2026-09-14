@@ -448,20 +448,32 @@ export function initPositionControl(options) {
   // refresca en persist() y al cargar de la BD.
   const savedState = {};
   const savedRotState = {};
+  // Pedido del usuario (ampliación): "step" (incremento de edición) POR ELEMENTO, persistido en la
+  // MISMA config `aframe-view` (cada elemento guarda `{ position, rotation, step }`). Arranca
+  // `undefined` (sin valor explícito): así el d-pad de la brújula usa su default (0.25) hasta que
+  // el usuario lo cambie o lo cargue guardado de la BD.
+  const stepState = {};
+  // Pedido del usuario (ampliación): baseline del step GUARDADO por elemento — permite que "Cancel"
+  // también revierta un cambio de step (y que ese cambio active Save/Cancel en la brújula). Se
+  // refresca en persist() y al cargar de la BD, igual que savedState/savedRotState.
+  const savedStepState = {};
   targets.forEach((t) => {
     state[t.key] = t.getPos();
     rotState[t.key] = t.getRot ? t.getRot() : [0, 0, 0];
     savedState[t.key] = state[t.key].slice();
     savedRotState[t.key] = rotState[t.key].slice();
+    stepState[t.key] = undefined;
+    savedStepState[t.key] = undefined;
   });
 
   const persist = () => {
     const config = {};
     targets.forEach((t) => {
-      config[t.key] = { position: state[t.key], rotation: rotState[t.key] };
+      config[t.key] = { position: state[t.key], rotation: rotState[t.key], step: stepState[t.key] };
       // Lo recién guardado pasa a ser el nuevo "último guardado" (baseline para Cancel).
       savedState[t.key] = state[t.key].slice();
       savedRotState[t.key] = rotState[t.key].slice();
+      savedStepState[t.key] = stepState[t.key];
     });
     saveUserSetting(VIEW, config);
   };
@@ -499,7 +511,7 @@ export function initPositionControl(options) {
       t.setRot(next);
     };
     const onSelect = external
-      ? () => send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key] })
+      ? () => send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key], step: stepState[t.key] })
       : undefined;
     widget = createWidget(t.host, t.offset, onMove, persist, t.getPos, { external, onSelect });
     t.widget = widget;
@@ -539,11 +551,19 @@ export function initPositionControl(options) {
         if (!t) return;
         state[t.key] = (savedState[t.key] || state[t.key]).slice();
         rotState[t.key] = (savedRotState[t.key] || rotState[t.key]).slice();
+        stepState[t.key] = savedStepState[t.key];
         t.setPos(state[t.key]);
         if (t.setRot) t.setRot(rotState[t.key]);
         if (t.reanchor) t.reanchor(t.widget);
         if (t.widget.refreshCoordsLabel) t.widget.refreshCoordsLabel();
-        send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key] });
+        send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key], step: stepState[t.key] });
+      } else if (msg.action === 'position-step') {
+        // Pedido del usuario (ampliación): el d-pad de la brújula cambió el "step" del elemento —
+        // se guarda en memoria (se persiste recién al pulsar Guardar, junto con position/rotation).
+        const t = targets.find((tt) => tt.key === msg.key);
+        if (t && typeof msg.step === 'number' && Number.isFinite(msg.step)) {
+          stepState[t.key] = msg.step;
+        }
       } else if (msg.action === 'position-move') {
         const t = targets.find((tt) => tt.key === msg.key);
         if (!t) return;
@@ -575,6 +595,12 @@ export function initPositionControl(options) {
       if (t.setRot && elConfig && Array.isArray(elConfig.rotation) && elConfig.rotation.length === 3) {
         rotState[t.key] = elConfig.rotation;
         t.setRot(elConfig.rotation);
+      }
+      // Pedido del usuario (ampliación): recupera el "step" guardado por elemento (si existe) —
+      // si no, queda undefined y la brújula usa su default.
+      if (elConfig && typeof elConfig.step === 'number' && Number.isFinite(elConfig.step)) {
+        stepState[t.key] = elConfig.step;
+        savedStepState[t.key] = elConfig.step;
       }
     });
     // Pedido del usuario (ampliación): tras aplicar lo cargado de la BD, ese pasa a ser el nuevo

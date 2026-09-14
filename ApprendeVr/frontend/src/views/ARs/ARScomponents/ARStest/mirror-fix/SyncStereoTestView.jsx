@@ -455,7 +455,7 @@ const SyncStereoTestView = ({ onClose }) => {
       // Un +/- (o Guardar) del d-pad genérico de la brújula — se reenvía a los overlays de
       // karaoke de AMBOS paneles (ahí vive el elemento real que hay que mover/guardar), no solo
       // al opuesto: mismo criterio que 'position-element-selected'.
-      if (msg.action === 'position-move' || msg.action === 'position-save' || msg.action === 'position-reset') {
+      if (msg.action === 'position-move' || msg.action === 'position-save' || msg.action === 'position-reset' || msg.action === 'position-step') {
         if (msg.action === 'position-move' && positionSelectedRef.current && positionSelectedRef.current.key === msg.key) {
           const axisIndex = ['x', 'y', 'z'].indexOf(msg.axis);
           if (axisIndex !== -1) {
