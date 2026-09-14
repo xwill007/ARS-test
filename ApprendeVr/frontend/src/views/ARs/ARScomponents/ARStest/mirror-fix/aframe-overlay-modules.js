@@ -227,10 +227,19 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
     const currentFileName = karaokeComp && karaokeComp._currentSong && karaokeComp._currentSong.fileName;
     if (currentFileName && currentFileName !== lastReportedFileName) {
       const isEcho = suppressNextSongReport;
+      // Pedido del usuario: "quita el auto play de inicio al recargar la pagina" — la PRIMERA
+      // detección de canción es la auto-selección de la canción por defecto que hace
+      // VRKaraokeAf.js al cargar la lista (no un click real del usuario). Se la marca `silent`
+      // para que el panel hermano la aplique SIN countdown/autoplay (ver `evt.silent` en
+      // VRKaraokeAf.js) — si no, al abrir AR-SYNC cada panel relevaba su canción por defecto al
+      // otro como si fuera una selección real y el video terminaba arrancando solo. Solo la primera
+      // vez es `silent`; los clicks reales posteriores siguen disparando countdown+autoplay como
+      // antes.
+      const isInitialAutoSelect = lastReportedFileName === null;
       lastReportedFileName = currentFileName;
       suppressNextSongReport = false;
       if (!isEcho) {
-        send({ action: 'karaoke-song-select', fileName: currentFileName, fromRight: isRightPanel });
+        send({ action: 'karaoke-song-select', fileName: currentFileName, fromRight: isRightPanel, silent: isInitialAutoSelect });
       }
     }
     const current = karaokeComp && karaokeComp._htmlVideo;
@@ -357,7 +366,7 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
   // cada botón) — así el "stop y reinicio desde el comienzo" pedido por el usuario lo hace el
   // propio `loadVideo()` real del componente (recrea el `<video>` desde 0, con su mismo
   // countdown/autoplay), sin duplicar esa lógica acá ni tocar VRKaraokeAf.js.
-  function applySongSelect(fileName) {
+  function applySongSelect(fileName, silent) {
     const buttons = (karaokeComp && karaokeComp._songButtons) || [];
     const button = buttons.find(function (b) { return b._fileName === fileName; });
     if (!button || typeof button._activateSelection !== 'function') {
@@ -368,7 +377,9 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
       return;
     }
     suppressNextSongReport = true;
-    button._activateSelection({ type: 'pointerdown', defaultPrevented: false });
+    // `silent`: reconciliación de arranque (ver 'karaoke-ready' en SyncStereoTestView.jsx), no
+    // una selección real — VRKaraokeAf.js lo usa para omitir el countdown/autoplay.
+    button._activateSelection({ type: 'pointerdown', defaultPrevented: false, silent: !!silent });
   }
 
   window.addEventListener('message', function (ev) {
@@ -391,7 +402,7 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
     }
     if (msg.action === 'karaoke-song-select') {
       if (msg.fileName === lastReportedFileName) return; // ya es esta canción, nada que hacer
-      applySongSelect(msg.fileName);
+      applySongSelect(msg.fileName, msg.silent);
       return;
     }
     if (!video) return;

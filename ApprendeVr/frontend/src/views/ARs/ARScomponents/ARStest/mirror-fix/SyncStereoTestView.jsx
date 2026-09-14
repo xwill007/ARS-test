@@ -702,8 +702,14 @@ const SyncStereoTestView = ({ onClose }) => {
         // este panel recién montado arrancó con la canción por defecto de su propia lista — se le
         // avisa cuál es la vigente ANTES del seek/play, para que la busque y la cargue.
         if (karaokeSongRef.current) {
+          // Pedido del usuario: "al cargar la pagina no muestres cuenta regresiva el video
+          // inicia detenido hasta que el usuario de play o seleccione cancion de la lista" —
+          // `silent: true` porque este catch-up NO es una selección real del usuario, es solo la
+          // reconciliación de arranque de un panel recién montado con el hermano; sin esto, ese
+          // panel disparaba un countdown+autoplay no pedido al simplemente abrir AR-SYNC (ver
+          // `evt.silent` en VRKaraokeAf.js).
           ev.source.postMessage(
-            { source: 'ars-sync-test', action: 'karaoke-song-select', fileName: karaokeSongRef.current },
+            { source: 'ars-sync-test', action: 'karaoke-song-select', fileName: karaokeSongRef.current, silent: true },
             '*',
           );
         }

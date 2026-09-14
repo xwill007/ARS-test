@@ -344,8 +344,18 @@ AFRAME.registerComponent('vr-karaoke-af', {
         if (evt && evt.defaultPrevented) return;
         L(`Cancion Seleccionada: ${fileName} - ${artistName}`, evt && evt.type);
         try { this._selectSongButton(button); } catch (e) {}
+        // Pedido del usuario: "al cargar la pagina no muestres cuenta regresiva el video inicia
+        // detenido hasta que el usuario de play o seleccione cancion de la lista" — `evt.silent`
+        // lo manda el bridge (aframe-overlay-modules.js, `applySongSelect`) SOLO para la
+        // reconciliación de arranque de un panel recién montado con el panel hermano
+        // ('karaoke-ready', ver SyncStereoTestView.jsx) — no para una selección real del usuario
+        // (ni local ni relayada en vivo desde el panel hermano, que sigue mostrando el countdown
+        // sincronizado como antes). Sin esto, un panel que recién monta podía terminar
+        // "re-seleccionando" su propia canción por defecto al ponerse al día con el hermano,
+        // disparando un countdown+autoplay no pedido justo al abrir AR-SYNC.
+        const skipCountdown = !!(evt && evt.silent);
         try {
-          this.loadVideo(`/videos/karaoke/${fileName}`, { fileName, artistName }, { countdown: true });
+          this.loadVideo(`/videos/karaoke/${fileName}`, { fileName, artistName }, skipCountdown ? undefined : { countdown: true });
         } catch (e) {
           this.loadVideo(`/videos/karaoke/${fileName}`, { fileName, artistName });
         }
@@ -469,6 +479,17 @@ AFRAME.registerComponent('vr-karaoke-af', {
     const artistName = (meta && meta.artistName) ? meta.artistName : null;
     this._currentSong = { path: videoPath, fileName: fileName, artist: artistName };
 
+    // Pedido del usuario: al cambiar de canción (seleccionando una nueva en la lista) se debe
+    // DETENER la actual para no reproducir dos al mismo tiempo. El countdown anterior (si queda
+    // pendiente) vive en un `setInterval` que, si no se cancela, al terminar llama a `play()` sobre
+    // el video VIEJO — que ya fue removido del DOM pero sigue reteniendo su `src` y puede seguir
+    // sonando. Por eso se cancela ese intervalo y se detiene el video viejo de forma definitiva
+    // (pause + mute + quitar src + reload), no solo se lo remueve del DOM.
+    if (this._countdownInterval) {
+      clearInterval(this._countdownInterval);
+      this._countdownInterval = null;
+    }
+
     const existingVideo = this.el.querySelector('a-video');
     if (existingVideo) {
       this.el.removeChild(existingVideo);
@@ -485,7 +506,7 @@ AFRAME.registerComponent('vr-karaoke-af', {
 
     try {
       if (this._htmlVideo && this._htmlVideo.parentNode) {
-        try { this._htmlVideo.pause(); } catch (e) {}
+        try { this._htmlVideo.pause(); this._htmlVideo.muted = true; this._htmlVideo.removeAttribute('src'); this._htmlVideo.load(); } catch (e) {}
         this._htmlVideo.parentNode.removeChild(this._htmlVideo);
       }
     } catch (e) { /* ignore */ }
@@ -526,14 +547,18 @@ AFRAME.registerComponent('vr-karaoke-af', {
 
         let sec = 3;
         try { countdownEl.setAttribute('visible', 'true'); countdownEl.setAttribute('value', sec.toString()); } catch (e) {}
-        const intervalId = setInterval(() => {
+        // Se guarda el intervalo en `this._countdownInterval` (no en una variable local) para que
+        // una selección de canción posterior pueda cancelarlo (ver el arranque de `loadVideo`) y no
+        // deje sonando el video viejo al terminar su cuenta regresiva.
+        this._countdownInterval = setInterval(() => {
           try {
             sec -= 1;
             L('countdown tick:', sec);
             if (sec > 0) {
               countdownEl.setAttribute('value', sec.toString());
             } else {
-              clearInterval(intervalId);
+              clearInterval(this._countdownInterval);
+              this._countdownInterval = null;
               try { if (countdownEl.parentNode) countdownEl.parentNode.removeChild(countdownEl); } catch (e) {}
               try {
                 L('Intentando autoplay sin silenciar tras countdown');
@@ -602,7 +627,7 @@ AFRAME.registerComponent('vr-karaoke-af', {
                 doUnmutedThenFallback();
               } catch (err) { W('Error al iniciar play tras countdown:', err); }
             }
-          } catch (e) { clearInterval(intervalId); }
+          } catch (e) { clearInterval(this._countdownInterval); this._countdownInterval = null; }
         }, 1000);
       }
     } catch (e) { W('Error creando overlay de countdown:', e); }
