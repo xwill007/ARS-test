@@ -644,8 +644,12 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                VRConeOverlaySync.jsx: SIN el componente cursor="fuse:..." nativo — su pipeline de
                eventos no se pudo hacer disparar en este contexto; el script de más abajo maneja
                color/escala/dwell/click a mano). El <a-cursor> primitivo sigue trayendo consigo el
-               componente "cursor" por defecto (sin fuse), que es lo que hace que el click DIRECTO
-               (real, no dwell) también dispare 'click' en el elemento intersectado. -->
+               componente "cursor" por defecto, que dispara 'click' sobre el elemento intersectado
+               en el CENTRO de la pantalla — se desactiva (cursor="enabled: false") porque en web el
+               click de mouse debe resolver por la POSICIÓN REAL del cursor (ver el script
+               "mouse-click" más abajo), no por el centro: si no, un click en cualquier punto
+               activaría lo que está en el centro de la pantalla. El raycaster (que alimenta el
+               dwell del reticle) se conserva intacto. -->
           <!-- Pedido del usuario: las flechas deben acercar/alejar la cámara del overlay de
                contenido (karaoke/video/cono), no la de esta brújula — la brújula siempre debe
                quedarse fija en CAMERA_POSITION, mirando hacia abajo al menú ("el menú siempre
@@ -660,6 +664,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               position="0 0 -1"
               geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
               material="color: white; shader: flat; opacity: 0.85"
+              cursor="enabled: false"
               raycaster="objects: .clickable; far: 30; interval: 100">
             </a-cursor>
           </a-camera>
@@ -1536,6 +1541,72 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 lastReceivedPitch = msg.pitch;
                 lookControls.yawObject.rotation.y = msg.yaw;
                 lookControls.pitchObject.rotation.x = msg.pitch;
+              }
+            });
+          })();
+        </script>
+
+        <script>
+          // Pedido del usuario: en web, además del reticle circular (gaze/dwell, que dispara desde
+          // el CENTRO de la pantalla), el mouse debe poder seleccionar cualquier elemento
+          // clickeable con su click real, resolviendo por la POSICIÓN del mouse (no el centro).
+          // Hasta ahora el click de mouse caía en el componente "cursor" por defecto del <a-cursor>,
+          // que también apunta al centro — por eso se desactivó (cursor="enabled: false") y acá se
+          // reimplementa con un raycast manual a la posición del mouse, mismo patrón que
+          // vrPositionControl.js/aframe-overlay-modules.js.
+          //
+          // Se usa pointerdown/pointerup con umbral de movimiento (no "click" directo) para no
+          // confundir un arrastre de cámara (drag-to-look, ver el script de más abajo) con un click:
+          // si el puntero se movió más de 4px entre bajar y soltar, es arrastre y no se activa nada.
+          (function () {
+            var isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(navigator.userAgent || '');
+            if (isMobile) return;
+
+            var sceneEl = document.querySelector('a-scene');
+            var THREE = AFRAME.THREE;
+            var mouse = new THREE.Vector2();
+            var raycaster = new THREE.Raycaster();
+            raycaster.far = 30;
+
+            var downX = 0;
+            var downY = 0;
+            var moved = false;
+
+            function collectTargets() {
+              var targets = [];
+              document.querySelectorAll('.clickable').forEach(function (el) {
+                if (!el.object3D) return;
+                el.object3D.traverse(function (o) {
+                  if (o.isMesh) targets.push({ mesh: o, el: el });
+                });
+              });
+              return targets;
+            }
+
+            window.addEventListener('pointerdown', function (e) {
+              downX = e.clientX;
+              downY = e.clientY;
+              moved = false;
+            });
+            window.addEventListener('pointermove', function (e) {
+              if (Math.abs(e.clientX - downX) > 4 || Math.abs(e.clientY - downY) > 4) moved = true;
+            });
+            window.addEventListener('pointerup', function (e) {
+              if (moved) return;
+              if (!sceneEl || !sceneEl.camera) return;
+              var canvas = sceneEl.canvas;
+              if (!canvas) return;
+              var rect = canvas.getBoundingClientRect();
+              var x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+              var y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+              mouse.set(x, y);
+              raycaster.setFromCamera(mouse, sceneEl.camera);
+              var targets = collectTargets();
+              var hits = raycaster.intersectObjects(targets.map(function (t) { return t.mesh; }), false);
+              if (!hits.length) return;
+              var target = targets.find(function (t) { return t.mesh === hits[0].object; });
+              if (target) {
+                target.el.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
               }
             });
           })();
