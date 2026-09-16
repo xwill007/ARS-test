@@ -290,6 +290,16 @@ const SyncStereoTestView = ({ onClose }) => {
     );
   };
 
+  // Pedido del usuario: "PREVIEW ON YOUTUBE" (VRNewSongAf.js, dentro del overlay `karaoke`) debe
+  // abrir el overlay real "Youtube Video" en vez de su propio panel flotante. A diferencia de
+  // `toggleOverlay` (togglea on/off, usado por el checkbox del menú), esto es una activación —
+  // solo agrega la clave si todavía no está seleccionada, nunca la apaga (un click en "PREVIEW"
+  // repetido no debería desactivar el overlay que el propio usuario recién pidió ver).
+  const activateOverlay = (key) => {
+    setSelectedOverlays((prev) => (prev.includes(key) ? prev : [...prev, key]));
+    setOverlaysSaved(false);
+  };
+
   // Guardado explícito (botón "Guardar" al inicio de la lista de overlays, no autosave al
   // togglear) — el usuario pidió que la selección se guarde bajo su propia acción, no en cada
   // click de checkbox. El botón se pone gris solo si el guardado terminó en éxito (200), no de
@@ -514,6 +524,14 @@ const SyncStereoTestView = ({ onClose }) => {
       }
       if (msg.action === 'compass-save-overlays') {
         saveSelectedOverlays();
+        return;
+      }
+      if (msg.action === 'activate-overlay') {
+        // Enviado por VRNewSongAf.js (dentro del overlay `karaoke`) al pulsar "PREVIEW ON
+        // YOUTUBE" — la URL ya viaja por `localStorage` (mismo puente de campos de
+        // aframe-overlay-modules.js que sincroniza el panel New Song entre paneles), acá solo
+        // hace falta asegurarse de que el overlay quede seleccionado para que se monte y la lea.
+        activateOverlay(msg.key);
         return;
       }
 

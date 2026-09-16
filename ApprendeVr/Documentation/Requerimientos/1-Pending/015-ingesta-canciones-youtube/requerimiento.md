@@ -335,6 +335,18 @@ siempre un objeto completo con un solo productor, no cambian de comportamiento c
 criterio para `isValidArsSyncOverlaysConfig` (agregar `youtubeVideo` a las claves de overlay
 válidas, para que "Guardar selección" tampoco falle).
 
+**"PREVIEW ON YOUTUBE" activa el overlay real en vez de su propio panel (ampliación pedida por el
+usuario tras probar el overlay `youtubeVideo`).** Dentro de AR-SYNC, el click ya no llama a
+`_openPreviewOverlay` — manda `{ action: 'activate-overlay', key: 'youtubeVideo' }` a
+`SyncStereoTestView.jsx`, que agrega esa clave a `selectedOverlays` si todavía no está (función
+nueva `activateOverlay`, distinta de `toggleOverlay`: solo prende, nunca apaga — un click repetido
+en "PREVIEW" no debería desactivar el overlay que el propio usuario pidió ver). La URL no viaja en
+el mensaje: ya está en `localStorage` desde que el usuario la escribió/pegó (mismo puente de campos
+que sincroniza el panel New Song entre paneles), así que el overlay la lee solo apenas se monta.
+`window.parent !== window` distingue estar embebido en AR-SYNC (mirror-fix) de la vista de
+producción (`src/views/A-frame/index.html`, sin ese overlay) — ahí se mantiene el panel flotante
+propio de siempre, sin regresión.
+
 **"PREVIEW ON YOUTUBE": panel 2D flotante (DOM) en vez de pestaña nueva (pedido del usuario).** El
 botón existente abría `window.open(url)`; se cambia a mostrar el video embebido
 (`youtube.com/embed/<id>`) en un panel superpuesto al canvas de A-Frame, sin salir de la vista.
@@ -415,6 +427,7 @@ también).
 | `ApprendeVr/frontend/src/views/A-frame/vrPositionControl.js` | Agregar `{ key: 'youtubeVideo', selector: '#youtube-video-anchor', offset: [-0.3, 0.3, 0.05] }` a `ELEMENTS`. |
 | `ApprendeVr/backend/src/user-settings/user-settings.util.ts` | `isValidAframeViewConfig`: acepta cualquier subconjunto no vacío de `['karaoke','songList','newSong','youtubeVideo']` (antes exigía las 3 originales completas). `isValidArsSyncOverlaysConfig`: agregar `youtubeVideo` a `ARS_SYNC_OVERLAY_KEYS`. |
 | `ApprendeVr/backend/src/user-settings/user-settings.service.ts` | `saveConfig`: merge superficial del `config` (antes reemplazo completo), para que un guardado parcial de una página no borre lo que otra ya guardó. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Nueva función `activateOverlay(key)` + handler del mensaje `activate-overlay` (agrega la clave a `selectedOverlays` si falta, nunca la apaga). |
 | `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Agregar `youtubeVideo` a `SYNCABLE_OVERLAYS`. |
 | `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigCompassMenu.jsx` | Agregar `youtubeVideo` a `OVERLAY_OPTIONS` (lista real, no `SyncConfigMenu.jsx`); botón/subtexto del grupo Overlays reubicados dinámicamente según `OVERLAY_OPTIONS.length`. |
 | `ApprendeVr/frontend/src/locales/{es,en,br}.json` | Claves `syncConfig.overlay.youtubeVideo`/`youtubeVideoShort`. |
@@ -483,6 +496,10 @@ también).
 - [ ] Guardar la posición del overlay "Youtube Video" no borra las posiciones de
       karaoke/songList/newSong ya guardadas desde `index.html`/`aframe-overlay-modules.html` (ni
       viceversa) — confirma que el guardado es un merge, no un reemplazo completo.
+- [ ] Dentro de AR-SYNC, click en "PREVIEW ON YOUTUBE" activa el overlay "Youtube Video" (queda
+      seleccionado en el menú ⚙️ → "Overlays") en vez de abrir un panel propio; un segundo click no
+      lo desactiva. En `src/views/A-frame/index.html` (producción, sin AR-SYNC) sigue abriendo su
+      panel flotante propio, sin regresión.
 
 ## 8. Referencias
 

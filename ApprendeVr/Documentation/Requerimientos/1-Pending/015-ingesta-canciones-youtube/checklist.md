@@ -204,6 +204,19 @@
         400) → recargar la página → la posición guardada (`x: 0.5`) se reaplica sola al
         `#youtube-video-anchor`, y las posiciones de karaoke/songList/newSong guardadas antes
         siguen intactas (confirma el merge, no solo el guardado).
+- [x] 6.10 "PREVIEW ON YOUTUBE" activa el overlay real en vez de su panel propio (pedido del
+      usuario tras probar 6.9): dentro de AR-SYNC (`window.parent !== window`), el click manda
+      `{ source: 'ars-sync-test', action: 'activate-overlay', key: 'youtubeVideo' }` a
+      `SyncStereoTestView.jsx` en vez de abrir `_openPreviewOverlay` — la URL ya viaja sola por
+      `localStorage` (mismo puente de campos de la tarea 6.7), así que el mensaje solo necesita
+      pedir que el overlay quede seleccionado. Nueva función `activateOverlay(key)` en
+      `SyncStereoTestView.jsx` (agrega la clave a `selectedOverlays` si falta; a diferencia de
+      `toggleOverlay`, nunca la apaga — un click repetido en "PREVIEW" no debe desactivar el
+      overlay que el propio usuario acaba de pedir ver). En la vista de producción
+      (`src/views/A-frame/index.html`, sin AR-SYNC, `window.parent === window`) se mantiene el
+      panel flotante propio de siempre, porque ahí no existe el overlay "Youtube Video". Validado
+      en el navegador: `hasLocalPanel: false`, `hasYoutubeVideoOverlay: true`, sin errores de
+      consola, visible en ambos paneles estéreo.
 
 - [ ] 7.1 `npm run build` y `npm test` (backend) pasan sin levantar MySQL ni LibreTranslate.
 - [ ] 7.2 `npm run test:cov` (backend): revisar la tabla por archivo de los módulos nuevos.

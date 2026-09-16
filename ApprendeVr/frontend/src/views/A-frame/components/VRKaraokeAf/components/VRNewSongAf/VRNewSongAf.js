@@ -232,12 +232,16 @@ AFRAME.registerComponent('vr-new-song-af', {
     y -= 0.32;
 
     // Botón para previsualizar el YouTube URL (Opción B del Requerimiento 003 legacy, sección 4).
-    // Pedido del usuario: en vez de abrir una pestaña nueva, mostrar el video embebido en un panel
-    // superpuesto a la escena 3D. No puede ser una textura WebGL real (un iframe cross-origin de
-    // YouTube no se puede leer como `<a-video>` — restricción del navegador, ver Requerimiento 015
-    // sección 5), así que se arma como un `<div>`/`<iframe>` de DOM normal, flotando sobre el
-    // canvas de A-Frame (mismo criterio ya decidido para el overlay `youtube-karaoke` del
-    // Requerimiento 015: dos iframes 2D superpuestos con CSS, no un plano 3D texturizado).
+    //
+    // Pedido del usuario (ampliación): dentro de AR-SYNC (mirror-fix), en vez de abrir su propio
+    // panel flotante, activa el overlay real "Youtube Video" (mismo que aparece en el menú ⚙️ →
+    // "Overlays") mandándole la URL — la URL ya viaja sola por `localStorage` (mismo puente de
+    // campos de aframe-overlay-modules.js que sincroniza este panel entre los dos paneles
+    // estéreo), así que acá solo hace falta pedirle al padre (`SyncStereoTestView.jsx`) que lo
+    // seleccione si todavía no lo está (`activate-overlay`, ver ese archivo). `window.parent !==
+    // window` detecta si este panel está embebido en un iframe (mirror-fix) o es la vista de
+    // producción (`src/views/A-frame/index.html`, sin AR-SYNC) — ahí no existe ese overlay, así
+    // que se mantiene el panel flotante propio de siempre (`_openPreviewOverlay`).
     const previewBtn = document.createElement('a-plane');
     previewBtn.setAttribute('width', fieldRowW);
     previewBtn.setAttribute('height', 0.24);
@@ -254,14 +258,22 @@ AFRAME.registerComponent('vr-new-song-af', {
     const onPreviewClick = () => {
       const url = (this._values.youtubeUrl || '').trim();
       if (!url) return;
-      if (this._previewOverlay) {
-        this._closePreviewOverlay();
-        return;
-      }
       const videoId = extractYoutubeVideoId(url);
       if (!videoId) {
         this._statusText.setAttribute('color', '#ff8888');
         this._statusText.setAttribute('value', 'No se reconoce el formato de esa URL de YouTube.');
+        return;
+      }
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({ source: 'ars-sync-test', action: 'activate-overlay', key: 'youtubeVideo' }, '*');
+        } catch (e) { /* ignore */ }
+        this._statusText.setAttribute('color', '#aaffaa');
+        this._statusText.setAttribute('value', 'Mostrando en el overlay "Youtube Video".');
+        return;
+      }
+      if (this._previewOverlay) {
+        this._closePreviewOverlay();
         return;
       }
       this._openPreviewOverlay(videoId);
