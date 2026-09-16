@@ -213,7 +213,11 @@ AFRAME.registerComponent('vr-new-song-af', {
           this._statusText.setAttribute('value', 'Portapapeles vacio (sin texto copiado).');
           return;
         }
-        this._values.youtubeUrl = (this._values.youtubeUrl || '') + clip;
+        // Pedido del usuario: reemplaza el valor actual del campo en vez de agregarse al final —
+        // mismo criterio que el botón "PEGAR URL" del overlay "Youtube Video"
+        // (youtube-video-modules.js), para que pegar una URL nueva no quede concatenada con lo
+        // que hubiera antes.
+        this._values.youtubeUrl = clip;
         this._refreshFieldText('youtubeUrl');
         this._setActiveField('youtubeUrl');
         this._statusText.setAttribute('color', '#aaffaa');
