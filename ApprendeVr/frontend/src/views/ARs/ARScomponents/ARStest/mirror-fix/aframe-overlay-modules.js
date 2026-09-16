@@ -427,6 +427,12 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
   }
 
   const FIELD_NAMES = ['titulo', 'autor', 'archivo', 'youtubeUrl'];
+  // Clave compartida con VRYoutubeVideoOverlaySync.jsx: como todos los iframes de mirror-fix son
+  // del mismo origen, escribir acá alcanza para que el overlay nuevo "youtubeVideo" (otro iframe,
+  // activado desde el menú ⚙️ → Overlays) se entere de qué video mostrar sin un puente de
+  // postMessage propio para este dato — ese overlay escucha el evento `storage`, que el navegador
+  // dispara solo en los OTROS documentos del mismo origen (nunca en el que escribió).
+  const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
   let newSongComp = null;
   // Último valor CONOCIDO de cada campo, ya sea porque ESTE panel lo escribió o porque lo aplicó
   // un mensaje remoto — al pollear, solo se reenvía un campo si cambió respecto a esto, así un
@@ -451,6 +457,9 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
       if (value !== lastKnown[field]) {
         lastKnown[field] = value;
         send({ action: 'new-song-field-update', field: field, value: value });
+        if (field === 'youtubeUrl') {
+          try { localStorage.setItem(YOUTUBE_URL_STORAGE_KEY, value); } catch (e) { /* ignore */ }
+        }
       }
     });
   }

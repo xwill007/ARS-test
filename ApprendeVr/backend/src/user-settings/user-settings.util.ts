@@ -64,12 +64,25 @@ export function isValidLoginFormConfig(config: unknown): boolean {
 // el DOM), así que no tiene una entrada propia acá. `songList` es la lista de canciones (también
 // dentro del panel de karaoke, pero posicionable por separado vía this._videoListContainer de
 // VRKaraokeAf.js) — karaoke, songList y newSong son posicionables por separado.
-const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong'] as const;
+// `youtubeVideo` (Requerimiento 015): ancla del overlay "Youtube Video" de mirror-fix
+// (`#youtube-video-anchor`, ver vrPositionControl.js).
+//
+// Ninguna de las cuatro es individualmente obligatoria en el payload: cada página que edita esta
+// vista (`index.html`/`aframe-overlay-modules.html` para karaoke/songList/newSong,
+// `youtube-video.html` para youtubeVideo) solo conoce/manda los elementos que existen EN SU PROPIO
+// DOM (ver `persist()`/`ELEMENTS` en vrPositionControl.js) — exigir las cuatro juntas rompería el
+// guardado de cualquiera de esas páginas por separado. `UserSettingsService.saveConfig` hace un
+// merge superficial (no un reemplazo completo) para que un guardado parcial no borre lo que otra
+// página ya había guardado; acá solo queda validar que CADA clave presente tenga una forma válida,
+// y rechazar un payload sin NINGUNA clave conocida (objeto vacío/con basura).
+const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong', 'youtubeVideo'] as const;
 
 export function isValidAframeViewConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;
   const c = config as Record<string, unknown>;
-  return AFRAME_VIEW_ELEMENTS.every((key) => isPositionedElement(c[key]));
+  const presentKeys = AFRAME_VIEW_ELEMENTS.filter((key) => key in c);
+  if (presentKeys.length === 0) return false;
+  return presentKeys.every((key) => isPositionedElement(c[key]));
 }
 
 // evaluation-panel: posición del panel de evaluación dinámico (ver VREvaluacionAf.js,
@@ -80,9 +93,11 @@ export function isValidEvaluationPanelConfig(config: unknown): boolean {
 }
 
 // ars-sync-overlays: qué overlays quedan marcados en el menú de la vista de prueba "AR-SYNC"
-// (SyncConfigMenu.jsx/SyncStereoTestView.jsx, Requerimiento 012) — una lista de claves conocidas,
-// sin duplicados exigidos ni orden particular.
-const ARS_SYNC_OVERLAY_KEYS = ['camera', 'video', 'cone', 'karaoke'] as const;
+// (SyncConfigCompassMenu.jsx/SyncStereoTestView.jsx, Requerimiento 012) — una lista de claves
+// conocidas, sin duplicados exigidos ni orden particular. `youtubeVideo` (Requerimiento 015):
+// overlay nuevo "Youtube Video" — sin esta clave acá, marcarlo y pulsar "Guardar selección"
+// devolvería 400 (mismo tipo de bug ya documentado para `AFRAME_VIEW_ELEMENTS` de arriba).
+const ARS_SYNC_OVERLAY_KEYS = ['camera', 'video', 'cone', 'karaoke', 'youtubeVideo'] as const;
 
 export function isValidArsSyncOverlaysConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;

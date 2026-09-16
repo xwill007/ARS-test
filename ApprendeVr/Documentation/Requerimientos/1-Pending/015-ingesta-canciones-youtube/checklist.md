@@ -137,8 +137,73 @@
       `SyncStereoTestView.jsx` (su relay genérico ya reenvía cualquier acción no reservada del
       overlay `karaoke` al panel opuesto). Pedido del usuario tras notar que "PEGAR URL DEL
       PORTAPAPELES" solo actualizaba el panel donde se hizo click.
-
-### Fase 7 — Verificación y cierre
+- [x] 6.8 Nuevo overlay `youtubeVideo` ("Youtube Video") en AR-SYNC, pedido del usuario para no
+      depender del botón "PREVIEW ON YOUTUBE" cada vez: se activa/desactiva desde el menú ⚙️ →
+      pestaña "Overlays" como cualquier otro (`video`/`cone`/`karaoke`), y muestra el video
+      embebido de la URL que haya en `youtubeUrl` del panel New Song. Implementación (sigue el
+      skill `overlay-ar-sync-aframe`):
+      - `VRYoutubeVideoOverlaySync.jsx` (nuevo, patrón `srcDoc` autocontenido como
+        `VRConeOverlaySync.jsx` — sin dependencias de Vite): puente de cámara por postMessage
+        (copia del de `VRConeOverlaySync.jsx`) + panel de video que sigue a un ancla 3D fija
+        (`#youtube-video-anchor`) proyectada a pantalla en cada frame, mismo truco "billboard" que
+        el panel de previsualización de `VRNewSongAf.js`.
+      - Se entera de qué video mostrar leyendo `localStorage['apprendevr_youtube_preview_url']`
+        (escrito por el puente de campos de `aframe-overlay-modules.js`, tarea 6.7, cada vez que
+        cambia `youtubeUrl`) y escuchando el evento `storage` — no necesita su propio puente de
+        postMessage para este dato porque todos los iframes de `mirror-fix` comparten origen.
+      - Registrado en los 3 lugares obligatorios: `SYNCABLE_OVERLAYS` (`SyncStereoTestView.jsx`),
+        `OVERLAY_OPTIONS` (`SyncConfigCompassMenu.jsx` — **no** `SyncConfigMenu.jsx`, que ya no
+        existe: el skill estaba desactualizado en ese punto, corroborado leyendo el código real),
+        clave `syncConfig.overlay.youtubeVideo`/`youtubeVideoShort` en `{es,en,br}.json`.
+      - Corregido de paso un bug de layout ya latente en `SyncConfigCompassMenu.jsx`: el botón
+        "Guardar"/subtexto del grupo Overlays tenían posición Y fija, pensada para 4 filas — con
+        la 5ta (`youtubeVideo`) la última fila casi pisaba el botón. Se vuelven dinámicos en base a
+        `OVERLAY_OPTIONS.length` para que agregar overlays a futuro no repita el problema.
+      - Validado en el navegador: activar el overlay vía el mismo mensaje `compass-toggle-overlay`
+        que dispara el click real del menú — aparece en ambos paneles con el video embebido, sin
+        errores de consola.
+- [x] 6.9 Ampliación pedida por el usuario tras probar 6.8 ("al seleccionar el overlay no muestra
+      nada"): el overlay ahora siempre muestra algo, y suma el componente de edición de ubicación
+      con persistencia real en base de datos.
+      - `youtube-video-modules.js` reescrito: panel SIEMPRE visible (antes solo aparecía si ya
+        había una URL puesta desde New Song) con input de URL + botón "PEGAR URL" (mismo patrón de
+        `window.focus()` antes de `navigator.clipboard.readText()` que `VRNewSongAf.js`) + el
+        recuadro (16:9, borde punteado como placeholder o el iframe embebido real) donde se ve el
+        video — lee/escribe la misma clave de `localStorage` que el panel New Song.
+      - **Conversión de `srcDoc` a página Vite real** (`youtube-video.html` +
+        `youtube-video-modules.js`, registrada en `vite.config.js`): necesaria para poder
+        `import`ar `vrPositionControl.js` real (un `srcDoc` en blanco no resuelve imports de
+        proyecto) — mismo criterio que ya usa el overlay `karaoke`. `VRYoutubeVideoOverlaySync.jsx`
+        pasa de `srcDoc` a `src="./youtube-video.html"` + `allow="...; clipboard-read"`.
+      - `vrPositionControl.js` → `ELEMENTS`: nueva entrada `{ key: 'youtubeVideo', selector:
+        '#youtube-video-anchor', offset: [-0.3, 0.3, 0.05] }` — el marcador 📍/d-pad/GUARDAR
+        aparece igual que para karaoke/newSong, moviendo el ancla 3D que el panel de video sigue en
+        pantalla.
+      - **Bug de backend descubierto y corregido en el camino** (mismo tipo de bug que
+        `problems_solutions.md` del Requerimiento 010 ya documentaba para karaoke/songList/newSong):
+        `isValidAframeViewConfig`/`isValidArsSyncOverlaysConfig`
+        (`backend/src/user-settings/user-settings.util.ts`) no conocían la clave `youtubeVideo` →
+        `PUT /api/user-settings/aframe-view` devolvía 400 al guardar. Al agregarla, apareció un
+        segundo problema real: `youtube-video.html` no tiene `#karaoke-vr-component`/
+        `#new-song-component` en su DOM, así que su propio `persist()` solo manda `{youtubeVideo:
+        ...}` — exigir las 4 claves juntas rompía el guardado de ESTA página. Se resolvió en dos
+        partes:
+        1. `isValidAframeViewConfig` ya no exige NINGUNA clave en particular — acepta cualquier
+           subconjunto no vacío de `['karaoke','songList','newSong','youtubeVideo']`, validando la
+           forma de cada una que esté presente.
+        2. `UserSettingsService.saveConfig` pasa de reemplazo completo (`row.config = config`) a
+           **merge superficial** (`row.config = {...row.config, ...config}`) — sin esto, guardar
+           desde una página que solo conoce un subconjunto de claves borraría en silencio lo que
+           otra página ya había guardado. Para las demás vistas (siempre un objeto completo, un
+           solo productor) el merge se comporta igual que el reemplazo anterior — sin regresión.
+        Tests nuevos en `user-settings.util.spec.ts`/`user-settings.service.spec.ts`
+        (`npx jest src/user-settings` → 61/61 OK) y `npm run build`/`npx jest` completos del
+        backend (132/132 OK) verificados tras el cambio.
+      - Validado en el navegador end-to-end: activar el overlay → mover el ancla con
+        `position-move` → `position-save` → `PUT /api/user-settings/aframe-view` responde 200 (no
+        400) → recargar la página → la posición guardada (`x: 0.5`) se reaplica sola al
+        `#youtube-video-anchor`, y las posiciones de karaoke/songList/newSong guardadas antes
+        siguen intactas (confirma el merge, no solo el guardado).
 
 - [ ] 7.1 `npm run build` y `npm test` (backend) pasan sin levantar MySQL ni LibreTranslate.
 - [ ] 7.2 `npm run test:cov` (backend): revisar la tabla por archivo de los módulos nuevos.

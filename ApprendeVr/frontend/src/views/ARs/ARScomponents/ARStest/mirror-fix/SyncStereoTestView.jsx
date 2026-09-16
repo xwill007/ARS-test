@@ -3,6 +3,7 @@ import CameraOverlaySync from './CameraOverlaySync';
 import VRLocalVideoOverlaySync from './VRLocalVideoOverlaySync';
 import VRConeOverlaySync from './VRConeOverlaySync';
 import VRKaraokeOverlaySync from './VRKaraokeOverlaySync';
+import VRYoutubeVideoOverlaySync from './VRYoutubeVideoOverlaySync';
 import SyncConfigCompassMenu from './SyncConfigCompassMenu';
 import { getUserSetting, saveUserSetting, detectDeviceType } from '../../../../A-frame/vrUserSettingsApi.util.js';
 import { getStoredAuth } from '../../../../A-frame/vrAuth.util.js';
@@ -33,6 +34,7 @@ const SYNCABLE_OVERLAYS = {
   video: VRLocalVideoOverlaySync,
   cone: VRConeOverlaySync,
   karaoke: VRKaraokeOverlaySync,
+  youtubeVideo: VRYoutubeVideoOverlaySync,
 };
 
 const layerStyle = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' };

@@ -1,0 +1,40 @@
+import React from 'react';
+
+/**
+ * VRYoutubeVideoOverlaySync — overlay "Youtube Video" de AR-SYNC (SyncStereoTestView.jsx),
+ * agregado a pedido del usuario tras el panel de previsualización de `VRNewSongAf.js`
+ * (Requerimiento 015): se activa/desactiva desde el menú ⚙️ → pestaña "Overlays" como cualquier
+ * otro, y muestra un input de URL + botón "PEGAR URL" + el recuadro donde se ve el video embebido.
+ *
+ * A diferencia de `VRConeOverlaySync.jsx`/`VRLocalVideoOverlaySync.jsx` (código copiado en un
+ * `srcDoc`), este monta `youtube-video.html` en un `<iframe src="...">` REAL (no `srcDoc`) —
+ * mismo patrón que `VRKaraokeOverlaySync.jsx` — porque `youtube-video-modules.js` importa el
+ * componente de edición de ubicación real (`vrPositionControl.js`), que expone el marcador 📍 +
+ * d-pad + GUARDAR (persistido en la base de datos vía `getUserSetting`/`saveUserSetting`) y no
+ * resuelve sus imports dentro de un documento `srcDoc` en blanco (ver skill
+ * `overlay-ar-sync-aframe`, sección "Cuándo usar `src` real en vez de `srcDoc`").
+ *
+ * `allow="clipboard-read"`: el botón "PEGAR URL" de `youtube-video-modules.js` usa
+ * `navigator.clipboard.readText()` — sin este permiso, el navegador lo bloquea dentro del iframe
+ * aunque el sitio sea HTTPS (mismo hallazgo ya resuelto en `VRKaraokeOverlaySync.jsx` para el
+ * botón de pegar de `VRNewSongAf.js`).
+ *
+ * Componente de prueba aislado: no se importa ni se usa desde ningún archivo de producción.
+ */
+const VRYoutubeVideoOverlaySyncInner = ({ forwardedRef }) => (
+  <iframe
+    ref={forwardedRef}
+    title="VRYoutubeVideo Overlay (Sync)"
+    src="./youtube-video.html"
+    style={{
+      width: '100%',
+      height: '100%',
+      border: 'none',
+      background: 'transparent',
+      pointerEvents: 'auto',
+    }}
+    allow="xr-spatial-tracking; fullscreen; clipboard-read"
+  />
+);
+
+export default React.forwardRef((props, ref) => VRYoutubeVideoOverlaySyncInner({ ...props, forwardedRef: ref }));

@@ -285,6 +285,56 @@ escribe el valor directo en su propio `_values` y refresca el texto del campo. N
 `SyncStereoTestView.jsx`: su relay ya reenvía genéricamente cualquier acción no reservada del
 overlay `karaoke` (mismo iframe que hospeda `vr-new-song-af`) al panel opuesto.
 
+**Overlay nuevo `youtubeVideo` ("Youtube Video") en el menú ⚙️ de AR-SYNC (pedido del usuario,
+promueve el panel de previsualización a un overlay real).** Después de validar el panel flotante de
+"PREVIEW ON YOUTUBE", el usuario pidió poder activarlo/desactivarlo como cualquier otro overlay
+desde la pestaña "Overlays" del menú ⚙️, en vez de tener que apretar el botón cada vez desde el
+panel New Song. Se agrega siguiendo el skill `overlay-ar-sync-aframe`: `VRYoutubeVideoOverlaySync.
+jsx` (patrón `srcDoc` autocontenido, como `VRConeOverlaySync.jsx` — sin las dependencias de Vite
+que sí tiene `karaoke`), registrado en `SYNCABLE_OVERLAYS`/`OVERLAY_OPTIONS`/locales. Se entera de
+qué video mostrar leyendo `localStorage['apprendevr_youtube_preview_url']` (que el puente de campos
+de `aframe-overlay-modules.js` ya escribe cada vez que cambia `youtubeUrl` en el panel New Song) y
+reaccionando al evento `storage` — no hace falta un puente de postMessage propio para este dato
+porque todos los iframes de `mirror-fix` comparten el mismo origen y por lo tanto el mismo
+`localStorage`. Reusa el mismo truco de "billboard" (proyectar un punto 3D fijo a pantalla en cada
+frame) que el panel de previsualización, para que también reaccione al giroscopio/mouse-drag.
+**Hallazgo de paso:** el skill documentaba `OVERLAY_OPTIONS` en `SyncConfigMenu.jsx`, pero ese
+componente ya no existe — la lista real vive duplicada en `SyncConfigCompassMenu.jsx` (confirmado
+leyendo el código); y agregar una 5ta clave de overlay destapó un bug de layout latente ahí (el
+botón "Guardar" del grupo Overlays tenía una posición Y fija pensada para 4 filas) que se corrigió
+haciéndola dependiente de `OVERLAY_OPTIONS.length`.
+
+**Overlay `youtubeVideo`: siempre visible + input/pegar propio + edición de ubicación persistida en
+base de datos (ampliación pedida por el usuario tras probar la primera versión).** La primera
+versión del overlay no mostraba nada hasta que el panel New Song ya tenía una URL cargada. Se
+reescribe `youtube-video-modules.js` para mostrar SIEMPRE un panel con: input de URL + botón
+"PEGAR URL" (mismo patrón `window.focus()` + `navigator.clipboard.readText()` que `VRNewSongAf.js`)
++ el recuadro (16:9) donde se ve el video, ya sea el placeholder punteado o el iframe embebido real
+— lee/escribe la misma clave de `localStorage` que el panel New Song, así que ambos quedan
+consistentes sin importar desde dónde se puso la URL.
+
+Para el "componente de edición de ubicación" pedido (marcador 📍 + d-pad + GUARDAR, igual que
+karaoke/New Song), el overlay pasa de `srcDoc` autocontenido a página Vite real (`youtube-video.
+html`/`youtube-video-modules.js`, registrada en `vite.config.js`) — necesario para poder `import`ar
+`vrPositionControl.js` real (un `srcDoc` en blanco no resuelve imports de proyecto), mismo criterio
+que ya usa el overlay `karaoke`. Se agrega una entrada nueva a `ELEMENTS` en `vrPositionControl.js`
+(clave `youtubeVideo`, ancla `#youtube-video-anchor`).
+
+**Hallazgo real en el camino: el backend rechazaba el guardado de posición con 400.** Agregar la
+clave `youtubeVideo` a `vrPositionControl.js` no alcanzaba — el backend
+(`user-settings.util.ts`) no la reconocía como válida (mismo tipo de bug ya documentado en el
+Requerimiento 010 para karaoke/songList/newSong). Al agregarla ahí apareció un segundo problema:
+`youtube-video.html` no tiene `#karaoke-vr-component`/`#new-song-component`, así que su propio
+guardado de posición solo manda `{youtubeVideo: ...}` — exigir las 4 claves juntas en el mismo
+payload rompía el guardado de ESTA página en particular. Se corrigió en dos partes: (1)
+`isValidAframeViewConfig` deja de exigir claves específicas, acepta cualquier subconjunto no vacío
+de las 4 conocidas, validando la forma de cada una presente; (2) `UserSettingsService.saveConfig`
+pasa de reemplazo completo del `config` a **merge superficial**, para que el guardado parcial de
+una página no borre lo que otra página ya había guardado (las demás vistas de `user-settings`,
+siempre un objeto completo con un solo productor, no cambian de comportamiento con el merge). Mismo
+criterio para `isValidArsSyncOverlaysConfig` (agregar `youtubeVideo` a las claves de overlay
+válidas, para que "Guardar selección" tampoco falle).
+
 **"PREVIEW ON YOUTUBE": panel 2D flotante (DOM) en vez de pestaña nueva (pedido del usuario).** El
 botón existente abría `window.open(url)`; se cambia a mostrar el video embebido
 (`youtube.com/embed/<id>`) en un panel superpuesto al canvas de A-Frame, sin salir de la vista.
@@ -357,7 +407,17 @@ también).
 | `ApprendeVr/frontend/src/views/A-frame/components/VRKaraokeAf/components/VRNewSongAf/VRNewSongAf.js` (o panel nuevo) | Campo de URL de YouTube + selector `download`/`stream` + botón que llama a `POST /song-ingestion/from-youtube` + botón "BUSCAR EN YOUTUBE" (`window.open` a `youtube.com/results?search_query=...` o `youtube.com`) + botón "PEGAR URL DEL PORTAPAPELES" (`navigator.clipboard.readText()`, agrega al final de `youtubeUrl`). Alto del panel ampliado (`5.15` → `5.5`) para que entren los botones nuevos. |
 | `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/VRKaraokeOverlaySync.jsx` | Agregar `clipboard-read` al `allow` del `<iframe>` (si no, el navegador bloquea `navigator.clipboard.readText()` dentro de él aunque el sitio sea HTTPS). |
 | `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.html` | Actualizar `height: 5.15` → `height: 5.5` en el atributo `vr-new-song-af` (mismo motivo que arriba). |
-| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.js` | Nuevo puente: poll-ea `vr-new-song-af._values` (4 campos) cada 300ms y sincroniza cambios entre paneles vía `postMessage`/`SyncStereoTestView.jsx` (mismo patrón que el puente de video de `karaoke`). |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.js` | Nuevo puente: poll-ea `vr-new-song-af._values` (4 campos) cada 300ms y sincroniza cambios entre paneles vía `postMessage`/`SyncStereoTestView.jsx` (mismo patrón que el puente de video de `karaoke`); además escribe `youtubeUrl` a `localStorage['apprendevr_youtube_preview_url']` para el overlay `youtubeVideo`. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/VRYoutubeVideoOverlaySync.jsx` | Overlay `youtubeVideo`: `<iframe src="./youtube-video.html">` real (no `srcDoc`) + `allow="...; clipboard-read"`. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/youtube-video.html` | Nuevo: página Vite real (mismo patrón que `aframe-overlay-modules.html`) — `<a-scene>` + `#youtube-video-anchor` + `<a-camera>`. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/youtube-video-modules.js` | Nuevo: `initPositionControl({external:true})`, puente de cámara por postMessage, y el panel (input URL + botón "PEGAR URL" + recuadro de video) que sigue a `#youtube-video-anchor` en pantalla. |
+| `ApprendeVr/frontend/vite.config.js` | Registrar `youtube-video.html` en `build.rollupOptions.input`. |
+| `ApprendeVr/frontend/src/views/A-frame/vrPositionControl.js` | Agregar `{ key: 'youtubeVideo', selector: '#youtube-video-anchor', offset: [-0.3, 0.3, 0.05] }` a `ELEMENTS`. |
+| `ApprendeVr/backend/src/user-settings/user-settings.util.ts` | `isValidAframeViewConfig`: acepta cualquier subconjunto no vacío de `['karaoke','songList','newSong','youtubeVideo']` (antes exigía las 3 originales completas). `isValidArsSyncOverlaysConfig`: agregar `youtubeVideo` a `ARS_SYNC_OVERLAY_KEYS`. |
+| `ApprendeVr/backend/src/user-settings/user-settings.service.ts` | `saveConfig`: merge superficial del `config` (antes reemplazo completo), para que un guardado parcial de una página no borre lo que otra ya guardó. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Agregar `youtubeVideo` a `SYNCABLE_OVERLAYS`. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigCompassMenu.jsx` | Agregar `youtubeVideo` a `OVERLAY_OPTIONS` (lista real, no `SyncConfigMenu.jsx`); botón/subtexto del grupo Overlays reubicados dinámicamente según `OVERLAY_OPTIONS.length`. |
+| `ApprendeVr/frontend/src/locales/{es,en,br}.json` | Claves `syncConfig.overlay.youtubeVideo`/`youtubeVideoShort`. |
 | `ApprendeVr/frontend/src/views/A-frame/vrSongsApi.util.js` | Agregar `createSongFromYoutube(...)` (mismo patrón del Requerimiento 014). |
 
 ## 7. Criterios de aceptación
@@ -410,6 +470,19 @@ también).
       embebido (sin salir de la vista ni abrir pestaña nueva); un segundo click lo cierra. Con una
       URL de formato no reconocido, muestra un error en el `status` en vez de abrir un panel
       vacío.
+- [ ] El overlay "Youtube Video" aparece como checkbox en el menú ⚙️ → "Overlays" de AR-SYNC; al
+      activarlo, muestra el video embebido de la URL actual de `youtubeUrl` en ambos paneles, y su
+      posición en pantalla responde al giroscopio/mouse-drag igual que los demás overlays de
+      contenido.
+- [ ] Al activar el overlay "Youtube Video" sin ninguna URL puesta todavía, muestra igual un panel
+      con input de URL + botón "PEGAR URL" + el recuadro (placeholder punteado) donde se verá el
+      video — nunca aparece vacío/en blanco.
+- [ ] El overlay "Youtube Video" tiene su propio marcador 📍/d-pad de edición de ubicación (menú
+      "Position"), y guardar la posición devuelve 200 (`PUT /api/user-settings/aframe-view`), no
+      400. Recargar la página reaplica la posición guardada.
+- [ ] Guardar la posición del overlay "Youtube Video" no borra las posiciones de
+      karaoke/songList/newSong ya guardadas desde `index.html`/`aframe-overlay-modules.html` (ni
+      viceversa) — confirma que el guardado es un merge, no un reemplazo completo.
 
 ## 8. Referencias
 

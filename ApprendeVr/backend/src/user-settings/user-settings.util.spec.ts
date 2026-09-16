@@ -80,19 +80,46 @@ describe('user-settings.util', () => {
       newSong: { position: [0, 5, 0] },
     };
 
-    it('accepts a valid payload with both elements', () => {
+    it('accepts a valid payload with all three elements', () => {
       expect(isValidAframeViewConfig(valid)).toBe(true);
     });
 
-    it('rejects a payload missing one element', () => {
+    // Ninguna clave es individualmente obligatoria (ver comentario grande junto a
+    // AFRAME_VIEW_ELEMENTS): cada página que edita esta vista solo manda los elementos que existe
+    // en su propio DOM, y UserSettingsService.saveConfig hace un merge superficial, no un
+    // reemplazo completo — así que un payload con un subconjunto es válido.
+    it('accepts a payload missing one of the known elements (partial save from a page without it)', () => {
       const { newSong, ...rest } = valid;
-      expect(isValidAframeViewConfig(rest)).toBe(false);
+      expect(isValidAframeViewConfig(rest)).toBe(true);
+    });
+
+    it('accepts a payload with only the youtubeVideo element (saved from youtube-video.html)', () => {
+      expect(
+        isValidAframeViewConfig({ youtubeVideo: { position: [0.5, 1.8, -2.5] } }),
+      ).toBe(true);
+    });
+
+    it('accepts a payload that also includes a valid youtubeVideo', () => {
+      expect(
+        isValidAframeViewConfig({ ...valid, youtubeVideo: { position: [0.5, 1.8, -2.5] } }),
+      ).toBe(true);
     });
 
     it('rejects an element without a valid position', () => {
       expect(
         isValidAframeViewConfig({ ...valid, karaoke: { position: [0, 6] } }),
       ).toBe(false);
+    });
+
+    it('rejects a youtubeVideo present but without a valid position', () => {
+      expect(
+        isValidAframeViewConfig({ ...valid, youtubeVideo: { position: [0, 1.8] } }),
+      ).toBe(false);
+    });
+
+    it('rejects a payload with no known keys at all (empty object or garbage)', () => {
+      expect(isValidAframeViewConfig({})).toBe(false);
+      expect(isValidAframeViewConfig({ notAKnownKey: { position: [0, 0, 0] } })).toBe(false);
     });
 
     it('rejects a non-object payload', () => {
@@ -137,6 +164,12 @@ describe('user-settings.util', () => {
 
     it('rejects a non-array selectedOverlays', () => {
       expect(isValidArsSyncOverlaysConfig({ selectedOverlays: 'video' })).toBe(false);
+    });
+
+    it('accepts youtubeVideo as a known overlay key', () => {
+      expect(
+        isValidArsSyncOverlaysConfig({ selectedOverlays: ['karaoke', 'youtubeVideo'] }),
+      ).toBe(true);
     });
 
     it('rejects a non-object payload', () => {

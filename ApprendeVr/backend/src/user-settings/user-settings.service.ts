@@ -51,7 +51,15 @@ export class UserSettingsService {
       (await this.userSettingsRepository.findOne({
         where: { userId, viewId, deviceType: knownDevice },
       })) ?? this.userSettingsRepository.create({ userId, viewId, deviceType: knownDevice });
-    row.config = config as Record<string, unknown>;
+    // Merge superficial (no reemplazo completo): `aframe-view` es editada desde varias páginas
+    // distintas (`index.html`/`aframe-overlay-modules.html` para karaoke/songList/newSong,
+    // `youtube-video.html` para youtubeVideo — Requerimiento 015) y cada una solo conoce/manda los
+    // elementos que existen EN SU PROPIO DOM (ver `persist()`/`ELEMENTS` en vrPositionControl.js).
+    // Con un reemplazo completo, guardar la posición desde una página borraría en silencio lo que
+    // otra página ya había guardado. Para las demás vistas (siempre un objeto plano completo, sin
+    // productores parciales) el merge es equivalente a un reemplazo — mismas claves, valores
+    // nuevos pisan a los viejos, sin cambio de comportamiento.
+    row.config = { ...(row.config ?? {}), ...(config as Record<string, unknown>) };
     await this.userSettingsRepository.save(row);
 
     return row.config;

@@ -38,6 +38,14 @@ const ELEMENTS = [
   { key: 'karaoke', selector: '#karaoke-vr-component' },
   { key: 'songList', selector: '#karaoke-vr-component' },
   { key: 'newSong', selector: '#new-song-component', offset: [-1.6, 2.875, 0.05] },
+  // Overlay nuevo "Youtube Video" (VRYoutubeVideoOverlaySync.jsx / youtube-video-modules.js): a
+  // diferencia de los otros tres, el elemento que se mueve es un `<a-entity>` vacío (ancla, sin
+  // tamaño 3D propio) — el panel de video real es un `<div>`/`<iframe>` de DOM que sigue a esa
+  // ancla en pantalla (ver el comentario grande de `worldToScreen` en youtube-video-modules.js).
+  // Solo existe en esa página, no en `index.html`/`aframe-overlay-modules.html`, así que en esos
+  // otros documentos `document.querySelector(selector)` da `null` y esta entrada se filtra sola
+  // (mismo criterio que el resto de `ELEMENTS`, ver `initPositionControl`).
+  { key: 'youtubeVideo', selector: '#youtube-video-anchor', offset: [-0.3, 0.3, 0.05] },
 ];
 
 // offset del marcador de `karaoke` calculado del video real que monta vr-karaoke-af: esquina

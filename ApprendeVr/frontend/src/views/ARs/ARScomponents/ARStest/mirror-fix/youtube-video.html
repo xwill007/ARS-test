@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Youtube Video Overlay (AR-SYNC)</title>
+
+    <!--
+      Overlay "Youtube Video" de AR-SYNC (SyncStereoTestView.jsx), agregado a pedido del usuario
+      tras el panel de previsualización de VRNewSongAf.js (Requerimiento 015). Convertido de
+      srcDoc autocontenido a página Vite real (mismo patrón que aframe-overlay-modules.html) porque
+      necesita `import`s reales de src/views/A-frame (vrPositionControl.js, para el componente de
+      edición de ubicación + persistencia en base de datos que un srcDoc en blanco no puede
+      resolver) — ver skill overlay-ar-sync-aframe, sección "Cuándo usar src real en vez de
+      srcDoc". Carga la MISMA copia local de A-Frame que el resto (/libs/aframe.min.js), no una
+      versión distinta por CDN.
+    -->
+    <script src="/libs/aframe.min.js"></script>
+    <script type="module" src="./youtube-video-modules.js"></script>
+
+    <style>
+      html, body { margin: 0; height: 100%; width: 100%; background: transparent; }
+      .clickable { cursor: pointer; }
+    </style>
+  </head>
+  <body style="margin:0; background:transparent;">
+    <a-scene
+      embedded
+      vr-mode-ui="enabled: false"
+      stats="false"
+      style="width: 100vw; height: 100vh; background: transparent;">
+
+      <!-- Ancla del panel de video (ver comentario grande en youtube-video-modules.js): entidad
+           vacía, sin geometría propia — el panel real es un <div>/<iframe> de DOM que sigue su
+           posición proyectada a pantalla. Movible con el widget de posición (vrPositionControl.js,
+           clave "youtubeVideo") igual que karaoke/New Song. -->
+      <a-entity id="youtube-video-anchor" position="0 1.8 -2.5"></a-entity>
+
+      <!-- look-controls por defecto (giroscopio/acelerómetro en móvil, drag de mouse en
+           escritorio) — mismo patrón que el resto de los overlays de contenido de mirror-fix. -->
+      <a-camera position="0 1.8 0" rotation="0 0 0" wasd-controls="enabled: false"></a-camera>
+    </a-scene>
+  </body>
+</html>

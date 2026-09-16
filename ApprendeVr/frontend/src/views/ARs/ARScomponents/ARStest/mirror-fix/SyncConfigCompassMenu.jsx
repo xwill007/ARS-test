@@ -129,6 +129,7 @@ const OVERLAY_OPTIONS = [
   { key: 'video', labelKey: 'syncConfig.overlay.videoShort' },
   { key: 'cone', labelKey: 'syncConfig.overlay.coneShort' },
   { key: 'karaoke', labelKey: 'syncConfig.overlay.karaokeShort' },
+  { key: 'youtubeVideo', labelKey: 'syncConfig.overlay.youtubeVideoShort' },
 ];
 
 // Grupo "Configuración": título/cerrar/sesión arriba, filas de valor + steppers, guardar abajo —
@@ -176,13 +177,20 @@ function buildOverlaysGroupHTML() {
       </a-plane>
     `;
   }).join('\n');
+  // Botón/subtexto reubicados en función de `OVERLAY_OPTIONS.length` (antes, posición fija
+  // "0 -1.0 0.01"): con la 5ta clave agregada (youtubeVideo) la última fila caía en y=-0.93, casi
+  // pegada al botón fijo de antes — se separan dinámicamente para que agregar overlays a futuro no
+  // vuelva a producir este mismo solapamiento.
+  const lastRowY = 0.35 - (OVERLAY_OPTIONS.length - 1) * 0.32;
+  const btnY = lastRowY - 0.4;
+  const subY = btnY - 0.27;
   return `
     <a-entity id="settings-overlays-group" visible="false">
       ${rows}
-      <a-plane class="clickable" id="settings-save-overlays-btn" width="1.0" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 -1.0 0.01">
+      <a-plane class="clickable" id="settings-save-overlays-btn" width="1.0" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="0 ${btnY.toFixed(2)} 0.01">
         <a-text id="settings-save-overlays-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
       </a-plane>
-      <a-text id="settings-save-overlays-sub" align="center" color="#999999" width="3.2" position="0 -1.27 0.01"></a-text>
+      <a-text id="settings-save-overlays-sub" align="center" color="#999999" width="3.2" position="0 ${subY.toFixed(2)} 0.01"></a-text>
     </a-entity>
   `;
 }

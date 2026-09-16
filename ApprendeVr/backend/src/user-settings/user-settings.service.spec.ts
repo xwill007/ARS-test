@@ -166,6 +166,40 @@ describe('UserSettingsService', () => {
       });
     });
 
+    // Requerimiento 015: `aframe-view` se edita desde varias páginas distintas, cada una mandando
+    // solo los elementos que existen en su propio DOM (ver comentario grande junto a
+    // `AFRAME_VIEW_ELEMENTS` en user-settings.util.ts) — un reemplazo completo del `config`
+    // borraría en silencio lo que otra página ya había guardado.
+    it('merges a partial aframe-view save into the existing config instead of replacing it', async () => {
+      settingsViewRepository.findOne.mockResolvedValue({ id: 9, viewKey: 'aframe-view' });
+      const existing = {
+        userId: 1,
+        viewId: 9,
+        deviceType: 'web',
+        config: {
+          karaoke: { position: [10, 2.5, 3] },
+          songList: { position: [12, 6.15, -3] },
+          newSong: { position: [0, 5, 0] },
+        },
+      };
+      userSettingsRepository.findOne.mockResolvedValue(existing);
+      userSettingsRepository.save.mockImplementation(async (row) => row);
+
+      const result = await service.saveConfig(
+        1,
+        'aframe-view',
+        { youtubeVideo: { position: [0.5, 1.8, -2.5] } },
+        'web',
+      );
+
+      expect(result).toEqual({
+        karaoke: { position: [10, 2.5, 3] },
+        songList: { position: [12, 6.15, -3] },
+        newSong: { position: [0, 5, 0] },
+        youtubeVideo: { position: [0.5, 1.8, -2.5] },
+      });
+    });
+
     it('does not overwrite the web config when saving the mobile one', async () => {
       settingsViewRepository.findOne.mockResolvedValue({ id: 7, viewKey: 'login-form' });
       userSettingsRepository.findOne.mockResolvedValue(null);

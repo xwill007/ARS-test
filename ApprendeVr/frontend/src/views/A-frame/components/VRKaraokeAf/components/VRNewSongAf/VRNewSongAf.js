@@ -521,6 +521,13 @@ AFRAME.registerComponent('vr-new-song-af', {
       const camera = sceneEl && sceneEl.camera;
       const canvas = sceneEl && sceneEl.canvas;
       if (camera && canvas && this.el.object3D) {
+        // `updateMatrixWorld(true)` desde la raíz de la escena: sin esto, `localToWorld`/
+        // `project()` pueden leer una matriz vieja (un tick de A-Frame detrás) si este
+        // requestAnimationFrame corre antes que el propio tick interno de la escena en el mismo
+        // frame — hallazgo real, verificado en vivo: sin este refresh explícito el punto
+        // proyectado quedaba con coordenadas de un frame anterior (a veces marcándolo "detrás de
+        // la cámara" cuando en realidad estaba a la vista).
+        sceneEl.object3D.updateMatrixWorld(true);
         worldPos.set(0, 0, 0.3);
         this.el.object3D.localToWorld(worldPos);
         const projected = worldPos.project(camera);

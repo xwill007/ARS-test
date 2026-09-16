@@ -295,10 +295,12 @@
         "video": "Vídeo local (play/pause/seek + voz)",
         "cone": "Cone de palavras",
         "karaoke": "Karaokê (lista de músicas + adicionar música, componente A-Frame real)",
+        "youtubeVideo": "Vídeo do YouTube (vídeo incorporado da URL colada em New Song)",
         "cameraShort": "Câmera",
         "videoShort": "Vídeo",
         "coneShort": "Cone",
-        "karaokeShort": "Karaokê"
+        "karaokeShort": "Karaokê",
+        "youtubeVideoShort": "YouTube Video"
       }
     },
     "voice": {
