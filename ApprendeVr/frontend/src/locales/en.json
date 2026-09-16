@@ -103,6 +103,7 @@
       "rotationX": "Rot X",
       "rotationY": "Rot Y",
       "rotationZ": "Rot Z",
+      "scale": "Scale",
       "step": "Step",
       "options": "Configuration options",
       "help": "Help",

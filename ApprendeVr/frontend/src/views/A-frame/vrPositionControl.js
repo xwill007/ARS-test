@@ -417,6 +417,18 @@ function resolveTarget(hostEl, key) {
     // Pedido del usuario (ampliación): ángulo de giro de cada eje, junto a la posición.
     getRot: () => parsePosition(hostEl.getAttribute('rotation')),
     setRot: (r) => hostEl.setAttribute('rotation', `${r[0]} ${r[1]} ${r[2]}`),
+    // Pedido del usuario: escala uniforme (agrandar/achicar), motivación concreta: agrandar el
+    // overlay "Youtube Video" para verlo mejor. Un solo número (no una tupla por eje) aplicado a
+    // los 3 ejes de `object3D.scale` — para `#youtube-video-anchor` (una entidad vacía, sin
+    // geometría propia) esto no dibuja nada distinto por sí solo, pero
+    // youtube-video-modules.js lee `anchorEl.object3D.scale.x` en su loop de proyección y
+    // agranda/achica el panel de DOM en la misma proporción (ver ese archivo). Para
+    // karaoke/newSong (paneles 3D reales) escala la geometría real directamente.
+    getScale: () => {
+      const s = hostEl.object3D && hostEl.object3D.scale;
+      return s && Number.isFinite(s.x) ? s.x : 1;
+    },
+    setScale: (s) => hostEl.setAttribute('scale', `${s} ${s} ${s}`),
   };
 }
 
@@ -465,6 +477,13 @@ export function initPositionControl(options) {
   // también revierta un cambio de step (y que ese cambio active Save/Cancel en la brújula). Se
   // refresca en persist() y al cargar de la BD, igual que savedState/savedRotState.
   const savedStepState = {};
+  // Pedido del usuario: escala uniforme por elemento (agrandar/achicar), mismo criterio de
+  // persistencia que step — un número por elemento en la MISMA config `aframe-view`. Arranca en
+  // lo que el elemento ya trae en el DOM (1 si nunca se tocó `scale`), no `undefined` como step,
+  // porque acá SÍ hay un valor real y sensato para mostrar de entrada (a diferencia del step, que
+  // es puramente un incremento de edición sin efecto visual propio).
+  const scaleState = {};
+  const savedScaleState = {};
   targets.forEach((t) => {
     state[t.key] = t.getPos();
     rotState[t.key] = t.getRot ? t.getRot() : [0, 0, 0];
@@ -472,16 +491,19 @@ export function initPositionControl(options) {
     savedRotState[t.key] = rotState[t.key].slice();
     stepState[t.key] = undefined;
     savedStepState[t.key] = undefined;
+    scaleState[t.key] = t.getScale ? t.getScale() : 1;
+    savedScaleState[t.key] = scaleState[t.key];
   });
 
   const persist = () => {
     const config = {};
     targets.forEach((t) => {
-      config[t.key] = { position: state[t.key], rotation: rotState[t.key], step: stepState[t.key] };
+      config[t.key] = { position: state[t.key], rotation: rotState[t.key], step: stepState[t.key], scale: scaleState[t.key] };
       // Lo recién guardado pasa a ser el nuevo "último guardado" (baseline para Cancel).
       savedState[t.key] = state[t.key].slice();
       savedRotState[t.key] = rotState[t.key].slice();
       savedStepState[t.key] = stepState[t.key];
+      savedScaleState[t.key] = scaleState[t.key];
     });
     saveUserSetting(VIEW, config);
   };
@@ -518,13 +540,23 @@ export function initPositionControl(options) {
       rotState[t.key] = next;
       t.setRot(next);
     };
+    // Pedido del usuario: mismo patrón que onMove/onRotate, para escala — un solo delta (no 3,
+    // no hay eje), con piso en 0.1 para no llegar a una escala nula o negativa por apretar "-" de
+    // más (object3D.scale en 0 o negativo rompe el renderizado del elemento).
+    const onScale = (delta) => {
+      if (!t.setScale) return;
+      const next = Math.max(0.1, +(scaleState[t.key] + delta).toFixed(2));
+      scaleState[t.key] = next;
+      t.setScale(next);
+    };
     const onSelect = external
-      ? () => send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key], step: stepState[t.key] })
+      ? () => send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key], step: stepState[t.key], scale: scaleState[t.key] })
       : undefined;
     widget = createWidget(t.host, t.offset, onMove, persist, t.getPos, { external, onSelect });
     t.widget = widget;
     t.onMove = onMove;
     t.onRotate = onRotate;
+    t.onScale = onScale;
     registerPositionWidgetClickables(widget.clickables);
     if (!external) registerNumericInput(widget.stepInput, widget.dpad, widget.inputAnchor);
   });
@@ -560,11 +592,13 @@ export function initPositionControl(options) {
         state[t.key] = (savedState[t.key] || state[t.key]).slice();
         rotState[t.key] = (savedRotState[t.key] || rotState[t.key]).slice();
         stepState[t.key] = savedStepState[t.key];
+        scaleState[t.key] = savedScaleState[t.key];
         t.setPos(state[t.key]);
         if (t.setRot) t.setRot(rotState[t.key]);
+        if (t.setScale) t.setScale(scaleState[t.key]);
         if (t.reanchor) t.reanchor(t.widget);
         if (t.widget.refreshCoordsLabel) t.widget.refreshCoordsLabel();
-        send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key], step: stepState[t.key] });
+        send({ action: 'position-element-selected', key: t.key, position: state[t.key], rotation: rotState[t.key], step: stepState[t.key], scale: scaleState[t.key] });
       } else if (msg.action === 'position-step') {
         // Pedido del usuario (ampliación): el d-pad de la brújula cambió el "step" del elemento —
         // se guarda en memoria (se persiste recién al pulsar Guardar, junto con position/rotation).
@@ -575,6 +609,12 @@ export function initPositionControl(options) {
       } else if (msg.action === 'position-move') {
         const t = targets.find((tt) => tt.key === msg.key);
         if (!t) return;
+        // Pedido del usuario: la escala es un solo delta, sin eje — se resuelve ANTES del cálculo
+        // de axisIndex de abajo (position/rotation), que exige x/y/z y no aplicaría acá.
+        if (msg.kind === 'scale') {
+          t.onScale(msg.delta);
+          return;
+        }
         const delta = [0, 0, 0];
         const axisIndex = ['x', 'y', 'z'].indexOf(msg.axis);
         if (axisIndex === -1) return;
@@ -610,12 +650,19 @@ export function initPositionControl(options) {
         stepState[t.key] = elConfig.step;
         savedStepState[t.key] = elConfig.step;
       }
+      // Pedido del usuario: recupera la escala guardada por elemento (si existe) — si no, queda
+      // el valor con el que arrancó (1, o lo que ya trajera el DOM).
+      if (t.setScale && elConfig && typeof elConfig.scale === 'number' && Number.isFinite(elConfig.scale)) {
+        scaleState[t.key] = elConfig.scale;
+        t.setScale(elConfig.scale);
+      }
     });
     // Pedido del usuario (ampliación): tras aplicar lo cargado de la BD, ese pasa a ser el nuevo
     // "último guardado" (baseline para Cancel) de cada elemento.
     targets.forEach((t) => {
       savedState[t.key] = state[t.key].slice();
       savedRotState[t.key] = rotState[t.key].slice();
+      savedScaleState[t.key] = scaleState[t.key];
     });
   });
 

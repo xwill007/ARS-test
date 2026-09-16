@@ -133,10 +133,16 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
   const isRightPanel = params.get('isRightPanel') === 'true';
   const isSinglePanel = params.get('singlePanel') === 'true';
 
+  // Pedido del usuario: la fila "Scale" del menú de Interfaz (vrPositionControl.js) agranda/
+  // achica el elemento seleccionado escribiendo `object3D.scale` de #youtube-video-anchor — como
+  // esa entidad no tiene geometría propia (el panel real es DOM, no un plano 3D), el ancho base
+  // del panel se multiplica por esa escala en cada frame (ver trackAnchor() más abajo) en vez de
+  // depender de un render 3D que no existe acá.
+  const BASE_PANEL_WIDTH = 360;
   const panel = document.createElement('div');
   panel.style.position = 'fixed';
   panel.style.transform = 'translate(-50%, -50%)';
-  panel.style.width = '360px';
+  panel.style.width = BASE_PANEL_WIDTH + 'px';
   panel.style.maxWidth = '90vw';
   panel.style.zIndex = '99999';
   panel.style.background = 'rgba(20, 20, 20, 0.92)';
@@ -518,6 +524,10 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
         if (!behind) {
           panel.style.left = (rect.left + (projected.x * 0.5 + 0.5) * rect.width) + 'px';
           panel.style.top = (rect.top + (-projected.y * 0.5 + 0.5) * rect.height) + 'px';
+          const scale = anchorEl.object3D.scale.x;
+          if (Number.isFinite(scale) && scale > 0) {
+            panel.style.width = (BASE_PANEL_WIDTH * scale) + 'px';
+          }
         }
       }
       const realMarker = document.querySelector('#youtube-video-anchor > a-circle.clickable');

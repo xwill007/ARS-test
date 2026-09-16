@@ -88,7 +88,7 @@ const RING_INNER_RADIUS = RADIUS * 0.4;
 // borde INFERIOR (no el lateral — pedido explícito del usuario, para que se lea bien desde el
 // centro del menú).
 const PANEL_WIDTH = 2.2;
-const PANEL_HEIGHT = 4.6;
+const PANEL_HEIGHT = 5.2;
 // Hallazgo real (verificado dos veces: primero midiendo en el navegador, después con una réplica
 // exacta de la composición de matrices de rotación de THREE.js hecha aparte para confirmarlo sin
 // depender del navegador — ambas coinciden): con `rotation="-90 0 0"` en #settings-panel (el
@@ -236,6 +236,11 @@ function buildInterfaceGroupHTML() {
   const stepRowY = y; y -= ROW_SPACING;
   const positionRowsY = POSITION_AXES.map(() => { const rowY = y; y -= ROW_SPACING; return rowY; });
   const rotationRowsY = POSITION_AXES.map(() => { const rowY = y; y -= ROW_SPACING; return rowY; });
+  // Pedido del usuario: fila "Scale" para agrandar/achicar el elemento seleccionado (motivación
+  // concreta: agrandar el overlay "Youtube Video" para verlo mejor) — un solo valor uniforme, no
+  // por eje (a diferencia de posición/rotación), así que reusa el patrón de fila única de `stepRow`
+  // en vez de `buildAxisStepperRow`.
+  const scaleRowY = y; y -= ROW_SPACING;
   const saveY = y - 0.06;
 
   const stepRow = `
@@ -245,6 +250,11 @@ function buildInterfaceGroupHTML() {
   `;
   const positionRows = POSITION_AXES.map((axis, i) => buildAxisStepperRow('position-step', axis, positionRowsY[i])).join('\n');
   const rotationRows = POSITION_AXES.map((axis, i) => buildAxisStepperRow('rotation-step', axis, rotationRowsY[i])).join('\n');
+  const scaleRow = `
+    <a-text id="dpad-scale-label" align="center" color="#ffffff" width="2.6" position="0 ${scaleRowY.toFixed(2)} 0.02"></a-text>
+    <a-plane class="clickable" id="dpad-scale-minus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.55 ${scaleRowY.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+    <a-plane class="clickable" id="dpad-scale-plus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.55 ${scaleRowY.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+  `;
 
   return `
     <a-entity id="settings-interface-group" visible="false">
@@ -257,6 +267,7 @@ function buildInterfaceGroupHTML() {
         ${stepRow}
         ${positionRows}
         ${rotationRows}
+        ${scaleRow}
         <!-- Pedido del usuario (ampliación): botón "Cancel" junto a "Guardar" — restaura la
              posición/rotación del elemento seleccionado a su último valor guardado (la fuente de
              verdad es vrPositionControl.js, que es quien conoce el snapshot guardado; ver mensaje
@@ -304,9 +315,13 @@ function buildSettingsPanelHTML() {
          ejes locales (ancho/alto) queda radial — ver el comentario grande junto a PANEL_RADIUS
          más arriba para la derivación completa. -->
     <a-entity id="settings-panel" visible="false" rotation="-90 0 -90" position="0 0 0">
-      <!-- height 4.6 (no 3.2): el grupo "Interfaz" ahora tiene etiqueta de elemento + fila "Step"
-           + 3 filas de posición + 3 de rotación + Guardar (8 filas en total) — las demás
-           secciones (Configuración/Overlays) quedan con más margen libre abajo, sin problema. -->
+      <!-- height 5.2 (no 3.2): el grupo "Interfaz" ahora tiene etiqueta de elemento + fila "Step"
+           + 3 filas de posición + 3 de rotación + fila "Scale" + Guardar (9 filas en total) — las
+           demás secciones (Configuración/Overlays) quedan con más margen libre abajo, sin
+           problema. Pedido del usuario: fila "Scale" para agrandar/achicar el elemento
+           seleccionado (motivación concreta: agrandar el overlay "Youtube Video"). Con 4.6 (el
+           valor anterior, pensado para 8 filas) el botón Guardar quedaba recortado por el borde
+           inferior del panel al agregar esta 9na fila. -->
       <a-plane width="${PANEL_WIDTH}" height="${PANEL_HEIGHT}" color="#1a1a1a" opacity="0.95" material="shader: flat; side: double;" position="0 0 0"></a-plane>
       <a-text id="settings-title" align="center" color="#4FC3F7" width="2.6" position="0 0.9 0.01"></a-text>
       <!-- z=0.02 (no 0.01, como el título/sesión): el título centrado puede llegar a extenderse
@@ -490,6 +505,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     position: t('config.position'),
     positionAxes: { x: t('config.positionX'), y: t('config.positionY'), z: t('config.positionZ') },
     rotationAxes: { x: t('config.rotationX'), y: t('config.rotationY'), z: t('config.rotationZ') },
+    scale: t('config.scale'),
     step: t('config.step'),
     exitTitle: t('arsConfig.tab.exit'),
     exitBack: t('home.back'),
@@ -1098,6 +1114,13 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             // Pedido del usuario (ampliación): 3 valores más para el ángulo de giro de cada eje,
             // junto a la posición — mismo criterio optimista que selectedPositionValue.
             var selectedRotationValue = [0, 0, 0];
+            // Pedido del usuario: escala uniforme del elemento seleccionado (agrandar/achicar,
+            // motivación concreta: agrandar el overlay "Youtube Video") — un solo número, no una
+            // tupla por eje como posición/rotación (ver setScale en vrPositionControl.js, que
+            // aplica el mismo valor a los 3 ejes de object3D.scale).
+            var selectedScaleValue = 1;
+            var SCALE_MIN = 0.2;
+            var SCALE_MAX = 5;
             // Pedido del usuario (ampliación): snapshot del último valor GUARDADO del elemento
             // seleccionado — es la referencia para saber si hay "cambios sin guardar" y para que el
             // botón "Cancel" (que solo se activa en ese caso) restaure. La fuente de verdad real
@@ -1105,6 +1128,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             // copia optimista para decidir en vivo si mostrar/ocultar Cancel.
             var savedPositionValue = [0, 0, 0];
             var savedRotationValue = [0, 0, 0];
+            var savedScaleValue = 1;
             // Pedido del usuario (ampliación): baseline del step GUARDADO del elemento — incluido en
             // la comparación de "cambios sin guardar", así cambiar solo el step también activa
             // Save (verde) y muestra Cancel.
@@ -1121,6 +1145,8 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               });
               // Pedido del usuario (ampliación): el step también cuenta como cambio sin guardar.
               if (currentStep !== savedStep) diff = true;
+              // Pedido del usuario: la escala también cuenta como cambio sin guardar.
+              if (selectedScaleValue !== savedScaleValue) diff = true;
               hasUnsavedChanges = diff;
               var cancelBtn = document.querySelector('#dpad-cancel-btn');
               // Pedido del usuario (ampliación): el botón Guardar refleja si hay cambios sin
@@ -1148,6 +1174,10 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                   rotLabelEl.setAttribute('value', STATIC.rotationAxes[axis] + ': ' + selectedRotationValue[i].toFixed(2) + '°');
                 }
               });
+              var scaleLabelEl = document.querySelector('#dpad-scale-label');
+              if (scaleLabelEl) {
+                scaleLabelEl.setAttribute('value', STATIC.scale + ': ' + selectedScaleValue.toFixed(2));
+              }
               refreshCancelState();
             }
             function hidePositionDpad() {
@@ -1343,6 +1373,28 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                   }
                 });
               });
+              // Pedido del usuario: fila "Scale" — un solo valor uniforme (no por eje), mismo
+              // patrón de mensaje que posición/rotación con kind: 'scale' (ver setScale en
+              // vrPositionControl.js). Clamp local a SCALE_MIN/MAX para no mandar un valor
+              // negativo o absurdamente grande por apretar +/- de más.
+              document.querySelector('#dpad-scale-minus').addEventListener('click', function () {
+                if (!selectedPositionKey) return;
+                var next = Math.max(SCALE_MIN, +(selectedScaleValue - currentStep).toFixed(2));
+                var delta = +(next - selectedScaleValue).toFixed(2);
+                if (delta === 0) return;
+                send({ action: 'position-move', key: selectedPositionKey, kind: 'scale', delta: delta });
+                selectedScaleValue = next;
+                refreshPositionDpad();
+              });
+              document.querySelector('#dpad-scale-plus').addEventListener('click', function () {
+                if (!selectedPositionKey) return;
+                var next = Math.min(SCALE_MAX, +(selectedScaleValue + currentStep).toFixed(2));
+                var delta = +(next - selectedScaleValue).toFixed(2);
+                if (delta === 0) return;
+                send({ action: 'position-move', key: selectedPositionKey, kind: 'scale', delta: delta });
+                selectedScaleValue = next;
+                refreshPositionDpad();
+              });
               document.querySelector('#dpad-save-btn').addEventListener('click', function () {
                 if (!selectedPositionKey) return;
                 send({ action: 'position-save', key: selectedPositionKey });
@@ -1351,6 +1403,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 savedPositionValue = selectedPositionValue.slice();
                 savedRotationValue = selectedRotationValue.slice();
                 savedStep = currentStep;
+                savedScaleValue = selectedScaleValue;
                 refreshCancelState();
                 var btn = document.querySelector('#dpad-save-btn');
                 var prevColor = btn.getAttribute('color');
@@ -1392,6 +1445,9 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 selectedPositionKey = msg.key;
                 selectedPositionValue = msg.position.slice();
                 selectedRotationValue = (msg.rotation || [0, 0, 0]).slice();
+                // Pedido del usuario: la escala también se restaura por elemento (o 1 por defecto
+                // si el elemento nunca se escaló) — mismo criterio que step/position/rotation.
+                selectedScaleValue = typeof msg.scale === 'number' && Number.isFinite(msg.scale) ? msg.scale : 1;
                 // Pedido del usuario (ampliación): el "step" se guarda por elemento — al seleccionar
                 // uno, se restaura su step guardado (o el default si no hay ninguno para ESE
                 // elemento). El overlay lo incluye en 'position-element-selected' (ver
@@ -1407,6 +1463,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 savedPositionValue = selectedPositionValue.slice();
                 savedRotationValue = selectedRotationValue.slice();
                 savedStep = currentStep;
+                savedScaleValue = selectedScaleValue;
                 document.querySelector('#position-dpad-group').setAttribute('visible', true);
                 setDpadInteractive(true);
                 refreshPositionDpad();

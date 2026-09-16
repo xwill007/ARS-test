@@ -482,7 +482,7 @@ const SyncStereoTestView = ({ onClose }) => {
       // como fuente de verdad y se rebroadcastea a AMBAS brújulas: es configuración compartida
       // (qué elemento se está editando), no un input transitorio de un solo panel.
       if (msg.action === 'position-element-selected') {
-        positionSelectedRef.current = { key: msg.key, position: msg.position, rotation: msg.rotation || [0, 0, 0] };
+        positionSelectedRef.current = { key: msg.key, position: msg.position, rotation: msg.rotation || [0, 0, 0], scale: typeof msg.scale === 'number' ? msg.scale : 1 };
         [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
           .filter(Boolean)
           .forEach((w) => w.postMessage(msg, '*'));
@@ -504,19 +504,26 @@ const SyncStereoTestView = ({ onClose }) => {
       // 'position-element-selected'.
       if (msg.action === 'position-move' || msg.action === 'position-save' || msg.action === 'position-reset' || msg.action === 'position-step') {
         if (msg.action === 'position-move' && positionSelectedRef.current && positionSelectedRef.current.key === msg.key) {
-          const axisIndex = ['x', 'y', 'z'].indexOf(msg.axis);
-          if (axisIndex !== -1) {
-            // Pedido del usuario (ampliación): `kind` distingue qué campo del elemento
-            // seleccionado hay que actualizar en la fuente de verdad — mismo criterio que ya usa
-            // vrPositionControl.js para aplicar el delta real.
-            if (msg.kind === 'rotation') {
-              const nextRot = (positionSelectedRef.current.rotation || [0, 0, 0]).slice();
-              nextRot[axisIndex] = +(nextRot[axisIndex] + msg.delta).toFixed(2);
-              positionSelectedRef.current = { ...positionSelectedRef.current, rotation: nextRot };
-            } else {
-              const nextPos = positionSelectedRef.current.position.slice();
-              nextPos[axisIndex] = +(nextPos[axisIndex] + msg.delta).toFixed(2);
-              positionSelectedRef.current = { ...positionSelectedRef.current, position: nextPos };
+          // Pedido del usuario: la escala es un solo delta, sin eje — se resuelve antes del
+          // cálculo de axisIndex de abajo (posición/rotación, que sí lo necesitan).
+          if (msg.kind === 'scale') {
+            const nextScale = Math.max(0.1, +((positionSelectedRef.current.scale ?? 1) + msg.delta).toFixed(2));
+            positionSelectedRef.current = { ...positionSelectedRef.current, scale: nextScale };
+          } else {
+            const axisIndex = ['x', 'y', 'z'].indexOf(msg.axis);
+            if (axisIndex !== -1) {
+              // Pedido del usuario (ampliación): `kind` distingue qué campo del elemento
+              // seleccionado hay que actualizar en la fuente de verdad — mismo criterio que ya usa
+              // vrPositionControl.js para aplicar el delta real.
+              if (msg.kind === 'rotation') {
+                const nextRot = (positionSelectedRef.current.rotation || [0, 0, 0]).slice();
+                nextRot[axisIndex] = +(nextRot[axisIndex] + msg.delta).toFixed(2);
+                positionSelectedRef.current = { ...positionSelectedRef.current, rotation: nextRot };
+              } else {
+                const nextPos = positionSelectedRef.current.position.slice();
+                nextPos[axisIndex] = +(nextPos[axisIndex] + msg.delta).toFixed(2);
+                positionSelectedRef.current = { ...positionSelectedRef.current, position: nextPos };
+              }
             }
           }
         }
