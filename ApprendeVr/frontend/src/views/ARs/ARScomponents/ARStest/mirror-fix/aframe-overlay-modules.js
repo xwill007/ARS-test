@@ -413,6 +413,59 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
   });
 })();
 
+// Puente de sincronización de los campos del panel "New Song" (VRNewSongAf.js) entre los paneles
+// izquierdo/derecho de AR-SYNC — pedido del usuario tras agregar el botón "PEGAR URL DEL
+// PORTAPAPELES" (ver VRNewSongAf.js): pegar/escribir una URL (o cualquier otro campo) en un panel
+// debe reflejarse en el otro, igual que ya pasa con la canción seleccionada/reproducción del
+// karaoke más arriba. Se poll-ea `this._values` (campo "privado" por convención, mismo criterio
+// que `_htmlVideo`/`_currentSong` arriba) en vez de enganchar un evento, porque VRNewSongAf.js no
+// expone ningún hook de "cambió un campo" — si algún día se renombra ese campo, este puente se
+// degrada a "sin sync", no rompe nada (mismo criterio que el resto de este archivo).
+(function () {
+  function send(msg) {
+    window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+  }
+
+  const FIELD_NAMES = ['titulo', 'autor', 'archivo', 'youtubeUrl'];
+  let newSongComp = null;
+  // Último valor CONOCIDO de cada campo, ya sea porque ESTE panel lo escribió o porque lo aplicó
+  // un mensaje remoto — al pollear, solo se reenvía un campo si cambió respecto a esto, así un
+  // valor recién aplicado por mensaje no se re-envía en loop de vuelta al panel que lo mandó.
+  const lastKnown = { titulo: '', autor: '', archivo: '', youtubeUrl: '' };
+
+  function findComponent() {
+    const entity = document.querySelector('#new-song-component');
+    newSongComp = entity && entity.components && entity.components['vr-new-song-af'];
+    if (newSongComp) {
+      setInterval(pollFields, 300);
+    } else {
+      setTimeout(findComponent, 200);
+    }
+  }
+  findComponent();
+
+  function pollFields() {
+    if (!newSongComp || !newSongComp._values) return;
+    FIELD_NAMES.forEach((field) => {
+      const value = newSongComp._values[field] || '';
+      if (value !== lastKnown[field]) {
+        lastKnown[field] = value;
+        send({ action: 'new-song-field-update', field: field, value: value });
+      }
+    });
+  }
+
+  window.addEventListener('message', function (ev) {
+    const msg = ev.data;
+    if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'new-song-field-update') return;
+    if (!newSongComp || !newSongComp._values || FIELD_NAMES.indexOf(msg.field) === -1) return;
+    if (newSongComp._values[msg.field] === msg.value) return;
+    newSongComp._values[msg.field] = msg.value;
+    lastKnown[msg.field] = msg.value;
+    try { newSongComp._refreshFieldText(msg.field); } catch (e) { /* ignore */ }
+  });
+})();
+
 // Requerimiento 012: hover/dwell/click propio para el puntero estático (#mirror-fix-pointer) de
 // este overlay — mismo patrón de gaze+fuse que VRLocalVideoOverlaySync.jsx/VRConeOverlaySync.jsx
 // (ver esos archivos), pero con SU PROPIO raycasting THREE.js directo en vez de un <a-cursor

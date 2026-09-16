@@ -46,7 +46,7 @@ const VRKaraokeOverlaySyncInner = ({ forwardedRef, isPrimaryPanel = true, isRigh
     title="VR Karaoke Overlay (Sync)"
     src={`./aframe-overlay-modules.html?isPrimaryPanel=${isPrimaryPanel}&isRightPanel=${isRightPanel}&singlePanel=${singlePanel}`}
     style={{ width: '100%', height: '100%', border: 'none', background: 'transparent', pointerEvents: 'auto' }}
-    allow="xr-spatial-tracking; fullscreen"
+    allow="xr-spatial-tracking; fullscreen; clipboard-read"
   />
 );
 

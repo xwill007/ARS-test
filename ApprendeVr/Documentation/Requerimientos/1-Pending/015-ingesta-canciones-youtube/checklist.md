@@ -110,6 +110,33 @@
 - [ ] 6.3 Mostrar el resultado (éxito con conteo de frases/palabras — y qué overlay corresponde
       usar según el modo elegido —, o el error específico de "no se encontró letra") en el
       `status` del panel.
+- [x] 6.4 Botón "BUSCAR EN YOUTUBE" en `VRNewSongAf` (mismo patrón `window.open(url, '_blank',
+      'noopener')` que el botón "PREVIEW ON YOUTUBE" ya existente): abre
+      `https://www.youtube.com/results?search_query=<titulo>+<autor>` si esos campos tienen algo
+      escrito, o `https://www.youtube.com` si están vacíos — pestaña nueva del navegador, no un
+      iframe, para que el usuario busque el video con su propia sesión de YouTube y copie la URL
+      de vuelta al campo `youtubeUrl`. Implementado de forma independiente al resto del
+      requerimiento 015 (no depende del pipeline backend ni del 014).
+- [x] 6.5 Botón "PEGAR URL DEL PORTAPAPELES" en `VRNewSongAf` (`navigator.clipboard.readText()`,
+      agrega al final del valor actual de `youtubeUrl`): pedido del usuario tras probar 6.4, porque
+      escribir la URL letra por letra con el teclado es incómodo y en `mirror-fix` el teclado
+      físico no siempre llega a este panel (ver hallazgo de la brújula en `requerimiento.md`,
+      sección 5). Requiere agregar `clipboard-read` al `allow` del `<iframe>` en
+      `VRKaraokeOverlaySync.jsx`. Alto del panel ampliado `5.15` → `5.5` (en el schema de
+      `VRNewSongAf.js` y en el atributo de `aframe-overlay-modules.html`) para que entren los dos
+      botones nuevos (6.4 + 6.5) sin desbordar el fondo del panel.
+- [x] 6.6 "PREVIEW ON YOUTUBE" cambia de `window.open` a un panel 2D flotante (DOM, no A-Frame) con
+      el video embebido `youtube.com/embed/<id>` (pedido del usuario: no salir de la vista al
+      previsualizar). Nueva función pura `extractYoutubeVideoId(url)` (regex sobre `watch?v=`,
+      `youtu.be/`, `embed/`, `shorts/`); si no matchea, error en `status`. Toggle: un segundo click
+      cierra el panel. Limpieza del overlay agregada a `remove()`.
+- [x] 6.7 Puente de sincronización nuevo en `aframe-overlay-modules.js` (mismo patrón que el de
+      video del overlay `karaoke`): poll-ea `vr-new-song-af._values` (los 4 campos) cada 300ms y
+      reenvía `{action: 'new-song-field-update', field, value}` por `postMessage`; el panel
+      opuesto lo aplica directo a su propio `_values` + `_refreshFieldText`. No requirió tocar
+      `SyncStereoTestView.jsx` (su relay genérico ya reenvía cualquier acción no reservada del
+      overlay `karaoke` al panel opuesto). Pedido del usuario tras notar que "PEGAR URL DEL
+      PORTAPAPELES" solo actualizaba el panel donde se hizo click.
 
 ### Fase 7 — Verificación y cierre
 

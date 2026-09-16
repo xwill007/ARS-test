@@ -93,6 +93,14 @@ título/autor/letra/traducción a mano desde el teclado virtual de `VRNewSongAf`
 - Como usuario que pega una URL de un video sin subtítulos disponibles, quiero que el sistema me
   avise que no pudo obtener la letra en vez de guardar una canción sin frases/palabras en
   silencio, para saber que tengo que buscar otra fuente o cargarla a mano.
+- Como usuario que todavía no tiene la URL del video, quiero un botón "Buscar en YouTube" en el
+  mismo panel que abra YouTube en una pestaña nueva del navegador (con mi sesión real: historial,
+  recomendaciones, login), para encontrar el video sin salir de la app a buscarlo por mi cuenta y
+  después volver a copiar la URL en el campo del formulario.
+- Como usuario que ya copió la URL del video encontrado, quiero un botón "Pegar URL del
+  portapapeles" en el panel, para no tener que escribirla letra por letra con el teclado virtual
+  (o depender del teclado físico, que en el modo `mirror-fix` no siempre llega a este panel — ver
+  sección 5).
 
 ## 4. Alcance
 
@@ -151,6 +159,22 @@ título/autor/letra/traducción a mano desde el teclado virtual de `VRNewSongAf`
   - `VRNewSongAf` (o un nuevo panel simple, ver más abajo): campo para pegar la URL de YouTube +
     selector `descargar`/`solo reproducir` + botón "Generar desde YouTube" que llama a
     `POST /song-ingestion/from-youtube` y muestra el resultado.
+  - Botón nuevo **"BUSCAR EN YOUTUBE"** en el mismo panel (junto al botón "PREVIEW ON YOUTUBE" ya
+    existente, mismo patrón `window.open(url, '_blank', 'noopener')`): si los campos `titulo`/
+    `autor` ya tienen algo escrito, abre `https://www.youtube.com/results?search_query=<titulo>
+    +<autor>` (URL-encoded); si están vacíos, abre `https://www.youtube.com` a secas. Es una
+    pestaña nueva del navegador, no un iframe embebido — el usuario busca con su propia sesión de
+    YouTube (login, recomendaciones, historial) y después copia la URL del video encontrado de
+    vuelta al campo `youtubeUrl` del formulario para que el pipeline automático la use.
+  - Botón nuevo **"PEGAR URL DEL PORTAPAPELES"** (`navigator.clipboard.readText()`), agregado a
+    pedido del usuario al probar el botón de búsqueda: escribir la URL letra por letra con el
+    teclado virtual/físico resultó incómodo, sobre todo en `mirror-fix`, donde el teclado físico no
+    siempre llega a este panel (la brújula `SyncConfigCompassMenu.jsx` es la capa que recibe el
+    mousedown/keydown real en ese modo — ver sección 5). Al hacer click, agrega el contenido del
+    portapapeles al final del valor actual de `youtubeUrl` y lo marca como campo activo. Requiere
+    el permiso `clipboard-read` en el `allow` del `<iframe>` que monta este panel dentro de
+    `mirror-fix` (`VRKaraokeOverlaySync.jsx`) — sin eso, el navegador bloquea la lectura del
+    portapapeles dentro del iframe aunque el sitio sea HTTPS.
 
 ### No incluido
 
@@ -233,6 +257,65 @@ LIKE` (o más simple, `youtube_video_url` presente + `archivo_cancion` sin exten
 archivo real en `public/videos/karaoke/`, así que fallarían al reproducir ahí si se colaran —
 motivo de más para que el filtro por `youtube_video_url` sea explícito, no opcional).
 
+**Botón "Buscar en YouTube": pestaña nueva (`window.open`), no un navegador embebido (decisión
+tomada con el usuario a partir de la pregunta "¿es posible agregar un navegador web que abra
+YouTube con la sesión del usuario?").** No es viable embeber `youtube.com` completo en un
+`<iframe>` dentro del panel: Google bloquea eso con `X-Frame-Options`/CSP `frame-ancestors` en todo
+el sitio (solo permite iframear el reproductor de un video puntual vía `youtube.com/embed/ID`, que
+es justamente el modo `stream` de este mismo requerimiento — sirve para reproducir un video ya
+elegido, no para buscar). La alternativa que sí funciona y no requiere infraestructura nueva es
+abrir una pestaña de navegador real con `window.open(...)`, que hereda la sesión de YouTube del
+usuario (login, historial, recomendaciones) porque las cookies de `youtube.com` viajan con esa
+pestaña igual que con cualquier otra — es el mismo mecanismo que ya usa el botón "PREVIEW ON
+YOUTUBE" existente en `VRNewSongAf` para la URL ya pegada. El costo aceptado es que el usuario sale
+momentáneamente de la vista AR-SYNC/`mirror-fix` mientras busca, y tiene que volver a copiar la URL
+a mano — no hay forma de evitar esa salida sin violar la restricción de `X-Frame-Options` de
+YouTube.
+
+**Puente de sincronización de los campos de `VRNewSongAf` entre los paneles de `mirror-fix`
+(hallazgo real, agregado tras verificar el botón de pegar en vivo).** El usuario probó "PEGAR URL
+DEL PORTAPAPELES" y encontró que la URL solo aparecía en el panel donde se hizo click, no en el
+otro — inconsistente con el resto de AR-SYNC, donde la canción seleccionada, el play/pause/seek y
+la rotación de cámara sí se replican entre ambos paneles. Se agrega un puente nuevo en
+`aframe-overlay-modules.js` (mismo archivo y mismo patrón que el puente de video del overlay
+`karaoke`: hijo → `window.parent.postMessage` → `SyncStereoTestView.jsx` relay genérico → hijo
+hermano) que poll-ea los 4 campos de `this._values` de `vr-new-song-af` cada 300ms y reenvía
+`{ action: 'new-song-field-update', field, value }` cuando alguno cambia; el panel que lo recibe
+escribe el valor directo en su propio `_values` y refresca el texto del campo. No requirió tocar
+`SyncStereoTestView.jsx`: su relay ya reenvía genéricamente cualquier acción no reservada del
+overlay `karaoke` (mismo iframe que hospeda `vr-new-song-af`) al panel opuesto.
+
+**"PREVIEW ON YOUTUBE": panel 2D flotante (DOM) en vez de pestaña nueva (pedido del usuario).** El
+botón existente abría `window.open(url)`; se cambia a mostrar el video embebido
+(`youtube.com/embed/<id>`) en un panel superpuesto al canvas de A-Frame, sin salir de la vista.
+Mismo límite técnico ya documentado para el modo `stream` de este requerimiento: un iframe de
+YouTube no se puede leer como textura WebGL (`<a-video>`), así que no es un plano 3D real — es un
+`<div>`/`<iframe>` de DOM normal (`position: fixed`, centrado, con botón "X CERRAR"), el mismo
+criterio ya elegido para el overlay `youtube-karaoke` (dos iframes 2D superpuestos con CSS). El
+video ID se extrae de la URL con una regex que cubre `watch?v=`, `youtu.be/`, `embed/` y `shorts/`;
+si no matchea ninguno, se muestra un error en el `status` en vez de abrir un panel vacío. Un
+segundo click en el mismo botón cierra el panel (toggle) en vez de abrir uno nuevo encima.
+
+**Botón "Pegar URL del portapapeles" en vez de arreglar el teclado físico dentro de
+`mirror-fix` (hallazgo real, investigado en esta sesión).** El usuario pidió que activar un campo
+con el puntero disparara la captura de teclado físico "como ya funciona en
+`src/views/A-frame/index.html`". Esa captura (`_handlePhysicalKeyDown`, `_typingMode`) YA existe en
+`VRNewSongAf.js` — es el mismo archivo en ambos contextos — pero en `mirror-fix` no llega a
+activarse de forma confiable porque la brújula 3D (`SyncConfigCompassMenu.jsx`, capa más externa de
+cada panel, ver `SyncStereoTestView.jsx` → `renderPanel`) es la que recibe el `mousedown`/
+`mousemove`/`keydown` REAL del navegador (comentario explícito en el propio código: "la brújula es
+la única capa que recibe el mousedown/mousemove real"); el overlay de contenido (karaoke/New Song)
+vive en un `<iframe>` distinto por debajo, que solo recibe clicks reenviados puntualmente (p. ej.
+`gaze-hover` para el reticle) pero no un reenvío genérico de foco de teclado. Arreglar eso de raíz
+implicaría rediseñar el puente de eventos entre la brújula y cada overlay de contenido (agregar un
+mecanismo de "estos son los `.clickable` del panel de abajo, reenviame también sus eventos de
+teclado"), un cambio de arquitectura más grande que excede el alcance de este requerimiento. Se
+opta por un atajo pragmático que no depende de resolver ese cruce de iframes: un botón "PEGAR URL
+DEL PORTAPAPELES" que lee el portapapeles al hacer click (un click real SÍ llega hoy al overlay de
+contenido — se verificó con el botón "BUSCAR EN YOUTUBE" — a diferencia del teclado físico) y
+escribe el valor directamente en el campo `youtubeUrl`, sin necesitar que ningún `keydown` cruce
+del iframe de la brújula al de contenido.
+
 **`yt-dlp` como dependencia de sistema, no de `npm`.** Se invoca como proceso hijo
 (`child_process.execFile`) desde `song-ingestion` — tanto para bajar subtítulos (ambos modos) como
 para descargar el video completo (solo modo `download`) — igual que cualquier binario externo; no
@@ -271,7 +354,10 @@ también).
 | `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Agregar `youtube-karaoke` a `SYNCABLE_OVERLAYS`. |
 | `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigMenu.jsx` | Agregar `youtube-karaoke` a `OVERLAY_OPTIONS`. |
 | `ApprendeVr/frontend/src/locales/{es,en,br}.json` | Clave `syncConfig.overlay.youtubeKaraoke` (regla del skill `texto-multidioma`). |
-| `ApprendeVr/frontend/src/views/A-frame/components/VRKaraokeAf/components/VRNewSongAf/VRNewSongAf.js` (o panel nuevo) | Campo de URL de YouTube + selector `download`/`stream` + botón que llama a `POST /song-ingestion/from-youtube`. |
+| `ApprendeVr/frontend/src/views/A-frame/components/VRKaraokeAf/components/VRNewSongAf/VRNewSongAf.js` (o panel nuevo) | Campo de URL de YouTube + selector `download`/`stream` + botón que llama a `POST /song-ingestion/from-youtube` + botón "BUSCAR EN YOUTUBE" (`window.open` a `youtube.com/results?search_query=...` o `youtube.com`) + botón "PEGAR URL DEL PORTAPAPELES" (`navigator.clipboard.readText()`, agrega al final de `youtubeUrl`). Alto del panel ampliado (`5.15` → `5.5`) para que entren los botones nuevos. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/VRKaraokeOverlaySync.jsx` | Agregar `clipboard-read` al `allow` del `<iframe>` (si no, el navegador bloquea `navigator.clipboard.readText()` dentro de él aunque el sitio sea HTTPS). |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.html` | Actualizar `height: 5.15` → `height: 5.5` en el atributo `vr-new-song-af` (mismo motivo que arriba). |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.js` | Nuevo puente: poll-ea `vr-new-song-af._values` (4 campos) cada 300ms y sincroniza cambios entre paneles vía `postMessage`/`SyncStereoTestView.jsx` (mismo patrón que el puente de video de `karaoke`). |
 | `ApprendeVr/frontend/src/views/A-frame/vrSongsApi.util.js` | Agregar `createSongFromYoutube(...)` (mismo patrón del Requerimiento 014). |
 
 ## 7. Criterios de aceptación
@@ -308,6 +394,22 @@ también).
       LibreTranslate (mockear el cliente HTTP en los tests).
 - [ ] `npm run check:i18n` (frontend) pasa con la clave `syncConfig.overlay.youtubeKaraoke` en los
       3 idiomas.
+- [ ] El botón "BUSCAR EN YOUTUBE" del panel de ingesta abre una pestaña nueva del navegador (no un
+      iframe) apuntando a `youtube.com/results?search_query=...` cuando hay `titulo`/`autor`
+      escritos, o a `youtube.com` si están vacíos; la pestaña usa la sesión de YouTube ya logueada
+      del usuario en ese navegador (visible por sus recomendaciones/historial personalizados).
+- [ ] El botón "PEGAR URL DEL PORTAPAPELES" funciona tanto en `src/views/A-frame/index.html` como
+      dentro del overlay `karaoke` de `mirror-fix` (con el permiso `clipboard-read` agregado al
+      `<iframe>` de `VRKaraokeOverlaySync.jsx`): copiar una URL en el navegador, click en el botón,
+      y verla aparecer al final del campo `youtubeUrl`.
+- [ ] En `mirror-fix` con "Doble panel" activo, pegar (o escribir) en cualquier campo de
+      `VRNewSongAf` en un panel hace que el mismo valor aparezca en el campo equivalente del panel
+      opuesto en menos de ~300ms (mismo patrón de sincronización que la canción seleccionada del
+      overlay `karaoke`).
+- [ ] Click en "PREVIEW ON YOUTUBE" con una URL válida abre un panel flotante con el video
+      embebido (sin salir de la vista ni abrir pestaña nueva); un segundo click lo cierra. Con una
+      URL de formato no reconocido, muestra un error en el `status` en vez de abrir un panel
+      vacío.
 
 ## 8. Referencias
 

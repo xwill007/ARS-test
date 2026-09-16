@@ -24,6 +24,16 @@ const KEY_ROWS = [
 // Fila extra de caracteres propios del español, que no están en el QWERTY normal.
 const ACCENT_KEYS = ['ñ', 'á', 'é', 'í', 'ó', 'ú'];
 
+// Extrae el video ID de las formas usuales de URL de YouTube (watch?v=, youtu.be/, embed/,
+// shorts/) para armar la URL de `youtube.com/embed/<id>` del panel de previsualización. Devuelve
+// null si no matchea ningun formato conocido.
+function extractYoutubeVideoId(url) {
+  const match = String(url || '').match(
+    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
+  );
+  return match ? match[1] : null;
+}
+
 const FIELDS = [
   { name: 'titulo', label: 'Titulo' },
   { name: 'autor', label: 'Autor' },
@@ -35,7 +45,7 @@ AFRAME.registerComponent('vr-new-song-af', {
   schema: {
     position: { type: 'string', default: '-9 5 0' },
     width: { type: 'number', default: 3.2 },
-    height: { type: 'number', default: 5.15 },
+    height: { type: 'number', default: 5.5 },
     textColor: { type: 'string', default: '#ffffff' },
     buttonColor: { type: 'string', default: '#0008ff' },
     backgroundColor: { type: 'string', default: '#2a2a2a' },
@@ -125,7 +135,109 @@ AFRAME.registerComponent('vr-new-song-af', {
       y -= 0.32;
     });
 
-    // Botón para previsualizar el YouTube URL (Opción B del Requerimiento 003 legacy, sección 4)
+    // Botón para buscar en YouTube con la sesión real del navegador del usuario (Requerimiento
+    // 015, sección 5): pestaña nueva, no un iframe embebido, porque YouTube bloquea embeber el
+    // sitio completo con X-Frame-Options. Sirve para encontrar el video antes de tener la URL;
+    // el usuario la copia luego al campo "YouTube URL" de abajo.
+    const searchBtn = document.createElement('a-plane');
+    searchBtn.setAttribute('width', fieldRowW);
+    searchBtn.setAttribute('height', 0.24);
+    searchBtn.setAttribute('color', '#454545');
+    searchBtn.setAttribute('class', 'clickable');
+    searchBtn.setAttribute('position', `0 ${y - 0.02} 0.01`);
+    const searchTxt = document.createElement('a-text');
+    searchTxt.setAttribute('value', 'BUSCAR EN YOUTUBE');
+    searchTxt.setAttribute('align', 'center');
+    searchTxt.setAttribute('color', '#ffffff');
+    searchTxt.setAttribute('width', 3.0);
+    searchTxt.setAttribute('position', '0 0 0.01');
+    searchBtn.appendChild(searchTxt);
+    const onSearchClick = () => {
+      const titulo = (this._values.titulo || '').trim();
+      const autor = (this._values.autor || '').trim();
+      const query = [titulo, autor].filter(Boolean).join(' ').trim();
+      const url = query
+        ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query)
+        : 'https://www.youtube.com';
+      try {
+        window.open(url, '_blank', 'noopener');
+      } catch (e) { /* ignore */ }
+    };
+    searchBtn.addEventListener('click', onSearchClick);
+    this._clickableEls.push({ el: searchBtn, onClick: onSearchClick });
+    el.appendChild(searchBtn);
+    y -= 0.32;
+
+    // Botón para pegar la URL copiada al portapapeles al final del campo "YouTube URL" (pedido
+    // del usuario: escribir la URL letra por letra con el teclado virtual/físico es incómodo, y
+    // en mirror-fix el teclado físico no siempre llega a este panel — ver el iframe de la brújula
+    // en SyncConfigCompassMenu.jsx, que es la capa que recibe el mousedown/keydown real). Usa la
+    // Clipboard API (`navigator.clipboard.readText()`), que solo funciona en contexto seguro
+    // (https), requiere el permiso `clipboard-read` habilitado en el `allow` del `<iframe>` que
+    // monta este panel dentro de mirror-fix (ver VRKaraokeOverlaySync.jsx), Y ADEMÁS requiere que
+    // ESTE documento tenga el foco real del navegador.
+    //
+    // Hallazgo real (verificado con `document.hasFocus()` en cada iframe de mirror-fix): un click
+    // sobre un botón de este panel SÍ ejecuta su handler (el raycast manual de más abajo lo
+    // dispara), pero el foco de teclado del navegador nunca se movió a este iframe — se queda en
+    // el `<body>` de la página top-level (`SyncStereoTestView.jsx`), porque ningún elemento
+    // enfocable de A-Frame llama a `.focus()`. Sin foco, `readText()` rechaza con
+    // `NotAllowedError: Document is not focused`, aunque el click haya llegado bien. Se resuelve
+    // llamando primero a `window.focus()` (el `window` de ESTE iframe) — un script SIEMPRE puede
+    // pedir foco para su propia ventana, y alcanza para que `document.hasFocus()` pase a `true`
+    // acá antes de invocar la Clipboard API.
+    const pasteBtn = document.createElement('a-plane');
+    pasteBtn.setAttribute('width', fieldRowW);
+    pasteBtn.setAttribute('height', 0.24);
+    pasteBtn.setAttribute('color', '#454545');
+    pasteBtn.setAttribute('class', 'clickable');
+    pasteBtn.setAttribute('position', `0 ${y - 0.02} 0.01`);
+    const pasteTxt = document.createElement('a-text');
+    pasteTxt.setAttribute('value', 'PEGAR URL DEL PORTAPAPELES');
+    pasteTxt.setAttribute('align', 'center');
+    pasteTxt.setAttribute('color', '#ffffff');
+    pasteTxt.setAttribute('width', 3.0);
+    pasteTxt.setAttribute('position', '0 0 0.01');
+    pasteBtn.appendChild(pasteTxt);
+    const onPasteClick = () => {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        this._statusText.setAttribute('color', '#ff8888');
+        this._statusText.setAttribute('value', 'Este navegador no permite leer el portapapeles aqui.');
+        return;
+      }
+      try { window.focus(); } catch (e) { /* ignore */ }
+      navigator.clipboard.readText().then((text) => {
+        const clip = (text || '').trim();
+        if (!clip) {
+          this._statusText.setAttribute('color', '#ffcc66');
+          this._statusText.setAttribute('value', 'Portapapeles vacio (sin texto copiado).');
+          return;
+        }
+        this._values.youtubeUrl = (this._values.youtubeUrl || '') + clip;
+        this._refreshFieldText('youtubeUrl');
+        this._setActiveField('youtubeUrl');
+        this._statusText.setAttribute('color', '#aaffaa');
+        this._statusText.setAttribute('value', 'URL pegada desde el portapapeles.');
+      }).catch((err) => {
+        this._statusText.setAttribute('color', '#ff8888');
+        const detail = (err && err.name === 'NotAllowedError')
+          ? ' (el navegador nego el permiso de portapapeles)'
+          : '';
+        this._statusText.setAttribute('value', 'No se pudo leer el portapapeles' + detail + '.');
+      });
+    };
+    pasteBtn.addEventListener('click', onPasteClick);
+    this._clickableEls.push({ el: pasteBtn, onClick: onPasteClick });
+    el.appendChild(pasteBtn);
+    y -= 0.32;
+
+    // Botón para previsualizar el YouTube URL (Opción B del Requerimiento 003 legacy, sección 4).
+    // Pedido del usuario: en vez de abrir una pestaña nueva, mostrar el video embebido en un panel
+    // superpuesto a la escena 3D. No puede ser una textura WebGL real (un iframe cross-origin de
+    // YouTube no se puede leer como `<a-video>` — restricción del navegador, ver Requerimiento 015
+    // sección 5), así que se arma como un `<div>`/`<iframe>` de DOM normal, flotando sobre el
+    // canvas de A-Frame (mismo criterio ya decidido para el overlay `youtube-karaoke` del
+    // Requerimiento 015: dos iframes 2D superpuestos con CSS, no un plano 3D texturizado).
     const previewBtn = document.createElement('a-plane');
     previewBtn.setAttribute('width', fieldRowW);
     previewBtn.setAttribute('height', 0.24);
@@ -142,9 +254,17 @@ AFRAME.registerComponent('vr-new-song-af', {
     const onPreviewClick = () => {
       const url = (this._values.youtubeUrl || '').trim();
       if (!url) return;
-      try {
-        window.open(url, '_blank', 'noopener');
-      } catch (e) { /* ignore */ }
+      if (this._previewOverlay) {
+        this._closePreviewOverlay();
+        return;
+      }
+      const videoId = extractYoutubeVideoId(url);
+      if (!videoId) {
+        this._statusText.setAttribute('color', '#ff8888');
+        this._statusText.setAttribute('value', 'No se reconoce el formato de esa URL de YouTube.');
+        return;
+      }
+      this._openPreviewOverlay(videoId);
     };
     previewBtn.addEventListener('click', onPreviewClick);
     this._clickableEls.push({ el: previewBtn, onClick: onPreviewClick });
@@ -328,6 +448,104 @@ AFRAME.registerComponent('vr-new-song-af', {
   remove: function () {
     try { if (this._onPointerDown) window.removeEventListener('pointerdown', this._onPointerDown); } catch (e) {}
     try { if (this._onKeyDown) window.removeEventListener('keydown', this._onKeyDown); } catch (e) {}
+    try { this._closePreviewOverlay(); } catch (e) {}
+  },
+
+  // Panel 2D flotante (DOM normal, no A-Frame) con el video embebido de YouTube, superpuesto al
+  // canvas mientras está abierto. Un solo panel a la vez: un segundo click en "PREVIEW ON YOUTUBE"
+  // lo cierra en vez de abrir otro (ver onPreviewClick).
+  //
+  // Pedido del usuario: que el panel "se mueva" con el giroscopio/mouse-drag igual que el resto
+  // de la escena, para sensación de inmersión — en vez de quedar pegado al centro de la pantalla.
+  // No puede ser una textura 3D real (un iframe cross-origin de YouTube no se puede pintar como
+  // `<a-video>` — misma restricción documentada en el Requerimiento 015), así que se simula
+  // proyectando un punto FIJO en el mundo 3D (0,0,0.3 en el espacio local de este panel, justo
+  // delante de él) a coordenadas de pantalla en cada frame con `Vector3.project(camera)` — el
+  // mismo truco que un sprite "billboard" de A-Frame. El resultado: el `<div>` sigue siendo DOM
+  // plano, pero su posición en pantalla responde al giro real de la cámara (gyro en mobile,
+  // look-controls con mouse-drag en desktop), como si estuviera anclado ahí en el espacio 3D. Se
+  // oculta (`display:none`) cuando ese punto queda detrás de la cámara.
+  _openPreviewOverlay: function (videoId) {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '50%';
+    overlay.style.left = '50%';
+    overlay.style.transform = 'translate(-50%, -50%)';
+    overlay.style.width = '480px';
+    overlay.style.maxWidth = '90vw';
+    overlay.style.zIndex = '99999';
+    overlay.style.background = '#000000';
+    overlay.style.border = '2px solid #454545';
+    overlay.style.borderRadius = '6px';
+    overlay.style.boxShadow = '0 4px 24px rgba(0, 0, 0, 0.6)';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'X CERRAR';
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.top = '-16px';
+    closeBtn.style.right = '-16px';
+    closeBtn.style.background = '#772222';
+    closeBtn.style.color = '#ffffff';
+    closeBtn.style.border = 'none';
+    closeBtn.style.borderRadius = '4px';
+    closeBtn.style.padding = '4px 8px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.fontSize = '12px';
+    closeBtn.addEventListener('click', () => this._closePreviewOverlay());
+    overlay.appendChild(closeBtn);
+
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1';
+    iframe.style.display = 'block';
+    iframe.style.width = '100%';
+    iframe.style.aspectRatio = '16 / 9';
+    iframe.style.border = 'none';
+    iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+    iframe.setAttribute('allowfullscreen', '');
+    overlay.appendChild(iframe);
+
+    document.body.appendChild(overlay);
+    this._previewOverlay = overlay;
+    this._startPreviewOverlayTracking();
+  },
+
+  // Reubica el panel en cada frame proyectando un punto delante de este panel 3D a coordenadas de
+  // pantalla — ver el comentario grande de `_openPreviewOverlay`.
+  _startPreviewOverlayTracking: function () {
+    if (this._previewOverlayRaf) cancelAnimationFrame(this._previewOverlayRaf);
+    const THREE = AFRAME.THREE;
+    const worldPos = new THREE.Vector3();
+    const update = () => {
+      if (!this._previewOverlay) return;
+      const sceneEl = this.el.sceneEl;
+      const camera = sceneEl && sceneEl.camera;
+      const canvas = sceneEl && sceneEl.canvas;
+      if (camera && canvas && this.el.object3D) {
+        worldPos.set(0, 0, 0.3);
+        this.el.object3D.localToWorld(worldPos);
+        const projected = worldPos.project(camera);
+        const rect = canvas.getBoundingClientRect();
+        const behind = projected.z > 1;
+        this._previewOverlay.style.display = behind ? 'none' : 'block';
+        if (!behind) {
+          this._previewOverlay.style.left = (rect.left + (projected.x * 0.5 + 0.5) * rect.width) + 'px';
+          this._previewOverlay.style.top = (rect.top + (-projected.y * 0.5 + 0.5) * rect.height) + 'px';
+        }
+      }
+      this._previewOverlayRaf = requestAnimationFrame(update);
+    };
+    update();
+  },
+
+  _closePreviewOverlay: function () {
+    if (this._previewOverlayRaf) {
+      cancelAnimationFrame(this._previewOverlayRaf);
+      this._previewOverlayRaf = null;
+    }
+    if (this._previewOverlay && this._previewOverlay.parentNode) {
+      this._previewOverlay.parentNode.removeChild(this._previewOverlay);
+    }
+    this._previewOverlay = null;
   },
 
   _handlePhysicalKeyDown: function (evt) {
