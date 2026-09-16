@@ -442,8 +442,20 @@ const SyncStereoTestView = ({ onClose }) => {
       // A diferencia de 'compass-section-changed', esto SÍ necesita empujar un
       // 'compass-config-state' fresco de una (no alcanza con esperar el próximo broadcast
       // reactivo: `positionModeRef` es un ref, no dispara el efecto de arriba solo) para que el
-      // check de la fila se vea al toque en las dos brújulas, y además avisa a los overlays de
-      // karaoke de ambos paneles para mostrar/ocultar sus marcadores rojos.
+      // check de la fila se vea al toque en las dos brújulas, y además avisa a TODOS los overlays
+      // de contenido de ambos paneles para mostrar/ocultar sus marcadores rojos.
+      //
+      // Hallazgo real (reportado por el usuario: "no muestra el icono rojo para editar la
+      // ubicacion desde interface position" en el overlay "Youtube Video"): este reenvío (y los
+      // de 'position-element-selected'/'position-move'/'position-save'/'position-reset'/
+      // 'position-step' de más abajo) estaban hardcodeados a `refs.current.karaoke` — el único
+      // overlay de contenido que existía cuando se escribió esta lógica (Requerimiento 013). Al
+      // agregar `youtube-video.html` como una página NUEVA y SEPARADA con su propio
+      // `initPositionControl()` (Requerimiento 015), sus mensajes de modo posición nunca llegaban
+      // ahí. Se itera `Object.keys(SYNCABLE_OVERLAYS)` (igual que ya hace el relevo genérico más
+      // abajo del archivo) en vez de nombrar `karaoke` a mano — un overlay sin
+      // `initPositionControl()` (video/cono) simplemente no tiene ningún listener para estas
+      // acciones, así que recibirlas ahí es un no-op inofensivo.
       if (msg.action === 'compass-toggle-position-mode') {
         const now = Date.now();
         if (now - lastPositionModeToggleAtRef.current < OVERLAY_TOGGLE_DEBOUNCE_MS) return;
@@ -457,10 +469,12 @@ const SyncStereoTestView = ({ onClose }) => {
           .filter(Boolean)
           .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-config-state', ...freshState, deviceType, userEmail }, '*'));
         [leftRefs, rightRefs].forEach((refs) => {
-          refs.current.karaoke?.current?.contentWindow?.postMessage(
-            { source: 'ars-sync-test', action: 'position-mode-changed', enabled: positionModeRef.current },
-            '*',
-          );
+          Object.keys(SYNCABLE_OVERLAYS).forEach((key) => {
+            refs.current[key]?.current?.contentWindow?.postMessage(
+              { source: 'ars-sync-test', action: 'position-mode-changed', enabled: positionModeRef.current },
+              '*',
+            );
+          });
         });
         return;
       }
@@ -472,18 +486,22 @@ const SyncStereoTestView = ({ onClose }) => {
         [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
           .filter(Boolean)
           .forEach((w) => w.postMessage(msg, '*'));
-        // Pedido del usuario (ampliación): también se reenvía a los overlays de karaoke de AMBOS
-        // paneles, para que pinten azul el marcador del elemento seleccionado (y rojo el resto) —
-        // ver vrPositionControl.js 'position-element-selected'. Sin esto, el panel hermano (o el
-        // propio, que no recibe su propio postMessage) no enteraría el cambio de selección visual.
+        // Pedido del usuario (ampliación): también se reenvía a TODOS los overlays de contenido de
+        // AMBOS paneles (ver hallazgo grande de arriba), para que pinten azul el marcador del
+        // elemento seleccionado (y rojo el resto) — ver vrPositionControl.js
+        // 'position-element-selected'. Sin esto, el panel hermano (o el propio, que no recibe su
+        // propio postMessage) no enteraría el cambio de selección visual.
         [leftRefs, rightRefs].forEach((refs) => {
-          refs.current.karaoke?.current?.contentWindow?.postMessage(msg, '*');
+          Object.keys(SYNCABLE_OVERLAYS).forEach((key) => {
+            refs.current[key]?.current?.contentWindow?.postMessage(msg, '*');
+          });
         });
         return;
       }
-      // Un +/- (o Guardar) del d-pad genérico de la brújula — se reenvía a los overlays de
-      // karaoke de AMBOS paneles (ahí vive el elemento real que hay que mover/guardar), no solo
-      // al opuesto: mismo criterio que 'position-element-selected'.
+      // Un +/- (o Guardar) del d-pad genérico de la brújula — se reenvía a TODOS los overlays de
+      // contenido de AMBOS paneles (ahí vive el elemento real que hay que mover/guardar, ver
+      // hallazgo grande de arriba), no solo al opuesto: mismo criterio que
+      // 'position-element-selected'.
       if (msg.action === 'position-move' || msg.action === 'position-save' || msg.action === 'position-reset' || msg.action === 'position-step') {
         if (msg.action === 'position-move' && positionSelectedRef.current && positionSelectedRef.current.key === msg.key) {
           const axisIndex = ['x', 'y', 'z'].indexOf(msg.axis);
@@ -503,7 +521,9 @@ const SyncStereoTestView = ({ onClose }) => {
           }
         }
         [leftRefs, rightRefs].forEach((refs) => {
-          refs.current.karaoke?.current?.contentWindow?.postMessage(msg, '*');
+          Object.keys(SYNCABLE_OVERLAYS).forEach((key) => {
+            refs.current[key]?.current?.contentWindow?.postMessage(msg, '*');
+          });
         });
         return;
       }

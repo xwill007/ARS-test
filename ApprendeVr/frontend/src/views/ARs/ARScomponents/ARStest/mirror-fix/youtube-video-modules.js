@@ -147,6 +147,39 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
   panel.style.fontFamily = 'sans-serif';
   panel.style.boxSizing = 'border-box';
 
+  // Botón "X" (pedido del usuario) para cerrar la vista del video — desactiva el overlay completo
+  // reenviando el mismo mensaje que ya dispara el checkbox real del menú ⚙️ → "Overlays"
+  // (`compass-toggle-overlay`, ver SyncStereoTestView.jsx): como este panel solo existe mientras
+  // el overlay está seleccionado, el toggle siempre lo apaga acá (nunca lo prende de nuevo por
+  // error). Mismo estilo/posición ("esquina superior derecha, un poco afuera del panel") que el
+  // botón "X CERRAR" del panel de previsualización de VRNewSongAf.js.
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  Object.assign(closeBtn.style, {
+    position: 'absolute',
+    top: '-12px',
+    right: '-12px',
+    width: '26px',
+    height: '26px',
+    borderRadius: '50%',
+    border: '2px solid #ffffff',
+    background: '#772222',
+    color: '#ffffff',
+    fontSize: '13px',
+    fontWeight: 'bold',
+    lineHeight: '1',
+    padding: '0',
+    cursor: 'pointer',
+    boxShadow: '0 0 4px rgba(0, 0, 0, 0.6)',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => closeBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  closeBtn.addEventListener('click', () => {
+    try {
+      window.parent.postMessage({ source: 'ars-sync-test', action: 'compass-toggle-overlay', key: 'youtubeVideo' }, '*');
+    } catch (e) { /* ignore */ }
+  });
+  panel.appendChild(closeBtn);
+
   const row = document.createElement('div');
   row.style.display = 'flex';
   row.style.gap = '6px';
@@ -431,6 +464,39 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
     if (ev.key === YOUTUBE_URL_STORAGE_KEY) refreshFromStorage();
   });
 
+  // Marcador de ubicación (pedido del usuario: "el circulo rojo se ubica detras del plano del
+  // video youtube, debe ser en la esquina superior izquierda como en los demas componentes"). El
+  // marcador 3D real que ya crea `vrPositionControl.js` (`<a-circle>` hijo de
+  // `#youtube-video-anchor`) sigue existiendo y sigue siendo la fuente de verdad de click/
+  // selección/color — pero al ser un objeto WebGL, nunca puede dibujarse ENCIMA de este panel de
+  // DOM: el canvas de A-Frame es el fondo de TODA la página, y cualquier `<div>` normal (aunque
+  // tenga menor z-index "lógico") siempre lo tapa visualmente. Se agrega acá un botón de DOM
+  // equivalente, anclado a la esquina superior izquierda REAL del panel (en píxeles, igual
+  // convención "un poco por encima del borde" que usa `vrPositionControl.js` para karaoke/
+  // newSong), que solo reenvía su click al marcador 3D real (`.click()` dispara el mismo
+  // `onClick`/`onSelect` ya registrado ahí) y refleja su color/visibilidad — así se ve donde el
+  // usuario espera verlo sin duplicar el mecanismo de selección/guardado.
+  const positionMarker = document.createElement('button');
+  Object.assign(positionMarker.style, {
+    position: 'fixed',
+    width: '22px',
+    height: '22px',
+    borderRadius: '50%',
+    border: '2px solid #ffffff',
+    background: '#d21919',
+    padding: '0',
+    cursor: 'pointer',
+    zIndex: '100000',
+    display: 'none',
+    boxShadow: '0 0 4px rgba(0, 0, 0, 0.6)',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => positionMarker.addEventListener(evt, (e) => e.stopPropagation()));
+  positionMarker.addEventListener('click', () => {
+    const realMarker = document.querySelector('#youtube-video-anchor > a-circle.clickable');
+    if (realMarker) realMarker.click();
+  });
+  document.body.appendChild(positionMarker);
+
   // Sigue al ancla 3D en pantalla — mismo truco "billboard" que el panel de previsualización de
   // VRNewSongAf.js (Vector3.project(camera) en cada frame, updateMatrixWorld(true) explícito antes
   // para no leer una matriz de un tick viejo).
@@ -441,17 +507,29 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
     function update() {
       const camera = sceneEl && sceneEl.camera;
       const canvas = sceneEl && sceneEl.canvas;
+      let behind = true;
       if (camera && canvas && anchorEl && anchorEl.object3D) {
         sceneEl.object3D.updateMatrixWorld(true);
         anchorEl.object3D.getWorldPosition(worldPos);
         const projected = worldPos.clone().project(camera);
         const rect = canvas.getBoundingClientRect();
-        const behind = projected.z > 1;
+        behind = projected.z > 1;
         panel.style.display = behind ? 'none' : 'block';
         if (!behind) {
           panel.style.left = (rect.left + (projected.x * 0.5 + 0.5) * rect.width) + 'px';
           panel.style.top = (rect.top + (-projected.y * 0.5 + 0.5) * rect.height) + 'px';
         }
+      }
+      const realMarker = document.querySelector('#youtube-video-anchor > a-circle.clickable');
+      const markerShouldShow = !behind && realMarker && realMarker.getAttribute('visible') !== false;
+      if (markerShouldShow) {
+        const panelRect = panel.getBoundingClientRect();
+        positionMarker.style.display = 'block';
+        positionMarker.style.left = (panelRect.left - 11) + 'px';
+        positionMarker.style.top = (panelRect.top - 11) + 'px';
+        positionMarker.style.background = realMarker.getAttribute('color') || '#d21919';
+      } else {
+        positionMarker.style.display = 'none';
       }
       requestAnimationFrame(update);
     }
