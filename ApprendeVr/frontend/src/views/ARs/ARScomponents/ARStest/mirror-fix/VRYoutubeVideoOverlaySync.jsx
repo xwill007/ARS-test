@@ -19,13 +19,20 @@ import React from 'react';
  * aunque el sitio sea HTTPS (mismo hallazgo ya resuelto en `VRKaraokeOverlaySync.jsx` para el
  * botón de pegar de `VRNewSongAf.js`).
  *
+ * `isPrimaryPanel`/`isRightPanel`/`singlePanel`: mismas props que ya reciben todos los overlays de
+ * contenido desde `SyncStereoTestView.jsx` (ver `renderPanel`) — se reenvían como query string
+ * (esta página no puede recibir props de React directamente) para que `youtube-video-modules.js`
+ * baje el volumen del panel izquierdo/primario y evitar eco, mismo criterio anti-eco que
+ * `aframe-overlay-modules.js`/`VRLocalVideoOverlaySync.jsx` (ambos paneles de AR-SYNC suenan por
+ * el mismo dispositivo físico).
+ *
  * Componente de prueba aislado: no se importa ni se usa desde ningún archivo de producción.
  */
-const VRYoutubeVideoOverlaySyncInner = ({ forwardedRef }) => (
+const VRYoutubeVideoOverlaySyncInner = ({ forwardedRef, isPrimaryPanel = true, isRightPanel = false, singlePanel = false }) => (
   <iframe
     ref={forwardedRef}
     title="VRYoutubeVideo Overlay (Sync)"
-    src="./youtube-video.html"
+    src={`./youtube-video.html?isPrimaryPanel=${isPrimaryPanel}&isRightPanel=${isRightPanel}&singlePanel=${singlePanel}`}
     style={{
       width: '100%',
       height: '100%',

@@ -120,6 +120,19 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
     return m ? m[1] : null;
   }
 
+  function send(msg) {
+    window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+  }
+
+  // Pedido del usuario: volumen por panel para evitar eco — mismo criterio que
+  // aframe-overlay-modules.js/VRLocalVideoOverlaySync.jsx (ambos paneles de AR-SYNC suenan por el
+  // mismo dispositivo físico). isPrimaryPanel/isRightPanel/singlePanel llegan como query string
+  // desde VRYoutubeVideoOverlaySync.jsx (esta página no puede recibir props de React).
+  const params = new URLSearchParams(window.location.search);
+  const isPrimaryPanel = params.get('isPrimaryPanel') !== 'false';
+  const isRightPanel = params.get('isRightPanel') === 'true';
+  const isSinglePanel = params.get('singlePanel') === 'true';
+
   const panel = document.createElement('div');
   panel.style.position = 'fixed';
   panel.style.transform = 'translate(-50%, -50%)';
@@ -197,12 +210,82 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
   videoBox.textContent = 'El video aparecerá acá';
   panel.appendChild(videoBox);
 
+  // Controles de reproducción (pedido del usuario: pause/play/adelantar/atrasar) — ocultos
+  // mientras no hay video cargado (ver showPlaceholder/showVideo). Usan la YouTube IFrame Player
+  // API (no un `<iframe src="...">` plano) porque `seekTo()`/`playVideo()`/`pauseVideo()` solo
+  // existen ahí — necesarios además para sincronizar entre los dos paneles estéreo (ver el
+  // listener de `message` más abajo), cosa que dos iframes independientes no podrían hacer solos.
+  const SEEK_STEP_SECONDS = 10;
+  function makeControlBtn(label) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    Object.assign(btn.style, {
+      flex: '1',
+      padding: '6px 0',
+      fontSize: '12px',
+      border: 'none',
+      borderRadius: '4px',
+      background: '#333333',
+      color: '#ffffff',
+      cursor: 'pointer',
+    });
+    ['pointerdown', 'mousedown', 'click'].forEach((evt) => btn.addEventListener(evt, (e) => e.stopPropagation()));
+    return btn;
+  }
+  const controls = document.createElement('div');
+  Object.assign(controls.style, { display: 'none', marginTop: '8px', gap: '6px' });
+  const rewindBtn = makeControlBtn('<< ' + SEEK_STEP_SECONDS + 's');
+  const playPauseBtn = makeControlBtn('PLAY');
+  const forwardBtn = makeControlBtn(SEEK_STEP_SECONDS + 's >>');
+  controls.appendChild(rewindBtn);
+  controls.appendChild(playPauseBtn);
+  controls.appendChild(forwardBtn);
+  panel.appendChild(controls);
+
   document.body.appendChild(panel);
 
   let currentVideoId = null;
+  let player = null;
+  let playerContainerEl = null;
+  let ytApiPromise = null;
+
+  function loadYoutubeApi() {
+    if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+    if (ytApiPromise) return ytApiPromise;
+    ytApiPromise = new Promise((resolve) => {
+      const previous = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = function () {
+        if (typeof previous === 'function') previous();
+        resolve(window.YT);
+      };
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(script);
+    });
+    return ytApiPromise;
+  }
+
+  function applyVolume() {
+    if (!player) return;
+    if (isSinglePanel) { player.setVolume(100); return; }
+    if (isPrimaryPanel && !isRightPanel) player.setVolume(1);
+    else if (isRightPanel) player.setVolume(100);
+    else player.setVolume(5);
+  }
+
+  function updatePlayPauseLabel(isPlaying) {
+    playPauseBtn.textContent = isPlaying ? 'PAUSE' : 'PLAY';
+  }
 
   function showPlaceholder() {
     currentVideoId = null;
+    controls.style.display = 'none';
+    if (player) {
+      try { player.destroy(); } catch (e) { /* ignore */ }
+      player = null;
+    }
+    playerContainerEl = null;
+    videoBox.textContent = '';
     videoBox.style.border = '2px dashed #666666';
     videoBox.style.padding = '0';
     videoBox.textContent = 'El video aparecerá acá';
@@ -210,18 +293,86 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
 
   function showVideo(videoId) {
     currentVideoId = videoId;
+    controls.style.display = 'flex';
+    updatePlayPauseLabel(false);
+    if (player) {
+      player.loadVideoById(videoId);
+      applyVolume();
+      return;
+    }
     videoBox.textContent = '';
     videoBox.style.border = 'none';
-    const iframe = document.createElement('iframe');
-    iframe.src = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1';
-    iframe.style.display = 'block';
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = 'none';
-    iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
-    iframe.setAttribute('allowfullscreen', '');
-    videoBox.appendChild(iframe);
+    videoBox.style.padding = '0';
+    playerContainerEl = document.createElement('div');
+    playerContainerEl.style.width = '100%';
+    playerContainerEl.style.height = '100%';
+    videoBox.appendChild(playerContainerEl);
+    loadYoutubeApi().then((YT) => {
+      // La URL puede haber cambiado mientras cargaba la API (async) — usar la última conocida en
+      // vez de la que disparó esta llamada en particular.
+      if (!currentVideoId || !playerContainerEl) return;
+      player = new YT.Player(playerContainerEl, {
+        width: '100%',
+        height: '100%',
+        videoId: currentVideoId,
+        playerVars: { autoplay: 0, controls: 0, rel: 0 },
+        events: { onReady: applyVolume },
+      });
+    });
   }
+
+  playPauseBtn.addEventListener('click', () => {
+    if (!player) return;
+    const isPlaying = player.getPlayerState() === window.YT.PlayerState.PLAYING;
+    if (isPlaying) {
+      player.pauseVideo();
+      updatePlayPauseLabel(false);
+      send({ action: 'youtube-video-pause' });
+    } else {
+      player.playVideo();
+      updatePlayPauseLabel(true);
+      send({ action: 'youtube-video-play' });
+    }
+  });
+
+  rewindBtn.addEventListener('click', () => {
+    if (!player) return;
+    const time = Math.max(0, player.getCurrentTime() - SEEK_STEP_SECONDS);
+    player.seekTo(time, true);
+    send({ action: 'youtube-video-seek', time });
+  });
+
+  forwardBtn.addEventListener('click', () => {
+    if (!player) return;
+    const time = player.getCurrentTime() + SEEK_STEP_SECONDS;
+    player.seekTo(time, true);
+    send({ action: 'youtube-video-seek', time });
+  });
+
+  // Sincronización con el panel hermano: a diferencia del puente de video de
+  // aframe-overlay-modules.js (que escucha eventos NATIVOS del `<video>`, disparados por
+  // cualquier fuente, y necesita banderas de supresión para no reenviar en loop lo que acaba de
+  // aplicar de forma remota), acá el único disparador posible es un click de ESTE panel en sus
+  // propios botones (arriba) — se manda el mensaje directo desde ahí, así que no hace falta
+  // instrumentar `onStateChange` ni sufrir el problema de eco.
+  window.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    if (!msg || msg.source !== 'ars-sync-test' || !player) return;
+    if (msg.action === 'youtube-video-play') {
+      // Un play() remoto sin gesto real en ESTE panel puede ser bloqueado por el navegador salvo
+      // que esté muted — mismo workaround que el puente de video de aframe-overlay-modules.js.
+      const wasMuted = player.isMuted();
+      player.mute();
+      player.playVideo();
+      setTimeout(() => { if (!wasMuted) player.unMute(); }, 800);
+      updatePlayPauseLabel(true);
+    } else if (msg.action === 'youtube-video-pause') {
+      player.pauseVideo();
+      updatePlayPauseLabel(false);
+    } else if (msg.action === 'youtube-video-seek') {
+      player.seekTo(msg.time, true);
+    }
+  });
 
   function applyUrl(url, opts) {
     const persist = !opts || opts.persist !== false;
@@ -307,4 +458,63 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
     update();
   }
   trackAnchor();
+
+  // Pedido del usuario: el reticle circular de la brújula (giroscopio en mobile, mirar con la
+  // cabeza) no detectaba ni activaba estos botones. Mismo patrón que el sistema de gaze/dwell de
+  // aframe-overlay-modules.js (FUSE_MS/COOLDOWN_MS/REACTIVATION_GRACE_MS idénticos, mismo mensaje
+  // `gaze-hover` que la brújula ya sabe pintar en rojo — ver SyncConfigCompassMenu.jsx), pero acá
+  // el "objetivo" no es un mesh 3D intersectado por un THREE.Raycaster: los botones de este panel
+  // son `<button>` de DOM normal (input de URL + recuadro de video, no A-Frame), así que se usa
+  // `document.elementFromPoint()` en el CENTRO del canvas (la misma posición que apunta el
+  // reticle) para saber sobre qué botón está la mirada.
+  const FUSE_MS = 2500;
+  const COOLDOWN_MS = 600;
+  const REACTIVATION_GRACE_MS = 2000;
+  let hoveredBtn = null;
+  let fuseStart = null;
+  let lockedBtn = null;
+  let lastActivationAt = 0;
+  let lastActivatedBtn = null;
+
+  function findGazeButton() {
+    const sceneEl = document.querySelector('a-scene');
+    const canvas = sceneEl && sceneEl.canvas;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const el = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return el ? el.closest('button') : null;
+  }
+
+  function gazeTick() {
+    const btn = findGazeButton();
+    if (btn !== lockedBtn) lockedBtn = null;
+    const inGrace = btn && btn === lastActivatedBtn && (Date.now() - lastActivationAt) < REACTIVATION_GRACE_MS;
+
+    if (btn !== hoveredBtn) {
+      hoveredBtn = btn;
+      fuseStart = (btn && btn !== lockedBtn && !inGrace) ? Date.now() : null;
+    }
+
+    if (!btn || btn === lockedBtn || inGrace) {
+      send({ action: 'gaze-hover', hovering: false, progress: 0 });
+      requestAnimationFrame(gazeTick);
+      return;
+    }
+
+    const progress = Math.min(1, (Date.now() - fuseStart) / FUSE_MS);
+    send({ action: 'gaze-hover', hovering: true, progress });
+
+    if (progress >= 1) {
+      const now = Date.now();
+      if (now - lastActivationAt >= COOLDOWN_MS) {
+        btn.click();
+        lastActivationAt = now;
+        lastActivatedBtn = btn;
+      }
+      lockedBtn = btn;
+      fuseStart = null;
+    }
+    requestAnimationFrame(gazeTick);
+  }
+  requestAnimationFrame(gazeTick);
 })();
