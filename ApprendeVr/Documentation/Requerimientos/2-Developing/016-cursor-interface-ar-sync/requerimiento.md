@@ -217,28 +217,36 @@ geometry: 'point'|'square'|'triangle'|'cross', visible: boolean }`. Validador
 
 ## 7. Criterios de aceptación
 
-- [ ] La pestaña "Interface" del menú brújula muestra una fila "Cursor" debajo de "Position", que
-      abre/cierra un sub-panel al hacer click (mismo patrón que "Position").
-- [ ] Mover los steppers x/y/z cambia visiblemente la posición de `#main-cursor` en tiempo real.
-- [ ] El stepper de escala cambia el tamaño base del cursor, y la animación de fuse (mirar fijo un
-      botón) sigue funcionando sin verse rota por la escala base configurada.
-- [ ] El stepper de tiempo de activación cambia cuánto tarda en activarse un botón por dwell, y ese
+- [x] La pestaña "Interface" del menú brújula muestra una fila "Cursor" debajo de "Position" (con
+      un margen visual entre ambas, pedido del usuario), que abre/cierra un sub-panel al hacer
+      click (mismo patrón que "Position", mutuamente excluyente con su d-pad).
+- [x] Mover los steppers x/y/z cambia visiblemente la posición de `#main-cursor` en tiempo real.
+- [x] El stepper de escala cambia el tamaño base del cursor, y la animación de fuse (mirar fijo un
+      botón) sigue funcionando sin verse rota por la escala base configurada (`setVisual` compone
+      `cursorBaseScale * fuseScale`).
+- [x] El stepper de tiempo de activación cambia cuánto tarda en activarse un botón por dwell, y ese
       mismo tiempo se aplica también dentro del overlay de karaoke/new-song y del overlay de video
-      (no solo en la brújula).
-- [ ] El selector de color cicla entre la paleta fija y el cursor cambia de color en tiempo real.
-- [ ] El selector de geometría cicla entre punto/cuadro/triángulo/cruz y el cursor cambia de forma
-      en tiempo real, sin errores de render (z-fighting, geometría invisible) en ninguna opción.
-- [ ] El toggle de mostrar/ocultar hace desaparecer/reaparecer el cursor sin romper el
-      raycasting/dwell (los clicks/mirada fija siguen funcionando aunque el cursor esté oculto).
-- [ ] Al salir y volver a entrar a AR-SYNC con el mismo usuario logueado, la configuración de
+      (no solo en la brújula) — vía `localStorage['apprendevr_cursor_fuse_timeout']` y el prop
+      `cursorFuseTimeout`.
+- [x] El selector de color cicla entre la paleta fija y el cursor cambia de color en tiempo real.
+- [x] El selector de geometría cicla entre punto/cuadro/triángulo/cruz y el cursor cambia de forma
+      en tiempo real, sin errores de render (verificado en el navegador, sin z-fighting reportado).
+- [x] El toggle de mostrar/ocultar hace desaparecer/reaparecer el cursor sin romper el
+      raycasting/dwell (el raycaster vive en `#main-cursor`, independiente de su apariencia visual).
+- [x] Al salir y volver a entrar a AR-SYNC con el mismo usuario logueado, la configuración de
       cursor guardada se reaplica automáticamente (posición, escala, tiempo, color, geometría,
-      visibilidad).
-- [ ] Guardar la configuración de cursor no borra ni pisa la configuración ya guardada de
-      `ars-sync-compass-position` ni de otras vistas de `user-settings` (merge, no reemplazo
-      completo — mismo criterio ya establecido en el Requerimiento 015 para `saveConfig`).
-- [ ] `npm run build` y `npm test` (backend) pasan sin levantar MySQL.
-- [ ] `npm run build` (frontend) pasa sin errores.
-- [ ] `npm run check:i18n` (frontend) pasa con las claves nuevas en los 3 idiomas.
+      visibilidad). Verificado con `curl` (`PUT`/`GET /api/user-settings/ars-sync-cursor`).
+- [x] Un cambio de Cursor sin guardar en un panel (modo "Doble panel") se refleja de inmediato en
+      el panel hermano — sincronización relayada por el padre (`SyncStereoTestView.jsx`,
+      `compass-cursor-live`/`cursor-live-apply`), no por cambio de estado de React (pedido
+      explícito del usuario tras notar desincronización en la primera versión — ver
+      `problems_solutions.md` #4).
+- [x] Guardar la configuración de cursor no borra ni pisa la configuración ya guardada de
+      `ars-sync-compass-position` ni de otras vistas de `user-settings` (filas independientes por
+      `view_id`, no solo protegidas por el merge superficial de `saveConfig`).
+- [x] `npm run build` y `npm test` (backend) pasan sin levantar MySQL.
+- [x] `npm run build` (frontend) pasa sin errores.
+- [x] `npm run check:i18n` (frontend) pasa con las claves nuevas en los 3 idiomas.
 
 ## 8. Referencias
 

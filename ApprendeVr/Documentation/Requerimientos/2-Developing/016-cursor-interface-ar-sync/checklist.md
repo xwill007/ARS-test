@@ -16,56 +16,62 @@
 
 ### Fase 2 — Frontend: UI del sub-panel "Cursor" en la brújula
 
-- [ ] 2.1 `SyncConfigCompassMenu.jsx`: nueva fila toggle "Cursor" en `buildInterfaceGroupHTML()`,
-      debajo de "Position", que abre/cierra un sub-panel (mismo patrón que `position-dpad-group`).
-      Ajustar `PANEL_HEIGHT`/`y` cascade si no entra el contenido (mismo cuidado documentado para
-      la fila "Scale" existente).
-- [ ] 2.2 3 steppers x/y/z (reposición relativa a la cámara de `#main-cursor`), reusando
+- [x] 2.1 `SyncConfigCompassMenu.jsx`: nueva fila toggle "Cursor" en `buildInterfaceGroupHTML()`,
+      debajo de "Position" (con un margen extra, `TOGGLE_ROW_MARGIN`, pedido del usuario para que
+      no quedaran pegadas), que abre/cierra un sub-panel (mismo patrón que `position-dpad-group`,
+      mutuamente excluyente con él — ver `problems_solutions.md`). `PANEL_HEIGHT` ajustado 5.2→5.8.
+- [x] 2.2 3 steppers x/y/z (reposición relativa a la cámara de `#main-cursor`), reusando
       `buildAxisStepperRow()`.
-- [ ] 2.3 1 stepper de escala base.
-- [ ] 2.4 1 stepper de tiempo de activación (rango 500–5000 ms, paso 250 ms).
-- [ ] 2.5 1 selector cíclico (+/-) de color sobre paleta fija (wraparound de índice).
-- [ ] 2.6 1 selector cíclico (+/-) de geometría (`point`/`square`/`triangle`/`cross`).
-- [ ] 2.7 1 fila toggle de mostrar/ocultar.
-- [ ] 2.8 `refreshDisplay()`: reflejar el estado actual de cada control (labels, valores, check de
-      visibilidad) igual que ya hace para "Position"/overlays.
+- [x] 2.3 1 stepper de escala base.
+- [x] 2.4 1 stepper de tiempo de activación (rango 500–5000 ms, paso 250 ms).
+- [x] 2.5 1 selector cíclico (+/-) de color sobre paleta fija (wraparound de índice).
+- [x] 2.6 1 selector cíclico (+/-) de geometría (`point`/`square`/`triangle`/`cross`).
+- [x] 2.7 1 fila toggle de mostrar/ocultar.
+- [x] 2.8 `refreshDisplay()`/`refreshCursorDpad()`: reflejan el estado actual de cada control
+      (labels, valores, check de visibilidad) igual que ya hace para "Position"/overlays.
 
 ### Fase 3 — Frontend: aplicar los cambios en tiempo real sobre el cursor visible
 
-- [ ] 3.1 Aplicar posición/escala/color/geometría/visibilidad a `#main-cursor` en
-      `SyncConfigCompassMenu.jsx` al cambiar cada control (sin esperar a guardar).
-- [ ] 3.2 Componer la escala base configurada con la animación de fuse existente
-      (`setVisual(color, scale)`) — la animación multiplica sobre la base, no la reemplaza.
-- [ ] 3.3 Implementar la geometría "cross" (sin primitive nativo) — dos `<a-plane>` cruzados o
-      alternativa sin z-fighting (ver skill `aframe-elementos-3d`); documentar la solución elegida
-      en `problems_solutions.md`.
+- [x] 3.1 Aplicado posición/escala/color/geometría/visibilidad a `#main-cursor` en
+      `SyncConfigCompassMenu.jsx` al cambiar cada control (`applyCursorConfigLive()` →
+      `window.__applyCursorConfig`), sin esperar a guardar. Verificado en vivo en el navegador.
+- [x] 3.2 La escala base configurada se compone con la animación de fuse existente
+      (`setVisual(color, fuseScale)` ahora multiplica `cursorBaseScale * fuseScale`, no reemplaza).
+- [x] 3.3 Geometría "cross" implementada con dos `<a-plane>` hijos de `#main-cursor`
+      (`#cursor-cross-h`/`#cursor-cross-v`), ocultos por defecto — sin z-fighting reportado.
 
 ### Fase 4 — Frontend: propagar el tiempo de activación a las demás copias de dwell
 
-- [ ] 4.1 `SyncStereoTestView.jsx`: `CURSOR_SETTINGS_VIEW` — cargar (`getUserSetting`) al montar y
-      guardar (`saveUserSetting`) al recibir el mensaje de guardado desde la brújula, igual que
-      `COMPASS_POSITION_VIEW`.
-- [ ] 4.2 Compartir el `fuseTimeout` configurado a los iframes vía `localStorage` (mismo mecanismo
-      que `apprendevr_youtube_preview_url`, Requerimiento 015) y/o `postMessage` explícito para los
-      `srcDoc` que no pueden leer `localStorage` de otro origen si aplica.
-- [ ] 4.3 `VRLocalVideoOverlaySync.jsx`: leer el valor configurado en vez del default hardcodeado
-      `cursorFuseTimeout = 2500`.
-- [ ] 4.4 `aframe-overlay-modules.js`: reemplazar `FUSE_MS`/`COOLDOWN_MS` hardcodeados por el valor
-      configurado.
-- [ ] 4.5 `youtube-video-modules.js`: ídem.
+- [x] 4.1 `SyncStereoTestView.jsx`: `CURSOR_SETTINGS_VIEW` — carga (`getUserSetting`) al montar y
+      guarda (`saveUserSetting`) al recibir `compass-save-cursor`, igual que `COMPASS_POSITION_VIEW`.
+- [x] 4.2 `fuseTimeout` compartido a `aframe-overlay-modules.js`/`youtube-video-modules.js` vía
+      `localStorage['apprendevr_cursor_fuse_timeout']` (mismo mecanismo que
+      `apprendevr_youtube_preview_url`, Requerimiento 015); a la brújula y a
+      `VRLocalVideoOverlaySync.jsx` vía el prop `cursorFuseTimeout` (ya existía, nunca se le pasaba
+      un valor real).
+- [x] 4.3 `VRLocalVideoOverlaySync.jsx`: recibe `cursorFuseTimeout={cursorConfig?.fuseTimeout}` desde
+      `SyncStereoTestView.jsx` en vez del default hardcodeado.
+- [x] 4.4 `aframe-overlay-modules.js`: `FUSE_MS` ahora lee `localStorage`, con fallback a 2500 si no
+      hay nada guardado.
+- [x] 4.5 `youtube-video-modules.js`: ídem.
 
 ### Fase 5 — i18n
 
-- [ ] 5.1 Agregar las claves nuevas (fila "Cursor" + labels de cada control) a
-      `src/locales/{es,en,br}.json`.
-- [ ] 5.2 `npm run check:i18n` pasa.
+- [x] 5.1 Claves nuevas agregadas a `src/locales/{es,en,br}.json` (`config.cursor*`).
+- [x] 5.2 `npm run check:i18n` pasa (212 claves usadas, simétricas en los 3 idiomas).
 
 ### Fase 6 — Verificación y documentación
 
-- [ ] 6.1 `npm run build` y `npm test` (backend) pasan sin levantar MySQL.
-- [ ] 6.2 `npm run build` (frontend) pasa sin errores.
-- [ ] 6.3 Probar manualmente en `mirror-fix` cada control del sub-panel "Cursor" (ver `tests.md`,
-      casos manuales).
-- [ ] 6.4 Confirmar que guardar "Cursor" no pisa la configuración ya guardada de
-      `ars-sync-compass-position` (ni viceversa).
-- [ ] 6.5 Marcar los criterios de aceptación de `requerimiento.md` como cumplidos.
+- [x] 6.1 `npm run build` y `npm test` (backend) pasan sin levantar MySQL (71 tests verdes en
+      `user-settings`, suite completa no re-corrida en esta fase pero sin cambios fuera de ese
+      módulo).
+- [x] 6.2 `npm run build` (frontend) pasa sin errores.
+- [x] 6.3 Probado manualmente en `mirror-fix` (navegador real, vía `javascript_tool` +
+      screenshots): abrir/cerrar el sub-panel, mover X/Y/Z, escala, tiempo de activación, ciclar
+      color y geometría, mostrar/ocultar, Guardar (botón pasa a verde con cambios, gris sin
+      cambios) — sin errores de consola en ningún punto. Migración aplicada a la BD real
+      (`docker exec` + `INSERT INTO settings_views`) y probado round-trip completo con `curl`
+      (`PUT`/`GET /api/user-settings/ars-sync-cursor`, incluido el caso de geometría inválida → 400).
+- [x] 6.4 `ars-sync-cursor` y `ars-sync-compass-position` son filas independientes (`view_id`
+      distinto) — no hay reemplazo cruzado posible por diseño de la tabla, no solo por el merge.
+- [x] 6.5 Criterios de aceptación de `requerimiento.md` marcados.

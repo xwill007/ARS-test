@@ -822,11 +822,24 @@ const SyncStereoTestView = ({ onClose }) => {
         return;
       }
 
-      // Requerimiento 016: "Cursor" — a diferencia de compass-save-position (que solo tiene
-      // sentido reenviar a las brújulas, el elemento posicionado vive ahí), acá basta con guardar
-      // y dejar que el próximo broadcast periódico de compass-config-state (que ya incluye
-      // cursorConfig, ver configStateRef) le llegue a ambas brújulas — no hace falta un
-      // postMessage dedicado aparte.
+      // Pedido del usuario: la sincronización entre los dos paneles de "Doble panel" debe pasar
+      // por el padre relayando el mensaje de inmediato a ambas brújulas, no por un cambio de
+      // estado de React (más lento y, en algunos timings, no se reflejaba en el panel opuesto
+      // hasta guardar) — mismo criterio que ya usa 'position-move' para el d-pad de Position.
+      // Reenvío directo, sin pasar por setCursorConfig/configStateRef (eso solo aplica al valor ya
+      // GUARDADO, ver compass-save-cursor abajo): un edit en curso todavía no está guardado.
+      if (msg.action === 'compass-cursor-live') {
+        [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
+          .filter(Boolean)
+          .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'cursor-live-apply', config: msg.config }, '*'));
+        return;
+      }
+
+      // Requerimiento 016: "Cursor" — guardar sí actualiza el estado de React (`cursorConfig`),
+      // que el efecto de compass-config-state ya rebroadcastea a ambas brújulas (ver
+      // configStateRef) — no hace falta relayar 'compass-save-cursor' a mano como con
+      // compass-cursor-live, porque ese broadcast periódico ya cubre este caso (mismo criterio que
+      // compass-save-position, que si actualiza el estado del padre).
       if (msg.action === 'compass-save-cursor') {
         setCursorConfig(msg.config);
         saveUserSetting(CURSOR_SETTINGS_VIEW, msg.config);

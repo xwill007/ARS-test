@@ -88,11 +88,12 @@ const RING_INNER_RADIUS = RADIUS * 0.4;
 // borde INFERIOR (no el lateral — pedido explícito del usuario, para que se lea bien desde el
 // centro del menú).
 const PANEL_WIDTH = 2.2;
-// Requerimiento 016: 5.2 → 5.6. La pestaña "Interfaz" suma una segunda fila de toggle ("Cursor",
-// debajo de "Position"), que empuja el contenido de los d-pads 0.28 más abajo — con 5.2 el botón
-// Guardar del d-pad de Position quedaba a solo 0.08 del borde inferior del panel (recortado en la
-// práctica, mismo síntoma ya documentado al agregar la fila "Scale").
-const PANEL_HEIGHT = 5.6;
+// Requerimiento 016: 5.2 → 5.8. La pestaña "Interfaz" suma una segunda fila de toggle ("Cursor",
+// debajo de "Position", con un margen extra pedido por el usuario — ver TOGGLE_ROW_MARGIN), que
+// empuja el contenido de los d-pads más abajo — con 5.2 el botón Guardar del d-pad de Position
+// quedaba recortado por el borde inferior del panel (mismo síntoma ya documentado al agregar la
+// fila "Scale").
+const PANEL_HEIGHT = 5.8;
 // Hallazgo real (verificado dos veces: primero midiendo en el navegador, después con una réplica
 // exacta de la composición de matrices de rotación de THREE.js hecha aparte para confirmarlo sin
 // depender del navegador — ambas coinciden): con `rotation="-90 0 0"` en #settings-panel (el
@@ -224,8 +225,15 @@ const POSITION_STEP_INCREMENT = 0.05;
 // seleccionar": el cursor es siempre el mismo, único, y su `position` es relativa a la cámara
 // (`#main-cursor` es hijo de `<a-camera>`, ver `position="0 0 -1"`), no una coordenada de escena.
 const CURSOR_POSITION_AXES = ['x', 'y', 'z'];
-const CURSOR_POSITION_STEP = 0.02;
-const CURSOR_SCALE_STEP = 0.1;
+// Pedido del usuario: el incremento de posición/escala es ajustable en vivo (propia fila "+/-",
+// igual que "Paso" en Position), no un valor fijo — mismo patrón que
+// DEFAULT_POSITION_STEP/POSITION_STEP_RANGE/POSITION_STEP_INCREMENT, incluida la decisión de
+// Position de que un solo "step" cubra varios controles a la vez (ahí posición+rotación+escala;
+// acá posición+escala — el tiempo de activación queda con su propio incremento fijo,
+// CURSOR_FUSE_STEP, porque es una unidad distinta, milisegundos, no espacial).
+const DEFAULT_CURSOR_STEP = 0.02;
+const CURSOR_STEP_RANGE = { min: 0.01, max: 1 };
+const CURSOR_STEP_INCREMENT = 0.01;
 const CURSOR_SCALE_RANGE = { min: 0.2, max: 5 };
 const CURSOR_FUSE_STEP = 250;
 const CURSOR_FUSE_RANGE = { min: 500, max: 5000 };
@@ -269,13 +277,16 @@ function buildStepperRow(idPrefix, y) {
 // Requerimiento 016: contenido del sub-panel "Cursor" — reusa el MISMO rango vertical (`y`) que
 // `position-dpad-group` porque los dos son mutuamente excluyentes (ver los click handlers: abrir
 // uno cierra el otro), así que nunca compiten por espacio en pantalla al mismo tiempo. Sin
-// "elemento seleccionado" (no hay nada que elegir, el cursor es siempre el mismo, único) así que
-// no hay fila de step genérico ni de rotación — solo posición x/y/z (relativa a la cámara, ver
-// comentario de CURSOR_POSITION_AXES), escala, tiempo de activación, color y geometría (ambos
-// cíclicos +/-), visibilidad (toggle), y Guardar/Cancel.
+// "elemento seleccionado" (no hay nada que elegir, el cursor es siempre el mismo, único), pero sí
+// con su propia fila "Paso" (pedido del usuario: poder ajustar el incremento de posición/escala,
+// mismo patrón que "Paso" en Position) — más posición x/y/z (relativa a la cámara, ver comentario
+// de CURSOR_POSITION_AXES), escala, tiempo de activación, color y geometría (ambos cíclicos +/-),
+// visibilidad (toggle), y Guardar/Cancel. 9 filas en total, mismo presupuesto que
+// `position-dpad-group` (elementLabel+step+3pos+3rot+scale).
 function buildCursorDpadGroupHTML(startY) {
   const ROW_SPACING = 0.28;
   let y = startY;
+  const stepRowY = y; y -= ROW_SPACING;
   const positionRowsY = CURSOR_POSITION_AXES.map(() => { const rowY = y; y -= ROW_SPACING; return rowY; });
   const scaleRowY = y; y -= ROW_SPACING;
   const fuseRowY = y; y -= ROW_SPACING;
@@ -284,6 +295,7 @@ function buildCursorDpadGroupHTML(startY) {
   const visibleRowY = y; y -= ROW_SPACING;
   const saveY = y - 0.06;
 
+  const stepRow = buildStepperRow('dpad-cursor-step', stepRowY);
   const positionRows = CURSOR_POSITION_AXES.map((axis, i) => buildAxisStepperRow('cursor-position-step', axis, positionRowsY[i])).join('\n');
   const scaleRow = buildStepperRow('dpad-cursor-scale', scaleRowY);
   const fuseRow = buildStepperRow('dpad-cursor-fuse', fuseRowY);
@@ -292,6 +304,7 @@ function buildCursorDpadGroupHTML(startY) {
 
   return `
     <a-entity id="cursor-dpad-group" visible="false">
+      ${stepRow}
       ${positionRows}
       ${scaleRow}
       ${fuseRow}
@@ -315,10 +328,14 @@ function buildInterfaceGroupHTML() {
   // Todo el layout vertical calculado con un solo paso fijo entre filas — agregar/quitar filas acá
   // no requiere retocar posiciones a mano en el resto del bloque.
   const ROW_SPACING = 0.28;
-  // Requerimiento 016: 0.34 → 0.06 — la nueva fila "Cursor" (debajo de "Position", en 0.55-0.28=
-  // 0.27) empuja el contenido de los d-pads un ROW_SPACING más abajo (ver PANEL_HEIGHT, ajustado
-  // en consecuencia).
-  let y = 0.06; // debajo de las filas "Position" (0.55) y "Cursor" (0.27)
+  // Pedido del usuario: un margen extra (no solo ROW_SPACING) entre la fila "Position" y la fila
+  // "Cursor" — separa visualmente los dos toggles en vez de quedar pegados uno al otro.
+  const TOGGLE_ROW_MARGIN = 0.08;
+  const positionToggleY = 0.55;
+  const cursorToggleY = positionToggleY - ROW_SPACING - TOGGLE_ROW_MARGIN;
+  // Requerimiento 016: el contenido de los d-pads arranca un ROW_SPACING + TOGGLE_ROW_MARGIN más
+  // abajo que antes de agregar la fila "Cursor" (ver PANEL_HEIGHT, ajustado en consecuencia).
+  let y = cursorToggleY - 0.21; // mismo gap (0.21) que ya usaba "Position" hacia su propio contenido
   // Hallazgo real (reportado por el usuario tras la primera versión de este panel): la etiqueta
   // del elemento seleccionado estaba hardcodeada en y=0.13, casi pegada a la fila de posición X
   // (que con el layout de esta ampliación cae cerca de ese mismo valor) — ahora es una fila más
@@ -340,17 +357,18 @@ function buildInterfaceGroupHTML() {
   const scaleRow = buildStepperRow('dpad-scale', scaleRowY);
 
   // Requerimiento 016: sub-panel "Cursor" reusa el mismo rango vertical que `position-dpad-group`
-  // (empieza en el mismo `y=0.06` original, antes de que el cascade de arriba lo fuera decrementando)
-  // — ver `buildCursorDpadGroupHTML`.
-  const cursorDpadGroup = buildCursorDpadGroupHTML(0.06);
+  // (empieza en el mismo `y` calculado arriba, antes de que el cascade de arriba lo fuera
+  // decrementando) — ver `buildCursorDpadGroupHTML`.
+  const cursorDpadGroupStartY = cursorToggleY - 0.21;
+  const cursorDpadGroup = buildCursorDpadGroupHTML(cursorDpadGroupStartY);
 
   return `
     <a-entity id="settings-interface-group" visible="false">
-      <a-plane class="clickable" id="settings-position-toggle" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 0.55 0.01">
+      <a-plane class="clickable" id="settings-position-toggle" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 ${positionToggleY.toFixed(2)} 0.01">
         <a-text id="settings-position-label" value="" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
         <a-text id="settings-position-check" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.01"></a-text>
       </a-plane>
-      <a-plane class="clickable" id="settings-cursor-toggle" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 0.27 0.01">
+      <a-plane class="clickable" id="settings-cursor-toggle" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 ${cursorToggleY.toFixed(2)} 0.01">
         <a-text id="settings-cursor-toggle-label" value="" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
         <a-text id="settings-cursor-toggle-check" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.01"></a-text>
       </a-plane>
@@ -1184,8 +1202,10 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             // constantes también son del módulo React de afuera, hay que interpolarlas como var
             // para que existan dentro de este iframe.
             var CURSOR_POSITION_AXES = ${JSON.stringify(CURSOR_POSITION_AXES)};
-            var CURSOR_POSITION_STEP = ${CURSOR_POSITION_STEP};
-            var CURSOR_SCALE_STEP = ${CURSOR_SCALE_STEP};
+            var DEFAULT_CURSOR_STEP = ${DEFAULT_CURSOR_STEP};
+            var CURSOR_STEP_RANGE = ${JSON.stringify(CURSOR_STEP_RANGE)};
+            var CURSOR_STEP_INCREMENT = ${CURSOR_STEP_INCREMENT};
+            var cursorStep = DEFAULT_CURSOR_STEP;
             var CURSOR_SCALE_RANGE = ${JSON.stringify(CURSOR_SCALE_RANGE)};
             var CURSOR_FUSE_STEP = ${CURSOR_FUSE_STEP};
             var CURSOR_FUSE_RANGE = ${JSON.stringify(CURSOR_FUSE_RANGE)};
@@ -1222,8 +1242,12 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 currentSection === 'exit' ? STATIC.exitTitle :
                 STATIC.configTitle,
               );
+              // Pedido del usuario: no mostrar el correo de sesión en la pestaña "Interfaz" (ahí no
+              // aporta — a diferencia de "Configuración"/"Overlays", donde el guardado depende
+              // directamente de tener sesión, ver "Guardar selección (Web)"/sub-textos de esos
+              // botones).
               document.querySelector('#settings-session').setAttribute(
-                'value', state.userEmail ? (STATIC.loggedInAs + ': ' + state.userEmail) : STATIC.noSession,
+                'value', currentSection === 'interface' ? '' : (state.userEmail ? (STATIC.loggedInAs + ': ' + state.userEmail) : STATIC.noSession),
               );
 
               FIELDS.forEach(function (field) {
@@ -1368,6 +1392,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             }
 
             function refreshCursorDpad() {
+              document.querySelector('#dpad-cursor-step-label').setAttribute('value', STATIC.step + ': ' + cursorStep.toFixed(2));
               CURSOR_POSITION_AXES.forEach(function (axis, i) {
                 var labelEl = document.querySelector('[data-cursor-position-step-label="' + axis + '"]');
                 if (labelEl) labelEl.setAttribute('value', STATIC.positionAxes[axis] + ': ' + cursorConfig.position[i].toFixed(2));
@@ -1387,13 +1412,28 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               refreshCursorCancelState();
             }
 
-            // Aplica en vivo sobre #main-cursor (ver window.__applyCursorConfig, definido en el
-            // otro script de más arriba) cada vez que el usuario cambia un control — antes de
-            // guardar, para que el efecto se vea al instante, igual que ya hace Position con
-            // position-move.
-            function applyCursorConfigLive() {
+            // Aplica en vivo sobre #main-cursor de ESTE panel (ver window.__applyCursorConfig,
+            // definido en el otro script de más arriba) y refresca sus labels. No manda nada al
+            // padre — la usa tanto un edit local (que sí debe avisar al padre, ver
+            // applyCursorConfigLive) como la aplicación de un cursor-live-apply recibido del panel
+            // hermano (que NO debe volver a avisar al padre, o se arma un eco infinito).
+            function applyCursorVisual() {
               if (window.__applyCursorConfig) window.__applyCursorConfig(cursorConfig);
               refreshCursorDpad();
+            }
+
+            // Pedido del usuario: la sincronización entre los dos paneles de "Doble panel" debe
+            // pasar SIEMPRE por el padre (SyncStereoTestView.jsx) relayando el mensaje a ambos
+            // iframes de la brújula de inmediato — no por un cambio de estado de React (más lento/
+            // menos confiable, mismo motivo por el que "Position" ya sincroniza position-move así,
+            // no con setState en cada movimiento). Cada edit local aplica el efecto acá Y manda
+            // 'compass-cursor-live' — el padre lo reenvía a ambas brújulas (ver
+            // SyncStereoTestView.jsx), incluida esta misma (aplicar el propio valor de vuelta es
+            // inofensivo). Sin esto, mover el cursor en un panel no se veía reflejado en el otro
+            // hasta guardar.
+            function applyCursorConfigLive() {
+              applyCursorVisual();
+              send({ action: 'compass-cursor-live', config: cursorConfig });
             }
 
             function refreshCursorToggle() {
@@ -1630,21 +1670,32 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 }
                 refreshCursorToggle();
               });
+              // Pedido del usuario: fila "Paso" — ajusta cursorStep en vivo, mismo criterio que
+              // "Paso" en Position (no manda nada por su cuenta, el próximo +/- de posición/escala
+              // ya lo usa).
+              document.querySelector('#dpad-cursor-step-minus').addEventListener('click', function () {
+                cursorStep = Math.max(CURSOR_STEP_RANGE.min, +(cursorStep - CURSOR_STEP_INCREMENT).toFixed(2));
+                refreshCursorDpad();
+              });
+              document.querySelector('#dpad-cursor-step-plus').addEventListener('click', function () {
+                cursorStep = Math.min(CURSOR_STEP_RANGE.max, +(cursorStep + CURSOR_STEP_INCREMENT).toFixed(2));
+                refreshCursorDpad();
+              });
               CURSOR_POSITION_AXES.forEach(function (axis, i) {
                 document.querySelectorAll('[data-cursor-position-step="' + axis + '"]').forEach(function (btn) {
                   btn.addEventListener('click', function () {
                     var dir = Number(btn.dataset.dir);
-                    cursorConfig.position[i] = +(cursorConfig.position[i] + dir * CURSOR_POSITION_STEP).toFixed(2);
+                    cursorConfig.position[i] = +(cursorConfig.position[i] + dir * cursorStep).toFixed(2);
                     applyCursorConfigLive();
                   });
                 });
               });
               document.querySelector('#dpad-cursor-scale-minus').addEventListener('click', function () {
-                cursorConfig.scale = Math.max(CURSOR_SCALE_RANGE.min, +(cursorConfig.scale - CURSOR_SCALE_STEP).toFixed(2));
+                cursorConfig.scale = Math.max(CURSOR_SCALE_RANGE.min, +(cursorConfig.scale - cursorStep).toFixed(2));
                 applyCursorConfigLive();
               });
               document.querySelector('#dpad-cursor-scale-plus').addEventListener('click', function () {
-                cursorConfig.scale = Math.min(CURSOR_SCALE_RANGE.max, +(cursorConfig.scale + CURSOR_SCALE_STEP).toFixed(2));
+                cursorConfig.scale = Math.min(CURSOR_SCALE_RANGE.max, +(cursorConfig.scale + cursorStep).toFixed(2));
                 applyCursorConfigLive();
               });
               document.querySelector('#dpad-cursor-fuse-minus').addEventListener('click', function () {
@@ -1820,9 +1871,25 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                     position: (msg.cursorConfig.position || DEFAULT_CURSOR_CONFIG.position).slice(),
                   });
                   savedCursorConfig = JSON.parse(JSON.stringify(cursorConfig));
-                  applyCursorConfigLive();
+                  // applyCursorVisual (no applyCursorConfigLive): este valor ya vino del padre, no
+                  // hace falta devolverlo por 'compass-cursor-live' — evita un eco innecesario.
+                  applyCursorVisual();
                 }
                 refreshDisplay();
+              } else if (msg.action === 'cursor-live-apply') {
+                // Pedido del usuario: sincronización entre paneles a través del padre, no por
+                // cambio de estado de React — ver el comentario grande junto a
+                // applyCursorConfigLive. Actualiza el cursorConfig local (para que, si este mismo
+                // panel abre luego su propio sub-panel de Cursor, ya muestre el valor en vivo del
+                // hermano) y aplica el efecto visual, pero NO toca savedCursorConfig (esto no es un
+                // guardado, sigue siendo un cambio en curso) ni reenvía nada (applyCursorVisual, no
+                // applyCursorConfigLive — si reenviara, el padre lo devolvería de nuevo en eco).
+                if (msg.config) {
+                  cursorConfig = Object.assign({}, cursorConfig, msg.config, {
+                    position: (msg.config.position || cursorConfig.position).slice(),
+                  });
+                  applyCursorVisual();
+                }
               } else if (msg.action === 'compass-section-changed') {
                 // Único lugar que de verdad abre/cierra el panel — la fuente de verdad es
                 // SyncStereoTestView.jsx (ver 'compass-section-changed' en handleMessage ahí),
