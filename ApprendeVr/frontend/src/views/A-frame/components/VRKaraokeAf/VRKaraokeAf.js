@@ -4,6 +4,8 @@ import './components/VRNewSongAf/VRNewSongAf.js';
 import { fetchCurrentUser } from '../../vrAuth.util.js';
 import { getPointerNDC } from '../../vrPointerRaycast.util.js';
 import { getSongs } from '../../vrSongsApi.util.js';
+import { extractYoutubeVideoId } from '../../vrYoutube.util.js';
+import { openYoutubePlayer, closeYoutubePlayer } from '../../vrYoutubePlayer.util.js';
 
 // Control de logs: usar Logs(true|false) para activar/desactivar
 let showLogs = true; // cambiar a false para silenciar logs por defecto
@@ -27,6 +29,10 @@ function E() { if (showLogs) console.error.apply(console, arguments); }
 // que tuvo que defenderse de esto del lado receptor) — el antirebote de acá ataca la causa en el
 // origen, en vez de solo mitigar el síntoma después.
 const PLAY_TOGGLE_COOLDOWN_MS = 600;
+
+// Color distintivo (tono de marca de YouTube) para identificar en la lista las canciones
+// `source: 'youtube'` (Requerimiento 014, ampliación) — ver `_buildSongListUI`/`_selectSongButton`.
+const YOUTUBE_SONG_COLOR = '#a52714';
 
 // Componente vr-karaoke-af
 // Requiere aframe-htmlembed-component para mostrar iframes de YouTube (no usado por ahora en
@@ -297,7 +303,9 @@ AFRAME.registerComponent('vr-karaoke-af', {
     videoListContainer.appendChild(background);
 
     videos.forEach((video, index) => {
-      const [fileName, artist, duration] = video.split('|');
+      const [fileName, artist, duration, source] = video.split('|');
+      const songSource = source || 'local';
+      const isYoutube = songSource === 'youtube';
 
       const artistName = artist ? artist : 'Artista desconocido';
       const videoDuration = duration ? duration : 'Duración desconocida';
@@ -307,14 +315,18 @@ AFRAME.registerComponent('vr-karaoke-af', {
       // `_buildSongListUI` más abajo: al refrescar por la respuesta de `getSongs()` no hay que
       // reseleccionar la primera canción si el usuario ya venía reproduciendo otra).
       button._fileName = fileName;
+      button._source = songSource;
       button.setAttribute('width', 3.5);
       button.setAttribute('height', 0.7);
-      button.setAttribute('color', this._buttonColor);
+      // Las canciones de YouTube se identifican con un color distinto (rojo, mismo tono de marca
+      // que YouTube) además del prefijo "[YouTube]" en el título — pedido del usuario: poder
+      // distinguirlas de un vistazo en la lista, no solo al hacer click.
+      button.setAttribute('color', isYoutube ? YOUTUBE_SONG_COLOR : this._buttonColor);
       button.setAttribute('position', `0 ${-index * 0.8 - 0.5} 0`);
       button.setAttribute('class', 'clickable');
 
       const topText = document.createElement('a-text');
-      topText.setAttribute('value', `${index + 1}. ${fileName}`);
+      topText.setAttribute('value', `${index + 1}. ${isYoutube ? '[YouTube] ' : ''}${fileName}`);
       topText.setAttribute('align', 'left');
       topText.setAttribute('color', textColor);
       topText.setAttribute('width', 2.6);
@@ -353,6 +365,10 @@ AFRAME.registerComponent('vr-karaoke-af', {
         // "re-seleccionando" su propia canción por defecto al ponerse al día con el hermano,
         // disparando un countdown+autoplay no pedido justo al abrir AR-SYNC.
         const skipCountdown = !!(evt && evt.silent);
+        if (songSource === 'youtube') {
+          this._playYoutubeSong(fileName, artistName);
+          return;
+        }
         try {
           this.loadVideo(`/videos/karaoke/${fileName}`, { fileName, artistName }, skipCountdown ? undefined : { countdown: true });
         } catch (e) {
@@ -408,10 +424,14 @@ AFRAME.registerComponent('vr-karaoke-af', {
       } else if (videos.length) {
         // Primera vez que se construye la lista en esta instancia (no hay ninguna canción cargada
         // todavía): sí corresponde seleccionar y reproducir la primera por defecto.
-        const [firstFileName, firstArtist] = videos[0].split('|');
+        const [firstFileName, firstArtist, , firstSource] = videos[0].split('|');
         const firstArtistName = firstArtist ? firstArtist : 'Artista desconocido';
         try { this._selectSongButton(this._songButtons[0]); } catch (e) {}
-        this.loadVideo(`/videos/karaoke/${firstFileName}`, { fileName: firstFileName, artistName: firstArtistName });
+        if (firstSource === 'youtube') {
+          this._playYoutubeSong(firstFileName, firstArtistName);
+        } else {
+          this.loadVideo(`/videos/karaoke/${firstFileName}`, { fileName: firstFileName, artistName: firstArtistName });
+        }
       } else {
         this.loadVideo(this.data.videoPath);
       }
@@ -426,7 +446,12 @@ AFRAME.registerComponent('vr-karaoke-af', {
   // queda vacía, sin romperse.
   _initSongList: function () {
     getSongs().then((backendSongs) => {
-      const backendEntries = backendSongs.map((s) => `${s.fileName}|${s.author || 'Artista desconocido'}`);
+      // `source` (Requerimiento 014, ampliación) va como 4to campo de la entrada pipe-delimited
+      // (el 3ro, duración, no lo llena el backend hoy) para que `_buildSongListUI` sepa cómo
+      // reproducir cada canción: 'local' como textura 3D (`<a-video>`, ver `loadVideo`), 'youtube'
+      // como overlay 2D embebido (ver `_playYoutubeSong`) porque un iframe cross-origin no se
+      // puede leer como textura WebGL.
+      const backendEntries = backendSongs.map((s) => `${s.fileName}|${s.author || 'Artista desconocido'}||${s.source || 'local'}`);
       this._buildSongListUI(backendEntries);
     });
   },
@@ -435,24 +460,27 @@ AFRAME.registerComponent('vr-karaoke-af', {
   // botones de la lista a su color base.
   _selectSongButton: function (button) {
     (this._songButtons || []).forEach((b) => {
-      try { b.setAttribute('color', (b === button) ? '#000000' : this._buttonColor); } catch (e) {}
+      // El color base no es siempre `this._buttonColor`: las canciones `source: 'youtube'` usan
+      // un color distinto para identificarse en la lista (ver `_buildSongListUI`) — hay que
+      // preservarlo acá en vez de pisarlo, o se pierde esa distinción apenas se selecciona
+      // cualquier canción.
+      const baseColor = b._source === 'youtube' ? YOUTUBE_SONG_COLOR : this._buttonColor;
+      try { b.setAttribute('color', (b === button) ? '#000000' : baseColor); } catch (e) {}
     });
     this._selectedSongButton = button;
   },
 
-  loadVideo: function (videoPath, meta, options) {
-    L(`Cargando video: ${videoPath}`);
-
-    const fileName = (meta && meta.fileName) ? meta.fileName : null;
-    const artistName = (meta && meta.artistName) ? meta.artistName : null;
-    this._currentSong = { path: videoPath, fileName: fileName, artist: artistName };
-
-    // Pedido del usuario: al cambiar de canción (seleccionando una nueva en la lista) se debe
-    // DETENER la actual para no reproducir dos al mismo tiempo. El countdown anterior (si queda
-    // pendiente) vive en un `setInterval` que, si no se cancela, al terminar llama a `play()` sobre
-    // el video VIEJO — que ya fue removido del DOM pero sigue reteniendo su `src` y puede seguir
-    // sonando. Por eso se cancela ese intervalo y se detiene el video viejo de forma definitiva
-    // (pause + mute + quitar src + reload), no solo se lo remueve del DOM.
+  // Detiene y limpia cualquier reproducción local en curso (countdown pendiente, `<a-video>`,
+  // botón "EVALUATE SONG", `<video>` oculto de respaldo) sin reemplazarla por una nueva — usado al
+  // arrancar tanto `loadVideo` (antes de montar el siguiente `<a-video>`) como `_playYoutubeSong`
+  // (que no monta ningún `<a-video>`, así que necesita esta misma limpieza standalone). Factorizado
+  // acá porque antes vivía inline solo dentro de `loadVideo`.
+  _stopLocalPlayback: function () {
+    // El countdown anterior (si queda pendiente) vive en un `setInterval` que, si no se cancela,
+    // al terminar llama a `play()` sobre el video VIEJO — que ya fue removido del DOM pero sigue
+    // reteniendo su `src` y puede seguir sonando. Por eso se cancela ese intervalo y se detiene el
+    // video viejo de forma definitiva (pause + mute + quitar src + reload), no solo se lo remueve
+    // del DOM.
     if (this._countdownInterval) {
       clearInterval(this._countdownInterval);
       this._countdownInterval = null;
@@ -478,6 +506,54 @@ AFRAME.registerComponent('vr-karaoke-af', {
         this._htmlVideo.parentNode.removeChild(this._htmlVideo);
       }
     } catch (e) { /* ignore */ }
+  },
+
+  // Reproduce una canción `source: 'youtube'` (Requerimiento 014, ampliación): `fileName` es la
+  // URL completa, no un archivo en `public/videos/karaoke/`, así que no puede montarse como
+  // `<a-video>` (un iframe cross-origin de YouTube no se puede leer como textura WebGL — misma
+  // restricción documentada en el Requerimiento 015). Reutiliza el mismo reproductor de YouTube
+  // que ya existe en la vista, no uno nuevo (pedido del usuario):
+  // - Dentro de AR-SYNC (mirror-fix): activa el overlay real "Youtube Video" (mismo mecanismo que
+  //   el botón "PREVIEW ON YOUTUBE" de `VRNewSongAf.js`) — escribe la URL en el mismo
+  //   `localStorage` que ese overlay lee y le pide al padre (`SyncStereoTestView.jsx`) que lo
+  //   active si todavía no lo está (nunca lo desactiva, mismo criterio que `activateOverlay`).
+  // - Fuera de mirror-fix (vista de producción, sin ese overlay): usa el panel 2D flotante
+  //   compartido `vrYoutubePlayer.util.js` — el mismo que usa "PREVIEW ON YOUTUBE" ahí.
+  _playYoutubeSong: function (url, artistName) {
+    L(`Cargando YouTube: ${url}`);
+    this._stopLocalPlayback();
+
+    this._currentSong = { path: null, fileName: url, artist: artistName, source: 'youtube' };
+
+    const videoId = extractYoutubeVideoId(url);
+    if (!videoId) {
+      W('vr-karaoke-af: no se reconoce el formato de la URL de YouTube:', url);
+      return;
+    }
+
+    if (window.parent && window.parent !== window) {
+      try { localStorage.setItem('apprendevr_youtube_preview_url', url); } catch (e) { /* ignore */ }
+      try {
+        window.parent.postMessage({ source: 'ars-sync-test', action: 'activate-overlay', key: 'youtubeVideo' }, '*');
+      } catch (e) { /* ignore */ }
+      return;
+    }
+
+    openYoutubePlayer(videoId);
+  },
+
+  loadVideo: function (videoPath, meta, options) {
+    L(`Cargando video: ${videoPath}`);
+
+    // Si venía de reproducir una canción `source: 'youtube'` (ver `_playYoutubeSong`), cierra el
+    // reproductor compartido — `loadVideo` no lo necesita para un archivo local.
+    closeYoutubePlayer();
+
+    const fileName = (meta && meta.fileName) ? meta.fileName : null;
+    const artistName = (meta && meta.artistName) ? meta.artistName : null;
+    this._currentSong = { path: videoPath, fileName: fileName, artist: artistName, source: 'local' };
+
+    this._stopLocalPlayback();
 
     const vidId = 'karaoke-video-' + Math.floor(Math.random() * 1000000);
     const htmlVideo = document.createElement('video');

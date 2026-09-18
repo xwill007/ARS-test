@@ -64,4 +64,23 @@ describe('CreateSongDto', () => {
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'language')).toBe(true);
   });
+
+  it('accepts a payload with source "youtube" and fileName as a URL', async () => {
+    const dto = plainToInstance(CreateSongDto, {
+      title: 'Stand By Me',
+      fileName: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
+      source: 'youtube',
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('rejects a source outside the known list', async () => {
+    const dto = plainToInstance(CreateSongDto, {
+      title: 'Stand By Me',
+      fileName: 'StandByMe_BenEKing.mp4',
+      source: 'spotify',
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'source')).toBe(true);
+  });
 });

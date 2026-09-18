@@ -73,3 +73,54 @@ activa del usuario en simultáneo — ver mismo tipo de limitación documentada 
 la causa raíz y el fix están confirmados por lectura directa del código (la condición nueva es
 mecánicamente imposible de saltear en el flujo descrito), pero queda pendiente una verificación
 manual en dos paneles reales antes de marcarlo como aceptado.
+
+## 3. `archivo_cancion` era obligatorio incluso para canciones que no son un archivo local (YouTube)
+
+**Fecha:** 2026-09-17, reportado por el usuario: "al agregar una nueva cancion que no es local sino
+desde youtube solicita el campo archivo_cancion, este no debe ser obligatorio ya que solo los
+archivos locales lo requieren".
+
+**Problema:** `VRNewSongAf._saveSong()` exigía `archivo` (el campo "Archivo local") de forma
+incondicional (`if (!titulo || !archivo)`), sin importar si el usuario ya había llenado
+`youtubeUrl`. El campo `youtubeUrl` solo se usaba para los botones de búsqueda/pegado/preview —
+nunca viajaba a `createSong()`/`POST /songs`. En el backend, `CreateSongDto.fileName` tampoco tenía
+`@IsOptional()`, y la columna `archivo_cancion` era `NOT NULL` en el esquema, así que no había forma
+de guardar una canción sin un nombre de archivo local aunque el frontend lo hubiera permitido.
+
+**Causa:** el diseño original (Requerimiento 014, alcance inicial) trataba `archivo`/`youtubeUrl`
+como dos campos independientes de un mismo formulario, sin ningún campo que distinguiera "esta
+canción es local" de "esta canción es de YouTube" — la URL de YouTube era pura previsualización
+client-side, nunca parte del modelo de datos de la canción.
+
+**Solución (decidida con el usuario):** se agrega la columna `fuente_cancion` a `canciones_vr`
+(`'local' | 'youtube'` hoy, extensible a futuras fuentes sin otra migración de esquema — ver
+`db/009-songs-fuente-cancion.sql`, que reemplaza el diseño anterior de una columna paralela
+`youtube_url` que se había agregado en la migración 009 original pero nunca se conectó a la
+entidad/servicio, y que tampoco llegó a montarse en `docker-compose.yml` — quedó inerte, nunca se
+aplicó a ninguna base real). `archivo_cancion` pasa a ser NULLable y reutilizable: guarda el nombre
+de archivo local cuando `fuente_cancion = 'local'`, o la URL completa de YouTube cuando
+`fuente_cancion = 'youtube'`, en vez de una columna paralela por fuente.
+
+- `VRNewSongAf._saveSong()`: ahora exige `titulo` + (`archivo` O `youtubeUrl`), no ambos. Si
+  `archivo` está vacío pero `youtubeUrl` no, `source = 'youtube'` y `fileName = youtubeUrl`. El
+  aviso no bloqueante de "archivo no encontrado en `public/videos/karaoke/`" solo corre para
+  `source === 'local'` (no tiene sentido pedir un `HEAD` de una URL externa).
+- `CreateSongDto`: nuevo campo opcional `source` (`@IsIn(['local', 'youtube'])`, lista exportada
+  como `SONG_SOURCES` para poder ampliarla sin tocar la validación en más de un lugar). `fileName`
+  sigue siendo obligatorio en ambos casos — lo que cambia es qué representa, no si hace falta.
+- `SongsService.create()`: agrega `source` a la entidad solo cuando el DTO lo trae (mismo patrón ya
+  usado con `language`), para que la BD aplique su `DEFAULT 'local'` cuando no se envía.
+- `VRKaraokeAf._initSongList()`: filtra las canciones a `source === 'local'` antes de armar la
+  lista — este overlay solo sabe reproducir un archivo local como textura 3D (`<a-video>`); una
+  canción `'youtube'` tiene `fileName` = URL, no un archivo en `public/videos/karaoke/`, y
+  aparecería rota (404 silencioso) si se colara en esta lista. Queda así hasta que exista el
+  overlay de streaming del Requerimiento 015 (pendiente), que es quien debe mostrarlas.
+
+**Estado:** resuelto en el backend (tests unitarios, 100% cobertura en `src/songs`) y en el
+frontend (`npm run build` verde). **No verificado end-to-end contra una base de datos real**: la
+migración `009-songs-fuente-cancion.sql` no se aplicó contra el contenedor Docker en esta sesión
+porque requiere recrear el volumen (`docker compose down -v`) o ejecutar el `ALTER TABLE` a mano
+contra el contenedor corriendo, y ambas acciones fueron bloqueadas por el modo de permisos
+automático de la sesión (acciones sobre Docker/DB marcadas como potencialmente destructivas)  —
+revisar manualmente (`docker compose down -v && docker compose up -d`, o aplicar el `ALTER TABLE` a
+mano) antes de mover este requerimiento a `3-Completed`.

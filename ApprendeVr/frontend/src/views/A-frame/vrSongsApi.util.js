@@ -23,7 +23,9 @@ export async function getSongs() {
   }
 }
 
-// song: { title, author, fileName, language }. Devuelve { ok: true, song } en éxito,
+// song: { title, author, fileName, language, source }. `source` es 'local' (default, fileName es
+// el nombre del archivo en videos/karaoke/) o 'youtube' (fileName es la URL completa). Devuelve
+// { ok: true, song } en éxito,
 // { ok: false, error } en falla — `error` es 'NO_SESSION' | 'SONG_ALREADY_EXISTS' | 'NETWORK_ERROR'
 // | el código que devuelva el backend, para que el llamador pueda mostrar un mensaje específico
 // (ver VRNewSongAf._saveSong).

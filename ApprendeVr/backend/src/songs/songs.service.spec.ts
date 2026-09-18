@@ -86,6 +86,26 @@ describe('SongsService', () => {
       });
     });
 
+    it('includes source in the entity only when the DTO provides it', async () => {
+      songsRepository.findOne.mockResolvedValue(null);
+      songsRepository.create.mockReturnValue({});
+      songsRepository.save.mockResolvedValue({});
+
+      await service.create({
+        title: 'Stand By Me',
+        author: 'Ben E King',
+        fileName: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
+        source: 'youtube',
+      } as any);
+
+      expect(songsRepository.create).toHaveBeenCalledWith({
+        title: 'Stand By Me',
+        author: 'Ben E King',
+        fileName: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
+        source: 'youtube',
+      });
+    });
+
     it('defaults a missing author to an empty string', async () => {
       songsRepository.findOne.mockResolvedValue(null);
       songsRepository.create.mockReturnValue({});

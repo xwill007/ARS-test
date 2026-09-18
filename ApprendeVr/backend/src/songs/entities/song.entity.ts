@@ -13,8 +13,15 @@ export class Song {
   @Column({ name: 'autor_cancion' })
   author: string;
 
-  @Column({ name: 'archivo_cancion' })
-  fileName: string;
+  // Nombre del archivo local (fuente 'local') o URL completa (fuente 'youtube'), según `source`.
+  @Column({ name: 'archivo_cancion', nullable: true })
+  fileName: string | null;
+
+  // 'local' | 'youtube' | fuentes futuras. Default 'local' en la BD (ver
+  // db/009-songs-fuente-cancion.sql) para las 3 canciones del dump legacy, que no tienen esta
+  // columna.
+  @Column({ name: 'fuente_cancion', type: 'varchar', length: 50, default: 'local' })
+  source: string;
 
   // Nullable en el dump (sin NOT NULL): la BD la completa con CURRENT_TIMESTAMP() si no se envía.
   @Column({ name: 'fecha_hora_cancion', type: 'datetime', nullable: true })

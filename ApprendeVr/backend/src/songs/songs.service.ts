@@ -27,11 +27,13 @@ export class SongsService {
       throw new ConflictException('SONG_ALREADY_EXISTS');
     }
 
-    // `language` se omite del objeto (en vez de mandar `null` explícito) cuando no viene en el
-    // DTO, para que el INSERT no incluya la columna y la BD aplique su DEFAULT ('ingles') — un
-    // `NULL` explícito en el INSERT no dispara el DEFAULT de MySQL, deja la columna en NULL.
+    // `language`/`source` se omiten del objeto (en vez de mandar `null`/valor por defecto
+    // explícito) cuando no vienen en el DTO, para que el INSERT no incluya esas columnas y la BD
+    // aplique sus DEFAULT ('ingles'/'local') — un valor explícito en el INSERT no dispara el
+    // DEFAULT de MySQL.
     const entity: Partial<Song> = { title, author, fileName: dto.fileName };
     if (dto.language) entity.language = dto.language;
+    if (dto.source) entity.source = dto.source;
 
     return this.songsRepository.save(this.songsRepository.create(entity));
   }
