@@ -1,5 +1,5 @@
 import React from 'react';
-import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
+import { useVRLanguage } from '../../../../../../../components/VRConfig/VRLanguageContext';
 
 /**
  * TestOverlayAR2 — Requerimiento 002, Intento 4 del checklist de la sección 4.3

@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import CameraOverlaySync from './CameraOverlaySync';
-import VRLocalVideoOverlaySync from './VRLocalVideoOverlaySync';
-import VRConeOverlaySync from './VRConeOverlaySync';
-import VRKaraokeOverlaySync from './VRKaraokeOverlaySync';
-import VRYoutubeVideoOverlaySync from './VRYoutubeVideoOverlaySync';
-import VRNewSongOverlaySync from './VRNewSongOverlaySync';
-import SyncConfigCompassMenu from './SyncConfigCompassMenu';
-import { getUserSetting, saveUserSetting, detectDeviceType } from '../../../../A-frame/vrUserSettingsApi.util.js';
-import { getStoredAuth } from '../../../../A-frame/vrAuth.util.js';
-import { exitFullscreen } from './fullscreenHelper.js';
+import CameraOverlaySync from './components/CameraOverlaySync';
+import VRLocalVideoOverlaySync from './components/VRLocalVideoOverlaySync';
+import VRConeOverlaySync from './components/VRConeOverlaySync';
+import VRKaraokeOverlaySync from './components/VRKaraokeOverlaySync';
+import VRYoutubeVideoOverlaySync from './components/VRYoutubeVideoOverlaySync';
+import VRNewSongOverlaySync from './components/VRNewSongOverlaySync';
+import SyncConfigCompassMenu from './components/SyncConfigCompassMenu';
+import { getUserSetting, saveUserSetting, detectDeviceType } from '../../../../../../A-frame/vrUserSettingsApi.util.js';
+import { getStoredAuth } from '../../../../../../A-frame/vrAuth.util.js';
+import { exitFullscreen } from '../../fullscreenHelper.js';
 
 // Requerimiento 012 (ajuste pedido tras revisión): persistencia de qué overlays quedan
 // seleccionados en el menú de AR-SYNC — mismo patrón `getUserSetting`/`saveUserSetting` que usa

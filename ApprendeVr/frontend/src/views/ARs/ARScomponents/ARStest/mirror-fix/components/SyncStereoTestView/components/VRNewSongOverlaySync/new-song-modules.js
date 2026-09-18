@@ -3,8 +3,8 @@
 // no se copia ni reescribe código) — antes vivía como una entidad más DENTRO de la escena del
 // overlay "karaoke" (ver aframe-overlay-modules.html); pedido del usuario: separarlo en su propio
 // overlay independiente, activable/desactivable por separado desde el menú ⚙️ → "Overlays".
-import '../../../../A-frame/components/VRKaraokeAf/components/VRNewSongAf/VRNewSongAf.js';
-import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
+import '../../../../../../../../A-frame/components/VRKaraokeAf/components/VRNewSongAf/VRNewSongAf.js';
+import { initPositionControl } from '../../../../../../../../A-frame/vrPositionControl.js';
 
 (function () {
   const sceneEl = document.querySelector('a-scene');

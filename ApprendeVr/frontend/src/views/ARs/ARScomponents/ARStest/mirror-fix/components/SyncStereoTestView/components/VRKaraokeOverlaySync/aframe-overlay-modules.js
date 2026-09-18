@@ -14,12 +14,12 @@
 // 4. Crear un componente React `<Nombre>OverlaySync.jsx` (ver VRKaraokeOverlaySync.jsx) que monte
 //    ese .html en un <iframe src="..."> real (no srcDoc) con forwardRef, y agregarlo a
 //    SYNCABLE_OVERLAYS en SyncStereoTestView.jsx + OVERLAY_OPTIONS en SyncConfigMenu.jsx.
-import '../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
+import '../../../../../../../../A-frame/components/VRKaraokeAf/VRKaraokeAf.js';
 // Requerimiento 011 (siguiente iteración) / 011: panel de evaluación de pronunciación. No se
 // declara como entidad estática — VRKaraokeAf.js lo crea/actualiza dinámicamente al pulsar
 // "EVALUATE SONG" (evaluateSong() en VRKaraokeAf.js), igual que en la vista A-Frame original.
 // Sin este import, vr-evaluacion-af no está registrado y ese setAttribute no hace nada.
-import '../../../../A-frame/components/VREvaluacionAf/VREvaluacionAf.js';
+import '../../../../../../../../A-frame/components/VREvaluacionAf/VREvaluacionAf.js';
 // Requerimiento 012: `initPositionControl()` (Requerimiento 010) — arma el marcador rojo 📍 +
 // d-pad + botón GUARDAR de cada elemento posicionable (karaoke, agregar-canción, y el de
 // VREvaluacionAf.js que se registra solo al crearse) y, sobre todo, el ÚNICO listener
@@ -28,7 +28,7 @@ import '../../../../A-frame/components/VREvaluacionAf/VREvaluacionAf.js';
 // click les llega, porque nunca se armó el listener que los escucha. Mismo patrón que
 // `index.js` de la vista A-Frame original: esperar a que la escena termine de cargar antes de
 // llamarla (necesita `sceneEl.camera`/`sceneEl.canvas` ya listos).
-import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
+import { initPositionControl } from '../../../../../../../../A-frame/vrPositionControl.js';
 // Pedido del usuario (ampliación, Requerimiento 013 sección 11): `external: true` — en mirror-fix
 // los marcadores arrancan ocultos (los muestra el toggle "Position" de la sección "Interfaz" de
 // la brújula) y, al clickearlos, ya no abren un d-pad local acá — mandan la selección a la

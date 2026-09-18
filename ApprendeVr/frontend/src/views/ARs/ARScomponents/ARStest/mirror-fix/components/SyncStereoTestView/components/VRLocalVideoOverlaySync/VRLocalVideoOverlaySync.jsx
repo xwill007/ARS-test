@@ -1,5 +1,5 @@
 import React from 'react';
-import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
+import { useVRLanguage } from '../../../../../../../../../components/VRConfig/VRLanguageContext';
 
 // Función para leer la configuración de autoinicio de voz
 const getVoiceCommandsActivated = () => {

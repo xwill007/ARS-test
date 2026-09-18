@@ -30,16 +30,19 @@ export default defineConfig({
         aframe: path.resolve(__dirname, 'src/views/A-frame/index.html'),
         // Requerimiento 011: overlay de prueba que importa componentes A-Frame reales como
         // src/views/A-frame/index.html, para validar que se pueden reusar sin copiar código.
-        aframeOverlayModules: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.html'),
+        // Requerimiento 018: rutas actualizadas tras reorganizar mirror-fix/ en carpetas por
+        // vista/componente/elemento (skill componentes-frontend) — cada .html vive ahora junto a
+        // su *OverlaySync.jsx dentro de mirror-fix/components/SyncStereoTestView/components/.
+        aframeOverlayModules: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/components/SyncStereoTestView/components/VRKaraokeOverlaySync/aframe-overlay-modules.html'),
         // Overlay "Youtube Video" de AR-SYNC (VRYoutubeVideoOverlaySync.jsx): página Vite real
         // (no srcDoc) porque importa vrPositionControl.js — sin esta entrada, `npm run build`
         // nunca transformaría youtube-video-modules.js ni generaría youtube-video.html (mismo
         // hallazgo ya documentado arriba para artestMirror).
-        youtubeVideo: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/youtube-video.html'),
+        youtubeVideo: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/components/SyncStereoTestView/components/VRYoutubeVideoOverlaySync/youtube-video.html'),
         // Requerimiento 014 (ampliación): overlay "New Song" separado del overlay "karaoke" (antes
         // vivían en la misma página/iframe) — página Vite real por el mismo motivo que
         // aframeOverlayModules/youtubeVideo (importa módulos reales del proyecto).
-        newSong: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/new-song.html'),
+        newSong: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/components/SyncStereoTestView/components/VRNewSongOverlaySync/new-song.html'),
         // Requerimiento 013 (hallazgo): faltaba acá, así que `npm run build` nunca transformaba
         // artest-mirror.jsx/SyncStereoTestView.jsx ni nada que importaran (SyncConfigCompassMenu.jsx
         // incluido) — un error de sintaxis real en SyncConfigCompassMenu.jsx pasó un build entero

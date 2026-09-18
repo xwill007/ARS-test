@@ -21,7 +21,10 @@ const VRNewSongOverlaySyncInner = ({ forwardedRef }) => (
   <iframe
     ref={forwardedRef}
     title="VR New Song Overlay (Sync)"
-    src="./new-song.html"
+    // Requerimiento 018 (reestructuración de carpetas): ruta relativa completa desde
+    // artest-mirror.html (raíz de mirror-fix/, no se movió) — ver el mismo comentario en
+    // VRKaraokeOverlaySync.jsx.
+    src="./components/SyncStereoTestView/components/VRNewSongOverlaySync/new-song.html"
     style={{ width: '100%', height: '100%', border: 'none', background: 'transparent', pointerEvents: 'auto' }}
     allow="xr-spatial-tracking; fullscreen; clipboard-read"
   />

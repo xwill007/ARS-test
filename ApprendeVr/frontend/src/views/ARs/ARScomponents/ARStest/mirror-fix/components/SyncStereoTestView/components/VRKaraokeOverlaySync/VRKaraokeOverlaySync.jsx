@@ -44,7 +44,12 @@ const VRKaraokeOverlaySyncInner = ({ forwardedRef, isPrimaryPanel = true, isRigh
   <iframe
     ref={forwardedRef}
     title="VR Karaoke Overlay (Sync)"
-    src={`./aframe-overlay-modules.html?isPrimaryPanel=${isPrimaryPanel}&isRightPanel=${isRightPanel}&singlePanel=${singlePanel}`}
+    // Requerimiento 018 (reestructuración de carpetas): el src se resuelve relativo al
+    // documento CARGADO en el navegador (artest-mirror.html, en la raíz de mirror-fix/, que no
+    // se movió) — no a la ubicación del archivo fuente en el repo. Por eso la ruta es la
+    // relativa completa desde ahí hasta este .html, no un simple "./" como si estuvieran en la
+    // misma carpeta.
+    src={`./components/SyncStereoTestView/components/VRKaraokeOverlaySync/aframe-overlay-modules.html?isPrimaryPanel=${isPrimaryPanel}&isRightPanel=${isRightPanel}&singlePanel=${singlePanel}`}
     style={{ width: '100%', height: '100%', border: 'none', background: 'transparent', pointerEvents: 'auto' }}
     allow="xr-spatial-tracking; fullscreen; clipboard-read"
   />

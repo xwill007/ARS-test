@@ -32,7 +32,10 @@ const VRYoutubeVideoOverlaySyncInner = ({ forwardedRef, isPrimaryPanel = true, i
   <iframe
     ref={forwardedRef}
     title="VRYoutubeVideo Overlay (Sync)"
-    src={`./youtube-video.html?isPrimaryPanel=${isPrimaryPanel}&isRightPanel=${isRightPanel}&singlePanel=${singlePanel}`}
+    // Requerimiento 018 (reestructuración de carpetas): ruta relativa completa desde
+    // artest-mirror.html (raíz de mirror-fix/, no se movió) — ver el mismo comentario en
+    // VRKaraokeOverlaySync.jsx.
+    src={`./components/SyncStereoTestView/components/VRYoutubeVideoOverlaySync/youtube-video.html?isPrimaryPanel=${isPrimaryPanel}&isRightPanel=${isRightPanel}&singlePanel=${singlePanel}`}
     style={{
       width: '100%',
       height: '100%',

@@ -1,6 +1,6 @@
 // Entrada de youtube-video.html (overlay "Youtube Video" de AR-SYNC). Ver el comentario grande de
 // ese archivo para por qué es una página Vite real y no un srcDoc.
-import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
+import { initPositionControl } from '../../../../../../../../A-frame/vrPositionControl.js';
 
 // Misma clave que escribe el puente de campos de VRNewSongAf.js en aframe-overlay-modules.js: como
 // todos los iframes de mirror-fix son del mismo origen, comparten `localStorage` — este overlay

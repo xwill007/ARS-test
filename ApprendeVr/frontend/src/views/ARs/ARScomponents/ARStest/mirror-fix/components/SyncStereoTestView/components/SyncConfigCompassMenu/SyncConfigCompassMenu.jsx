@@ -1,5 +1,5 @@
 import React from 'react';
-import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
+import { useVRLanguage } from '../../../../../../../../../components/VRConfig/VRLanguageContext';
 
 // Requerimiento 013: brújula 3D que reemplaza al botón ☰ + panel fijo (SyncConfigMenu.jsx en su
 // esquina superior izquierda) por un menú integrado en la propia escena de AR-SYNC. Mismo patrón

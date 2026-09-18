@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import ARTestMirrorButton from './ARTestMirrorButton';
+import ARTestMirrorButton from './components/ARTestMirrorButton';
 import { VRLanguageProvider, useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
 
 /**

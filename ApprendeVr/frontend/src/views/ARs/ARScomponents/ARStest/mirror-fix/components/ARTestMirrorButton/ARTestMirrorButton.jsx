@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import ARStereoView from '../../../ARSviews/ARStereoView';
-import TestOverlayAR2 from './TestOverlayAR2';
-import SyncStereoTestView from './SyncStereoTestView';
-import { enterFullscreen, exitFullscreen } from './fullscreenHelper';
-import { useVRLanguage } from '../../../../../components/VRConfig/VRLanguageContext';
+import ARStereoView from '../../../../../ARSviews/ARStereoView';
+import TestOverlayAR2 from '../TestOverlayAR2';
+import SyncStereoTestView from '../SyncStereoTestView';
+import { enterFullscreen, exitFullscreen } from '../../fullscreenHelper';
+import { useVRLanguage } from '../../../../../../../components/VRConfig/VRLanguageContext';
 
 const buttonStyle = (bottom) => ({
   position: 'fixed',
