@@ -27,3 +27,30 @@ import/`iframe src` recalculadas.
 certificado ya confiado) — ver checklist.md Fase 7 y `requerimiento.md` sección 7 para el detalle
 exacto de qué falta confirmar (overlays sin 404, AR-TEST funcionando, activar/desactivar overlays
 desde el menú ⚙️).
+
+## 2. Ampliación fuera del alcance original: montar AR-SYNC directo y eliminar AR-TEST
+
+**Fecha:** 2026-09-18, posterior a la reorganización (Fase 7).
+
+**Problema/pedido del usuario:** al ingresar a la ruta `.../artest-mirror.html` se mostraba un
+selector con dos botones ("AR-TEST" y "AR-SYNC") y había que hacer click para entrar a la vista.
+El usuario pidió que la vista actual (AR-SYNC) se muestre de inmediato, sin el paso intermedio del
+selector.
+
+**Solución:** `ARTestMirrorButton.jsx` dejó de ser un selector y ahora monta `SyncStereoTestView`
+directamente al cargar. Se eliminó por completo la rama "AR-TEST": `TestOverlayAR2.jsx` y su
+`index.js` ya no tienen ningún punto de entrada (commit `ba0d847`, "refactor: remove TestOverlayAR2
+component and its index file" — verificado con grep que no quedaban otros usos en el repo). El
+import de `ARStereoView` (fuera de `mirror-fix/`) se quitó junto con él. `onClose` de AR-SYNC (la
+porción "Volver" de la brújula 3D) ahora navega directo a inicio, porque ya no hay selector al que
+volver.
+
+**Hallazgo conservado del código anterior (Requerimiento 012):** `requestFullscreen()` exige un
+gesto de usuario real. Acá se llama desde un `useEffect` que corre al montar (sin click de por
+medio), así que el navegador lo rechaza en silencio en la mayoría de los casos. Se llama de todos
+modos porque no rompe nada si falla, y ya no hay ningún botón/gesto previo del que colgarlo; el
+usuario puede entrar a pantalla completa a mano si el navegador no la concedió sola.
+
+**Estado:** pendiente la verificación manual en navegador (mismo motivo de certificado HTTPS
+autofirmado que la entrada 1): confirmar que AR-SYNC carga directo al abrir `artest-mirror.html`,
+y que "Volver" desde la brújula 3D sale a inicio.

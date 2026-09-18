@@ -97,3 +97,16 @@ movimiento (preserva historial).
       ⚙️ → "Overlays", y abrir AR-TEST para confirmar que sigue funcionando.
 - [x] 7.4 Marcados los criterios de aceptación de `requerimiento.md` que sí se pudieron verificar
       (build, diff, i18n); los que requieren navegador quedan explícitamente sin marcar.
+
+## Fase 8 — Ampliación: montar AR-SYNC directo y eliminar AR-TEST
+
+- [x] 8.1 `ARTestMirrorButton.jsx` deja de ser un selector y monta `SyncStereoTestView` directo al
+      cargar `artest-mirror.html` (pedido del usuario: ver la vista actual de inmediato, sin
+      click previo). `onClose` navega directo a inicio.
+- [x] 8.2 Eliminada la rama "AR-TEST": `TestOverlayAR2.jsx` + `index.js` borrados (commit
+      `ba0d847`), quitado el import de `ARStereoView` y el import/uso de `useVRLanguage` en
+      `ARTestMirrorButton.jsx`.
+- [x] 8.3 Verificado con grep que `TestOverlayAR2` no quedó referenciado en ningún otro punto del
+      repo.
+- [ ] 8.4 Verificación manual en navegador NO completada (certificado HTTPS autofirmado, ver Fase
+      7): confirmar que AR-SYNC carga directo y que "Volver" sale a inicio.

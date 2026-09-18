@@ -1,38 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import ARStereoView from '../../../../../ARSviews/ARStereoView';
-import TestOverlayAR2 from '../TestOverlayAR2';
+import React, { useEffect } from 'react';
 import SyncStereoTestView from '../SyncStereoTestView';
 import { enterFullscreen, exitFullscreen } from '../../fullscreenHelper';
-import { useVRLanguage } from '../../../../../../../components/VRConfig/VRLanguageContext';
-
-const buttonStyle = (bottom) => ({
-  position: 'fixed',
-  bottom,
-  left: 16,
-  zIndex: 4000,
-  background: 'rgba(30,30,30,0.92)',
-  color: 'white',
-  border: '1px solid #555',
-  borderRadius: 8,
-  padding: '8px 14px',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-});
-
-const inicioButtonStyle = {
-  position: 'fixed',
-  top: 16,
-  left: '50%',
-  transform: 'translateX(-50%)',
-  zIndex: 5000,
-  background: 'rgba(30,30,30,0.92)',
-  color: 'white',
-  border: '1px solid #555',
-  borderRadius: 8,
-  padding: '8px 16px',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-};
 
 const goHome = () => {
   exitFullscreen();
@@ -40,64 +8,33 @@ const goHome = () => {
 };
 
 /**
- * ARTestMirrorButton — Requerimiento 002, botones de prueba aislados, SIN tocar ni integrarse al
- * flujo real de "AR" (ARSExperience/AROverlayController/appArs):
+ * ARTestMirrorButton — Requerimiento 002/018 (ampliación): monta AR-SYNC directo al cargar
+ * `artest-mirror.html`, sin selector previo. Antes ofrecía elegir entre "AR-TEST" (mecanismo de
+ * espejo por captura de píxeles, `TestOverlayAR2.jsx`) y "AR-SYNC" (`SyncStereoTestView.jsx`) —
+ * pedido del usuario: "quiero que al ingresar a la ruta .../artest-mirror.html se muestre de
+ * inmediato la vista actual sin necesidad de dar al boton AR-SYNC". AR-TEST se elimina del todo
+ * (`TestOverlayAR2.jsx`, sin otros usos en el repo — confirmado por grep) porque ya no tiene
+ * ningún punto de entrada.
  *
- * - "AR-TEST": mecanismo de espejo por captura de píxeles (Intento 4 ganador del checklist, ver
- *   TestOverlayAR2.jsx). Abre ARStereoView.jsx (sin modificarlo) con ese overlay de prueba.
- *   Reproducir: click en "AR-TEST", abrir el menú hamburguesa (⚙️ arriba a la izquierda) y
- *   activar "Modo eficiente" + "Panel derecho = izquierdo".
+ * `onClose` (disparado por la porción "Volver" de la brújula 3D de AR-SYNC, ver
+ * SyncStereoTestView.jsx) ahora navega directo a inicio: sin selector al que volver, "Volver" solo
+ * puede significar salir de esta vista de prueba por completo.
  *
- * - "AR-SYNC": enfoque alternativo propuesto por el usuario — en vez de capturar píxeles, dos
- *   instancias reales sincronizadas por estado vía postMessage (play/pause/seek de video). Ver
- *   SyncStereoTestView.jsx. Los overlays disponibles dentro de AR-SYNC (cámara, video, cono,
- *   karaoke — Requerimiento 011) se eligen desde su propio menú ⚙️ (SyncConfigMenu.jsx), no desde
- *   botones acá.
+ * Hallazgo real conservado del código anterior: `requestFullscreen()` exige un gesto de usuario
+ * real — llamarlo acá, en un efecto que corre al montar (sin click de por medio), es rechazado en
+ * silencio por el navegador en la mayoría de los casos. Se llama de todos modos (no rompe nada si
+ * falla) porque ya no hay ningún botón/gesto previo del que colgarlo; el usuario puede entrar a
+ * pantalla completa a mano si el navegador no la concedió sola.
  *
  * Componente temporal: eliminar esta carpeta completa (mirror-fix/) cuando termine la validación.
  */
 const ARTestMirrorButton = () => {
-  const [open, setOpen] = useState(null); // null | 'mirror' | 'sync'
-  const { t } = useVRLanguage();
-
-  // Requerimiento 012: pantalla completa mientras cualquiera de las dos vistas de prueba está
-  // abierta. `enterFullscreen()` se llama de forma SÍNCRONA dentro del `onClick` de cada botón
-  // (no desde este efecto): `requestFullscreen()` exige gesto de usuario y, disparado desde un
-  // `useEffect` (que corre asíncrono, después del render), el navegador lo rechaza — la barra de
-  // dirección/navegación del navegador quedaba visible. Acá solo se sale de pantalla completa al
-  // cerrar la vista (cleanup del efecto), no antes.
   useEffect(() => {
-    if (!open) return;
+    enterFullscreen();
     return () => exitFullscreen();
-  }, [open]);
+  }, []);
 
-  return (
-    <>
-      {/* Requerimiento 013 (ampliación): oculto mientras AR-SYNC está abierto — la porción
-          "Cerrar sesión" de la brújula 3D lo reemplaza ahí (con una acción más fuerte: borra
-          también la credencial guardada, no solo navega a inicio). Sigue visible en el selector
-          y en AR-TEST, que no tienen brújula. */}
-      {open !== 'sync' && (
-        <button style={inicioButtonStyle} onClick={goHome} title={t('home.backToHome')}>← {t('home.backToHome')}</button>
-      )}
-      {!open && (
-        <>
-          <button style={buttonStyle(32)} onClick={() => { enterFullscreen(); setOpen('mirror'); }}>{t('overlays.arTest')}</button>
-          <button style={buttonStyle(76)} onClick={() => { enterFullscreen(); setOpen('sync'); }}>{t('overlays.arSync')}</button>
-        </>
-      )}
-      {open === 'mirror' && (
-        <ARStereoView
-          onClose={() => setOpen(null)}
-          overlay={<TestOverlayAR2 />}
-          overlayType="html"
-        />
-      )}
-      {open === 'sync' && (
-        <SyncStereoTestView onClose={() => setOpen(null)} />
-      )}
-    </>
-  );
+  return <SyncStereoTestView onClose={goHome} />;
 };
 
 export default ARTestMirrorButton;

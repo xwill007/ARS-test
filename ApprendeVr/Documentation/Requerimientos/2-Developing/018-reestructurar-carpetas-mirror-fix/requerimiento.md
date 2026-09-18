@@ -236,14 +236,16 @@ termina con `npm run build` en verde antes de pasar a la siguiente.
       con `git status`: todos los archivos movidos aparecen como `R`/`RM`, nunca borrado+creado; el
       diff de `vite.config.js` es de 6 inserciones/3 eliminaciones, solo las rutas nuevas).
 - [x] `npm run check:i18n` sigue en verde tras la reorganización.
-- [ ] **Abrir AR-SYNC en el navegador (`artest-mirror.html` → botón AR-SYNC): NO verificado en esta
-      sesión.** Se intentó con `claude-in-chrome`, pero el certificado HTTPS autofirmado del
-      servidor de desarrollo no está confiado en ese perfil de Chrome (interstitial de error, no
-      interactuable por automatización) — limitación conocida del entorno, no de este
-      requerimiento. Pendiente que el usuario verifique: los 3 overlays con página propia cargan
-      sin errores de consola y sin ningún 404 en Network (el hallazgo técnico de la sección 2/5).
-- [ ] Abrir AR-TEST en el navegador (mismo `artest-mirror.html` → botón AR-TEST): sigue funcionando
-      igual que antes de la reorganización. **No verificado en esta sesión** (mismo motivo).
+- [ ] **Abrir AR-SYNC en el navegador (`artest-mirror.html`): NO verificado en esta sesión.** Se
+      intentó con `claude-in-chrome`, pero el certificado HTTPS autofirmado del servidor de
+      desarrollo no está confiado en ese perfil de Chrome (interstitial de error, no interactuable
+      por automatización) — limitación conocida del entorno, no de este requerimiento. Pendiente
+      que el usuario verifique: AR-SYNC carga directo al abrir la ruta (sin selector previo), los 3
+      overlays con página propia cargan sin errores de consola y sin ningún 404 en Network (el
+      hallazgo técnico de la sección 2/5), y "Volver" desde la brújula 3D sale a inicio.
+- [x] ~~Abrir AR-TEST en el navegador~~ — **ya no aplica**: la rama "AR-TEST" fue eliminada por
+      completo en la ampliación (Fase 8) — `TestOverlayAR2.jsx`/`index.js` borrados y sin otros
+      usos en el repo.
 - [ ] Activar/desactivar cada overlay desde el menú ⚙️ → "Overlays" de AR-SYNC sigue funcionando
       igual (sin regresión) tras la reorganización. **No verificado en esta sesión** (mismo motivo).
 - [x] `git status` confirma que cada archivo movido aparece como renombrado (`R`/`RM`), nunca como
