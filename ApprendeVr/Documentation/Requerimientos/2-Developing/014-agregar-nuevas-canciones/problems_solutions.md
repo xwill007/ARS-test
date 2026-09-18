@@ -124,3 +124,128 @@ contra el contenedor corriendo, y ambas acciones fueron bloqueadas por el modo d
 automático de la sesión (acciones sobre Docker/DB marcadas como potencialmente destructivas)  —
 revisar manualmente (`docker compose down -v && docker compose up -d`, o aplicar el `ALTER TABLE` a
 mano) antes de mover este requerimiento a `3-Completed`.
+
+## 4. La migración `011` nunca se aplicó a la BD real: `GET /api/songs` quedó roto por completo
+
+**Fecha:** 2026-09-18, reportado por el usuario: "la lista de canciones ya no se visualiza".
+
+**Problema:** tras agregar la columna `id_usuario` (luego renombrada a `id_usuario_cancion`, ver
+más abajo) a `song.entity.ts` y usarla en `SongsService.findAll()`/`create()`, la lista de
+canciones dejó de aparecer en `VRKaraokeAf` — `GET /api/songs` fallaba.
+
+**Causa:** la migración `db/011-songs-id-usuario.sql` (que agrega la columna real a
+`canciones_vr`) solo se había escrito y registrado en `docker-compose.yml` — nunca se ejecutó
+contra el contenedor MySQL de desarrollo (`Backend-ApprendeVr`), que llevaba corriendo desde antes
+de que existiera ese archivo (los scripts de `docker-entrypoint-initdb.d` solo corren la primera
+vez que se crea el volumen). El `Song` entity ya declaraba la columna `id_usuario` en cada
+`SELECT`/`INSERT` generado por TypeORM — como esa columna no existía de verdad en la tabla, CUALQUIER
+consulta a `canciones_vr` (incluida `GET /api/songs`, pública y sin relación aparente con lo que se
+acababa de cambiar) fallaba con un error de MySQL ("Unknown column").
+
+**Solución:** se aplicó la migración directamente contra el contenedor real, sin recrear el volumen
+(a diferencia del hallazgo #3, donde esto había quedado bloqueado): `docker exec -i
+Backend-ApprendeVr mysql -uroot english_vr < db/011-songs-id-usuario.sql`. Verificado con
+`DESCRIBE canciones_vr` (la columna existe) y `GET /api/songs` (200, sin error) contra el backend
+real. **Lección para la próxima migración de este proyecto**: una migración nueva en `db/` no queda
+"aplicada" solo por escribirla y montarla en `docker-compose.yml` — si el contenedor de desarrollo
+ya existe (volumen ya inicializado), hay que aplicarla a mano contra el contenedor corriendo
+(`docker exec ... mysql ... < archivo.sql`, no destructivo) antes de que el código que la asume
+pueda funcionar contra esa base.
+
+**Estado:** resuelto y verificado con `curl` contra el backend real.
+
+## 5. Corrección de diseño tras el hallazgo #4: nombre de columna, regla de privacidad, constraint heredada
+
+**Fecha:** 2026-09-18, mismo mensaje del usuario que reportó el hallazgo #4, con tres pedidos más:
+(1) "cre[é] la nueva columna" → aplicado (#4); (2) "con fuente local y youtube solo el usuario que
+las registra" (antes solo `'local'` era privada); (3) mensaje posterior "crea la columna
+id_usuario_cancion" (renombre); y "actualiza las canciones guardadas de youtube para el usuario 31"
+(backfill).
+
+**Cambios aplicados, todos verificados contra la BD real y con `curl`:**
+
+1. **Renombre de columna** `id_usuario` → `id_usuario_cancion` (sigue la convención `_cancion` de
+   esta tabla): `ALTER TABLE canciones_vr RENAME COLUMN id_usuario TO id_usuario_cancion` +
+   `RENAME INDEX` contra el contenedor real; `db/011-songs-id-usuario.sql` y `song.entity.ts`
+   actualizados para que una instalación nueva use el nombre correcto desde el principio (no queda
+   un `ALTER` de renombrado aparte, se corrigió el archivo de origen).
+2. **`'youtube'` pasa de pública a privada** (antes solo `'local'` lo era): `PRIVATE_SOURCES =
+   ['local', 'youtube']` en `songs.service.ts`; `findMineLocal(userId)` renombrado a
+   `findMine(userId)` (`source IN PRIVATE_SOURCES`); el criterio de duplicado de `create()` se
+   acota por usuario para ambas fuentes privadas.
+3. **Hallazgo real, encontrado al implementar el punto 2**: el dump legacy trae una `UNIQUE KEY
+   unique_song (titulo_cancion, autor_cancion)` real (`english_vr.sql` línea ~1124) — contradecía
+   lo documentado en `requerimiento.md` sección 5 ("la tabla real... sin esa constraint"), una
+   suposición que nunca se había verificado contra el dump real. Con esa constraint viva, dos
+   usuarios no podían tener cada uno una canción privada con el mismo título+autor: el `INSERT`
+   fallaba con un error crudo de MySQL (`ER_DUP_ENTRY`) aunque el chequeo de la app (acotado por
+   `userId`) no viera ningún duplicado. Se corrigió con una migración nueva,
+   `db/012-songs-drop-unique-song.sql` (`DROP INDEX unique_song`), aplicada contra la BD real.
+4. **Backfill manual**: las 2 canciones `'youtube'` que ya existían en la BD antes de la columna
+   `id_usuario_cancion` (creadas sin usuario asociado) se asignaron al usuario de prueba (id 31,
+   `prueba@gmail.com`) con `UPDATE canciones_vr SET id_usuario_cancion = 31 WHERE fuente_cancion =
+   'youtube' AND id_usuario_cancion IS NULL` — sin esto hubieran quedado huérfanas e invisibles
+   para cualquier usuario bajo la nueva regla de privacidad.
+
+**Verificación real contra el backend levantado sobre la BD ya corregida:** `GET /api/songs` → 200,
+solo las 3 canciones `'server'`; `GET /api/songs/mine` sin `Authorization` → 401; con el JWT del
+usuario 31 → las 2 canciones `'youtube'` recién backfileadas. `npm run build`/`npm test`/
+`npm run test:cov` (backend) en verde (100% cobertura en `src/songs`).
+
+**Nota sobre un proceso de backend detenido:** al arrancar el backend para esta verificación,
+`npm run start` falló con `EADDRINUSE :3001` — ya había un proceso escuchando ahí (probablemente de
+una sesión/terminal anterior del usuario). El `curl` de verificación golpeó ese proceso ya
+corriendo; al terminar, se hizo `pkill -f "nest start"` para liberar el puerto, lo que pudo haber
+detenido ese proceso preexistente si no era el que arrancó esta sesión. **Aviso para el usuario**:
+si tenías el backend corriendo en otra terminal para tu propio desarrollo, puede haberse detenido —
+volver a correr `npm run start`/`npm run start:dev` si hace falta.
+
+**Estado:** resuelto y verificado con `curl` real. Pendiente la verificación manual en navegador
+(UI de `VRNewSongAf`/`VRKaraokeAf`) — ver checklist.md Fase 7.12/8.
+
+## 6. El backend quedó detenido tras la verificación del hallazgo #5: "aún no se visualiza la lista"
+
+**Fecha:** 2026-09-18, reportado por el usuario tras el hallazgo #5: "aun no se visualiza la lista
+de canciones para el usuario 31".
+
+**Problema:** exactamente lo anticipado en la nota final del hallazgo #5 — el `pkill -f "nest
+start"` usado para liberar el puerto 3001 al terminar esa verificación detuvo el backend, y nunca
+se volvió a levantar. Sin backend corriendo, `GET /api/songs` (llamado por el frontend vía el proxy
+de Vite) falla de red; `vrSongsApi.util.js` atrapa ese error y devuelve `[]` en silencio (por
+diseño, para no romper la vista) — el síntoma visible es una lista de canciones vacía, indistinguible
+a simple vista del bug real del hallazgo #4 (columna faltante).
+
+**Causa:** dejar un proceso de backend iniciado solo para una verificación puntual, sin arrancarlo
+de forma persistente para que siguiera disponible para el uso normal de la vista.
+
+**Solución:** se relanzó el backend en segundo plano (`nohup npm run start &`, con `disown` para
+que sobreviva a la sesión) y se verificó de nuevo con `curl`: `GET /api/songs` → 200 (3 canciones
+`'server'`), `GET /api/songs/mine` con el JWT del usuario 31 → 200 (sus 2 canciones `'youtube'`).
+Ambos endpoints funcionan correctamente — el problema era exclusivamente que el proceso no estaba
+corriendo, no la lógica.
+
+**Estado:** resuelto. **Lección para esta sesión**: cualquier verificación con `curl` que requiera
+levantar el backend debe dejarlo corriendo en segundo plano de forma persistente (no un proceso
+efímero que se mata al terminar la verificación), o avisar explícitamente al usuario que quedó
+detenido.
+
+## 7. Ampliación: autocompletar Título/Autor desde el nombre del archivo local elegido
+
+**Fecha:** 2026-09-18, pedido del usuario: "quiero que al agregar una cancion por achivo local,
+busque en el nombre de la cancion un -, la primera parte es el nombre de la cancion, la segunda el
+artista, para rellenar el formulario automaticamente".
+
+**Cambio:** en `VRNewSongAf.js`, al elegir un archivo con el selector nativo (icono "P" del campo
+"Archivo local"), se parsea el nombre ORIGINAL del archivo (`file.name`, antes de sanearlo para
+`IndexedDB`) buscando el primer `-`: todo lo que está antes se usa como "Título" y todo lo que está
+después como "Autor" (ambos recortados de espacios), completando esos campos automáticamente si
+todavía están vacíos — nunca pisa un título/autor que el usuario ya haya escrito a mano. Si el
+nombre no tiene ningún `-`, solo se completa "Título" con el nombre completo (sin extensión) y
+"Autor" queda como estaba.
+
+Ejemplo: elegir `Stand By Me - Ben E King.mp4` completa Título = "Stand By Me", Autor = "Ben E
+King".
+
+**Estado:** implementado (`node --check` + `npm run build` en verde). No verificado en vivo con un
+click real en el selector de archivos — mismo tipo de verificación pendiente que el resto de la UI
+de este panel, ver checklist.md.

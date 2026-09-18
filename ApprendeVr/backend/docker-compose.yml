@@ -30,6 +30,8 @@ services:
       - ./db/008-ars-sync-compass-position-view.sql:/docker-entrypoint-initdb.d/09-ars-sync-compass-position-view.sql:ro
       - ./db/009-songs-fuente-cancion.sql:/docker-entrypoint-initdb.d/10-songs-fuente-cancion.sql:ro
       - ./db/010-ars-sync-cursor-view.sql:/docker-entrypoint-initdb.d/11-ars-sync-cursor-view.sql:ro
+      - ./db/011-songs-id-usuario.sql:/docker-entrypoint-initdb.d/12-songs-id-usuario.sql:ro
+      - ./db/012-songs-drop-unique-song.sql:/docker-entrypoint-initdb.d/13-songs-drop-unique-song.sql:ro
       - db-data:/var/lib/mysql
     ports:
       - "${DB_PORT:-3306}:3306"

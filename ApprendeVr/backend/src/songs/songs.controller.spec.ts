@@ -3,6 +3,7 @@ import { SongsController } from './songs.controller';
 describe('SongsController', () => {
   const songsService = {
     findAll: jest.fn(),
+    findMine: jest.fn(),
     create: jest.fn(),
   };
   let controller: SongsController;
@@ -24,15 +25,27 @@ describe('SongsController', () => {
     });
   });
 
+  describe('findMine', () => {
+    it('delegates to SongsService.findMine with the authenticated user id', async () => {
+      const songs = [{ id: 3, source: 'local' }, { id: 4, source: 'youtube' }];
+      songsService.findMine.mockResolvedValue(songs);
+
+      const result = await controller.findMine({ id: 7 } as any);
+
+      expect(songsService.findMine).toHaveBeenCalledWith(7);
+      expect(result).toBe(songs);
+    });
+  });
+
   describe('create', () => {
-    it('delegates to SongsService.create with the validated DTO', async () => {
+    it('delegates to SongsService.create with the validated DTO and the authenticated user id', async () => {
       const dto = { title: 'Stand By Me', fileName: 'a.mp4' } as any;
       const created = { id: 1, ...dto };
       songsService.create.mockResolvedValue(created);
 
-      const result = await controller.create(dto);
+      const result = await controller.create(dto, { id: 5 } as any);
 
-      expect(songsService.create).toHaveBeenCalledWith(dto);
+      expect(songsService.create).toHaveBeenCalledWith(dto, 5);
       expect(result).toBe(created);
     });
   });

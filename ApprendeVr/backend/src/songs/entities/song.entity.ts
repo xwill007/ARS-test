@@ -17,11 +17,25 @@ export class Song {
   @Column({ name: 'archivo_cancion', nullable: true })
   fileName: string | null;
 
-  // 'local' | 'youtube' | fuentes futuras. Default 'local' en la BD (ver
-  // db/009-songs-fuente-cancion.sql) para las 3 canciones del dump legacy, que no tienen esta
-  // columna.
-  @Column({ name: 'fuente_cancion', type: 'varchar', length: 50, default: 'local' })
+  // 'server' (archivo real en public/videos/karaoke/ del servidor, visible para cualquier
+  // usuario) | 'local' (video que vive solo en el IndexedDB del dispositivo de `userId`, nunca en
+  // el servidor) | 'youtube' | fuentes futuras. 'local' y 'youtube' son privadas: solo las ve el
+  // usuario que las creó (Requerimiento 014, ampliación — ver `userId`/`SongsService.findMine()`).
+  // Default 'server' en la BD (ver db/011-songs-id-usuario.sql, que renombró el default original
+  // 'local' de db/009-songs-fuente-cancion.sql a 'server' al introducir el nuevo significado).
+  @Column({ name: 'fuente_cancion', type: 'varchar', length: 50, default: 'server' })
   source: string;
+
+  // Usuario que creó la canción (Requerimiento 014, ampliación) — nullable: las 3 canciones del
+  // dump legacy y cualquier canción creada antes de esta columna no tienen usuario asociado.
+  // Imprescindible para `source: 'local'`/`'youtube'` (ver arriba): es la clave para filtrar "las
+  // canciones privadas DE ESTE usuario" en `SongsService.findMine()` / `GET /songs/mine`, en vez
+  // de mezclarlas con el catálogo público (`source: 'server'`) de `GET /songs`.
+  //
+  // Nombre de columna `id_usuario_cancion` (no `id_usuario` a secas): sigue la convención de esta
+  // tabla, donde toda columna propia lleva el sufijo `_cancion`.
+  @Column({ name: 'id_usuario_cancion', type: 'int', nullable: true })
+  userId: number | null;
 
   // Nullable en el dump (sin NOT NULL): la BD la completa con CURRENT_TIMESTAMP() si no se envía.
   @Column({ name: 'fecha_hora_cancion', type: 'datetime', nullable: true })

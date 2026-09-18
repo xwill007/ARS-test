@@ -23,9 +23,35 @@ export async function getSongs() {
   }
 }
 
-// song: { title, author, fileName, language, source }. `source` es 'local' (default, fileName es
-// el nombre del archivo en videos/karaoke/) o 'youtube' (fileName es la URL completa). Devuelve
-// { ok: true, song } en éxito,
+// Canciones `source: 'local'` (Requerimiento 014, ampliación) DEL USUARIO AUTENTICADO — no vienen
+// en `getSongs()` (catálogo público, ver `SongsService.findAll()`), así que `VRKaraokeAf` las pide
+// acá aparte para combinarlas con el catálogo. Igual que `getSongs()`, nunca lanza: sin sesión o
+// con el backend caído, devuelve `[]` (esas canciones locales quedan invisibles esa vez, pero no
+// se pierden — su metadata sigue en la BD, listas para la próxima vez que haya sesión/red).
+export async function getMySongs() {
+  const auth = getStoredAuth();
+  if (!auth || !auth.access_token) return [];
+
+  try {
+    const res = await fetch('/api/songs/mine', {
+      headers: { Authorization: `Bearer ${auth.access_token}` },
+    });
+    if (!res.ok) {
+      console.warn(`vrSongsApi: GET /api/songs/mine devolvió ${res.status}.`);
+      return [];
+    }
+    const songs = await res.json();
+    return Array.isArray(songs) ? songs : [];
+  } catch (e) {
+    console.warn('vrSongsApi: GET /api/songs/mine falló de red.', e);
+    return [];
+  }
+}
+
+// song: { title, author, fileName, language, source }. `source` es 'server' (fileName es el
+// nombre del archivo en videos/karaoke/ del servidor), 'local' (fileName es la clave bajo la que
+// el video quedó guardado en el IndexedDB del dispositivo, ver vrLocalVideoStore.util.js) o
+// 'youtube' (fileName es la URL completa). Devuelve { ok: true, song } en éxito,
 // { ok: false, error } en falla — `error` es 'NO_SESSION' | 'SONG_ALREADY_EXISTS' | 'NETWORK_ERROR'
 // | el código que devuelva el backend, para que el llamador pueda mostrar un mensaje específico
 // (ver VRNewSongAf._saveSong).

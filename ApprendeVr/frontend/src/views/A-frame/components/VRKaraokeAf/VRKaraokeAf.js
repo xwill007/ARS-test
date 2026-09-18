@@ -3,9 +3,10 @@
 import './components/VRNewSongAf/VRNewSongAf.js';
 import { fetchCurrentUser } from '../../vrAuth.util.js';
 import { getPointerNDC } from '../../vrPointerRaycast.util.js';
-import { getSongs } from '../../vrSongsApi.util.js';
+import { getSongs, getMySongs } from '../../vrSongsApi.util.js';
 import { extractYoutubeVideoId } from '../../vrYoutube.util.js';
 import { openYoutubePlayer, closeYoutubePlayer } from '../../vrYoutubePlayer.util.js';
+import { getLocalVideo } from '../../vrLocalVideoStore.util.js';
 
 // Control de logs: usar Logs(true|false) para activar/desactivar
 let showLogs = true; // cambiar a false para silenciar logs por defecto
@@ -33,6 +34,17 @@ const PLAY_TOGGLE_COOLDOWN_MS = 600;
 // Color distintivo (tono de marca de YouTube) para identificar en la lista las canciones
 // `source: 'youtube'` (Requerimiento 014, ampliación) — ver `_buildSongListUI`/`_selectSongButton`.
 const YOUTUBE_SONG_COLOR = '#a52714';
+
+// Color distintivo para identificar en la lista las canciones `source: 'local'` (Requerimiento
+// 014, ampliación: "cargar en local una canción descargada" — este valor de `source` reemplaza al
+// que hasta ahora se llamaba 'local' y significaba "archivo real en public/videos/karaoke/ del
+// servidor", renombrado a 'server') — mismo criterio que YOUTUBE_SONG_COLOR: se ven a simple vista
+// sin tener que hacer click, ya que solo funcionan en el dispositivo donde se agregaron.
+const DEVICE_SONG_COLOR = '#455a64';
+
+// Etiqueta de "ubicación" mostrada en la lista (pedido del usuario: artista, nombre de la canción
+// y ubicación, nunca la URL/ruta de archivo real) — un nombre legible por `source`.
+const SOURCE_LABELS = { server: 'Servidor', local: 'Local', youtube: 'YouTube' };
 
 // Componente vr-karaoke-af
 // Requiere aframe-htmlembed-component para mostrar iframes de YouTube (no usado por ahora en
@@ -303,12 +315,21 @@ AFRAME.registerComponent('vr-karaoke-af', {
     videoListContainer.appendChild(background);
 
     videos.forEach((video, index) => {
-      const [fileName, artist, duration, source] = video.split('|');
-      const songSource = source || 'local';
+      // `fileName` sirve triple propósito según `songSource` (nombre de archivo en
+      // `public/videos/karaoke/` para 'server', clave en el `IndexedDB` de este dispositivo para
+      // 'local', o URL completa para 'youtube') y sigue siendo la clave interna de selección
+      // (`button._fileName`/`_currentSong.fileName`) — pero pedido del usuario: nunca se muestra en
+      // la UI (oculta la URL/ruta de archivo). El 3er campo pipe-delimited, sin usar hasta ahora
+      // (pensado para una duración que el backend nunca llegó a completar), pasa a llevar el
+      // TÍTULO real de la canción (`s.title`), que es lo que se muestra en su lugar.
+      const [fileName, artist, songTitle, source] = video.split('|');
+      const songSource = source || 'server';
       const isYoutube = songSource === 'youtube';
+      const isDevice = songSource === 'local';
 
       const artistName = artist ? artist : 'Artista desconocido';
-      const videoDuration = duration ? duration : 'Duración desconocida';
+      const displayTitle = songTitle ? songTitle : fileName;
+      const sourceLabel = SOURCE_LABELS[songSource] || songSource;
 
       const button = document.createElement('a-plane');
       // Guardado para poder re-encontrar este botón por canción tras un rebuild de la lista (ver
@@ -318,15 +339,19 @@ AFRAME.registerComponent('vr-karaoke-af', {
       button._source = songSource;
       button.setAttribute('width', 3.5);
       button.setAttribute('height', 0.7);
-      // Las canciones de YouTube se identifican con un color distinto (rojo, mismo tono de marca
-      // que YouTube) además del prefijo "[YouTube]" en el título — pedido del usuario: poder
-      // distinguirlas de un vistazo en la lista, no solo al hacer click.
-      button.setAttribute('color', isYoutube ? YOUTUBE_SONG_COLOR : this._buttonColor);
+      // Las canciones de YouTube y las de dispositivo se identifican con un color distinto —
+      // pedido del usuario: poder distinguirlas de un vistazo en la lista, no solo al hacer click.
+      // Las de dispositivo solo funcionan en el navegador donde se agregaron (ver
+      // `_playDeviceSong`), así que vale la misma señal visual.
+      button.setAttribute('color', isYoutube ? YOUTUBE_SONG_COLOR : (isDevice ? DEVICE_SONG_COLOR : this._buttonColor));
       button.setAttribute('position', `0 ${-index * 0.8 - 0.5} 0`);
       button.setAttribute('class', 'clickable');
 
+      // Pedido del usuario: la lista solo debe mostrar artista, nombre de la canción y ubicación
+      // (Servidor/Local/YouTube) — nunca la URL ni la ruta/nombre de archivo real (`fileName`,
+      // que sigue existiendo solo como dato interno de selección, ver `button._fileName` arriba).
       const topText = document.createElement('a-text');
-      topText.setAttribute('value', `${index + 1}. ${isYoutube ? '[YouTube] ' : ''}${fileName}`);
+      topText.setAttribute('value', `${index + 1}. ${displayTitle}`);
       topText.setAttribute('align', 'left');
       topText.setAttribute('color', textColor);
       topText.setAttribute('width', 2.6);
@@ -339,7 +364,7 @@ AFRAME.registerComponent('vr-karaoke-af', {
       } catch (e) { /* ignore */ }
 
       const bottomText = document.createElement('a-text');
-      bottomText.setAttribute('value', `${artistName} (${videoDuration})`);
+      bottomText.setAttribute('value', `${artistName} · ${sourceLabel}`);
       bottomText.setAttribute('align', 'left');
       bottomText.setAttribute('color', textColor);
       bottomText.setAttribute('width', 2.6);
@@ -367,6 +392,10 @@ AFRAME.registerComponent('vr-karaoke-af', {
         const skipCountdown = !!(evt && evt.silent);
         if (songSource === 'youtube') {
           this._playYoutubeSong(fileName, artistName);
+          return;
+        }
+        if (songSource === 'local') {
+          this._playDeviceSong(fileName, fileName, artistName, skipCountdown ? undefined : { countdown: true });
           return;
         }
         try {
@@ -429,6 +458,8 @@ AFRAME.registerComponent('vr-karaoke-af', {
         try { this._selectSongButton(this._songButtons[0]); } catch (e) {}
         if (firstSource === 'youtube') {
           this._playYoutubeSong(firstFileName, firstArtistName);
+        } else if (firstSource === 'local') {
+          this._playDeviceSong(firstFileName, firstFileName, firstArtistName);
         } else {
           this.loadVideo(`/videos/karaoke/${firstFileName}`, { fileName: firstFileName, artistName: firstArtistName });
         }
@@ -445,14 +476,23 @@ AFRAME.registerComponent('vr-karaoke-af', {
   // (sin red, backend apagado), devuelve `[]` por su cuenta (ver vrSongsApi.util.js) y la lista
   // queda vacía, sin romperse.
   _initSongList: function () {
-    getSongs().then((backendSongs) => {
+    // `getSongs()` (catálogo público) y `getMySongs()` (canciones `source: 'local'` del usuario
+    // autenticado, ver `SongsService.findMine()`/`GET /songs/mine`) nunca se pisan: el
+    // backend excluye 'local' de `findAll()` a propósito (Requerimiento 014, ampliación), así que
+    // no hay riesgo de duplicar una canción en las dos listas.
+    Promise.all([getSongs(), getMySongs()]).then(([backendSongs, mySongs]) => {
       // `source` (Requerimiento 014, ampliación) va como 4to campo de la entrada pipe-delimited
-      // (el 3ro, duración, no lo llena el backend hoy) para que `_buildSongListUI` sepa cómo
-      // reproducir cada canción: 'local' como textura 3D (`<a-video>`, ver `loadVideo`), 'youtube'
-      // como overlay 2D embebido (ver `_playYoutubeSong`) porque un iframe cross-origin no se
-      // puede leer como textura WebGL.
-      const backendEntries = backendSongs.map((s) => `${s.fileName}|${s.author || 'Artista desconocido'}||${s.source || 'local'}`);
-      this._buildSongListUI(backendEntries);
+      // para que `_buildSongListUI` sepa cómo reproducir cada canción: 'server' como textura 3D
+      // (`<a-video>`, ver `loadVideo`), 'youtube' como overlay 2D embebido (ver `_playYoutubeSong`,
+      // un iframe cross-origin no se puede leer como textura WebGL), 'local' desde el `IndexedDB`
+      // de este dispositivo (ver `_playDeviceSong`/vrLocalVideoStore.util.js — solo funciona si el
+      // video se agregó desde ESTE mismo navegador, aunque la fila de metadata venga de la BD). El
+      // 3er campo (antes pensado para una duración que el backend nunca llegó a completar) ahora
+      // lleva `s.title` — pedido del usuario: la lista debe mostrar el título real de la canción,
+      // nunca `fileName` (que es una URL o una ruta/nombre de archivo interno).
+      const allSongs = backendSongs.concat(mySongs);
+      const entries = allSongs.map((s) => `${s.fileName}|${s.author || 'Artista desconocido'}|${s.title || ''}|${s.source || 'server'}`);
+      this._buildSongListUI(entries);
     });
   },
 
@@ -460,11 +500,11 @@ AFRAME.registerComponent('vr-karaoke-af', {
   // botones de la lista a su color base.
   _selectSongButton: function (button) {
     (this._songButtons || []).forEach((b) => {
-      // El color base no es siempre `this._buttonColor`: las canciones `source: 'youtube'` usan
-      // un color distinto para identificarse en la lista (ver `_buildSongListUI`) — hay que
-      // preservarlo acá en vez de pisarlo, o se pierde esa distinción apenas se selecciona
-      // cualquier canción.
-      const baseColor = b._source === 'youtube' ? YOUTUBE_SONG_COLOR : this._buttonColor;
+      // El color base no es siempre `this._buttonColor`: las canciones `source: 'youtube'`/
+      // `source: 'local'` usan un color distinto para identificarse en la lista (ver
+      // `_buildSongListUI`) — hay que preservarlo acá en vez de pisarlo, o se pierde esa
+      // distinción apenas se selecciona cualquier canción.
+      const baseColor = b._source === 'youtube' ? YOUTUBE_SONG_COLOR : (b._source === 'local' ? DEVICE_SONG_COLOR : this._buttonColor);
       try { b.setAttribute('color', (b === button) ? '#000000' : baseColor); } catch (e) {}
     });
     this._selectedSongButton = button;
@@ -506,6 +546,16 @@ AFRAME.registerComponent('vr-karaoke-af', {
         this._htmlVideo.parentNode.removeChild(this._htmlVideo);
       }
     } catch (e) { /* ignore */ }
+
+    // Requerimiento 014, ampliación: un video "de dispositivo" (ver _playDeviceSong) se reproduce
+    // desde un Object URL (`URL.createObjectURL`), que retiene el Blob completo en memoria hasta
+    // que se libera explícitamente — a diferencia de una URL de servidor normal. Se libera acá
+    // (que ya corre al arrancar cualquier cambio de canción) para no acumular un Blob en memoria
+    // por cada canción de dispositivo reproducida en la sesión.
+    if (this._currentObjectUrl) {
+      try { URL.revokeObjectURL(this._currentObjectUrl); } catch (e) { /* ignore */ }
+      this._currentObjectUrl = null;
+    }
   },
 
   // Reproduce una canción `source: 'youtube'` (Requerimiento 014, ampliación): `fileName` es la
@@ -542,6 +592,59 @@ AFRAME.registerComponent('vr-karaoke-af', {
     openYoutubePlayer(videoId);
   },
 
+  // Reproduce una canción `source: 'local'` (Requerimiento 014, ampliación: "cargar en local una
+  // canción descargada"): el video no vive en `public/videos/karaoke/` del servidor ni se sube ahí
+  // (pedido explícito del usuario) — vive como Blob en el `IndexedDB` de este mismo dispositivo
+  // (ver vrLocalVideoStore.util.js), guardado ahí por VRNewSongAf al elegir un archivo con el
+  // selector nativo del sistema operativo. La FILA de metadata (título/autor/`fileName`) sí está
+  // en la BD (`GET /songs/mine`, ligada a `id_usuario_cancion`) para que la canción aparezca en la lista de
+  // forma persistente, pero el Blob solo existe en el dispositivo donde se agregó — de ahí el
+  // aviso si no se encuentra acá. Se lee async y se monta como `<a-video>` normal vía un Object
+  // URL — mismo camino de textura 3D que un archivo `server` (`loadVideo`), a diferencia de una
+  // canción `youtube` (que no puede ser una textura WebGL).
+  _playDeviceSong: function (fileId, title, artistName, options) {
+    L(`Cargando video de dispositivo: ${fileId}`);
+    this._currentSong = { path: null, fileName: title, artist: artistName, source: 'local' };
+    if (!fileId) {
+      W('vr-karaoke-af: cancion de dispositivo sin fileId.');
+      this._showDeviceVideoMissingWarning(title);
+      return;
+    }
+    getLocalVideo(fileId).then((blob) => {
+      if (!blob) {
+        // Caso esperado si esta canción se agregó desde OTRO dispositivo/navegador: la fila de
+        // metadata SÍ viaja (vive en la BD, ligada a `id_usuario_cancion`), pero el Blob del video nunca
+        // sale del `IndexedDB` de aquel dispositivo — acá simplemente no está.
+        W(`vr-karaoke-af: no se encontro el video "${fileId}" en este dispositivo.`);
+        this._showDeviceVideoMissingWarning(title);
+        return;
+      }
+      const objectUrl = URL.createObjectURL(blob);
+      this.loadVideo(objectUrl, { fileName: title, artistName, source: 'local' }, options);
+    }).catch((err) => {
+      W('vr-karaoke-af: error leyendo video de dispositivo desde IndexedDB.', err);
+      this._showDeviceVideoMissingWarning(title);
+    });
+  },
+
+  // Aviso no bloqueante (pensado para el caso, poco común, de un catálogo de dispositivo con una
+  // entrada cuyo video ya no está en IndexedDB) — mismo criterio que el resto de avisos de esta
+  // vista: nunca falla en silencio, pero tampoco bloquea el resto de la UI.
+  _showDeviceVideoMissingWarning: function (title) {
+    try {
+      this._stopLocalPlayback();
+      const warn = document.createElement('a-text');
+      warn.setAttribute('value', `"${title}": el video de esta cancion no esta disponible en este dispositivo.`);
+      warn.setAttribute('align', 'center');
+      warn.setAttribute('color', '#ff8888');
+      warn.setAttribute('width', (this.data.videoWidth * 0.9).toString());
+      warn.setAttribute('wrap-count', '30');
+      warn.setAttribute('position', this.data.videoPosition);
+      this.el.appendChild(warn);
+      setTimeout(() => { try { if (warn.parentNode) warn.parentNode.removeChild(warn); } catch (e) { /* ignore */ } }, 6000);
+    } catch (e) { /* ignore */ }
+  },
+
   loadVideo: function (videoPath, meta, options) {
     L(`Cargando video: ${videoPath}`);
 
@@ -551,9 +654,17 @@ AFRAME.registerComponent('vr-karaoke-af', {
 
     const fileName = (meta && meta.fileName) ? meta.fileName : null;
     const artistName = (meta && meta.artistName) ? meta.artistName : null;
-    this._currentSong = { path: videoPath, fileName: fileName, artist: artistName, source: 'local' };
+    const songSource = (meta && meta.source) ? meta.source : 'server';
+    this._currentSong = { path: videoPath, fileName: fileName, artist: artistName, source: songSource };
 
     this._stopLocalPlayback();
+
+    // Un video "de dispositivo" (`source: 'local'`) llega como Object URL (ver `_playDeviceSong`)
+    // — se guarda acá, DESPUÉS de que `_stopLocalPlayback()` ya liberó el de la canción anterior,
+    // para que el próximo cambio de canción lo libere a su vez.
+    if (songSource === 'local') {
+      this._currentObjectUrl = videoPath;
+    }
 
     const vidId = 'karaoke-video-' + Math.floor(Math.random() * 1000000);
     const htmlVideo = document.createElement('video');

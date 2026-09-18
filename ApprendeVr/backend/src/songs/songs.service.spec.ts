@@ -1,4 +1,5 @@
 import { ConflictException } from '@nestjs/common';
+import { In } from 'typeorm';
 import { SongsService } from './songs.service';
 
 describe('SongsService', () => {
@@ -32,19 +33,35 @@ describe('SongsService', () => {
   });
 
   describe('findAll', () => {
-    it('returns all songs ordered by id ascending', async () => {
+    it('returns only source "server" songs, ordered by id ascending', async () => {
       const songs = [{ id: 1 }, { id: 2 }];
       songsRepository.find.mockResolvedValue(songs);
       const result = await service.findAll();
-      expect(songsRepository.find).toHaveBeenCalledWith({ order: { id: 'ASC' } });
+      expect(songsRepository.find).toHaveBeenCalledWith({
+        where: { source: 'server' },
+        order: { id: 'ASC' },
+      });
+      expect(result).toBe(songs);
+    });
+  });
+
+  describe('findMine', () => {
+    it('returns source "local"/"youtube" songs scoped to the given userId, ordered by id ascending', async () => {
+      const songs = [{ id: 3, userId: 7, source: 'local' }, { id: 4, userId: 7, source: 'youtube' }];
+      songsRepository.find.mockResolvedValue(songs);
+      const result = await service.findMine(7);
+      expect(songsRepository.find).toHaveBeenCalledWith({
+        where: { userId: 7, source: In(['local', 'youtube']) },
+        order: { id: 'ASC' },
+      });
       expect(result).toBe(songs);
     });
   });
 
   describe('create', () => {
-    it('normalizes title/author, saves, and returns the created song', async () => {
+    it('normalizes title/author, saves with the given userId, and returns the created song', async () => {
       songsRepository.findOne.mockResolvedValue(null);
-      const created = { title: 'Stand By Me', author: 'Ben E King', fileName: 'a.mp4' };
+      const created = { title: 'Stand By Me', author: 'Ben E King', fileName: 'a.mp4', userId: 5 };
       songsRepository.create.mockReturnValue(created);
       songsRepository.save.mockResolvedValue({ id: 1, ...created });
 
@@ -52,7 +69,7 @@ describe('SongsService', () => {
         title: '  Stand   By Me ',
         author: ' Ben E King ',
         fileName: 'a.mp4',
-      } as any);
+      } as any, 5);
 
       expect(songsRepository.findOne).toHaveBeenCalledWith({
         where: { title: 'Stand By Me', author: 'Ben E King' },
@@ -61,6 +78,7 @@ describe('SongsService', () => {
         title: 'Stand By Me',
         author: 'Ben E King',
         fileName: 'a.mp4',
+        userId: 5,
       });
       expect(songsRepository.save).toHaveBeenCalledWith(created);
       expect(result).toEqual({ id: 1, ...created });
@@ -76,12 +94,13 @@ describe('SongsService', () => {
         author: 'Ben E King',
         fileName: 'a.mp4',
         language: 'ingles',
-      } as any);
+      } as any, 1);
 
       expect(songsRepository.create).toHaveBeenCalledWith({
         title: 'Stand By Me',
         author: 'Ben E King',
         fileName: 'a.mp4',
+        userId: 1,
         language: 'ingles',
       });
     });
@@ -96,12 +115,13 @@ describe('SongsService', () => {
         author: 'Ben E King',
         fileName: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
         source: 'youtube',
-      } as any);
+      } as any, 1);
 
       expect(songsRepository.create).toHaveBeenCalledWith({
         title: 'Stand By Me',
         author: 'Ben E King',
         fileName: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
+        userId: 1,
         source: 'youtube',
       });
     });
@@ -111,20 +131,59 @@ describe('SongsService', () => {
       songsRepository.create.mockReturnValue({});
       songsRepository.save.mockResolvedValue({});
 
-      await service.create({ title: 'Stand By Me', fileName: 'a.mp4' } as any);
+      await service.create({ title: 'Stand By Me', fileName: 'a.mp4' } as any, 1);
 
       expect(songsRepository.findOne).toHaveBeenCalledWith({
         where: { title: 'Stand By Me', author: '' },
       });
     });
 
-    it('throws ConflictException when a song with the same title+author exists', async () => {
+    it('throws ConflictException when a "server" song with the same title+author exists (global scope)', async () => {
       songsRepository.findOne.mockResolvedValue({ id: 1, title: 'Stand By Me', author: 'Ben E King' });
 
       await expect(
-        service.create({ title: 'Stand By Me', author: 'Ben E King', fileName: 'a.mp4' } as any),
+        service.create({ title: 'Stand By Me', author: 'Ben E King', fileName: 'a.mp4' } as any, 1),
       ).rejects.toThrow(ConflictException);
       expect(songsRepository.save).not.toHaveBeenCalled();
     });
+
+    it.each(['local', 'youtube'])(
+      'scopes the duplicate check by userId when source is "%s"',
+      async (source) => {
+        songsRepository.findOne.mockResolvedValue(null);
+        songsRepository.create.mockReturnValue({});
+        songsRepository.save.mockResolvedValue({});
+
+        await service.create({
+          title: 'My Song',
+          author: '',
+          fileName: 'my-song-ref',
+          source,
+        } as any, 9);
+
+        expect(songsRepository.findOne).toHaveBeenCalledWith({
+          where: { title: 'My Song', author: '', userId: 9 },
+        });
+      },
+    );
+
+    it.each(['local', 'youtube'])(
+      'does not conflict two different users creating a "%s" song with the same title+author',
+      async (source) => {
+        // findOne scoped por userId: 9 no encuentra nada aunque exista una fila con userId 5.
+        songsRepository.findOne.mockResolvedValue(null);
+        songsRepository.create.mockReturnValue({});
+        songsRepository.save.mockResolvedValue({});
+
+        await expect(
+          service.create({
+            title: 'My Song',
+            author: '',
+            fileName: 'my-song-ref',
+            source,
+          } as any, 9),
+        ).resolves.not.toThrow();
+      },
+    );
   });
 });

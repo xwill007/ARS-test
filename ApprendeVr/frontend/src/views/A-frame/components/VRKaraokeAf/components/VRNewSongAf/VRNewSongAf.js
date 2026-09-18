@@ -15,6 +15,14 @@ import { getPointerNDC } from '../../../../vrPointerRaycast.util.js';
 import { createSong } from '../../../../vrSongsApi.util.js';
 import { extractYoutubeVideoId } from '../../../../vrYoutube.util.js';
 import { openYoutubePlayer, closeYoutubePlayer, isYoutubePlayerOpen } from '../../../../vrYoutubePlayer.util.js';
+import { saveLocalVideo } from '../../../../vrLocalVideoStore.util.js';
+
+// Prefijo que marca `this._values.archivo` como una referencia a un video guardado en el
+// IndexedDB de ESTE dispositivo (ver vrLocalVideoStore.util.js/pickLocalVideoFile), en vez de un
+// nombre de archivo en `public/videos/karaoke/` del servidor. `_saveSong` lo usa para decidir la
+// `source` ('local' en vez de 'server') y para separar el `fileId` real del prefijo antes de
+// mandarlo al backend.
+const DEVICE_FILE_PREFIX = 'device:';
 
 const KEY_ROWS = [
   ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
@@ -29,7 +37,7 @@ const ACCENT_KEYS = ['ñ', 'á', 'é', 'í', 'ó', 'ú'];
 const FIELDS = [
   { name: 'titulo', label: 'Titulo' },
   { name: 'autor', label: 'Autor' },
-  { name: 'archivo', label: 'Archivo local (en videos/karaoke/, dejar vacio si usas YouTube)' },
+  { name: 'archivo', label: 'Archivo local (click "P" para elegir un video del dispositivo)' },
   { name: 'youtubeUrl', label: 'YouTube URL (dejar vacio si usas Archivo local)' },
 ];
 
@@ -78,7 +86,7 @@ AFRAME.registerComponent('vr-new-song-af', {
     y -= 0.28;
 
     const hint = document.createElement('a-text');
-    hint.setAttribute('value', 'Click en un campo y escribe con el teclado fisico o los botones, o click en el icono "P" para pegar el portapapeles ahi. ESC suelta el teclado (camara con flechas).');
+    hint.setAttribute('value', 'Click en un campo y escribe con el teclado fisico o los botones, o click en el icono "P" para pegar el portapapeles ahi (en "Archivo local", abre el selector de archivos del dispositivo). ESC suelta el teclado (camara con flechas).');
     hint.setAttribute('align', 'center');
     hint.setAttribute('color', '#888888');
     hint.setAttribute('width', planeW - 0.3);
@@ -134,6 +142,82 @@ AFRAME.registerComponent('vr-new-song-af', {
       });
     };
 
+    // Pedido del usuario: en vez de escribir a mano el nombre de un archivo ya copiado manualmente
+    // a `public/videos/karaoke/` (flujo original, ahora `source: 'server'`), el icono "P" del
+    // campo "archivo" abre el selector de archivos nativo del sistema operativo (funciona igual en
+    // desktop y en mobile, donde normalmente abre en "Descargas" o la última carpeta usada por el
+    // navegador — no hay forma estándar de forzar esa carpeta por defecto desde la web). El video
+    // elegido NO se sube a ningún servidor (pedido explícito del usuario): el contenido binario se
+    // guarda en el `IndexedDB` de este mismo dispositivo (ver vrLocalVideoStore.util.js) — sigue
+    // funcionando en mobile porque IndexedDB está disponible ahí, a diferencia de rutas de archivo
+    // reales del sistema operativo, a las que la web nunca tiene acceso directo. Los METADATOS
+    // (título/autor/`fileId`) sí se registran en el backend con `source: 'local'` (ver
+    // `_saveSong`), para que la canción aparezca de forma persistente en la lista de quien la
+    // agregó (`GET /songs/mine`) — pero solo se reproduce en el dispositivo que tiene el video en
+    // su `IndexedDB`.
+    const sanitizeFileName = (name) => (name || 'video').replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    // Pedido del usuario: si el nombre del archivo elegido trae un "-" (ej. "Stand By Me - Ben E
+    // King.mp4"), la parte antes del primer "-" es el título de la canción y la parte después es
+    // el autor — se usan para completar esos campos automáticamente, ahorrando escribirlos a mano.
+    // Se parsea del nombre ORIGINAL (`file.name`, con espacios/acentos), no del `fileId` saneado
+    // (que reemplaza espacios por "_" para guardarlo en IndexedDB) — el nombre mostrado en
+    // "Título"/"Autor" debe quedar legible.
+    const parseTitleArtistFromFileName = (originalName) => {
+      const base = (originalName || '').replace(/\.[^./]+$/, ''); // quita la extensión
+      const dashIndex = base.indexOf('-');
+      if (dashIndex === -1) return { title: base.trim(), artist: '' };
+      return { title: base.slice(0, dashIndex).trim(), artist: base.slice(dashIndex + 1).trim() };
+    };
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'video/*';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+    this._fileInput = fileInput;
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = ''; // permite volver a elegir el mismo archivo más adelante
+      if (!file) return;
+      if (file.type && !file.type.startsWith('video/')) {
+        this._statusText.setAttribute('color', '#ff8888');
+        this._statusText.setAttribute('value', 'El archivo elegido no parece ser un video.');
+        return;
+      }
+
+      // Autocompleta Título/Autor desde el nombre del archivo, sin pisar lo que el usuario ya
+      // haya escrito a mano en esos campos.
+      const parsed = parseTitleArtistFromFileName(file.name);
+      if (parsed.title && !(this._values.titulo || '').trim()) {
+        this._values.titulo = parsed.title;
+        this._refreshFieldText('titulo');
+      }
+      if (parsed.artist && !(this._values.autor || '').trim()) {
+        this._values.autor = parsed.artist;
+        this._refreshFieldText('autor');
+      }
+
+      const fileId = sanitizeFileName(file.name);
+      this._statusText.setAttribute('color', '#ffcc66');
+      this._statusText.setAttribute('value', 'Guardando video local (' + file.name + ')...');
+      saveLocalVideo(fileId, file).then(() => {
+        this._values.archivo = DEVICE_FILE_PREFIX + fileId;
+        this._refreshFieldText('archivo');
+        this._setActiveField('archivo');
+        this._statusText.setAttribute('color', '#aaffaa');
+        this._statusText.setAttribute('value', 'Video local listo: ' + file.name + '.');
+      }).catch((err) => {
+        this._statusText.setAttribute('color', '#ff8888');
+        this._statusText.setAttribute('value', 'No se pudo guardar el video local (' + (err && err.message ? err.message : 'error desconocido') + ').');
+      });
+    });
+
+    const pickLocalVideoFile = () => {
+      try { fileInput.click(); } catch (e) { /* ignore */ }
+    };
+
     FIELDS.forEach((f) => {
       const label = document.createElement('a-text');
       label.setAttribute('value', f.label);
@@ -179,7 +263,7 @@ AFRAME.registerComponent('vr-new-song-af', {
       pasteIconTxt.setAttribute('width', 1.4);
       pasteIconTxt.setAttribute('position', '0 0 0.01');
       pasteIcon.appendChild(pasteIconTxt);
-      const onPasteIconClick = () => pasteIntoField(f.name);
+      const onPasteIconClick = () => (f.name === 'archivo' ? pickLocalVideoFile() : pasteIntoField(f.name));
       pasteIcon.addEventListener('click', onPasteIconClick);
       this._clickableEls.push({ el: pasteIcon, onClick: onPasteIconClick });
       el.appendChild(pasteIcon);
@@ -451,6 +535,7 @@ AFRAME.registerComponent('vr-new-song-af', {
     try { if (this._onPointerDown) window.removeEventListener('pointerdown', this._onPointerDown); } catch (e) {}
     try { if (this._onKeyDown) window.removeEventListener('keydown', this._onKeyDown); } catch (e) {}
     try { closeYoutubePlayer(); } catch (e) {}
+    try { if (this._fileInput && this._fileInput.parentNode) this._fileInput.parentNode.removeChild(this._fileInput); } catch (e) {}
   },
 
   _handlePhysicalKeyDown: function (evt) {
@@ -568,9 +653,16 @@ AFRAME.registerComponent('vr-new-song-af', {
   // `cancion-agregada` y refresca su lista en cualquiera de los dos casos.
   //
   // `archivo` (archivo local) y `youtubeUrl` son mutuamente excluyentes en cuanto a cuál llena
-  // `fileName`: una canción es 'local' (necesita el archivo en videos/karaoke/) o 'youtube'
-  // (`fileName` pasa a ser la URL completa, ver `fuente_cancion` en el backend) — el archivo local
-  // deja de ser obligatorio cuando ya hay una URL de YouTube cargada.
+  // `fileName`. Tres fuentes posibles (Requerimiento 014, ampliación — antes eran solo dos):
+  // - 'server': `archivo` es el nombre de un archivo ya copiado a mano a `public/videos/karaoke/`
+  //   del servidor (significado ORIGINAL de lo que este mismo campo llamaba 'local').
+  // - 'local': `archivo` empieza con `DEVICE_FILE_PREFIX` — es la clave bajo la que
+  //   `pickLocalVideoFile` guardó el video en el `IndexedDB` de ESTE dispositivo (nunca sube al
+  //   servidor); el backend igual se entera (guarda título/autor/`fileName`+`source:'local'` en
+  //   `canciones_vr`, ligados a `id_usuario_cancion`) para que la canción aparezca en la lista de quien la
+  //   agregó incluso si recarga la página — ver `GET /songs/mine`.
+  // - 'youtube': `fileName` pasa a ser la URL completa (ver `fuente_cancion` en el backend).
+  // El archivo local deja de ser obligatorio cuando ya hay una URL de YouTube cargada.
   _saveSong: function () {
     const titulo = (this._values.titulo || '').trim();
     const autor = (this._values.autor || '').trim();
@@ -583,8 +675,9 @@ AFRAME.registerComponent('vr-new-song-af', {
       return;
     }
 
-    const source = archivo ? 'local' : 'youtube';
-    const fileName = archivo || youtubeUrl;
+    const isDeviceFile = archivo.startsWith(DEVICE_FILE_PREFIX);
+    const source = isDeviceFile ? 'local' : (archivo ? 'server' : 'youtube');
+    const fileName = isDeviceFile ? archivo.slice(DEVICE_FILE_PREFIX.length) : (archivo || youtubeUrl);
     const song = { titulo, autor, archivo: fileName, source };
 
     this._statusText.setAttribute('color', '#aaffaa');
@@ -593,7 +686,9 @@ AFRAME.registerComponent('vr-new-song-af', {
     createSong({ title: titulo, author: autor, fileName, source }).then((result) => {
       if (result.ok) {
         this._statusText.setAttribute('color', '#aaffaa');
-        this._statusText.setAttribute('value', 'Cancion "' + titulo + '" guardada.');
+        this._statusText.setAttribute('value', source === 'local'
+          ? 'Cancion "' + titulo + '" guardada en este dispositivo.'
+          : 'Cancion "' + titulo + '" guardada.');
       } else if (result.error === 'SONG_ALREADY_EXISTS') {
         this._statusText.setAttribute('color', '#ff8888');
         this._statusText.setAttribute('value', 'Ya existe una cancion con ese titulo y autor.');
@@ -610,8 +705,9 @@ AFRAME.registerComponent('vr-new-song-af', {
       try { window.dispatchEvent(new CustomEvent('cancion-agregada', { detail: song })); } catch (e) { /* ignore */ }
 
       // Aviso no bloqueante si el archivo de video no parece existir en disco
-      // (public/videos/karaoke/) — solo aplica a canciones locales, una URL de YouTube no vive ahí.
-      if (source === 'local') {
+      // (public/videos/karaoke/) — solo aplica a 'server' (un archivo 'local' vive en el
+      // IndexedDB de este dispositivo, no ahí; una URL de YouTube tampoco vive ahí).
+      if (source === 'server') {
         fetch('/videos/karaoke/' + encodeURIComponent(fileName), { method: 'HEAD' })
           .then((res) => {
             if (!res.ok) {
