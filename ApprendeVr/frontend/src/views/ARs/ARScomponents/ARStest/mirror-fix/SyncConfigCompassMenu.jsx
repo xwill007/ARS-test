@@ -88,7 +88,11 @@ const RING_INNER_RADIUS = RADIUS * 0.4;
 // borde INFERIOR (no el lateral — pedido explícito del usuario, para que se lea bien desde el
 // centro del menú).
 const PANEL_WIDTH = 2.2;
-const PANEL_HEIGHT = 5.2;
+// Requerimiento 016: 5.2 → 5.6. La pestaña "Interfaz" suma una segunda fila de toggle ("Cursor",
+// debajo de "Position"), que empuja el contenido de los d-pads 0.28 más abajo — con 5.2 el botón
+// Guardar del d-pad de Position quedaba a solo 0.08 del borde inferior del panel (recortado en la
+// práctica, mismo síntoma ya documentado al agregar la fila "Scale").
+const PANEL_HEIGHT = 5.6;
 // Hallazgo real (verificado dos veces: primero midiendo en el navegador, después con una réplica
 // exacta de la composición de matrices de rotación de THREE.js hecha aparte para confirmarlo sin
 // depender del navegador — ambas coinciden): con `rotation="-90 0 0"` en #settings-panel (el
@@ -213,6 +217,33 @@ const POSITION_AXES = ['x', 'y', 'z'];
 const DEFAULT_POSITION_STEP = 0.25;
 const POSITION_STEP_RANGE = { min: 0.05, max: 5 };
 const POSITION_STEP_INCREMENT = 0.05;
+
+// Requerimiento 016: opción "Cursor" — apariencia/comportamiento de `#main-cursor` (el único
+// reticle visible de AR-SYNC, ver el script de dwell más abajo). A diferencia de "Position" (que
+// edita un elemento ANCLADO AL MUNDO seleccionado en el overlay real), acá no hay "elemento a
+// seleccionar": el cursor es siempre el mismo, único, y su `position` es relativa a la cámara
+// (`#main-cursor` es hijo de `<a-camera>`, ver `position="0 0 -1"`), no una coordenada de escena.
+const CURSOR_POSITION_AXES = ['x', 'y', 'z'];
+const CURSOR_POSITION_STEP = 0.02;
+const CURSOR_SCALE_STEP = 0.1;
+const CURSOR_SCALE_RANGE = { min: 0.2, max: 5 };
+const CURSOR_FUSE_STEP = 250;
+const CURSOR_FUSE_RANGE = { min: 500, max: 5000 };
+// Sin precedente de color picker libre en esta UI 3D (ver requerimiento.md sección 5) — paleta
+// fija cíclica (+/-), mismo patrón de interacción que el resto del menú.
+const CURSOR_COLORS = ['#ffffff', '#ff5252', '#69f0ae', '#448aff', '#ffd740', '#18ffff'];
+// 'point'/'square'/'triangle' son primitives nativos de A-Frame con radios/tamaños chicos; 'cross'
+// no tiene primitive nativo — se resuelve con dos <a-plane> hijos de #main-cursor cruzados en 90°
+// (#cursor-cross-h/#cursor-cross-v, ver el <a-cursor> más abajo), mostrados solo para esa opción.
+const CURSOR_GEOMETRIES = ['point', 'square', 'triangle', 'cross'];
+const DEFAULT_CURSOR_CONFIG = {
+  position: [0, 0, -1],
+  scale: 1,
+  fuseTimeout: 2500,
+  color: '#ffffff',
+  geometry: 'point',
+  visible: true,
+};
 // Fila genérica reusada por posición (data-position-step) y rotación (data-rotation-step) — misma
 // forma visual que un CONFIG_FIELDS, con un atributo distinto por tipo a propósito (para que el
 // handler de clicks de cada uno no se pise con el otro ni con `data-step` de Configuración).
@@ -223,11 +254,71 @@ function buildAxisStepperRow(dataAttr, axis, y) {
     <a-plane class="clickable" data-${dataAttr}="${axis}" data-dir="1" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.55 ${y.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
   `;
 }
+// Requerimiento 016: fila numérica genérica de una sola línea con label + "-"/"+" (mismo patrón
+// visual que `stepRow`/`scaleRow` de más abajo, factorizado para no repetirlo 3 veces más con la
+// fila "Cursor": escala, tiempo de activación, y como base de las filas cíclicas de color/
+// geometría, que reusan la misma forma pero sin semántica numérica).
+function buildStepperRow(idPrefix, y) {
+  return `
+    <a-text id="${idPrefix}-label" align="center" color="#ffffff" width="2.6" position="0 ${y.toFixed(2)} 0.02"></a-text>
+    <a-plane class="clickable" id="${idPrefix}-minus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.55 ${y.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+    <a-plane class="clickable" id="${idPrefix}-plus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.55 ${y.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
+  `;
+}
+
+// Requerimiento 016: contenido del sub-panel "Cursor" — reusa el MISMO rango vertical (`y`) que
+// `position-dpad-group` porque los dos son mutuamente excluyentes (ver los click handlers: abrir
+// uno cierra el otro), así que nunca compiten por espacio en pantalla al mismo tiempo. Sin
+// "elemento seleccionado" (no hay nada que elegir, el cursor es siempre el mismo, único) así que
+// no hay fila de step genérico ni de rotación — solo posición x/y/z (relativa a la cámara, ver
+// comentario de CURSOR_POSITION_AXES), escala, tiempo de activación, color y geometría (ambos
+// cíclicos +/-), visibilidad (toggle), y Guardar/Cancel.
+function buildCursorDpadGroupHTML(startY) {
+  const ROW_SPACING = 0.28;
+  let y = startY;
+  const positionRowsY = CURSOR_POSITION_AXES.map(() => { const rowY = y; y -= ROW_SPACING; return rowY; });
+  const scaleRowY = y; y -= ROW_SPACING;
+  const fuseRowY = y; y -= ROW_SPACING;
+  const colorRowY = y; y -= ROW_SPACING;
+  const geometryRowY = y; y -= ROW_SPACING;
+  const visibleRowY = y; y -= ROW_SPACING;
+  const saveY = y - 0.06;
+
+  const positionRows = CURSOR_POSITION_AXES.map((axis, i) => buildAxisStepperRow('cursor-position-step', axis, positionRowsY[i])).join('\n');
+  const scaleRow = buildStepperRow('dpad-cursor-scale', scaleRowY);
+  const fuseRow = buildStepperRow('dpad-cursor-fuse', fuseRowY);
+  const colorRow = buildStepperRow('dpad-cursor-color', colorRowY);
+  const geometryRow = buildStepperRow('dpad-cursor-geometry', geometryRowY);
+
+  return `
+    <a-entity id="cursor-dpad-group" visible="false">
+      ${positionRows}
+      ${scaleRow}
+      ${fuseRow}
+      ${colorRow}
+      ${geometryRow}
+      <a-plane class="clickable" id="settings-cursor-visible-toggle" width="1.9" height="0.26" color="#333333" material="shader: flat; side: double;" position="0 ${visibleRowY.toFixed(2)} 0.01">
+        <a-text id="settings-cursor-visible-label" value="" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
+        <a-text id="settings-cursor-visible-check" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.01"></a-text>
+      </a-plane>
+      <a-plane class="clickable" id="dpad-cursor-save-btn" width="0.9" height="0.34" color="#2e7d32" material="shader: flat; side: double;" position="-0.55 ${saveY.toFixed(2)} 0.01">
+        <a-text id="dpad-cursor-save-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
+      </a-plane>
+      <a-plane class="clickable" id="dpad-cursor-cancel-btn" width="0.9" height="0.34" color="#333333" material="shader: flat; side: double;" position="0.55 ${saveY.toFixed(2)} 0.01">
+        <a-text id="dpad-cursor-cancel-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
+      </a-plane>
+    </a-entity>
+  `;
+}
+
 function buildInterfaceGroupHTML() {
   // Todo el layout vertical calculado con un solo paso fijo entre filas — agregar/quitar filas acá
   // no requiere retocar posiciones a mano en el resto del bloque.
   const ROW_SPACING = 0.28;
-  let y = 0.34; // debajo de la fila "Position" (0.55)
+  // Requerimiento 016: 0.34 → 0.06 — la nueva fila "Cursor" (debajo de "Position", en 0.55-0.28=
+  // 0.27) empuja el contenido de los d-pads un ROW_SPACING más abajo (ver PANEL_HEIGHT, ajustado
+  // en consecuencia).
+  let y = 0.06; // debajo de las filas "Position" (0.55) y "Cursor" (0.27)
   // Hallazgo real (reportado por el usuario tras la primera versión de este panel): la etiqueta
   // del elemento seleccionado estaba hardcodeada en y=0.13, casi pegada a la fila de posición X
   // (que con el layout de esta ampliación cae cerca de ese mismo valor) — ahora es una fila más
@@ -243,24 +334,25 @@ function buildInterfaceGroupHTML() {
   const scaleRowY = y; y -= ROW_SPACING;
   const saveY = y - 0.06;
 
-  const stepRow = `
-    <a-text id="dpad-step-label" align="center" color="#ffffff" width="2.6" position="0 ${stepRowY.toFixed(2)} 0.02"></a-text>
-    <a-plane class="clickable" id="dpad-step-minus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.55 ${stepRowY.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
-    <a-plane class="clickable" id="dpad-step-plus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.55 ${stepRowY.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
-  `;
+  const stepRow = buildStepperRow('dpad-step', stepRowY);
   const positionRows = POSITION_AXES.map((axis, i) => buildAxisStepperRow('position-step', axis, positionRowsY[i])).join('\n');
   const rotationRows = POSITION_AXES.map((axis, i) => buildAxisStepperRow('rotation-step', axis, rotationRowsY[i])).join('\n');
-  const scaleRow = `
-    <a-text id="dpad-scale-label" align="center" color="#ffffff" width="2.6" position="0 ${scaleRowY.toFixed(2)} 0.02"></a-text>
-    <a-plane class="clickable" id="dpad-scale-minus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="-0.55 ${scaleRowY.toFixed(2)} 0.01"><a-text value="-" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
-    <a-plane class="clickable" id="dpad-scale-plus" width="0.32" height="0.26" color="#333333" material="shader: flat; side: double;" position="0.55 ${scaleRowY.toFixed(2)} 0.01"><a-text value="+" align="center" color="#fff" width="6" position="0 0 0.01"></a-text></a-plane>
-  `;
+  const scaleRow = buildStepperRow('dpad-scale', scaleRowY);
+
+  // Requerimiento 016: sub-panel "Cursor" reusa el mismo rango vertical que `position-dpad-group`
+  // (empieza en el mismo `y=0.06` original, antes de que el cascade de arriba lo fuera decrementando)
+  // — ver `buildCursorDpadGroupHTML`.
+  const cursorDpadGroup = buildCursorDpadGroupHTML(0.06);
 
   return `
     <a-entity id="settings-interface-group" visible="false">
       <a-plane class="clickable" id="settings-position-toggle" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 0.55 0.01">
         <a-text id="settings-position-label" value="" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
         <a-text id="settings-position-check" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.01"></a-text>
+      </a-plane>
+      <a-plane class="clickable" id="settings-cursor-toggle" width="1.9" height="0.28" color="#333333" material="shader: flat; side: double;" position="0 0.27 0.01">
+        <a-text id="settings-cursor-toggle-label" value="" align="left" color="#ffffff" width="5" position="-0.9 0 0.01"></a-text>
+        <a-text id="settings-cursor-toggle-check" value="" align="right" color="#69F0AE" width="5" position="0.9 0 0.01"></a-text>
       </a-plane>
       <a-entity id="position-dpad-group" visible="false">
         <a-text id="dpad-element-label" align="center" color="#4FC3F7" width="2.6" position="0 ${elementLabelY.toFixed(2)} 0.01"></a-text>
@@ -279,6 +371,7 @@ function buildInterfaceGroupHTML() {
           <a-text id="dpad-cancel-label" align="center" color="#fff" width="0.9" wrap-count="10" position="0 0 0.01"></a-text>
         </a-plane>
       </a-entity>
+      ${cursorDpadGroup}
     </a-entity>
   `;
 }
@@ -518,6 +611,21 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
     confirmYes: t('home.confirmYes'),
     confirmCancel: t('home.confirmCancel'),
     loginTest: t('home.loginTest'),
+    // Requerimiento 016: fila "Cursor" y su sub-panel — mismas claves de eje que "Position"
+    // (positionAxes), pero acá aplicadas a un offset relativo a la cámara, no a coordenadas de
+    // mundo (ver comentario grande junto a CURSOR_POSITION_AXES).
+    cursorToggle: t('config.cursor'),
+    cursorScale: t('config.scale'),
+    cursorFuseTimeout: t('config.cursorFuseTimeout'),
+    cursorColor: t('config.cursorColor'),
+    cursorGeometry: t('config.cursorGeometry'),
+    cursorGeometryNames: {
+      point: t('config.cursorGeometryPoint'),
+      square: t('config.cursorGeometrySquare'),
+      triangle: t('config.cursorGeometryTriangle'),
+      cross: t('config.cursorGeometryCross'),
+    },
+    cursorVisible: t('config.cursorVisible'),
   };
 
   // Ajuste pedido por el usuario: a diferencia de Requerimiento 012 (donde el pitch inicial SÍ
@@ -690,6 +798,13 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               material="color: white; shader: flat; opacity: 0.85"
               cursor="enabled: false"
               raycaster="objects: .clickable; far: 30; interval: 100">
+              <!-- Requerimiento 016: geometría "cross" — A-Frame no tiene un primitive nativo de
+                   cruz, así que se arma con dos planos delgados cruzados en 90°, hijos de
+                   #main-cursor (heredan su escala/posición, así que la animación de fuse y el
+                   reposicionamiento configurable siguen funcionando igual). Ocultos por defecto;
+                   window.__applyCursorConfig los muestra/oculta según la geometría elegida. -->
+              <a-plane id="cursor-cross-h" visible="false" width="0.06" height="0.008" material="shader: flat; opacity: 0.85" position="0 0 0.001"></a-plane>
+              <a-plane id="cursor-cross-v" visible="false" width="0.008" height="0.06" material="shader: flat; opacity: 0.85" position="0 0 0.001"></a-plane>
             </a-cursor>
           </a-camera>
         </a-scene>
@@ -764,6 +879,56 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             var lockedEl = null;
             var lastActivationAt = 0;
 
+            // Requerimiento 016: apariencia/comportamiento configurables del cursor — aplicados acá
+            // (no solo cacheados) porque este script es el dueño real de #main-cursor y de
+            // setVisual()/tick(), que corren cada 50ms. El script del panel de "Cursor" (más abajo
+            // en este mismo documento, otro script con su propio scope) no puede tocar estas
+            // variables directo — expone window.__applyCursorConfig para que se lo pida desde ahí
+            // cada vez que el usuario cambia un control (aplicación en tiempo real) y al cargar la
+            // config guardada.
+            var cursorBaseScale = 1;
+            var cursorIdleColor = 'white';
+            var cursorGeometry = 'point';
+            window.__applyCursorConfig = function (cfg) {
+              if (!cfg || !cursorEl) return;
+              if (typeof cfg.fuseTimeout === 'number') FUSE_MS = cfg.fuseTimeout;
+              if (typeof cfg.scale === 'number') cursorBaseScale = cfg.scale;
+              if (typeof cfg.color === 'string') cursorIdleColor = cfg.color;
+              if (cfg.position) {
+                cursorEl.setAttribute('position', cfg.position[0] + ' ' + cfg.position[1] + ' ' + cfg.position[2]);
+              }
+              if (typeof cfg.geometry === 'string') {
+                cursorGeometry = cfg.geometry;
+                applyCursorGeometry(cfg.geometry);
+              }
+              if (typeof cfg.visible === 'boolean') {
+                cursorEl.setAttribute('visible', cfg.visible);
+              }
+            };
+
+            // "cross" no tiene primitive nativo de A-Frame — se resuelve mostrando los dos planos
+            // hijos #cursor-cross-h/#cursor-cross-v (ver el <a-cursor> más arriba) y ocultando la
+            // geometría propia de #main-cursor (opacity: 0, no visible:false — el raycaster sigue
+            // viviendo en #main-cursor mismo, independiente de su apariencia). Para el resto de las
+            // formas se hace lo inverso: ocultar los planos de cruz y setear el primitive nativo.
+            function applyCursorGeometry(shape) {
+              var crossH = document.querySelector('#cursor-cross-h');
+              var crossV = document.querySelector('#cursor-cross-v');
+              if (shape === 'cross') {
+                if (crossH) crossH.setAttribute('visible', true);
+                if (crossV) crossV.setAttribute('visible', true);
+              } else {
+                if (crossH) crossH.setAttribute('visible', false);
+                if (crossV) crossV.setAttribute('visible', false);
+                var geom =
+                  shape === 'square' ? 'primitive: box; width: 0.05; height: 0.05; depth: 0.005' :
+                  shape === 'triangle' ? 'primitive: triangle; vertexA: 0 0.03 0; vertexB: -0.03 -0.025 0; vertexC: 0.03 -0.025 0' :
+                  shape === 'point' ? 'primitive: circle; radius: 0.015' :
+                  'primitive: ring; radiusInner: 0.02; radiusOuter: 0.03';
+                cursorEl.setAttribute('geometry', geom);
+              }
+            }
+
             // Pedido del usuario: este círculo es el único visible de todo el panel (ver
             // aframe-overlay-modules.html/VRConeOverlaySync.jsx), pero su raycaster solo puede
             // intersectar elementos de ESTA escena (wedges/panel de config/widget de posición) —
@@ -780,9 +945,24 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               remoteGazeProgress = msg.progress || 0;
             });
 
-            function setVisual(color, scale) {
-              cursorEl.setAttribute('material', 'color: ' + color + '; shader: flat; opacity: 0.85');
-              cursorEl.setAttribute('scale', scale + ' ' + scale + ' ' + scale);
+            function setVisual(color, fuseScale) {
+              // Requerimiento 016: fuseScale (1 en reposo, encogiendo hacia 0.1 mientras dura el
+              // fuse) sigue siendo un FACTOR sobre la escala base configurable por el usuario, no
+              // el valor final — así la preferencia guardada no se pierde en cada tick.
+              var totalScale = cursorBaseScale * fuseScale;
+              cursorEl.setAttribute('scale', totalScale + ' ' + totalScale + ' ' + totalScale);
+              var materialStr = 'color: ' + color + '; shader: flat; opacity: 0.85';
+              if (cursorGeometry === 'cross') {
+                // La geometría propia de #main-cursor queda invisible (el raycaster no depende de
+                // su apariencia) — el color/opacity real se pinta en los dos planos de cruz.
+                cursorEl.setAttribute('material', 'opacity: 0');
+                var crossH = document.querySelector('#cursor-cross-h');
+                var crossV = document.querySelector('#cursor-cross-v');
+                if (crossH) crossH.setAttribute('material', materialStr);
+                if (crossV) crossV.setAttribute('material', materialStr);
+              } else {
+                cursorEl.setAttribute('material', materialStr);
+              }
             }
 
             function tick() {
@@ -806,7 +986,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 if (remoteGazeHovering) {
                   setVisual('#ff3333', 1 - 0.9 * remoteGazeProgress);
                 } else {
-                  setVisual('white', 1);
+                  setVisual(cursorIdleColor, 1);
                 }
                 return;
               }
@@ -823,7 +1003,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 }
                 lockedEl = target;
                 fuseStart = null;
-                setVisual('white', 1);
+                setVisual(cursorIdleColor, 1);
               }
             }
 
@@ -1000,6 +1180,16 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             // guardado — sin este var, ese fallback tiraba ReferenceError (hallazgo real).
             var DEFAULT_POSITION_STEP = ${DEFAULT_POSITION_STEP};
             var currentStep = DEFAULT_POSITION_STEP;
+            // Requerimiento 016: mismo motivo que el hallazgo de arriba (POSITION_AXES) — estas
+            // constantes también son del módulo React de afuera, hay que interpolarlas como var
+            // para que existan dentro de este iframe.
+            var CURSOR_POSITION_AXES = ${JSON.stringify(CURSOR_POSITION_AXES)};
+            var CURSOR_POSITION_STEP = ${CURSOR_POSITION_STEP};
+            var CURSOR_SCALE_STEP = ${CURSOR_SCALE_STEP};
+            var CURSOR_SCALE_RANGE = ${JSON.stringify(CURSOR_SCALE_RANGE)};
+            var CURSOR_FUSE_STEP = ${CURSOR_FUSE_STEP};
+            var CURSOR_FUSE_RANGE = ${JSON.stringify(CURSOR_FUSE_RANGE)};
+            var DEFAULT_CURSOR_CONFIG = ${JSON.stringify(DEFAULT_CURSOR_CONFIG)};
             // Pedido del usuario (ampliación): bisectriz angular de cada sección tipo "panel"
             // (Configuración/Overlays/Interfaz) — usada para rotar #settings-panel-anchor hacia
             // la misma dirección que la porción activa, ver __activateSettingsSection más abajo.
@@ -1102,6 +1292,13 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               // Si se apaga el modo posición, no tiene sentido seguir mostrando el d-pad de un
               // elemento que ya no se puede seleccionar de nuevo — se oculta también acá.
               if (!positionModeOn) hidePositionDpad();
+
+              // Requerimiento 016: fila "Cursor" — solo la etiqueta (la traducción llega con
+              // state); el color/check de "abierto" se refresca aparte en refreshCursorToggle()
+              // porque depende de cursorDpadOpen, una variable puramente local a este iframe (no
+              // viaja en compass-config-state, a diferencia de positionMode).
+              document.querySelector('#settings-cursor-toggle-label').setAttribute('value', STATIC.cursorToggle);
+              refreshCursorToggle();
             }
 
             // Pedido del usuario (ampliación, sección 11): d-pad genérico de mover el elemento
@@ -1137,6 +1334,82 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             // de las guardadas — controla si el botón "Cancel" está visible/clickeable y si Save
             // está verde (con cambios) o gris (sin cambios).
             var hasUnsavedChanges = false;
+
+            // Requerimiento 016: estado del sub-panel "Cursor" — sin "elemento seleccionado" (el
+            // cursor es siempre el mismo, único), así que a diferencia de Position no depende de
+            // ningún mensaje position-element-selected: se abre/cierra con su propio toggle local
+            // (cursorDpadOpen) y su config arranca con DEFAULT_CURSOR_CONFIG hasta que llega la
+            // guardada por compass-config-state (ver el listener de message más abajo).
+            var cursorDpadOpen = false;
+            var cursorConfig = JSON.parse(JSON.stringify(DEFAULT_CURSOR_CONFIG));
+            var savedCursorConfig = JSON.parse(JSON.stringify(DEFAULT_CURSOR_CONFIG));
+            var cursorHasUnsavedChanges = false;
+            var CURSOR_COLOR_NAMES = ${JSON.stringify(CURSOR_COLORS)};
+            var CURSOR_GEOMETRY_NAMES = ${JSON.stringify(CURSOR_GEOMETRIES)};
+
+            function refreshCursorCancelState() {
+              var diff =
+                cursorConfig.position[0] !== savedCursorConfig.position[0] ||
+                cursorConfig.position[1] !== savedCursorConfig.position[1] ||
+                cursorConfig.position[2] !== savedCursorConfig.position[2] ||
+                cursorConfig.scale !== savedCursorConfig.scale ||
+                cursorConfig.fuseTimeout !== savedCursorConfig.fuseTimeout ||
+                cursorConfig.color !== savedCursorConfig.color ||
+                cursorConfig.geometry !== savedCursorConfig.geometry ||
+                cursorConfig.visible !== savedCursorConfig.visible;
+              cursorHasUnsavedChanges = diff;
+              var saveBtn = document.querySelector('#dpad-cursor-save-btn');
+              if (saveBtn) saveBtn.setAttribute('color', diff ? '#2e7d32' : '#555555');
+              var cancelBtn = document.querySelector('#dpad-cursor-cancel-btn');
+              if (!cancelBtn) return;
+              cancelBtn.setAttribute('visible', diff);
+              if (diff) cancelBtn.classList.add('clickable');
+              else cancelBtn.classList.remove('clickable');
+            }
+
+            function refreshCursorDpad() {
+              CURSOR_POSITION_AXES.forEach(function (axis, i) {
+                var labelEl = document.querySelector('[data-cursor-position-step-label="' + axis + '"]');
+                if (labelEl) labelEl.setAttribute('value', STATIC.positionAxes[axis] + ': ' + cursorConfig.position[i].toFixed(2));
+              });
+              document.querySelector('#dpad-cursor-scale-label').setAttribute('value', STATIC.cursorScale + ': ' + cursorConfig.scale.toFixed(2));
+              document.querySelector('#dpad-cursor-fuse-label').setAttribute('value', STATIC.cursorFuseTimeout + ': ' + cursorConfig.fuseTimeout + 'ms');
+              document.querySelector('#dpad-cursor-color-label').setAttribute('value', STATIC.cursorColor);
+              document.querySelector('#dpad-cursor-color-label').setAttribute('color', cursorConfig.color);
+              document.querySelector('#dpad-cursor-geometry-label').setAttribute('value', STATIC.cursorGeometry + ': ' + STATIC.cursorGeometryNames[cursorConfig.geometry]);
+              document.querySelector('#settings-cursor-visible-label').setAttribute('value', STATIC.cursorVisible);
+              document.querySelector('#settings-cursor-visible-toggle').setAttribute('color', cursorConfig.visible ? '#4FC3F7' : '#333333');
+              document.querySelector('#settings-cursor-visible-label').setAttribute('color', cursorConfig.visible ? '#0D1B2A' : '#ffffff');
+              document.querySelector('#settings-cursor-visible-check').setAttribute('value', cursorConfig.visible ? '✓' : '');
+              document.querySelector('#settings-cursor-visible-check').setAttribute('color', cursorConfig.visible ? '#0D1B2A' : '#69F0AE');
+              document.querySelector('#dpad-cursor-save-label').setAttribute('value', STATIC.saveShort);
+              document.querySelector('#dpad-cursor-cancel-label').setAttribute('value', STATIC.confirmCancel);
+              refreshCursorCancelState();
+            }
+
+            // Aplica en vivo sobre #main-cursor (ver window.__applyCursorConfig, definido en el
+            // otro script de más arriba) cada vez que el usuario cambia un control — antes de
+            // guardar, para que el efecto se vea al instante, igual que ya hace Position con
+            // position-move.
+            function applyCursorConfigLive() {
+              if (window.__applyCursorConfig) window.__applyCursorConfig(cursorConfig);
+              refreshCursorDpad();
+            }
+
+            function refreshCursorToggle() {
+              document.querySelector('#settings-cursor-toggle').setAttribute('color', cursorDpadOpen ? '#4FC3F7' : '#333333');
+              document.querySelector('#settings-cursor-toggle-label').setAttribute('color', cursorDpadOpen ? '#0D1B2A' : '#ffffff');
+              document.querySelector('#settings-cursor-toggle-check').setAttribute('value', cursorDpadOpen ? '✓' : '');
+              document.querySelector('#settings-cursor-toggle-check').setAttribute('color', cursorDpadOpen ? '#0D1B2A' : '#69F0AE');
+            }
+
+            function hideCursorDpad() {
+              cursorDpadOpen = false;
+              document.querySelector('#cursor-dpad-group').setAttribute('visible', false);
+              setCursorDpadInteractive(false);
+              refreshCursorToggle();
+            }
+
             function refreshCancelState() {
               var diff = false;
               POSITION_AXES.forEach(function (axis, i) {
@@ -1196,6 +1469,7 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             var SECTION_GROUP_IDS = ['config', 'overlays', 'interface', 'exit'];
             var groupClickables = {};
             var dpadClickables = [];
+            var cursorDpadClickables = [];
             function captureGroupClickables() {
               SECTION_GROUP_IDS.forEach(function (s) {
                 var group = document.querySelector('#settings-' + s + '-group');
@@ -1203,13 +1477,18 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 var els = Array.prototype.slice.call(group.querySelectorAll('.clickable'));
                 // El d-pad de "Interfaz" tiene su PROPIA visibilidad (depende de si hay un elemento
                 // seleccionado), no de la sección completa — se excluye acá y se gestiona aparte
-                // con setDpadInteractive().
+                // con setDpadInteractive(). Requerimiento 016: mismo criterio para el sub-panel de
+                // "Cursor" (depende de cursorDpadOpen, no de la sección) — setCursorDpadInteractive().
                 var dpad = group.querySelector('#position-dpad-group');
                 if (dpad) els = els.filter(function (el) { return !dpad.contains(el); });
+                var cursorDpad = group.querySelector('#cursor-dpad-group');
+                if (cursorDpad) els = els.filter(function (el) { return !cursorDpad.contains(el); });
                 groupClickables[s] = els;
               });
               var dpad = document.querySelector('#position-dpad-group');
               dpadClickables = dpad ? Array.prototype.slice.call(dpad.querySelectorAll('.clickable')) : [];
+              var cursorDpad = document.querySelector('#cursor-dpad-group');
+              cursorDpadClickables = cursorDpad ? Array.prototype.slice.call(cursorDpad.querySelectorAll('.clickable')) : [];
             }
             function setGroupInteractive(section, active) {
               (groupClickables[section] || []).forEach(function (el) {
@@ -1222,6 +1501,12 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
             }
             function setDpadInteractive(active) {
               dpadClickables.forEach(function (el) {
+                if (active) el.classList.add('clickable');
+                else el.classList.remove('clickable');
+              });
+            }
+            function setCursorDpadInteractive(active) {
+              cursorDpadClickables.forEach(function (el) {
                 if (active) el.classList.add('clickable');
                 else el.classList.remove('clickable');
               });
@@ -1273,6 +1558,13 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               captureGroupClickables();
               setAllGroupsInteractive(false);
               setDpadInteractive(false);
+              setCursorDpadInteractive(false);
+              // Requerimiento 016: aplica DEFAULT_CURSOR_CONFIG sobre #main-cursor de entrada — sin
+              // esto, un usuario sin config guardada (compass-config-state.cursorConfig nunca
+              // llega, ver el listener de message) se queda con la apariencia hardcodeada del
+              // markup original (geometry: ring) en vez del default nuevo (geometry: point), porque
+              // applyCursorConfigLive() de otro modo solo se dispara al recibir un valor guardado.
+              applyCursorConfigLive();
               // Mismo criterio que el click de las porciones (ver script de arriba): no cierra
               // localmente, manda la intención y espera a que el padre la rebroadcastee a los dos
               // paneles.
@@ -1318,6 +1610,95 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               // "Doble panel" (no aplica local, manda la intención y espera el rebroadcast).
               document.querySelector('#settings-position-toggle').addEventListener('click', function () {
                 send({ action: 'compass-toggle-position-mode' });
+              });
+
+              // Requerimiento 016: fila "Cursor" — a diferencia de "Position", abrir/cerrar el
+              // sub-panel es 100% local (no hay nada que sincronizar con otro iframe, el cursor
+              // vive solo acá). Mutuamente excluyente con el d-pad de Position: abrir uno cierra
+              // el otro, por el mismo motivo documentado junto a PANEL_HEIGHT (el panel no tiene
+              // altura para mostrar los dos a la vez).
+              document.querySelector('#settings-cursor-toggle').addEventListener('click', function () {
+                cursorDpadOpen = !cursorDpadOpen;
+                if (cursorDpadOpen) {
+                  hidePositionDpad();
+                  document.querySelector('#cursor-dpad-group').setAttribute('visible', true);
+                  setCursorDpadInteractive(true);
+                  refreshCursorDpad();
+                } else {
+                  document.querySelector('#cursor-dpad-group').setAttribute('visible', false);
+                  setCursorDpadInteractive(false);
+                }
+                refreshCursorToggle();
+              });
+              CURSOR_POSITION_AXES.forEach(function (axis, i) {
+                document.querySelectorAll('[data-cursor-position-step="' + axis + '"]').forEach(function (btn) {
+                  btn.addEventListener('click', function () {
+                    var dir = Number(btn.dataset.dir);
+                    cursorConfig.position[i] = +(cursorConfig.position[i] + dir * CURSOR_POSITION_STEP).toFixed(2);
+                    applyCursorConfigLive();
+                  });
+                });
+              });
+              document.querySelector('#dpad-cursor-scale-minus').addEventListener('click', function () {
+                cursorConfig.scale = Math.max(CURSOR_SCALE_RANGE.min, +(cursorConfig.scale - CURSOR_SCALE_STEP).toFixed(2));
+                applyCursorConfigLive();
+              });
+              document.querySelector('#dpad-cursor-scale-plus').addEventListener('click', function () {
+                cursorConfig.scale = Math.min(CURSOR_SCALE_RANGE.max, +(cursorConfig.scale + CURSOR_SCALE_STEP).toFixed(2));
+                applyCursorConfigLive();
+              });
+              document.querySelector('#dpad-cursor-fuse-minus').addEventListener('click', function () {
+                cursorConfig.fuseTimeout = Math.max(CURSOR_FUSE_RANGE.min, cursorConfig.fuseTimeout - CURSOR_FUSE_STEP);
+                applyCursorConfigLive();
+              });
+              document.querySelector('#dpad-cursor-fuse-plus').addEventListener('click', function () {
+                cursorConfig.fuseTimeout = Math.min(CURSOR_FUSE_RANGE.max, cursorConfig.fuseTimeout + CURSOR_FUSE_STEP);
+                applyCursorConfigLive();
+              });
+              // Paleta fija cíclica (sin picker libre, ver requerimiento.md sección 5): +/- da la
+              // vuelta al llegar a un extremo en vez de detenerse.
+              function cycle(list, current, dir) {
+                var idx = list.indexOf(current);
+                if (idx === -1) idx = 0;
+                return list[(idx + dir + list.length) % list.length];
+              }
+              document.querySelector('#dpad-cursor-color-minus').addEventListener('click', function () {
+                cursorConfig.color = cycle(CURSOR_COLOR_NAMES, cursorConfig.color, -1);
+                applyCursorConfigLive();
+              });
+              document.querySelector('#dpad-cursor-color-plus').addEventListener('click', function () {
+                cursorConfig.color = cycle(CURSOR_COLOR_NAMES, cursorConfig.color, 1);
+                applyCursorConfigLive();
+              });
+              document.querySelector('#dpad-cursor-geometry-minus').addEventListener('click', function () {
+                cursorConfig.geometry = cycle(CURSOR_GEOMETRY_NAMES, cursorConfig.geometry, -1);
+                applyCursorConfigLive();
+              });
+              document.querySelector('#dpad-cursor-geometry-plus').addEventListener('click', function () {
+                cursorConfig.geometry = cycle(CURSOR_GEOMETRY_NAMES, cursorConfig.geometry, 1);
+                applyCursorConfigLive();
+              });
+              document.querySelector('#settings-cursor-visible-toggle').addEventListener('click', function () {
+                cursorConfig.visible = !cursorConfig.visible;
+                applyCursorConfigLive();
+              });
+              document.querySelector('#dpad-cursor-save-btn').addEventListener('click', function () {
+                if (!cursorHasUnsavedChanges) return;
+                send({ action: 'compass-save-cursor', config: cursorConfig });
+                savedCursorConfig = JSON.parse(JSON.stringify(cursorConfig));
+                refreshCursorCancelState();
+                var btn = document.querySelector('#dpad-cursor-save-btn');
+                var prevColor = btn.getAttribute('color');
+                btn.setAttribute('color', '#117711');
+                setTimeout(function () { btn.setAttribute('color', prevColor); }, 400);
+              });
+              // A diferencia de Position (cuyo Cancel manda 'position-reset' porque el elemento
+              // vive en OTRO iframe), acá no hace falta mensaje: cursorConfig vive en este mismo
+              // script, restaurar el snapshot guardado alcanza.
+              document.querySelector('#dpad-cursor-cancel-btn').addEventListener('click', function () {
+                if (!cursorHasUnsavedChanges) return;
+                cursorConfig = JSON.parse(JSON.stringify(savedCursorConfig));
+                applyCursorConfigLive();
               });
               // Fila "Paso" (pedido del usuario: el valor de edición a aplicar es ajustable, ya
               // no fijo) — solo cambia currentStep, no manda nada por su cuenta: el próximo
@@ -1426,6 +1807,21 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
               if (!msg || msg.source !== 'ars-sync-test') return;
               if (msg.action === 'compass-config-state') {
                 state = msg;
+                // Requerimiento 016: a diferencia del resto de state (que sí se re-aplica sin
+                // condición en cada broadcast, porque el usuario no lo está editando en vivo acá),
+                // cursorConfig solo se re-hidrata cuando el valor recibido es REALMENTE distinto
+                // del último guardado que ya se aplicó — esto cubre tanto la carga inicial (arranca
+                // en DEFAULT_CURSOR_CONFIG, cualquier config real guardada difiere) como un guardado
+                // hecho en el panel HERMANO (dual panel): sin esto, cada broadcast periódico (que
+                // dispara cualquier otro cambio del menú, no solo Cursor) pisaría en silencio una
+                // edición de cursor sin guardar en ESTE panel.
+                if (msg.cursorConfig && JSON.stringify(msg.cursorConfig) !== JSON.stringify(savedCursorConfig)) {
+                  cursorConfig = Object.assign({}, DEFAULT_CURSOR_CONFIG, msg.cursorConfig, {
+                    position: (msg.cursorConfig.position || DEFAULT_CURSOR_CONFIG.position).slice(),
+                  });
+                  savedCursorConfig = JSON.parse(JSON.stringify(cursorConfig));
+                  applyCursorConfigLive();
+                }
                 refreshDisplay();
               } else if (msg.action === 'compass-section-changed') {
                 // Único lugar que de verdad abre/cierra el panel — la fuente de verdad es
@@ -1464,6 +1860,9 @@ const SyncConfigCompassMenuInner = ({ forwardedRef, cursorFuseTimeout = 2500 }) 
                 savedRotationValue = selectedRotationValue.slice();
                 savedStep = currentStep;
                 savedScaleValue = selectedScaleValue;
+                // Requerimiento 016: mutuamente excluyente con el sub-panel de Cursor (ver el
+                // click handler de #settings-cursor-toggle, que hace lo mismo en la otra dirección).
+                if (cursorDpadOpen) hideCursorDpad();
                 document.querySelector('#position-dpad-group').setAttribute('visible', true);
                 setDpadInteractive(true);
                 refreshPositionDpad();

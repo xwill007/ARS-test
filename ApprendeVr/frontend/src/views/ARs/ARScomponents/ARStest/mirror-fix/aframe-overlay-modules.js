@@ -487,7 +487,12 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
 (function () {
   const pointerEl = document.getElementById('mirror-fix-pointer');
   if (!pointerEl) return;
-  const FUSE_MS = 2500;
+  // Requerimiento 016: tiempo de activación configurable desde la fila "Cursor" del menú brújula
+  // (SyncConfigCompassMenu.jsx) — compartido vía localStorage (mismo origen que todos los iframes
+  // de mirror-fix) porque este módulo, a diferencia de la brújula, sí puede leerlo directo; se lee
+  // una sola vez al iniciar, no en vivo dentro de la misma sesión (ver SyncStereoTestView.jsx).
+  const storedFuseMs = Number(localStorage.getItem('apprendevr_cursor_fuse_timeout'));
+  const FUSE_MS = Number.isFinite(storedFuseMs) && storedFuseMs > 0 ? storedFuseMs : 2500;
   // Pedido del usuario: el círculo visible (el de SyncConfigCompassMenu.jsx, siempre encima —
   // ver aframe-overlay-modules.html) no se pone rojo al apuntar un botón real de karaoke, porque
   // su raycaster vive en OTRO iframe y no puede intersectar estos meshes (el raycasting no cruza

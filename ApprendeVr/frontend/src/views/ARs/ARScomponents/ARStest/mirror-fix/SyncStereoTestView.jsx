@@ -21,6 +21,11 @@ const CONFIG_SETTINGS_VIEW = 'ars-sync-config';
 // Requerimiento 013 (ampliación): posición de la brújula 3D (widget 📍 + d-pad de
 // SyncConfigCompassMenu.jsx). Vista propia, mismo patrón que las dos de arriba.
 const COMPASS_POSITION_VIEW = 'ars-sync-compass-position';
+// Requerimiento 016: apariencia/comportamiento del cursor visible de AR-SYNC (posición relativa a
+// la cámara, escala, tiempo de activación, color, geometría, visibilidad — ver
+// SyncConfigCompassMenu.jsx, fila "Cursor" del tab "Interfaz"). Vista propia, mismo patrón que las
+// de arriba.
+const CURSOR_SETTINGS_VIEW = 'ars-sync-cursor';
 // Requerimiento 013 (ajuste pedido por el usuario): el menú vive en el origen de la escena; la
 // cámara se ubica aparte, arriba, mirando hacia abajo (ver CAMERA_POSITION en
 // SyncConfigCompassMenu.jsx) — antes el menú estaba a 4m de una cámara a la altura de los ojos.
@@ -214,6 +219,25 @@ const SyncStereoTestView = ({ onClose }) => {
   const compassPositionRef = useRef(compassPosition);
   useEffect(() => { compassPositionRef.current = compassPosition; }, [compassPosition]);
 
+  // Requerimiento 016: config del cursor — null hasta que getUserSetting(CURSOR_SETTINGS_VIEW)
+  // resuelve (o para siempre, si el usuario nunca guardó una); la brújula ya sabe usar su propio
+  // DEFAULT_CURSOR_CONFIG local en ese caso (ver el chequeo de "msg.cursorConfig" en
+  // SyncConfigCompassMenu.jsx), así que acá no hace falta un valor por defecto propio.
+  const [cursorConfig, setCursorConfig] = useState(null);
+  // Requerimiento 016: aframe-overlay-modules.js (overlay karaoke/new-song) y
+  // youtube-video-modules.js son módulos ES reales (no srcDoc, pueden leer localStorage), así que
+  // el tiempo de activación configurado se les comparte por ahí en vez de por postMessage — mismo
+  // mecanismo ya usado para compartir la URL de YouTube entre paneles
+  // (apprendevr_youtube_preview_url, Requerimiento 015). Se lee UNA vez al iniciar cada script (no
+  // en vivo dentro de la misma sesión) — mismo criterio "estático al montar" que ya tenía
+  // VRLocalVideoOverlaySync.jsx con su prop cursorFuseTimeout (nunca se le pasaba un valor real
+  // antes de este requerimiento, ver investigación en problems_solutions.md).
+  useEffect(() => {
+    if (cursorConfig && typeof cursorConfig.fuseTimeout === 'number') {
+      try { localStorage.setItem('apprendevr_cursor_fuse_timeout', String(cursorConfig.fuseTimeout)); } catch (e) { /* ignore */ }
+    }
+  }, [cursorConfig]);
+
   // Requerimiento 013 (panel 3D): mismo motivo que `compassPositionRef` — `handleMessage` (más
   // abajo) se registra una sola vez y necesita el valor más reciente de todo lo que el panel 3D
   // de la brújula puede pedir guardar (separación/ancho/alto/overlays), no el del primer render.
@@ -225,7 +249,7 @@ const SyncStereoTestView = ({ onClose }) => {
   // (ver `saveConfig`).
   const configStateRef = useRef(null);
   useEffect(() => {
-    configStateRef.current = { separation, width: panelWidth, height: panelHeight, dualPanel, positionMode: positionModeRef.current, configSaved, selectedOverlays, overlaysSaved };
+    configStateRef.current = { separation, width: panelWidth, height: panelHeight, dualPanel, positionMode: positionModeRef.current, configSaved, selectedOverlays, overlaysSaved, cursorConfig };
   });
 
   // Carga la selección/config/posición guardadas (si las hay). Se usa tanto al montar como al
@@ -242,6 +266,7 @@ const SyncStereoTestView = ({ onClose }) => {
     setSelectedOverlays(['camera', 'video']);
     setOverlaysSaved(false);
     setConfigSaved(false);
+    setCursorConfig(null);
 
     getUserSetting(OVERLAYS_SETTINGS_VIEW).then((setting) => {
       // getUserSetting ya resuelve el `config` guardado directamente (no envuelto en `.config` —
@@ -275,6 +300,12 @@ const SyncStereoTestView = ({ onClose }) => {
       const hasValidPosition = setting &&
         typeof setting.x === 'number' && typeof setting.y === 'number' && typeof setting.z === 'number';
       if (hasValidPosition) setCompassPosition({ x: setting.x, y: setting.y, z: setting.z });
+    });
+    // Requerimiento 016: no valida la forma acá (eso ya lo hizo el backend al guardar, vía
+    // isValidArsSyncCursorConfig) — mismo criterio "confía en lo que ya persistió" que el resto de
+    // estos getUserSetting.
+    getUserSetting(CURSOR_SETTINGS_VIEW).then((setting) => {
+      if (setting) setCursorConfig(setting);
     });
   };
 
@@ -391,11 +422,11 @@ const SyncStereoTestView = ({ onClose }) => {
     // lado de la brújula lo leía como `false` y ocultaba el d-pad (`hidePositionDpad()`).
     // `positionModeRef` es un ref (no dispara este efecto por sí solo, no puede ir en deps), pero
     // se lee su valor vigente cada vez que el efecto corre por cualquier otro motivo.
-    const state = { separation, width: panelWidth, height: panelHeight, dualPanel, positionMode: positionModeRef.current, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail };
+    const state = { separation, width: panelWidth, height: panelHeight, dualPanel, positionMode: positionModeRef.current, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail, cursorConfig };
     [leftCompassRef.current?.contentWindow, rightCompassRef.current?.contentWindow]
       .filter(Boolean)
       .forEach((w) => w.postMessage({ source: 'ars-sync-test', action: 'compass-config-state', ...state }, '*'));
-  }, [separation, panelWidth, panelHeight, dualPanel, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail]);
+  }, [separation, panelWidth, panelHeight, dualPanel, configSaved, selectedOverlays, overlaysSaved, deviceType, userEmail, cursorConfig]);
 
   useEffect(() => {
     const handleMessage = (ev) => {
@@ -791,6 +822,17 @@ const SyncStereoTestView = ({ onClose }) => {
         return;
       }
 
+      // Requerimiento 016: "Cursor" — a diferencia de compass-save-position (que solo tiene
+      // sentido reenviar a las brújulas, el elemento posicionado vive ahí), acá basta con guardar
+      // y dejar que el próximo broadcast periódico de compass-config-state (que ya incluye
+      // cursorConfig, ver configStateRef) le llegue a ambas brújulas — no hace falta un
+      // postMessage dedicado aparte.
+      if (msg.action === 'compass-save-cursor') {
+        setCursorConfig(msg.config);
+        saveUserSetting(CURSOR_SETTINGS_VIEW, msg.config);
+        return;
+      }
+
       // Requerimiento 013 (hallazgo, revertido): reenviar la `camera-rotation`/`camera-position`
       // de la brújula a los overlays de contenido (video/cono/karaoke) pisaba el pitch propio que
       // cada uno calcula para apuntar a su propio plano (ver VRLocalVideoOverlaySync.jsx,
@@ -923,6 +965,7 @@ const SyncStereoTestView = ({ onClose }) => {
                 isPrimaryPanel={side === 'left'}
                 isRightPanel={side === 'right'}
                 singlePanel={!dualPanel}
+                cursorFuseTimeout={cursorConfig?.fuseTimeout}
               />
             </div>
           );
@@ -933,7 +976,7 @@ const SyncStereoTestView = ({ onClose }) => {
           brújula (pedido explícito del usuario: "un elemento 3D, no 2D, interactuable con el
           raycaster") — no un componente React aparte, ver SyncConfigCompassMenu.jsx. */}
       <div style={layerStyle}>
-        <SyncConfigCompassMenu ref={compassRef} />
+        <SyncConfigCompassMenu ref={compassRef} cursorFuseTimeout={cursorConfig?.fuseTimeout} />
       </div>
     </div>
   );

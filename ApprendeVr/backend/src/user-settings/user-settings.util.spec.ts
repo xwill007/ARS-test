@@ -4,6 +4,7 @@ import {
   isValidAframeViewConfig,
   isValidArsSyncCompassPositionConfig,
   isValidArsSyncConfigConfig,
+  isValidArsSyncCursorConfig,
   isValidArsSyncOverlaysConfig,
   isValidConfigForView,
   isValidEvaluationPanelConfig,
@@ -19,6 +20,7 @@ describe('user-settings.util', () => {
       expect(isKnownView('ars-sync-overlays')).toBe(true);
       expect(isKnownView('ars-sync-config')).toBe(true);
       expect(isKnownView('ars-sync-compass-position')).toBe(true);
+      expect(isKnownView('ars-sync-cursor')).toBe(true);
     });
 
     it('rejects an unknown view', () => {
@@ -234,6 +236,61 @@ describe('user-settings.util', () => {
     it('rejects a non-object payload', () => {
       expect(isValidArsSyncCompassPositionConfig(null)).toBe(false);
       expect(isValidArsSyncCompassPositionConfig('nope')).toBe(false);
+    });
+  });
+
+  describe('isValidArsSyncCursorConfig', () => {
+    const valid = {
+      position: [0, 0, -1],
+      scale: 1,
+      fuseTimeout: 2500,
+      color: '#ffffff',
+      geometry: 'point',
+      visible: true,
+    };
+
+    it('accepts a valid full payload', () => {
+      expect(isValidArsSyncCursorConfig(valid)).toBe(true);
+    });
+
+    it('accepts every known geometry', () => {
+      ['point', 'square', 'triangle', 'cross'].forEach((geometry) => {
+        expect(isValidArsSyncCursorConfig({ ...valid, geometry })).toBe(true);
+      });
+    });
+
+    it('rejects an unknown geometry', () => {
+      expect(isValidArsSyncCursorConfig({ ...valid, geometry: 'star' })).toBe(false);
+    });
+
+    it('rejects a non-positive scale', () => {
+      expect(isValidArsSyncCursorConfig({ ...valid, scale: 0 })).toBe(false);
+      expect(isValidArsSyncCursorConfig({ ...valid, scale: -1 })).toBe(false);
+    });
+
+    it('rejects a non-positive fuseTimeout', () => {
+      expect(isValidArsSyncCursorConfig({ ...valid, fuseTimeout: 0 })).toBe(false);
+    });
+
+    it('rejects a non-string color', () => {
+      expect(isValidArsSyncCursorConfig({ ...valid, color: 5 })).toBe(false);
+    });
+
+    it('rejects an empty color', () => {
+      expect(isValidArsSyncCursorConfig({ ...valid, color: '' })).toBe(false);
+    });
+
+    it('rejects a non-boolean visible', () => {
+      expect(isValidArsSyncCursorConfig({ ...valid, visible: 'yes' })).toBe(false);
+    });
+
+    it('rejects an incomplete position tuple', () => {
+      expect(isValidArsSyncCursorConfig({ ...valid, position: [0, 0] })).toBe(false);
+    });
+
+    it('rejects a non-object payload', () => {
+      expect(isValidArsSyncCursorConfig(null)).toBe(false);
+      expect(isValidArsSyncCursorConfig('nope')).toBe(false);
     });
   });
 

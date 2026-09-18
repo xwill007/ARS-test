@@ -13,6 +13,7 @@ export const KNOWN_VIEWS = [
   'ars-sync-overlays',
   'ars-sync-config',
   'ars-sync-compass-position',
+  'ars-sync-cursor',
 ] as const;
 
 export type SettingsView = (typeof KNOWN_VIEWS)[number];
@@ -136,6 +137,31 @@ export function isValidArsSyncCompassPositionConfig(config: unknown): boolean {
   return isFiniteNumber(c.x) && isFiniteNumber(c.y) && isFiniteNumber(c.z);
 }
 
+// ars-sync-cursor (Requerimiento 016): apariencia y comportamiento del cursor/reticle visible de
+// AR-SYNC (`#main-cursor`, hijo de la cámara — `position` acá es un offset relativo a la cámara,
+// no una coordenada de mundo como en `ars-sync-compass-position`). `fuseTimeout` es el tiempo de
+// activación por mirada fija (dwell) en milisegundos, compartido con los overlays de karaoke/
+// new-song/video que tienen su propia copia hardcodeada del mismo valor hoy (ver
+// `aframe-overlay-modules.js`/`youtube-video-modules.js`/`VRLocalVideoOverlaySync.jsx`).
+const CURSOR_GEOMETRIES = ['point', 'square', 'triangle', 'cross'] as const;
+
+export function isValidArsSyncCursorConfig(config: unknown): boolean {
+  if (!config || typeof config !== 'object') return false;
+  const c = config as Record<string, unknown>;
+  const isFiniteNumber = (n: unknown) => typeof n === 'number' && Number.isFinite(n);
+  return (
+    isPositionTuple(c.position) &&
+    isFiniteNumber(c.scale) &&
+    (c.scale as number) > 0 &&
+    isFiniteNumber(c.fuseTimeout) &&
+    (c.fuseTimeout as number) > 0 &&
+    typeof c.color === 'string' &&
+    c.color.length > 0 &&
+    (CURSOR_GEOMETRIES as readonly string[]).includes(c.geometry as string) &&
+    typeof c.visible === 'boolean'
+  );
+}
+
 const VALIDATORS: Record<SettingsView, (config: unknown) => boolean> = {
   'login-form': isValidLoginFormConfig,
   'aframe-view': isValidAframeViewConfig,
@@ -143,6 +169,7 @@ const VALIDATORS: Record<SettingsView, (config: unknown) => boolean> = {
   'ars-sync-overlays': isValidArsSyncOverlaysConfig,
   'ars-sync-config': isValidArsSyncConfigConfig,
   'ars-sync-compass-position': isValidArsSyncCompassPositionConfig,
+  'ars-sync-cursor': isValidArsSyncCursorConfig,
 };
 
 export function isValidConfigForView(view: SettingsView, config: unknown): boolean {

@@ -555,7 +555,11 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
   // son `<button>` de DOM normal (input de URL + recuadro de video, no A-Frame), así que se usa
   // `document.elementFromPoint()` en el CENTRO del canvas (la misma posición que apunta el
   // reticle) para saber sobre qué botón está la mirada.
-  const FUSE_MS = 2500;
+  // Requerimiento 016: tiempo de activación configurable desde la fila "Cursor" del menú brújula
+  // (SyncConfigCompassMenu.jsx) — mismo mecanismo de localStorage que aframe-overlay-modules.js
+  // (ver ese archivo), leído una sola vez al iniciar.
+  const storedFuseMs = Number(localStorage.getItem('apprendevr_cursor_fuse_timeout'));
+  const FUSE_MS = Number.isFinite(storedFuseMs) && storedFuseMs > 0 ? storedFuseMs : 2500;
   const COOLDOWN_MS = 600;
   const REACTIVATION_GRACE_MS = 2000;
   let hoveredBtn = null;
