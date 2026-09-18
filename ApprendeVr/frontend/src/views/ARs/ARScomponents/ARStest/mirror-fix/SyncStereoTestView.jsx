@@ -4,6 +4,7 @@ import VRLocalVideoOverlaySync from './VRLocalVideoOverlaySync';
 import VRConeOverlaySync from './VRConeOverlaySync';
 import VRKaraokeOverlaySync from './VRKaraokeOverlaySync';
 import VRYoutubeVideoOverlaySync from './VRYoutubeVideoOverlaySync';
+import VRNewSongOverlaySync from './VRNewSongOverlaySync';
 import SyncConfigCompassMenu from './SyncConfigCompassMenu';
 import { getUserSetting, saveUserSetting, detectDeviceType } from '../../../../A-frame/vrUserSettingsApi.util.js';
 import { getStoredAuth } from '../../../../A-frame/vrAuth.util.js';
@@ -40,6 +41,10 @@ const SYNCABLE_OVERLAYS = {
   cone: VRConeOverlaySync,
   karaoke: VRKaraokeOverlaySync,
   youtubeVideo: VRYoutubeVideoOverlaySync,
+  // Requerimiento 014 (ampliación): panel "New Song" separado de "karaoke" en su propio overlay
+  // independiente — antes era una entidad más dentro del MISMO iframe que "karaoke" (ver
+  // aframe-overlay-modules.html), pedido del usuario para poder activarlo/desactivarlo aparte.
+  newSong: VRNewSongOverlaySync,
 };
 
 const layerStyle = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' };
@@ -932,6 +937,20 @@ const SyncStereoTestView = ({ onClose }) => {
           ? rightCompassRef.current?.contentWindow
           : null;
         targetCompassWindow?.postMessage(msg, '*');
+        return;
+      }
+
+      // Requerimiento 014 (ampliación): "New Song" es ahora un overlay separado de "karaoke"
+      // (antes vivían en el mismo iframe, y relayar al panel opuesto alcanzaba porque el propio
+      // panel ya tenía la lista en el mismo documento). El relevo genérico de más abajo solo
+      // reenvía "mismo overlay, panel opuesto" — un aviso que sale del overlay "newSong" nunca
+      // llegaría a ningún "karaoke" por esa vía. Se hace un fan-out explícito a las 4 combinaciones
+      // posibles de panel × instancia de "karaoke" (el propio panel también necesita enterarse,
+      // ver VRKaraokeAf.js: ya no está en el mismo documento que quien guardó la canción).
+      if (msg.action === 'cancion-agregada') {
+        [leftRefs, rightRefs].forEach((refs) => {
+          refs.current.karaoke?.current?.contentWindow?.postMessage(msg, '*');
+        });
         return;
       }
 

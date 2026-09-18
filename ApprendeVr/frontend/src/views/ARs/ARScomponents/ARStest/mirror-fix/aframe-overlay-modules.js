@@ -413,92 +413,19 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
   });
 })();
 
-// Puente de sincronización de los campos del panel "New Song" (VRNewSongAf.js) entre los paneles
-// izquierdo/derecho de AR-SYNC — pedido del usuario tras agregar el botón "PEGAR URL DEL
-// PORTAPAPELES" (ver VRNewSongAf.js): pegar/escribir una URL (o cualquier otro campo) en un panel
-// debe reflejarse en el otro, igual que ya pasa con la canción seleccionada/reproducción del
-// karaoke más arriba. Se poll-ea `this._values` (campo "privado" por convención, mismo criterio
-// que `_htmlVideo`/`_currentSong` arriba) en vez de enganchar un evento, porque VRNewSongAf.js no
-// expone ningún hook de "cambió un campo" — si algún día se renombra ese campo, este puente se
-// degrada a "sin sync", no rompe nada (mismo criterio que el resto de este archivo).
+// Requerimiento 014 (ampliación): el panel "New Song" (y con él, el puente de sincronización de
+// sus campos entre paneles, "new-song-field-update") se separó a su propio overlay independiente
+// — ver new-song.html/new-song-modules.js/VRNewSongOverlaySync.jsx. Este archivo ya no monta
+// `#new-song-component`, así que ese puente se movió entero para allá.
+
+// Puente de "canción agregada" — recibe (nunca envía: `VRNewSongAf.js` ya no vive en este iframe,
+// ver arriba) el aviso de que se guardó una canción nueva y refresca la lista de ESTE
+// `vr-karaoke-af`. Antes (cuando "New Song" vivía en este mismo iframe) alcanzaba con relayar al
+// panel opuesto por el mecanismo genérico de `SyncStereoTestView.jsx`; ahora que "New Song" es un
+// overlay/iframe DISTINTO (incluso dentro del mismo panel), el envío y el fan-out a las 4
+// combinaciones posibles de panel × instancia de "karaoke" viven en new-song-modules.js y en el
+// handler explícito de 'cancion-agregada' de `SyncStereoTestView.jsx`, respectivamente.
 (function () {
-  function send(msg) {
-    window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
-  }
-
-  const FIELD_NAMES = ['titulo', 'autor', 'archivo', 'youtubeUrl'];
-  // Clave compartida con VRYoutubeVideoOverlaySync.jsx: como todos los iframes de mirror-fix son
-  // del mismo origen, escribir acá alcanza para que el overlay nuevo "youtubeVideo" (otro iframe,
-  // activado desde el menú ⚙️ → Overlays) se entere de qué video mostrar sin un puente de
-  // postMessage propio para este dato — ese overlay escucha el evento `storage`, que el navegador
-  // dispara solo en los OTROS documentos del mismo origen (nunca en el que escribió).
-  const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
-  let newSongComp = null;
-  // Último valor CONOCIDO de cada campo, ya sea porque ESTE panel lo escribió o porque lo aplicó
-  // un mensaje remoto — al pollear, solo se reenvía un campo si cambió respecto a esto, así un
-  // valor recién aplicado por mensaje no se re-envía en loop de vuelta al panel que lo mandó.
-  const lastKnown = { titulo: '', autor: '', archivo: '', youtubeUrl: '' };
-
-  function findComponent() {
-    const entity = document.querySelector('#new-song-component');
-    newSongComp = entity && entity.components && entity.components['vr-new-song-af'];
-    if (newSongComp) {
-      setInterval(pollFields, 300);
-    } else {
-      setTimeout(findComponent, 200);
-    }
-  }
-  findComponent();
-
-  function pollFields() {
-    if (!newSongComp || !newSongComp._values) return;
-    FIELD_NAMES.forEach((field) => {
-      const value = newSongComp._values[field] || '';
-      if (value !== lastKnown[field]) {
-        lastKnown[field] = value;
-        send({ action: 'new-song-field-update', field: field, value: value });
-        if (field === 'youtubeUrl') {
-          try { localStorage.setItem(YOUTUBE_URL_STORAGE_KEY, value); } catch (e) { /* ignore */ }
-        }
-      }
-    });
-  }
-
-  window.addEventListener('message', function (ev) {
-    const msg = ev.data;
-    if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'new-song-field-update') return;
-    if (!newSongComp || !newSongComp._values || FIELD_NAMES.indexOf(msg.field) === -1) return;
-    if (newSongComp._values[msg.field] === msg.value) return;
-    newSongComp._values[msg.field] = msg.value;
-    lastKnown[msg.field] = msg.value;
-    try { newSongComp._refreshFieldText(msg.field); } catch (e) { /* ignore */ }
-  });
-})();
-
-// Puente de "canción agregada" entre paneles de AR-SYNC (pedido del usuario: "la cancion se
-// agrego a base de datos pero no se visualiza en la lista de ambos paneles al guardar solo en
-// uno"). `VRNewSongAf._saveSong()` dispara `window.dispatchEvent(new CustomEvent('cancion-
-// agregada', ...))` al guardar con éxito, y `VRKaraokeAf.js` ya escucha ese evento LOCALMENTE
-// para refrescar su propia lista (`_initSongList()`) — pero un `CustomEvent` de `window` solo es
-// visible dentro del iframe donde se disparó (cada panel de mirror-fix es un iframe distinto, con
-// su propio `window`), así que el panel hermano nunca se enteraba.
-//
-// Se relaya por postMessage, mismo mecanismo que el resto de los puentes de este archivo (el
-// relevo genérico de `SyncStereoTestView.jsx` reenvía cualquier mensaje no reservado del overlay
-// `karaoke` de un panel al mismo overlay del panel opuesto, sin necesitar tocar ese archivo). Al
-// recibirlo, se llama `_initSongList()` DIRECTO sobre el `vr-karaoke-af` de este panel — nunca se
-// vuelve a disparar el evento local `cancion-agregada` acá, porque eso activaría de nuevo el
-// listener de ENVÍO de abajo y armaría un eco infinito entre los dos paneles (A envía → B recibe y
-// re-dispara → B envía → A recibe y re-dispara → ...).
-(function () {
-  function send(msg) {
-    window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
-  }
-
-  window.addEventListener('cancion-agregada', function () {
-    send({ action: 'cancion-agregada' });
-  });
-
   window.addEventListener('message', function (ev) {
     const msg = ev.data;
     if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'cancion-agregada') return;
@@ -511,12 +438,14 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
 // Requerimiento 012: hover/dwell/click propio para el puntero estático (#mirror-fix-pointer) de
 // este overlay — mismo patrón de gaze+fuse que VRLocalVideoOverlaySync.jsx/VRConeOverlaySync.jsx
 // (ver esos archivos), pero con SU PROPIO raycasting THREE.js directo en vez de un <a-cursor
-// raycaster="...">: los botones de VRKaraokeAf.js (this._karaokeButtons) y VRNewSongAf.js
-// (this._clickableEls) no están marcados .clickable/.raycastable — hacen su propio raycasting
-// manual por mouse (ver Requerimiento 011) — así que no hay nada que un <a-cursor> nativo pudiera
-// intersectar. Se leen esos dos campos "privados" por convención para reusar exactamente los
-// mismos botones/callbacks que ya usa el click manual, sin tocar ninguno de los dos componentes
-// reales — si algún día renombran esos campos, esto se degrada a "sin auto-click", no rompe nada.
+// raycaster="...">: los botones de VRKaraokeAf.js (this._karaokeButtons) no están marcados
+// .clickable/.raycastable — hace su propio raycasting manual por mouse (ver Requerimiento 011) —
+// así que no hay nada que un <a-cursor> nativo pudiera intersectar. Se lee ese campo "privado" por
+// convención para reusar exactamente los mismos botones/callbacks que ya usa el click manual, sin
+// tocar el componente real — si algún día renombran ese campo, esto se degrada a "sin auto-click",
+// no rompe nada. (Requerimiento 014, ampliación: VRNewSongAf.js/`this._clickableEls` tenía su
+// propia entrada acá, ver más abajo en `collectTargets` — se movió a new-song-modules.js junto con
+// el resto del overlay "New Song".)
 (function () {
   const pointerEl = document.getElementById('mirror-fix-pointer');
   if (!pointerEl) return;
@@ -605,20 +534,12 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
         }
       });
     });
-    const newSongEntity = document.querySelector('#new-song-component');
-    const newSongComp = newSongEntity && newSongEntity.components && newSongEntity.components['vr-new-song-af'];
-    (newSongComp && newSongComp._clickableEls || []).forEach((entry) => {
-      if (!entry.el || !entry.el.object3D) return;
-      coveredEls.add(entry.el);
-      entry.el.object3D.traverse((obj) => {
-        if (obj.isMesh) {
-          targets.push({ mesh: obj, el: entry.el, activate: () => entry.onClick() });
-        }
-      });
-    });
+    // Requerimiento 014 (ampliación): `#new-song-component` ya no vive en este iframe (overlay
+    // "New Song" separado, ver new-song-modules.js, que tiene su propia copia simplificada de
+    // este mismo sistema de gaze/dwell/click para sus propios `_clickableEls`).
 
     // VREvaluacionAf.js (panel de evaluación, creado dinámicamente al pulsar "EVALUATE SONG"):
-    // a diferencia de vr-karaoke-af/vr-new-song-af, su lógica de qué botón hace qué vive DENTRO
+    // a diferencia de vr-karaoke-af, su lógica de qué botón hace qué vive DENTRO
     // de un listener privado (`_onPointerDown`, `window.addEventListener('pointerdown', ...)`) —
     // no expone un método por botón que se pueda invocar desde afuera. En vez de duplicar esa
     // lógica acá (frágil: seleccionar nivel, cerrar, scroll de fallidos, etc. — varios `types`

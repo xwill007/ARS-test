@@ -284,3 +284,36 @@ de ENVÍO del mismo puente y armaría un eco infinito rebotando entre los dos pa
 paneles reales de `mirror-fix` — revisar manualmente: guardar una canción en el panel izquierdo (o
 derecho) con "Doble panel" activo y confirmar que aparece en la lista de AMBOS paneles sin recargar
 ninguno.
+
+## 9. Separar "New Song" en su propio overlay rompió el puente de "canción agregada" del hallazgo #8
+
+**Fecha:** 2026-09-18, pedido del usuario: "quiero separar el formulario de new song como un
+overlay independiente".
+
+**Contexto:** `#new-song-component` (`vr-new-song-af`) era una entidad más DENTRO de la misma
+escena/iframe que el overlay "karaoke" (`aframe-overlay-modules.html`) — no se podía
+activar/desactivar por separado desde el menú ⚙️ → "Overlays". Se separó siguiendo el skill
+`overlay-ar-sync-aframe` (mismo patrón `src` real que el propio overlay "karaoke"): nuevo
+`new-song.html`/`new-song-modules.js`/`VRNewSongOverlaySync.jsx`, registrado como clave `newSong`
+en `SYNCABLE_OVERLAYS`/`OVERLAY_OPTIONS`.
+
+**Problema encontrado en el camino:** el puente de "canción agregada" del hallazgo #8 (recién
+implementado en esa misma sesión) asumía que "New Song" y "karaoke" vivían en el MISMO documento —
+relayar el aviso al PANEL OPUESTO alcanzaba porque el propio panel ya tenía la lista de canciones
+en ese mismo documento. Al separar "New Song" a su propio iframe, ese supuesto deja de ser cierto:
+ahora un aviso que sale del overlay "newSong" necesita llegarle al overlay "karaoke" de LOS DOS
+paneles (el propio Y el hermano), no solo al opuesto — y el relevo genérico de
+`SyncStereoTestView.jsx` únicamente reenvía "mismo overlay, panel opuesto", así que nunca hubiera
+llegado a ningún "karaoke".
+
+**Solución:** se movió el ENVÍO de `cancion-agregada` a `new-song-modules.js` (el receptor sigue en
+`aframe-overlay-modules.js`, sin cambios), y se agregó un handler EXPLÍCITO en
+`SyncStereoTestView.jsx` (antes del relevo genérico, con su propio `return`) que hace fan-out a
+`refs.current.karaoke` de `leftRefs` Y `rightRefs` — las 4 combinaciones posibles de panel ×
+instancia de "karaoke" quedan cubiertas con una sola llamada, sin depender de que el mensaje
+"coincida" con ningún overlay en particular.
+
+**Estado:** implementado (`node --check` + `npm run build` + `npm run check:i18n` + `npm test`
+backend en verde). No verificado en vivo con dos paneles reales — revisar manualmente activando
+"New Song" por separado y guardando una canción, confirmando que sigue apareciendo en la lista de
+"Karaoke" de ambos paneles.

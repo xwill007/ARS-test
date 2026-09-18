@@ -304,13 +304,15 @@
         "camera": "Cámara (fondo, sin sincronizar — cada panel lee su propia cámara en vivo)",
         "video": "Video local (play/pause/seek + voz)",
         "cone": "Cono de palabras",
-        "karaoke": "Karaoke (lista de canciones + agregar canción, componente A-Frame real)",
+        "karaoke": "Karaoke (lista de canciones + reproductor, componente A-Frame real)",
         "youtubeVideo": "Video de YouTube (video embebido de la URL pegada en New Song)",
+        "newSong": "New Song (agregar una canción al catálogo, componente A-Frame real)",
         "cameraShort": "Cámara",
         "videoShort": "Video",
         "coneShort": "Cono",
         "karaokeShort": "Karaoke",
-        "youtubeVideoShort": "YouTube Video"
+        "youtubeVideoShort": "YouTube Video",
+        "newSongShort": "New Song"
       }
     },
     "voice": {

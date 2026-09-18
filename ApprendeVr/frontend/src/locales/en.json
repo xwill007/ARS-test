@@ -304,13 +304,15 @@
         "camera": "Camera (background, not synchronized — each panel reads its own live camera)",
         "video": "Local video (play/pause/seek + voice)",
         "cone": "Words cone",
-        "karaoke": "Karaoke (song list + add song, real A-Frame component)",
+        "karaoke": "Karaoke (song list + player, real A-Frame component)",
         "youtubeVideo": "YouTube video (embedded video from the URL pasted in New Song)",
+        "newSong": "New Song (add a song to the catalog, real A-Frame component)",
         "cameraShort": "Camera",
         "videoShort": "Video",
         "coneShort": "Cone",
         "karaokeShort": "Karaoke",
-        "youtubeVideoShort": "YouTube Video"
+        "youtubeVideoShort": "YouTube Video",
+        "newSongShort": "New Song"
       }
     },
     "voice": {

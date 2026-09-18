@@ -174,6 +174,12 @@ describe('user-settings.util', () => {
       ).toBe(true);
     });
 
+    it('accepts newSong as a known overlay key', () => {
+      expect(
+        isValidArsSyncOverlaysConfig({ selectedOverlays: ['karaoke', 'newSong'] }),
+      ).toBe(true);
+    });
+
     it('rejects a non-object payload', () => {
       expect(isValidArsSyncOverlaysConfig(null)).toBe(false);
       expect(isValidArsSyncOverlaysConfig('nope')).toBe(false);

@@ -160,6 +160,17 @@ y visibles para cualquier usuario que abra el karaoke, en vez de guardarse solo 
   llegó a completar el backend). `fileName` sigue existiendo solo como dato interno de selección/
   reproducción, nunca se renderiza.
 
+- **Overlay "New Song" independiente de "karaoke" (pedido del usuario, AR-SYNC/`mirror-fix`).**
+  `#new-song-component` deja de ser una entidad más dentro del iframe del overlay "karaoke" — pasa
+  a ser su propio overlay (`newSong`), siguiendo el skill `overlay-ar-sync-aframe` (mismo patrón
+  `src` real que "karaoke"): `new-song.html`/`new-song-modules.js`/`VRNewSongOverlaySync.jsx`,
+  registrado en `SYNCABLE_OVERLAYS`/`OVERLAY_OPTIONS`/locales/`ARS_SYNC_OVERLAY_KEYS` (backend). Se
+  llevan consigo el puente de campos ("New Song"), el envío de `cancion-agregada` y una copia
+  simplificada del sistema de gaze/dwell/click. El aviso de "canción agregada" ya no se puede
+  relayar "al panel opuesto" (mismo overlay) — necesita un fan-out explícito a las 4 combinaciones
+  de panel × "karaoke" en `SyncStereoTestView.jsx` (ver "Diseño técnico" y `problems_solutions.md`
+  #9).
+
 ### No incluido
 
 - `PATCH /songs/:id` y `DELETE /songs/:id` (editar/borrar canciones): quedan pendientes para otro
@@ -318,7 +329,15 @@ bajar un video), pero no se puede forzar ni garantizar.
 | `ApprendeVr/frontend/src/views/A-frame/vrSongsApi.util.js` | Nuevo `getMySongs()` (GET `/api/songs/mine`, con auth, devuelve `[]` sin sesión/con error). |
 | `ApprendeVr/frontend/src/views/A-frame/components/VRKaraokeAf/components/VRNewSongAf/VRNewSongAf.js` | Icono "P" del campo `archivo` abre el selector de archivos nativo en vez de pegar portapapeles; guarda el video elegido en `vrLocalVideoStore.util.js`; `_saveSong()` unifica `'server'`/`'local'`/`'youtube'` en un solo llamado a `createSong()` (ya no hay una rama que se salte el backend); nuevo `parseTitleArtistFromFileName()` autocompleta Título/Autor desde el nombre del archivo elegido (corta en el primer `-`), sin pisar campos ya escritos. |
 | `ApprendeVr/frontend/src/views/A-frame/components/VRKaraokeAf/VRKaraokeAf.js` | `_initSongList()` combina `getSongs()` + `getMySongs()`, y agrega `s.title` como 3er campo de la entrada pipe-delimited; nuevo método `_playDeviceSong()` (lee el Blob de `IndexedDB` por el mismo `fileName` de la BD, arma un Object URL, reproduce vía `loadVideo()`); `loadVideo()`/`_stopLocalPlayback()` liberan el Object URL al cambiar de canción; renombrado el branching de `'device'`/`'local'`(servidor) a `'local'`/`'server'`; `_buildSongListUI()` muestra título+`SOURCE_LABELS` (`Servidor`/`Local`/`YouTube`) en vez de `fileName`+duración. |
-| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.js` | Nuevo puente: reenvía `cancion-agregada` (evento local de `VRNewSongAf.js`) por `postMessage` al panel opuesto de AR-SYNC, y llama `_initSongList()` del `vr-karaoke-af` local al recibirlo — sin este puente, agregar una canción en un panel no actualizaba la lista del hermano. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.js`/`.html` | Se quita `#new-song-component` (movido a su propio overlay, ver abajo); el receptor de `cancion-agregada` se mantiene, llama `_initSongList()` del `vr-karaoke-af` local. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/new-song.html` | Nuevo: página Vite real del overlay "New Song" independiente. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/new-song-modules.js` | Nuevo: importa `VRNewSongAf.js` real; puentes de cámara/campos/`cancion-agregada` (envío) + gaze/dwell/click propio. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/VRNewSongOverlaySync.jsx` | Nuevo: `forwardRef`, monta `new-song.html` en `<iframe src>` real. |
+| `ApprendeVr/frontend/vite.config.js` | Registrar `new-song.html`. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx` | Agregar `newSong` a `SYNCABLE_OVERLAYS`; handler explícito de fan-out para `cancion-agregada` (antes del relevo genérico). |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncConfigCompassMenu.jsx` | Agregar `newSong` a `OVERLAY_OPTIONS`. |
+| `ApprendeVr/frontend/src/locales/{es,en,br}.json` | Claves `syncConfig.overlay.newSong`/`newSongShort`; ajustada la descripción de `karaoke` (ya no incluye "agregar canción"). |
+| `ApprendeVr/backend/src/user-settings/user-settings.util.ts` | Agregar `newSong` a `ARS_SYNC_OVERLAY_KEYS`. |
 
 ## 7. Criterios de aceptación
 
@@ -406,6 +425,10 @@ bajar un video), pero no se puede forzar ni garantizar.
 - [ ] En AR-SYNC (`mirror-fix`) con "Doble panel" activo: guardar una canción nueva desde el panel
       "New Song" de UN panel hace que aparezca en la lista de `VRKaraokeAf` de AMBOS paneles, sin
       recargar ninguno.
+- [ ] El menú ⚙️ → "Overlays" de AR-SYNC muestra "New Song" como checkbox independiente de
+      "Karaoke"; activar solo uno de los dos muestra únicamente ese panel. El panel "New Song"
+      sigue funcionando igual que antes (teclado virtual, paste, selector de archivo local,
+      guardar) y tiene su propio marcador 📍/d-pad de posición, movible y guardable por separado.
 
 ## 8. Referencias
 

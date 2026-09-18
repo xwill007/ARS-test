@@ -206,3 +206,42 @@ ambos paneles al guardar solo en uno, verifica la sincronizacion de la lista".
 - [ ] 11.4 Verificación manual con dos paneles reales de `mirror-fix` ("Doble panel" activo):
       guardar una canción en un panel y confirmar que aparece en la lista de AMBOS sin recargar
       ninguno.
+
+### Fase 12 — Separar "New Song" del overlay "karaoke" (overlay independiente)
+
+Pedido del usuario: "quiero separar el formulario de new song como un overlay independiente".
+Hasta acá, `#new-song-component` (`vr-new-song-af`) era una entidad más dentro de la MISMA
+escena/iframe que el overlay "karaoke" (`aframe-overlay-modules.html`) — solo se podía ocultar/
+mostrar junto con la lista de canciones, nunca por separado. Se sigue el skill
+`overlay-ar-sync-aframe` (patrón `src` real, como el propio overlay "karaoke").
+
+- [x] 12.1 Nuevo `new-song.html` + `new-song-modules.js`: página Vite real que importa
+      `VRNewSongAf.js` directo (ya no a través de `VRKaraokeAf.js`), con su propia `<a-camera>` +
+      `initPositionControl({external:true})`.
+- [x] 12.2 Movidos a `new-song-modules.js` (ya no viven en `aframe-overlay-modules.js`): el puente
+      de rotación/zoom de cámara, el puente de campos "New Song" (`new-song-field-update`), el envío
+      de `cancion-agregada`, y una copia simplificada del sistema de gaze/dwell/click (solo
+      `_clickableEls` de `VRNewSongAf.js` + widgets `.clickable` de posición).
+- [x] 12.3 `aframe-overlay-modules.html`/`.js`: se quita la entidad `#new-song-component` y todo lo
+      que le correspondía (puente de campos, entrada en `collectTargets()`); el RECEPTOR de
+      `cancion-agregada` se mantiene (sigue refrescando `_initSongList()` del `vr-karaoke-af` local).
+- [x] 12.4 Nuevo `VRNewSongOverlaySync.jsx` (`forwardRef`, monta `new-song.html`); registrado como
+      `newSong` en `SYNCABLE_OVERLAYS` (`SyncStereoTestView.jsx`) y en `OVERLAY_OPTIONS`
+      (`SyncConfigCompassMenu.jsx`).
+- [x] 12.5 **Hallazgo de diseño**: con "New Song" como overlay/iframe DISTINTO de "karaoke" (antes
+      compartían documento), el aviso de "canción agregada" ya no puede resolverse con el relevo
+      genérico de `SyncStereoTestView.jsx` (que solo reenvía "mismo overlay, panel opuesto") — un
+      mensaje que sale de "newSong" nunca llegaría a ningún "karaoke" por esa vía, ni siquiera al
+      del MISMO panel. Se agrega un handler explícito que hace fan-out a `refs.current.karaoke` de
+      AMBOS paneles.
+- [x] 12.6 `vite.config.js`: registrar `new-song.html`. `user-settings.util.ts` (backend):
+      agregar `newSong` a `ARS_SYNC_OVERLAY_KEYS` (mismo gotcha ya documentado para `youtubeVideo`
+      en el Requerimiento 015 — sin esto, "Guardar selección de overlays" con `newSong` marcado
+      devuelve 400). Locales `{es,en,br}.json`: claves `syncConfig.overlay.newSong`/`newSongShort`.
+- [x] 12.7 `node --check` (archivos `.js`) + `npm run build` (frontend, genera `new-song.html`
+      como entry propio) + `npm run check:i18n` + `npm test` (backend, `user-settings`) sin errores.
+- [ ] 12.8 Verificación manual en navegador: activar/desactivar "New Song" desde el menú ⚙️ →
+      "Overlays" independiente de "Karaoke"; confirmar que el panel sigue funcionando igual
+      (teclado virtual, paste, selector de archivo local, guardar), que su posición se puede mover
+      y guardar por separado, y que guardar una canción sigue refrescando la lista de AMBOS paneles
+      de "karaoke" (Fase 11) aunque ahora "New Song" sea un iframe distinto.

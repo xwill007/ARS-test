@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>New Song Overlay (Requerimiento 014, ampliación)</title>
+
+    <!--
+      Pedido del usuario: separar el panel "New Song" (hasta ahora una entidad más dentro de la
+      MISMA escena/iframe que el overlay "karaoke", ver aframe-overlay-modules.html) en su propio
+      overlay independiente de AR-SYNC, activable/desactivable por separado desde el menú ⚙️ →
+      "Overlays" (antes solo se podía ocultar/mostrar junto con la lista de canciones).
+
+      Mismo patrón que el overlay "karaoke" (Requerimiento 011, ver VRKaraokeOverlaySync.jsx): página
+      Vite real (no srcDoc) porque VRNewSongAf.js importa módulos reales del proyecto
+      (vrSongsApi.util.js, vrLocalVideoStore.util.js, etc.) que necesitan resolver contra el origen
+      real de la app, no contra un documento en blanco. Carga la MISMA copia local de A-Frame que el
+      resto de la vista (/libs/aframe.min.js).
+    -->
+    <script src="/libs/aframe.min.js"></script>
+    <script type="module" src="./new-song-modules.js"></script>
+
+    <style>
+      html, body { margin: 0; height: 100%; width: 100%; background: transparent; }
+      .clickable { cursor: pointer; }
+
+      /* Mismo puntero estático invisible que aframe-overlay-modules.html — ver el comentario
+         grande ahí para el porqué (el reticle VISIBLE es el de la brújula, SyncConfigCompassMenu.jsx,
+         siempre encima de todos los overlays de contenido; este div solo sirve de referencia para
+         el sistema de gaze/dwell/click de new-song-modules.js, que reusa el mismo mecanismo). */
+      #mirror-fix-pointer {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 24px;
+        height: 24px;
+        margin-left: -12px;
+        margin-top: -12px;
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+        pointer-events: none;
+        z-index: 99999;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body style="margin:0; background:transparent;">
+    <div id="mirror-fix-pointer"></div>
+    <a-scene
+      embedded
+      vr-mode-ui="enabled: false"
+      stats="false"
+      style="width: 100vw; height: 100vh; background: transparent;">
+
+      <!-- Mismos parámetros de contenido y misma posición que tenía dentro de
+           aframe-overlay-modules.html — la cámara de este overlay queda centrada frente al panel,
+           en vez de compartir el encuadre con la lista de canciones. -->
+      <a-entity
+        id="new-song-component"
+        vr-new-song-af="position: 0 1.6 -6; width: 3.2; height: 5.5">
+      </a-entity>
+
+      <!-- look-controls por defecto (giroscopio/acelerómetro en móvil, drag de mouse en
+           escritorio) — mismo patrón que el resto de los overlays de AR-SYNC. wasd-controls
+           deshabilitado: el acercar/alejar es un delta explícito relevado desde la brújula
+           ('camera-zoom-delta'), no el movimiento genérico de A-Frame. -->
+      <a-camera position="0 1.8 6" rotation="0 0 0" wasd-controls="enabled: false"></a-camera>
+    </a-scene>
+  </body>
+</html>

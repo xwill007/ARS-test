@@ -36,6 +36,10 @@ export default defineConfig({
         // nunca transformaría youtube-video-modules.js ni generaría youtube-video.html (mismo
         // hallazgo ya documentado arriba para artestMirror).
         youtubeVideo: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/youtube-video.html'),
+        // Requerimiento 014 (ampliación): overlay "New Song" separado del overlay "karaoke" (antes
+        // vivían en la misma página/iframe) — página Vite real por el mismo motivo que
+        // aframeOverlayModules/youtubeVideo (importa módulos reales del proyecto).
+        newSong: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/new-song.html'),
         // Requerimiento 013 (hallazgo): faltaba acá, así que `npm run build` nunca transformaba
         // artest-mirror.jsx/SyncStereoTestView.jsx ni nada que importaran (SyncConfigCompassMenu.jsx
         // incluido) — un error de sintaxis real en SyncConfigCompassMenu.jsx pasó un build entero

@@ -98,7 +98,9 @@ export function isValidEvaluationPanelConfig(config: unknown): boolean {
 // conocidas, sin duplicados exigidos ni orden particular. `youtubeVideo` (Requerimiento 015):
 // overlay nuevo "Youtube Video" — sin esta clave acá, marcarlo y pulsar "Guardar selección"
 // devolvería 400 (mismo tipo de bug ya documentado para `AFRAME_VIEW_ELEMENTS` de arriba).
-const ARS_SYNC_OVERLAY_KEYS = ['camera', 'video', 'cone', 'karaoke', 'youtubeVideo'] as const;
+// `newSong` (Requerimiento 014, ampliación): overlay "New Song" separado de `karaoke` — mismo
+// motivo, mismo tipo de bug si se omite acá.
+const ARS_SYNC_OVERLAY_KEYS = ['camera', 'video', 'cone', 'karaoke', 'youtubeVideo', 'newSong'] as const;
 
 export function isValidArsSyncOverlaysConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;
