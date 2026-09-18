@@ -249,3 +249,38 @@ King".
 **Estado:** implementado (`node --check` + `npm run build` en verde). No verificado en vivo con un
 click real en el selector de archivos — mismo tipo de verificación pendiente que el resto de la UI
 de este panel, ver checklist.md.
+
+## 8. En AR-SYNC (mirror-fix), agregar una canción en un panel no actualizaba la lista del panel hermano
+
+**Fecha:** 2026-09-18, reportado por el usuario: "la cancion se agrego a base de datos pero no se
+visualiza en la lista de ambos paneles al guardar solo en uno, verifica la sincronizacion de la
+lista".
+
+**Problema:** en modo espejo estéreo (`mirror-fix`), cada panel (izquierdo/derecho) es una
+instancia independiente de `vr-new-song-af`/`vr-karaoke-af` dentro de su PROPIO iframe. Al guardar
+una canción con éxito, `VRNewSongAf._saveSong()` dispara `window.dispatchEvent(new
+CustomEvent('cancion-agregada', ...))`, y `VRKaraokeAf.js` escucha ese evento para refrescar su
+lista (`_initSongList()`) — pero un `CustomEvent` de `window` solo es visible dentro del MISMO
+`window`/iframe donde se disparó. El panel donde se guardó la canción sí la veía (su propia lista
+se refrescaba localmente); el panel hermano, en un iframe distinto, nunca recibía ningún aviso —
+solo se actualizaba si el usuario recargaba esa pestaña.
+
+**Causa:** faltaba el puente de sincronización correspondiente. Otros eventos de esta vista (play/
+pause/seek del karaoke, campos del panel New Song, rotación de cámara, etc.) sí tienen su propio
+puente en `aframe-overlay-modules.js` que relaya por `postMessage` hacia el panel opuesto (con la
+ayuda del relevo genérico de `SyncStereoTestView.jsx`, que reenvía cualquier mensaje no reservado
+del mismo overlay al panel opuesto) — pero nunca se había agregado uno para "se agregó una
+canción nueva", porque hasta el Requerimiento 014 las canciones no se recargaban dinámicamente
+(la lista se armaba una sola vez al montar).
+
+**Solución:** nuevo puente en `aframe-overlay-modules.js` (mismo archivo y patrón que el resto):
+al disparar `cancion-agregada` localmente, se manda `{ action: 'cancion-agregada' }` por
+`postMessage` al padre, que lo relaya al panel opuesto por el mecanismo genérico ya existente; al
+recibirlo, se llama `_initSongList()` DIRECTO sobre el `vr-karaoke-af` de ese panel (nunca se
+vuelve a disparar el `CustomEvent` local al recibir el mensaje, porque eso reactivaría el listener
+de ENVÍO del mismo puente y armaría un eco infinito rebotando entre los dos paneles).
+
+**Estado:** implementado (`node --check` + `npm run build` en verde). No verificado en vivo con dos
+paneles reales de `mirror-fix` — revisar manualmente: guardar una canción en el panel izquierdo (o
+derecho) con "Doble panel" activo y confirmar que aparece en la lista de AMBOS paneles sin recargar
+ninguno.

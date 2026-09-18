@@ -475,6 +475,39 @@ import { initPositionControl } from '../../../../A-frame/vrPositionControl.js';
   });
 })();
 
+// Puente de "canción agregada" entre paneles de AR-SYNC (pedido del usuario: "la cancion se
+// agrego a base de datos pero no se visualiza en la lista de ambos paneles al guardar solo en
+// uno"). `VRNewSongAf._saveSong()` dispara `window.dispatchEvent(new CustomEvent('cancion-
+// agregada', ...))` al guardar con éxito, y `VRKaraokeAf.js` ya escucha ese evento LOCALMENTE
+// para refrescar su propia lista (`_initSongList()`) — pero un `CustomEvent` de `window` solo es
+// visible dentro del iframe donde se disparó (cada panel de mirror-fix es un iframe distinto, con
+// su propio `window`), así que el panel hermano nunca se enteraba.
+//
+// Se relaya por postMessage, mismo mecanismo que el resto de los puentes de este archivo (el
+// relevo genérico de `SyncStereoTestView.jsx` reenvía cualquier mensaje no reservado del overlay
+// `karaoke` de un panel al mismo overlay del panel opuesto, sin necesitar tocar ese archivo). Al
+// recibirlo, se llama `_initSongList()` DIRECTO sobre el `vr-karaoke-af` de este panel — nunca se
+// vuelve a disparar el evento local `cancion-agregada` acá, porque eso activaría de nuevo el
+// listener de ENVÍO de abajo y armaría un eco infinito entre los dos paneles (A envía → B recibe y
+// re-dispara → B envía → A recibe y re-dispara → ...).
+(function () {
+  function send(msg) {
+    window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+  }
+
+  window.addEventListener('cancion-agregada', function () {
+    send({ action: 'cancion-agregada' });
+  });
+
+  window.addEventListener('message', function (ev) {
+    const msg = ev.data;
+    if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'cancion-agregada') return;
+    const entity = document.querySelector('#karaoke-vr-component');
+    const comp = entity && entity.components && entity.components['vr-karaoke-af'];
+    if (comp && typeof comp._initSongList === 'function') comp._initSongList();
+  });
+})();
+
 // Requerimiento 012: hover/dwell/click propio para el puntero estático (#mirror-fix-pointer) de
 // este overlay — mismo patrón de gaze+fuse que VRLocalVideoOverlaySync.jsx/VRConeOverlaySync.jsx
 // (ver esos archivos), pero con SU PROPIO raycasting THREE.js directo en vez de un <a-cursor

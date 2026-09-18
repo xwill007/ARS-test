@@ -188,3 +188,21 @@ cancion, la segunda el artista, para rellenar el formulario automaticamente".
 - [ ] 10.4 Verificación manual: elegir un archivo `"Stand By Me - Ben E King.mp4"` completa Título/
       Autor correctamente; elegir uno sin `-` completa solo Título con el nombre completo; con
       Título/Autor ya escritos a mano, elegir un archivo no los pisa.
+
+### Fase 11 — Sincronizar "canción agregada" entre los dos paneles de AR-SYNC
+
+Pedido del usuario: "la cancion se agrego a base de datos pero no se visualiza en la lista de
+ambos paneles al guardar solo en uno, verifica la sincronizacion de la lista".
+
+- [x] 11.1 **Causa raíz**: `cancion-agregada` es un `CustomEvent` de `window`, visible solo dentro
+      del iframe donde se disparó (`VRNewSongAf._saveSong()`) — el panel hermano de `mirror-fix`
+      (iframe distinto) nunca se enteraba, a diferencia de play/pause/seek/campos del formulario,
+      que ya tienen su propio puente.
+- [x] 11.2 Nuevo puente en `aframe-overlay-modules.js`: reenvía `cancion-agregada` por
+      `postMessage` al padre (relevo genérico de `SyncStereoTestView.jsx` lo reenvía al panel
+      opuesto); al recibirlo, llama `_initSongList()` directo sobre el `vr-karaoke-af` de ese panel
+      (sin re-disparar el evento local, para no armar un eco infinito entre los dos paneles).
+- [x] 11.3 `node --check` + `npm run build` (frontend) sin errores.
+- [ ] 11.4 Verificación manual con dos paneles reales de `mirror-fix` ("Doble panel" activo):
+      guardar una canción en un panel y confirmar que aparece en la lista de AMBOS sin recargar
+      ninguno.

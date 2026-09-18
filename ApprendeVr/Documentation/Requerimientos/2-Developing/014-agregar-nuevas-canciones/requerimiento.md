@@ -318,6 +318,7 @@ bajar un video), pero no se puede forzar ni garantizar.
 | `ApprendeVr/frontend/src/views/A-frame/vrSongsApi.util.js` | Nuevo `getMySongs()` (GET `/api/songs/mine`, con auth, devuelve `[]` sin sesión/con error). |
 | `ApprendeVr/frontend/src/views/A-frame/components/VRKaraokeAf/components/VRNewSongAf/VRNewSongAf.js` | Icono "P" del campo `archivo` abre el selector de archivos nativo en vez de pegar portapapeles; guarda el video elegido en `vrLocalVideoStore.util.js`; `_saveSong()` unifica `'server'`/`'local'`/`'youtube'` en un solo llamado a `createSong()` (ya no hay una rama que se salte el backend); nuevo `parseTitleArtistFromFileName()` autocompleta Título/Autor desde el nombre del archivo elegido (corta en el primer `-`), sin pisar campos ya escritos. |
 | `ApprendeVr/frontend/src/views/A-frame/components/VRKaraokeAf/VRKaraokeAf.js` | `_initSongList()` combina `getSongs()` + `getMySongs()`, y agrega `s.title` como 3er campo de la entrada pipe-delimited; nuevo método `_playDeviceSong()` (lee el Blob de `IndexedDB` por el mismo `fileName` de la BD, arma un Object URL, reproduce vía `loadVideo()`); `loadVideo()`/`_stopLocalPlayback()` liberan el Object URL al cambiar de canción; renombrado el branching de `'device'`/`'local'`(servidor) a `'local'`/`'server'`; `_buildSongListUI()` muestra título+`SOURCE_LABELS` (`Servidor`/`Local`/`YouTube`) en vez de `fileName`+duración. |
+| `ApprendeVr/frontend/src/views/ARs/ARScomponents/ARStest/mirror-fix/aframe-overlay-modules.js` | Nuevo puente: reenvía `cancion-agregada` (evento local de `VRNewSongAf.js`) por `postMessage` al panel opuesto de AR-SYNC, y llama `_initSongList()` del `vr-karaoke-af` local al recibirlo — sin este puente, agregar una canción en un panel no actualizaba la lista del hermano. |
 
 ## 7. Criterios de aceptación
 
@@ -402,6 +403,9 @@ bajar un video), pero no se puede forzar ni garantizar.
       Título = "Stand By Me" y Autor = "Ben E King" automáticamente; elegir uno sin `-` completa
       solo Título con el nombre completo (sin extensión); si Título/Autor ya tenían algo escrito a
       mano, elegir un archivo no lo pisa.
+- [ ] En AR-SYNC (`mirror-fix`) con "Doble panel" activo: guardar una canción nueva desde el panel
+      "New Song" de UN panel hace que aparezca en la lista de `VRKaraokeAf` de AMBOS paneles, sin
+      recargar ninguno.
 
 ## 8. Referencias
 
