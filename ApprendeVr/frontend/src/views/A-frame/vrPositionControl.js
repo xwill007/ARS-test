@@ -52,6 +52,10 @@ const ELEMENTS = [
   // existe en song-text.html, así que en los demás documentos `document.querySelector(selector)`
   // da `null` y esta entrada se filtra sola (mismo criterio que el resto de `ELEMENTS`).
   { key: 'songText', selector: '#song-text-anchor', offset: [-0.35, 0.35, 0.05] },
+  // Panel de edición de tiempos del overlay "Song Text" (la lista de frases del modo "Edit time"):
+  // ancla separada de la del panel de letra, para que la lista de edición se pueda mover de forma
+  // independiente. Mismo criterio que `songText` (ancla vacía + panel DOM que la sigue).
+  { key: 'songTextEdit', selector: '#song-text-edit-anchor', offset: [-0.35, 0.35, 0.05] },
 ];
 
 // offset del marcador de `karaoke` calculado del video real que monta vr-karaoke-af: esquina

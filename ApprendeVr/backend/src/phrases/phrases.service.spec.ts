@@ -3,6 +3,8 @@ import { PhrasesService } from './phrases.service';
 describe('PhrasesService', () => {
   const phrasesRepository = {
     find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
   };
   const songsService = {
     findByFileName: jest.fn(),
@@ -37,6 +39,28 @@ describe('PhrasesService', () => {
         where: { songId: 1 },
       });
       expect(result).toEqual(phrases);
+    });
+  });
+
+  describe('updateTime', () => {
+    it('updates the time of an existing phrase and saves it', async () => {
+      const existing = { id: 1, spanish: 'Hola', english: 'Hello', songId: 1, time: '00:00:03' };
+      phrasesRepository.findOne.mockResolvedValue(existing);
+      phrasesRepository.save.mockImplementation(async (p) => p);
+
+      const result = await service.updateTime(1, '00:00:05');
+
+      expect(phrasesRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(existing.time).toBe('00:00:05');
+      expect(phrasesRepository.save).toHaveBeenCalledWith(existing);
+      expect(result).toEqual(existing);
+    });
+
+    it('returns null when the phrase does not exist', async () => {
+      phrasesRepository.findOne.mockResolvedValue(null);
+
+      expect(await service.updateTime(999, '00:00:05')).toBeNull();
+      expect(phrasesRepository.save).not.toHaveBeenCalled();
     });
   });
 });

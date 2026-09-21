@@ -19,4 +19,14 @@ export class PhrasesService {
     if (!song) return [];
     return this.phrasesRepository.find({ where: { songId: song.id } });
   }
+
+  // Edición del tiempo de reproducción de una frase (overlay "Song Text", Requerimiento 015):
+  // actualiza `tiempo_frase` de la frase indicada y devuelve la fila actualizada, o `null` si la
+  // frase no existe (el controller lo traduce a 404).
+  async updateTime(id: number, time: string): Promise<Phrase | null> {
+    const phrase = await this.phrasesRepository.findOne({ where: { id } });
+    if (!phrase) return null;
+    phrase.time = time;
+    return this.phrasesRepository.save(phrase);
+  }
 }

@@ -68,18 +68,9 @@ export function isValidLoginFormConfig(config: unknown): boolean {
 // `youtubeVideo` (Requerimiento 015): ancla del overlay "Youtube Video" de mirror-fix
 // (`#youtube-video-anchor`, ver vrPositionControl.js).
 // `songText` (Requerimiento 015): ancla del overlay "Song Text" de mirror-fix
-// (`#song-text-anchor`) — mismo criterio que `youtubeVideo`.
-//
-// Ninguna de las claves es individualmente obligatoria en el payload: cada página que edita esta
-// vista (`index.html`/`aframe-overlay-modules.html` para karaoke/songList/newSong,
-// `youtube-video.html` para youtubeVideo, `song-text.html` para songText) solo conoce/manda los
-// elementos que existen EN SU PROPIO DOM (ver `persist()`/`ELEMENTS` en vrPositionControl.js) —
-// exigir todas juntas rompería el guardado de cualquiera de esas páginas por separado.
-// `UserSettingsService.saveConfig` hace un merge superficial (no un reemplazo completo) para que
-// un guardado parcial no borre lo que otra página ya había guardado; acá solo queda validar que
-// CADA clave presente tenga una forma válida, y rechazar un payload sin NINGUNA clave conocida
-// (objeto vacío/con basura).
-const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong', 'youtubeVideo', 'songText'] as const;
+// (`#song-text-anchor`) — mismo criterio que `youtubeVideo`. `songTextEdit`: ancla del panel de
+// edición de tiempos del mismo overlay (`#song-text-edit-anchor`), posicionable por separado.
+const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong', 'youtubeVideo', 'songText', 'songTextEdit'] as const;
 
 export function isValidAframeViewConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;

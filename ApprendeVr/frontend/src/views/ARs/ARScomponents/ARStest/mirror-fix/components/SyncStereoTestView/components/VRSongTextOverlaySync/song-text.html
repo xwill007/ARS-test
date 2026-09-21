@@ -34,6 +34,12 @@
            pantalla (mismo truco "billboard" que el overlay "Youtube Video"). -->
       <a-entity id="song-text-anchor" position="0 1.6 -3"></a-entity>
 
+      <!-- Ancla del panel de edición de tiempos (la lista de frases del modo "Edit time"): entidad
+           vacía posicionable por separado, para que el usuario pueda mover la lista de edición sin
+           arrastrar el panel de letra principal (ver vrPositionControl.js → ELEMENTS, clave
+           `songTextEdit`). -->
+      <a-entity id="song-text-edit-anchor" position="0 1.0 -2.5"></a-entity>
+
       <!-- look-controls por defecto (giroscopio/acelerómetro en móvil, drag de mouse en
            escritorio) — mismo patrón que el resto de los overlays de contenido de mirror-fix. -->
       <a-camera position="0 1.8 0" rotation="0 0 0" wasd-controls="enabled: false"></a-camera>

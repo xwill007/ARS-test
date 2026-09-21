@@ -1,6 +1,6 @@
 ---
 name: overlay-ar-sync-aframe
-description: Define cómo sumar un componente A-Frame real de src/views/A-frame como un overlay más de la vista de prueba "AR-SYNC" (src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx), con sincronización de giroscopio/acelerómetro entre los paneles estéreo. Usar cuando el usuario pida exponer, agregar o "hacer disponible como overlay" un componente de la vista A-Frame dentro de AR-SYNC/mirror-fix.
+description: Define cómo sumar un componente A-Frame real de src/views/A-frame como un overlay más de la vista de prueba "AR-SYNC" (src/views/ARs/ARScomponents/ARStest/mirror-fix/SyncStereoTestView.jsx), con sincronización de giroscopio/acelerómetro entre los paneles estéreo, componente POSITION, y activación por puntero raycast (gaze/dwell) en overlays con panel de DOM. Usar cuando el usuario pida exponer, agregar o "hacer disponible como overlay" un componente de la vista A-Frame dentro de AR-SYNC/mirror-fix.
 ---
 
 # Agregar un componente A-Frame como overlay de AR-SYNC
@@ -116,7 +116,36 @@ de `srcDoc`" abajo).
    a la esquina del panel, que reenvía su click al `<a-circle>.clickable` real y refleja su
    color/visibilidad) — ver `positionMarker` en `youtube-video-modules.js` como ejemplo canónico.
 
-6. **Registrar la clave nueva en tres lugares** (los tres son obligatorios, olvidar cualquiera
+6. **Activación por puntero raycast (gaze/dwell) — obligatorio en overlays con panel de DOM.**
+   En `mirror-fix`, la brújula 3D (`SyncConfigCompassMenu.jsx`) es la capa **superior** de cada
+   panel: es la única que recibe el `mousedown`/`mousemove`/`keydown` real del navegador, y su
+   reticle (el círculo visible que pinta en rojo al apuntar) no puede intersectar nada del overlay
+   de contenido porque **el raycasting de A-Frame no cruza iframes**. Dos casos, según qué renderiza
+   el overlay:
+   - **Entidades A-Frame reales** (`.clickable`, meshes): no hace falta nada extra — el propio
+     overlay de contenido tiene su sistema de gaze/dwell (`aframe-overlay-modules.js`, patrón
+     `collectTargets` + THREE.Raycaster + `gaze-hover`), y el reticle de la brújula se pinta vía
+     el mensaje `gaze-hover` relevado por `SyncStereoTestView.jsx`.
+   - **Panel de DOM** (`<div>`/`<button>` normales, no A-Frame): el gaze/dwell no puede usar
+     THREE.Raycaster (no hay meshes) — debe usar `document.elementFromPoint()` en el **centro del
+     canvas** (la misma posición que apunta el reticle) para detectar sobre qué `<button>` está la
+     mirada, más el mismo `FUSE_MS`/`COOLDOWN_MS`/`REACTIVATION_GRACE_MS`. Ver `gazeTick`/
+     `findGazeButton` en `youtube-video-modules.js` o `song-text-modules.js` como ejemplo canónico.
+
+   **Dos reglas duras para que ese gaze/dwell funcione:**
+   1. **NO poner `pointer-events: none` en el contenedor del panel de DOM.** `document.elementFromPoint`
+      ignora los elementos con `pointer-events: none`, así que aunque los botones hijos tengan
+      `pointer-events: auto`, el `elementFromPoint` del centro del canvas puede devolver `null` (o
+      el elemento de abajo) y el reticle nunca activa el botón — síntoma reportado: "el puntero
+      raycast no activa el menú". Dejar el contenedor con `pointer-events` por defecto (solo los
+      hijos interactivos lo necesitan).
+   2. **Enviar `gaze-hover` en cada tick** (`send({ action: 'gaze-hover', hovering, progress })`)
+      para que el reticle de la brújula se pinte en rojo con el progreso del dwell — sin esto, el
+      botón SÍ se activa al completar el dwell, pero el usuario no ve ningún feedback visual y
+      parece que "no responde". `SyncStereoTestView.jsx` ya releva ese mensaje al círculo de la
+      brújula del mismo panel (ver handler `gaze-hover`).
+
+7. **Registrar la clave nueva en tres lugares** (los tres son obligatorios, olvidar cualquiera
    rompe algo distinto):
    - `SYNCABLE_OVERLAYS` en `SyncStereoTestView.jsx` (clave → componente).
    - `OVERLAY_OPTIONS` en `SyncConfigCompassMenu.jsx` (clave → `labelKey` de i18n) — **ojo: es
@@ -134,13 +163,14 @@ de `srcDoc`" abajo).
    'current')` en `handleMessage`. Si ves ese objeto hardcodeado en vez de derivado, es una señal
    de que hay que corregirlo también.
 
-7. **Validar en navegador**: abrir `artest-mirror.html` → "AR-SYNC" → menú ⚙️/☰ → pestaña
+8. **Validar en navegador**: abrir `artest-mirror.html` → "AR-SYNC" → menú ⚙️/☰ → pestaña
    "Overlays", activar la clave nueva (desactivar las demás para verla aislada), confirmar que
    renderiza sin errores de consola en ambos paneles, y que arrastrar con el mouse en un panel
    (equivalente de escritorio al giroscopio) rota el overlay igual en el panel hermano. Verificar
-   también el marcador 📍/d-pad de "Position" (mover + Guardar devuelve 200, no 400). Correr
-   `npm run build` (confirma que el entry nuevo compila) y `npm run check:i18n` (confirma la clave
-   de traducción).
+   también el marcador 📍/d-pad de "Position" (mover + Guardar devuelve 200, no 400) y, si el
+   overlay tiene botones de DOM, que el reticle se pinta en rojo y los activa tras el dwell (ver
+   paso 6). Correr `npm run build` (confirma que el entry nuevo compila) y `npm run check:i18n`
+   (confirma la clave de traducción).
 
 ## Referencias
 
@@ -149,6 +179,9 @@ de `srcDoc`" abajo).
   (`ApprendeVr/Documentation/Requerimientos/2-Developing/011-estandarizar-overlay-aframe-mirror-fix/`).
 - Ejemplo real del **panel de DOM + componente POSITION** (ancla vacía + `initPositionControl` +
   botón de marcador de DOM): overlay `youtubeVideo` — `youtube-video.html`/`youtube-video-modules.js`.
+- Ejemplo real del **panel de DOM + activación por gaze/dwell** (botones DOM clickeables con
+  `document.elementFromPoint` + `gaze-hover`): overlays `youtubeVideo` y `songText` —
+  `youtube-video-modules.js`/`song-text-modules.js`.
 - Ejemplos existentes con `srcDoc` (código copiado): `VRLocalVideoOverlaySync.jsx`,
   `VRConeOverlaySync.jsx`.
 - Componente POSITION (`vrPositionControl.js`, Requerimiento 010): `ELEMENTS`, `initPositionControl`,

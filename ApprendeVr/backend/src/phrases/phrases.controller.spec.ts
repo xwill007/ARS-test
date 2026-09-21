@@ -1,8 +1,10 @@
+import { NotFoundException } from '@nestjs/common';
 import { PhrasesController } from './phrases.controller';
 
 describe('PhrasesController', () => {
   const phrasesService = {
     findBySongFile: jest.fn(),
+    updateTime: jest.fn(),
   };
   let controller: PhrasesController;
 
@@ -31,6 +33,7 @@ describe('PhrasesController', () => {
       status: 'success',
       phrases: [
         {
+          id_frase: 1,
           espanol_frase: 'Cuando la noche ha llegado',
           ingles_frase: 'When the night has come',
           tiempo_frase: '00:00:03',
@@ -45,5 +48,37 @@ describe('PhrasesController', () => {
     await controller.getPhrases(undefined);
 
     expect(phrasesService.findBySongFile).toHaveBeenCalledWith('');
+  });
+
+  describe('updateTime', () => {
+    it('delegates to the service and maps the updated phrase', async () => {
+      phrasesService.updateTime.mockResolvedValue({
+        id: 1,
+        spanish: 'Cuando la noche ha llegado',
+        english: 'When the night has come',
+        time: '00:00:05',
+      });
+
+      const result = await controller.updateTime('1', { time: '00:00:05' });
+
+      expect(phrasesService.updateTime).toHaveBeenCalledWith(1, '00:00:05');
+      expect(result).toEqual({
+        status: 'success',
+        phrase: {
+          id_frase: 1,
+          espanol_frase: 'Cuando la noche ha llegado',
+          ingles_frase: 'When the night has come',
+          tiempo_frase: '00:00:05',
+        },
+      });
+    });
+
+    it('throws NotFoundException when the phrase does not exist', async () => {
+      phrasesService.updateTime.mockResolvedValue(null);
+
+      await expect(
+        controller.updateTime('999', { time: '00:00:05' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
   });
 });

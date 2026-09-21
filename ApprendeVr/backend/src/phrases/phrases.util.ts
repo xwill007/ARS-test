@@ -8,16 +8,21 @@
 // `tiempo_frase` (Requerimiento 015, overlay "SONG TEXT"): se suma al contrato para que el
 // frontend pueda sincronizar la letra con el video — el endpoint PHP legacy no lo exponía, pero
 // la columna ya existe en la BD (`frases_vr.tiempo_frase`, TIME).
+// `id_frase` (Requerimiento 015, edición de tiempo): lo necesita el frontend para mandar
+// `PATCH /frases/:id/time` al editar el tiempo de una frase desde el overlay "Song Text".
 export function toPhraseDto(phrase: {
+  id: number;
   spanish: string;
   english: string;
   time?: string | null;
 }): {
+  id_frase: number;
   espanol_frase: string;
   ingles_frase: string;
   tiempo_frase: string | null;
 } {
   return {
+    id_frase: phrase.id,
     espanol_frase: phrase.spanish,
     ingles_frase: phrase.english,
     tiempo_frase: phrase.time ?? null,

@@ -113,6 +113,12 @@ describe('user-settings.util', () => {
       ).toBe(true);
     });
 
+    it('accepts a payload with only the songTextEdit element (saved from song-text.html)', () => {
+      expect(
+        isValidAframeViewConfig({ songTextEdit: { position: [0, 1.0, -2.5] } }),
+      ).toBe(true);
+    });
+
     it('rejects an element without a valid position', () => {
       expect(
         isValidAframeViewConfig({ ...valid, karaoke: { position: [0, 6] } }),

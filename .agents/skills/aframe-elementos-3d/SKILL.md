@@ -1,6 +1,6 @@
 ---
 name: aframe-elementos-3d
-description: Reglas para crear elementos 3D interactivos en A-Frame (paneles, botones, filas clickeables) dentro de ARS-test — en particular, separar en profundidad cada capa apoyada sobre otra para evitar z-fighting y fallos de click. Usar cuando el usuario pida crear o ajustar un panel, botón, menú o cualquier UI 3D en A-Frame (mirror-fix, views/A-frame, o cualquier escena nueva).
+description: Reglas para crear elementos 3D interactivos en A-Frame (paneles, botones, filas clickeables) dentro de ARS-test — en particular, separar en profundidad cada capa apoyada sobre otra para evitar z-fighting y fallos de click, y distinguir entidades A-Frame (raycaster) de paneles de DOM (elementFromPoint + gaze-hover) para la activación por puntero raycast. Usar cuando el usuario pida crear o ajustar un panel, botón, menú o cualquier UI 3D en A-Frame (mirror-fix, views/A-frame, o cualquier escena nueva).
 ---
 
 # Elementos 3D interactivos en A-Frame (ARS-test)
@@ -8,7 +8,6 @@ description: Reglas para crear elementos 3D interactivos en A-Frame (paneles, bo
 Regla central: **ningún elemento clickeable/de texto va a la misma profundidad exacta que la
 superficie sobre la que se apoya.** Dos planos coplanares (mismo `z` en el sistema de coordenadas
 del padre) generan dos problemas reales, no solo cosméticos:
-
 1. **Z-fighting visual**: el renderer no puede decidir de forma estable cuál de los dos planos
    dibujar encima, así que el color parpadea o se mezcla con el fondo (más notorio cuando la
    cámara se mueve o cambia el ángulo).
@@ -110,3 +109,24 @@ desde la superficie real (mitad de la altura del elemento de abajo), no un núme
 
 Cualquier escena A-Frame nueva de este proyecto (otro overlay de `mirror-fix`, un panel nuevo en
 `views/A-frame`, etc.) que apile botones o texto sobre un fondo debe seguir esta misma convención.
+
+## Entidades A-Frame vs. paneles de DOM (activación por puntero raycast)
+
+Este skill cubre entidades A-Frame reales (`<a-plane>`, `<a-circle>`, `<a-text>`, etc.) — esas son
+las que sufren z-fighting y las que el `raycaster` de A-Frame intersecta. **Un overlay de
+`mirror-fix` que renderiza su UI como `<div>`/`<button>` de DOM normal (no A-Frame) NO está cubierto
+por estas reglas de profundidad**, y su activación por el reticle de la brújula es distinta:
+
+- El raycasting de A-Frame **no cruza iframes** y **no ve elementos DOM** — solo meshes. Para un
+  panel de DOM, el gaze/dwell debe usar `document.elementFromPoint()` en el centro del canvas (la
+  posición que apunta el reticle) en vez de THREE.Raycaster. Ver `findGazeButton`/`gazeTick` en
+  `youtube-video-modules.js` o `song-text-modules.js` (patrón completo con `FUSE_MS`/`COOLDOWN_MS`).
+- **No poner `pointer-events: none` en el contenedor del panel de DOM** — `elementFromPoint` ignora
+  esos elementos y el reticle deja de activar los botones (síntoma: "el puntero raycast no activa
+  el menú"). Dejar el contenedor con `pointer-events` por defecto.
+- Enviar `gaze-hover` (`{ action: 'gaze-hover', hovering, progress }`) en cada tick para que el
+  reticle de la brújula se pinte en rojo — sin ese feedback el botón se activa pero "parece" que no
+  responde (ver skill `overlay-ar-sync-aframe`, paso "Activación por puntero raycast").
+
+En resumen: si es un mesh A-Frame → reglas de profundidad de acá + `raycaster`; si es un
+`<div>`/`<button>` de DOM → `elementFromPoint` + `gaze-hover`, sin `pointer-events: none`.

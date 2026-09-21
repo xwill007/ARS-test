@@ -1,7 +1,8 @@
 // Entrada de song-text.html (overlay "Song Text" de AR-SYNC). Muestra la letra de la canción
 // seleccionada en el overlay "karaoke" — tres renglones (frase anterior, actual y futura)
 // sincronizados con la reproducción vía `tiempo_frase` de `frases_vr` (ver
-// phrases/entities/phrase.entity.ts + GET /api/frases).
+// phrases/entities/phrase.entity.ts + GET /api/frases). También permite editar el tiempo de cada
+// frase (icono ⚙️ → "Edit time") para corregir la desincronización de la letra.
 import { initPositionControl } from '../../../../../../../../A-frame/vrPositionControl.js';
 
 // Clave de localStorage donde SyncStereoTestView.jsx publica el estado de reproducción del karaoke
@@ -113,6 +114,10 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
 // "billboard" que el overlay "Youtube Video") — así reacciona al giroscopio/mouse-drag igual que
 // el resto de la escena. El texto visible es la letra en inglés (`ingles_frase`), que es lo que se
 // canta; la frase actual se resalta y las laterales quedan atenuadas.
+//
+// Modo "Edit time" (icono ⚙️ → "Edit time"): pausa la canción para capturar el tiempo y clickea la
+// frase para asignarle ese tiempo (se actualiza en BD vía PATCH /api/frases/:id/time). Mientras el
+// modo está activo, las frases dejan de avanzar automáticamente.
 (function () {
   // Pedido del usuario: la fila "Scale" del menú de Interfaz (vrPositionControl.js) agranda/achica
   // el elemento seleccionado escribiendo `object3D.scale` de `#song-text-anchor` — como esa entidad
@@ -133,7 +138,10 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   panel.style.fontFamily = 'sans-serif';
   panel.style.boxSizing = 'border-box';
   panel.style.textAlign = 'center';
-  panel.style.pointerEvents = 'none';
+
+  // Vista normal: los tres renglones de letra (anterior/actual/futura).
+  const normalView = document.createElement('div');
+  panel.appendChild(normalView);
 
   function makeLine() {
     const line = document.createElement('div');
@@ -144,7 +152,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     line.style.color = '#ffffff';
     line.style.whiteSpace = 'normal';
     line.style.wordBreak = 'break-word';
-    panel.appendChild(line);
+    normalView.appendChild(line);
     return line;
   }
   const prevLine = makeLine();
@@ -154,6 +162,159 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   Object.assign(prevLine.style, { color: '#9e9e9e', fontSize: '15px', fontWeight: '400' });
   Object.assign(currentLine.style, { color: '#ffffff', fontSize: '24px', fontWeight: '700' });
   Object.assign(nextLine.style, { color: '#9e9e9e', fontSize: '15px', fontWeight: '400' });
+
+  // Icono de configuración (⚙️) en la esquina superior derecha del panel — abre/cierra un menú
+  // con la opción "Edit time".
+  const configBtn = document.createElement('button');
+  configBtn.textContent = '⚙';
+  Object.assign(configBtn.style, {
+    position: 'absolute',
+    top: '6px',
+    right: '6px',
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    border: '1px solid rgba(255, 255, 255, 0.4)',
+    background: 'rgba(40, 40, 40, 0.9)',
+    color: '#ffffff',
+    fontSize: '16px',
+    lineHeight: '1',
+    padding: '0',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => configBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  panel.appendChild(configBtn);
+
+  const menu = document.createElement('div');
+  Object.assign(menu.style, {
+    position: 'absolute',
+    top: '40px',
+    right: '6px',
+    display: 'none',
+    flexDirection: 'column',
+    gap: '4px',
+    background: 'rgba(30, 30, 30, 0.95)',
+    border: '1px solid rgba(255, 255, 255, 0.25)',
+    borderRadius: '6px',
+    padding: '6px',
+    pointerEvents: 'auto',
+  });
+  panel.appendChild(menu);
+
+  const editTimeBtn = document.createElement('button');
+  editTimeBtn.textContent = 'Edit time';
+  Object.assign(editTimeBtn.style, {
+    padding: '6px 10px',
+    fontSize: '13px',
+    border: 'none',
+    borderRadius: '4px',
+    background: '#454545',
+    color: '#ffffff',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => editTimeBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  menu.appendChild(editTimeBtn);
+
+  // Vista de edición: barra de captura de tiempo + lista clickeable de frases + botón "Done".
+  // Vive en un panel DOM SEPARADO del panel de letra (`editPanel`), que sigue a su propia ancla
+  // `#song-text-edit-anchor` (ver más abajo) para poder reposicionarse de forma independiente con
+  // el componente POSITION.
+  const editView = document.createElement('div');
+  editView.style.pointerEvents = 'auto';
+
+  const captureBar = document.createElement('div');
+  Object.assign(captureBar.style, { color: '#ffcc66', fontSize: '13px', marginBottom: '6px', textAlign: 'center' });
+  editView.appendChild(captureBar);
+
+  const statusEl = document.createElement('div');
+  Object.assign(statusEl.style, { color: '#aaffaa', fontSize: '12px', marginBottom: '6px', textAlign: 'center', minHeight: '14px' });
+  editView.appendChild(statusEl);
+
+  // Check para recalcular el tiempo de las frases siguientes (pedido del usuario): al activarlo,
+  // al asignar un tiempo a una frase se calcula el incremento (nuevo − anterior) y se lo suma a
+  // todas las frases que vienen después, para desplazar el resto de la letra en bloque sin
+  // editarlas una por una. Se implementa como botón toggle (no `<input type=checkbox>`) porque el
+  // gaze/dwell de mirror-fix solo activa `<button>` (ver findGazeButton más abajo).
+  const recalcBtn = document.createElement('button');
+  Object.assign(recalcBtn.style, {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    justifyContent: 'center',
+    width: '100%',
+    marginBottom: '8px',
+    padding: '6px 8px',
+    fontSize: '13px',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
+    borderRadius: '4px',
+    background: 'rgba(50, 50, 50, 0.9)',
+    color: '#ffffff',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  const recalcMark = document.createElement('span');
+  recalcMark.textContent = '☐';
+  recalcMark.style.width = '14px';
+  recalcMark.style.textAlign = 'center';
+  const recalcText = document.createElement('span');
+  recalcText.textContent = 'Recalculate following phrases';
+  recalcBtn.appendChild(recalcMark);
+  recalcBtn.appendChild(recalcText);
+  ['pointerdown', 'mousedown'].forEach((evt) => recalcBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  recalcBtn.addEventListener('click', () => {
+    recalcEnabled = !recalcEnabled;
+    recalcMark.textContent = recalcEnabled ? '☑' : '☐';
+    recalcMark.style.color = recalcEnabled ? '#69F0AE' : '#ffffff';
+  });
+  editView.appendChild(recalcBtn);
+
+  const phraseList = document.createElement('div');
+  Object.assign(phraseList.style, {
+    maxHeight: '340px',
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    textAlign: 'left',
+  });
+  editView.appendChild(phraseList);
+
+  const doneBtn = document.createElement('button');
+  doneBtn.textContent = 'Done';
+  Object.assign(doneBtn.style, {
+    marginTop: '8px',
+    padding: '6px 12px',
+    fontSize: '13px',
+    border: 'none',
+    borderRadius: '4px',
+    background: '#2e7d32',
+    color: '#ffffff',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => doneBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  editView.appendChild(doneBtn);
+
+  // Panel de edición: contenedor `position: fixed` propio (no hijo de `panel`) que sigue a
+  // `#song-text-edit-anchor`. Mismos estilos base que el panel de letra, con ancho propio.
+  const EDIT_PANEL_WIDTH = 360;
+  const editPanel = document.createElement('div');
+  editPanel.style.position = 'fixed';
+  editPanel.style.transform = 'translate(-50%, -50%)';
+  editPanel.style.width = EDIT_PANEL_WIDTH + 'px';
+  editPanel.style.maxWidth = '90vw';
+  editPanel.style.zIndex = '99998';
+  editPanel.style.background = 'rgba(0, 0, 0, 0.6)';
+  editPanel.style.border = '1px solid rgba(255, 255, 255, 0.18)';
+  editPanel.style.borderRadius = '8px';
+  editPanel.style.padding = '12px 16px';
+  editPanel.style.fontFamily = 'sans-serif';
+  editPanel.style.boxSizing = 'border-box';
+  editPanel.style.textAlign = 'center';
+  editPanel.appendChild(editView);
+  document.body.appendChild(editPanel);
 
   document.body.appendChild(panel);
 
@@ -185,27 +346,64 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   });
   document.body.appendChild(positionMarker);
 
+  // Marcador de ubicación para el panel de edición de tiempos (componente POSITION): mismo patrón
+  // que `positionMarker`, pero reenvía su click al marcador 3D de `#song-text-edit-anchor` y sigue
+  // al `editPanel` en pantalla. Así la lista de frases del modo "Edit time" es reposicionable por
+  // separado del panel de letra.
+  const editPositionMarker = document.createElement('button');
+  Object.assign(editPositionMarker.style, {
+    position: 'fixed',
+    width: '22px',
+    height: '22px',
+    borderRadius: '50%',
+    border: '2px solid #ffffff',
+    background: '#d21919',
+    padding: '0',
+    cursor: 'pointer',
+    zIndex: '100001',
+    display: 'none',
+    boxShadow: '0 0 4px rgba(0, 0, 0, 0.6)',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => editPositionMarker.addEventListener(evt, (e) => e.stopPropagation()));
+  editPositionMarker.addEventListener('click', () => {
+    const realMarker = document.querySelector('#song-text-edit-anchor > a-circle.clickable');
+    if (realMarker) realMarker.click();
+  });
+  document.body.appendChild(editPositionMarker);
+
   // Estado de reproducción publicado por el padre. Se guarda el snapshot + cuándo se recibió para
   // interpolar suavemente el tiempo entre escrituras (el padre publica ~4x/seg; la frase cambia
   // cada ~2-4s, así que interpolar alcanza para que el resaltado no salte).
   let state = { fileName: '', time: 0, playing: false, receivedAt: 0 };
+  // Modo "Edit time": mientras está activo, las frases no avanzan (freeze) y se captura el tiempo
+  // al pausar para asignárselo a la frase clickeada.
+  let editMode = false;
+  let menuOpen = false;
+  let capturedTime = null; // segundos (tiempo pausado capturado) o null
+  let recalcEnabled = false; // check "recalcular frases siguientes"
 
   function readState() {
     let raw = '';
     try { raw = localStorage.getItem(KARAOKE_STATE_KEY) || ''; } catch (e) { /* ignore */ }
-    if (!raw) {
-      state = { fileName: '', time: 0, playing: false, receivedAt: Date.now() };
-      return;
+    let next = { fileName: '', time: 0, playing: false, receivedAt: Date.now() };
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        next = {
+          fileName: (parsed && parsed.fileName) || '',
+          time: Number(parsed && parsed.time) || 0,
+          playing: !!(parsed && parsed.playing),
+          receivedAt: Date.now(),
+        };
+      } catch (e) { /* ignore */ }
     }
-    try {
-      const parsed = JSON.parse(raw);
-      state = {
-        fileName: (parsed && parsed.fileName) || '',
-        time: Number(parsed && parsed.time) || 0,
-        playing: !!(parsed && parsed.playing),
-        receivedAt: Date.now(),
-      };
-    } catch (e) { /* ignore */ }
+    // Detección del momento exacto en que el usuario pausa (transición reproducir → pausado):
+    // ese es el tiempo que se le asigna a la frase seleccionada en modo edición.
+    if (editMode && state.playing && !next.playing) {
+      capturedTime = next.time;
+      updateCaptureBar();
+    }
+    state = next;
   }
 
   function effectiveTime() {
@@ -225,6 +423,28 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     return h * 3600 + m * 60 + secPart;
   }
 
+  // Segundos → "HH:MM:SS.d" (formato TIME(1) de MySQL, una décima — ver db/013). Redondea a la
+  // décima más cercana.
+  function toHms(sec) {
+    const rounded = Math.max(0, Math.round(sec * 10) / 10);
+    const whole = Math.floor(rounded);
+    const tenth = Math.round((rounded - whole) * 10);
+    const h = Math.floor(whole / 3600);
+    const m = Math.floor((whole % 3600) / 60);
+    const s = whole % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return pad(h) + ':' + pad(m) + ':' + pad(s) + '.' + tenth;
+  }
+
+  // Segundos → "M:SS.d" para mostrar en la UI.
+  function formatClock(sec) {
+    if (!Number.isFinite(sec) || sec < 0) return '0:00.0';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    const tenth = Math.round((sec - Math.floor(sec)) * 10);
+    return m + ':' + String(s).padStart(2, '0') + '.' + tenth;
+  }
+
   let phrasesCache = { fileName: null, phrases: [] };
   // Evita refetchear la misma canción en cada frame mientras la petición está en vuelo (el fetch
   // es async y `phrasesCache.fileName` recién se actualiza cuando resuelve).
@@ -242,7 +462,8 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       setLines('', '', '');
       return;
     }
-    // Frase actual = la última cuyo `tiempo_frase` es <= al tiempo de reproducción.
+    // Frase actual = la de mayor `tiempo_frase` <= al tiempo de reproducción (asume `phrases`
+    // ordenado por tiempo, ver loadPhrases).
     let idx = -1;
     for (let i = 0; i < phrases.length; i++) {
       if (phrases[i].t <= time) idx = i;
@@ -273,11 +494,12 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       const json = await res.json();
       const list = (json && json.phrases) || [];
       const parsed = list
-        .map((p) => ({ en: (p && p.ingles_frase) || '', t: parseTime(p && p.tiempo_frase) }))
+        .map((p) => ({ id: Number(p && p.id_frase) || 0, en: (p && p.ingles_frase) || '', t: parseTime(p && p.tiempo_frase) }))
         .filter((p) => Number.isFinite(p.t));
       parsed.sort((a, b) => a.t - b.t);
       phrasesCache = { fileName, phrases: parsed };
       loadingFileName = null;
+      if (editMode) renderPhraseList();
       return parsed;
     } catch (e) {
       phrasesCache = { fileName: null, phrases: [] };
@@ -286,13 +508,143 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     }
   }
 
+  function updateCaptureBar() {
+    if (capturedTime === null) {
+      captureBar.textContent = 'Play the song, pause, then click a phrase to set its time.';
+    } else {
+      captureBar.textContent = 'Captured time: ' + formatClock(capturedTime) + ' — click a phrase to assign it.';
+    }
+  }
+
+  function renderPhraseList() {
+    phraseList.innerHTML = '';
+    const ordered = [...phrasesCache.phrases].sort((a, b) => a.id - b.id);
+    if (!ordered.length) {
+      const empty = document.createElement('div');
+      empty.textContent = 'No phrases loaded.';
+      empty.style.color = '#999999';
+      empty.style.fontSize = '13px';
+      phraseList.appendChild(empty);
+      return;
+    }
+    ordered.forEach((p) => {
+      const btn = document.createElement('button');
+      btn.textContent = p.id + '. ' + p.en + '  [' + formatClock(p.t) + ']';
+      Object.assign(btn.style, {
+        display: 'block',
+        width: '100%',
+        textAlign: 'left',
+        padding: '6px 8px',
+        fontSize: '13px',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        borderRadius: '4px',
+        background: 'rgba(50, 50, 50, 0.9)',
+        color: '#ffffff',
+        cursor: 'pointer',
+        pointerEvents: 'auto',
+      });
+      ['pointerdown', 'mousedown'].forEach((evt) => btn.addEventListener(evt, (e) => e.stopPropagation()));
+      btn.addEventListener('click', () => assignTimeToPhrase(p));
+      phraseList.appendChild(btn);
+    });
+  }
+
+  // Actualiza el tiempo de una frase en la BD (PATCH /api/frases/:id/time). Devuelve `true` en
+  // éxito y, de paso, actualiza `phrase.t` en el cache con la décima redondeada (mismo criterio
+  // que `toHms`: la columna es TIME(1), una décima de segundo).
+  async function patchPhraseTime(phrase, seconds) {
+    const newTime = toHms(seconds);
+    try {
+      const res = await fetch('/api/frases/' + phrase.id + '/time', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time: newTime }),
+      });
+      if (res.ok) {
+        phrase.t = Math.max(0, Math.round(seconds * 10) / 10);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function assignTimeToPhrase(p) {
+    if (capturedTime === null) {
+      statusEl.textContent = 'Pause the song first to capture a time.';
+      return;
+    }
+    const oldTime = p.t;
+    const newTime = Math.max(0, Math.round(capturedTime * 10) / 10);
+    const delta = Math.round((newTime - oldTime) * 10) / 10;
+
+    // Frases a actualizar: la clickeada, y —si el check "recalcular siguientes" está activo y hay
+    // un corrimiento real— todas las que vienen después (tiempo mayor al anterior de la clickeada).
+    const targets = [{ phrase: p, seconds: newTime }];
+    if (recalcEnabled && delta !== 0) {
+      const followers = phrasesCache.phrases
+        .filter((f) => f.id !== p.id && f.t > oldTime)
+        .map((f) => ({ phrase: f, seconds: Math.max(0, f.t + delta) }));
+      followers.forEach((t) => targets.push(t));
+    }
+
+    statusEl.textContent = 'Updating...';
+    let failed = 0;
+    for (const t of targets) {
+      const ok = await patchPhraseTime(t.phrase, t.seconds);
+      if (!ok) failed++;
+    }
+
+    phrasesCache.phrases.sort((a, b) => a.t - b.t);
+    renderPhraseList();
+
+    if (failed > 0) {
+      statusEl.textContent = 'Some updates failed (' + failed + ' of ' + targets.length + ').';
+    } else if (recalcEnabled && targets.length > 1) {
+      const sign = delta >= 0 ? '+' : '';
+      statusEl.textContent = 'Phrase ' + p.id + ' → ' + formatClock(newTime) + ' (' + sign + delta + 's applied to ' + (targets.length - 1) + ' following).';
+    } else {
+      statusEl.textContent = 'Phrase ' + p.id + ' set to ' + formatClock(newTime) + '.';
+    }
+  }
+
+  function enterEditMode() {
+    editMode = true;
+    // Si ya está pausado al entrar, usar ese tiempo como punto de partida; si está reproduciendo,
+    // se capturará al pausar (ver readState). La letra del panel principal se congela (computeLines
+    // solo corre en !editMode) pero sigue visible, para saber qué frase se está editando.
+    capturedTime = state.playing ? null : state.time;
+    statusEl.textContent = '';
+    updateCaptureBar();
+    renderPhraseList();
+  }
+
+  function exitEditMode() {
+    editMode = false;
+    capturedTime = null;
+  }
+
+  configBtn.addEventListener('click', () => {
+    menuOpen = !menuOpen;
+    menu.style.display = menuOpen ? 'flex' : 'none';
+  });
+  editTimeBtn.addEventListener('click', () => {
+    menuOpen = false;
+    menu.style.display = 'none';
+    enterEditMode();
+  });
+  doneBtn.addEventListener('click', exitEditMode);
+
   // Loop por frame: re-lee el estado (snapshot de localStorage) y actualiza (a) la posición del
-  // panel siguiendo al ancla, y (b) los tres renglones según el tiempo efectivo. También detecta
-  // cambios de canción (comparando contra el cache) para recargar las frases cuando el usuario
-  // selecciona otra en el overlay "karaoke".
+  // panel siguiendo al ancla, y (b) los tres renglones según el tiempo efectivo (salvo en modo
+  // edición, donde las frases quedan congeladas). También detecta cambios de canción (comparando
+  // contra el cache) para recargar las frases cuando el usuario selecciona otra en el overlay
+  // "karaoke".
   function track() {
     const sceneEl = document.querySelector('a-scene');
     const anchorEl = document.querySelector('#song-text-anchor');
+    const editAnchorEl = document.querySelector('#song-text-edit-anchor');
     const worldPos = new AFRAME.THREE.Vector3();
 
     readState();
@@ -301,10 +653,14 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       if (phrasesCache.fileName !== state.fileName && loadingFileName !== state.fileName) {
         loadPhrases(state.fileName);
       }
-      computeLines(effectiveTime());
+      if (!editMode) {
+        computeLines(effectiveTime());
+      }
 
       const camera = sceneEl && sceneEl.camera;
       const canvas = sceneEl && sceneEl.canvas;
+
+      // Panel de letra (principal) siguiendo a `#song-text-anchor`.
       let behind = true;
       if (camera && canvas && anchorEl && anchorEl.object3D) {
         sceneEl.object3D.updateMatrixWorld(true);
@@ -337,6 +693,40 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       } else {
         positionMarker.style.display = 'none';
       }
+
+      // Panel de edición de tiempos (lista de frases) siguiendo a `#song-text-edit-anchor`. Solo se
+      // proyecta/muestra en modo edición.
+      let editBehind = true;
+      if (editMode && camera && canvas && editAnchorEl && editAnchorEl.object3D) {
+        sceneEl.object3D.updateMatrixWorld(true);
+        editAnchorEl.object3D.getWorldPosition(worldPos);
+        const projected = worldPos.clone().project(camera);
+        const rect = canvas.getBoundingClientRect();
+        editBehind = projected.z > 1;
+        editPanel.style.display = editBehind ? 'none' : 'block';
+        if (!editBehind) {
+          editPanel.style.left = (rect.left + (projected.x * 0.5 + 0.5) * rect.width) + 'px';
+          editPanel.style.top = (rect.top + (-projected.y * 0.5 + 0.5) * rect.height) + 'px';
+          const scale = editAnchorEl.object3D.scale.x;
+          if (Number.isFinite(scale) && scale > 0) {
+            editPanel.style.width = (EDIT_PANEL_WIDTH * scale) + 'px';
+          }
+        }
+      } else if (!editMode) {
+        editPanel.style.display = 'none';
+      }
+      const editRealMarker = document.querySelector('#song-text-edit-anchor > a-circle.clickable');
+      const editMarkerShouldShow = editMode && !editBehind && editRealMarker && editRealMarker.getAttribute('visible') !== false;
+      if (editMarkerShouldShow) {
+        const editRect = editPanel.getBoundingClientRect();
+        editPositionMarker.style.display = 'block';
+        editPositionMarker.style.left = (editRect.left - 11) + 'px';
+        editPositionMarker.style.top = (editRect.top - 11) + 'px';
+        editPositionMarker.style.background = editRealMarker.getAttribute('color') || '#d21919';
+      } else {
+        editPositionMarker.style.display = 'none';
+      }
+
       requestAnimationFrame(update);
     }
     update();
@@ -344,15 +734,17 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   track();
 
   // React al evento `storage` (el padre publica el estado por localStorage): re-lee el snapshot
-  // para que la interpolación se reinicie desde el último valor real.
+  // para que la interpolación se reinicie desde el último valor real (y, en modo edición, detecte
+  // el momento del pause para capturar el tiempo).
   window.addEventListener('storage', function (ev) {
     if (ev.key === KARAOKE_STATE_KEY) readState();
   });
 
-  // Gaze/dwell para activar el botón de marcador de DOM (componente POSITION): mismo patrón que
-  // youtube-video-modules.js — la brújula 3D (capa superior) es la única que recibe el
-  // mousedown/mousemove real, así que el único camino para clickear este `<button>` de DOM es el
-  // gaze/dwell propio de ESTE iframe (`document.elementFromPoint` en el centro del canvas + FUSE).
+  // Gaze/dwell para activar los botones de DOM de este panel (marcador de posición, ⚙️, menú y
+  // lista de frases en edición): mismo patrón que youtube-video-modules.js — la brújula 3D (capa
+  // superior) es la única que recibe el mousedown/mousemove real, así que el único camino para
+  // clickear estos `<button>` es el gaze/dwell propio de ESTE iframe (`document.elementFromPoint`
+  // en el centro del canvas + FUSE).
   // Requerimiento 016: tiempo de activación configurable desde la fila "Cursor" del menú brújula,
   // compartido por localStorage (mismo mecanismo que aframe-overlay-modules.js).
   const storedFuseMs = Number(localStorage.getItem('apprendevr_cursor_fuse_timeout'));
@@ -364,6 +756,10 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   let lockedBtn = null;
   let lastActivationAt = 0;
   let lastActivatedBtn = null;
+
+  function send(msg) {
+    window.parent.postMessage(Object.assign({ source: 'ars-sync-test' }, msg), '*');
+  }
 
   function findGazeButton() {
     const sceneEl = document.querySelector('a-scene');
@@ -385,11 +781,13 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     }
 
     if (!btn || btn === lockedBtn || inGrace) {
+      send({ action: 'gaze-hover', hovering: false, progress: 0 });
       requestAnimationFrame(gazeTick);
       return;
     }
 
     const progress = Math.min(1, (Date.now() - fuseStart) / FUSE_MS);
+    send({ action: 'gaze-hover', hovering: true, progress });
     if (progress >= 1) {
       const now = Date.now();
       if (now - lastActivationAt >= COOLDOWN_MS) {
