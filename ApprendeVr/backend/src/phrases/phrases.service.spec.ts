@@ -37,6 +37,7 @@ describe('PhrasesService', () => {
       );
       expect(phrasesRepository.find).toHaveBeenCalledWith({
         where: { songId: 1 },
+        order: { time: 'ASC', id: 'ASC' },
       });
       expect(result).toEqual(phrases);
     });

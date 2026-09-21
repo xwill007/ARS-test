@@ -239,8 +239,72 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   editView.style.pointerEvents = 'auto';
 
   const captureBar = document.createElement('div');
-  Object.assign(captureBar.style, { color: '#ffcc66', fontSize: '13px', marginBottom: '6px', textAlign: 'center' });
+  captureBar.textContent = 'Play, pause, then adjust the time and click a phrase to set it.';
+  Object.assign(captureBar.style, { color: '#ffcc66', fontSize: '12px', marginBottom: '6px', textAlign: 'center' });
   editView.appendChild(captureBar);
+
+  // Tiempo capturado (el que se va a asignar a la frase) con ajuste fino por décimas de segundo:
+  // botón "−" a la izquierda y "+" a la derecha del valor — pedido del usuario. Se muestra ANTES
+  // del check "Recalculate", porque es el dato principal que el usuario está editando.
+  const timeAdjust = document.createElement('div');
+  Object.assign(timeAdjust.style, {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    marginBottom: '8px',
+  });
+
+  const minusBtn = document.createElement('button');
+  minusBtn.textContent = '−';
+  Object.assign(minusBtn.style, {
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    border: '1px solid rgba(255, 255, 255, 0.4)',
+    background: 'rgba(40, 40, 40, 0.9)',
+    color: '#ffffff',
+    fontSize: '18px',
+    lineHeight: '1',
+    padding: '0',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => minusBtn.addEventListener(evt, (e) => e.stopPropagation()));
+
+  const timeDisplay = document.createElement('div');
+  Object.assign(timeDisplay.style, {
+    minWidth: '72px',
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#ffcc66',
+    textAlign: 'center',
+    fontVariantNumeric: 'tabular-nums',
+  });
+
+  const plusBtn = document.createElement('button');
+  plusBtn.textContent = '+';
+  Object.assign(plusBtn.style, {
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    border: '1px solid rgba(255, 255, 255, 0.4)',
+    background: 'rgba(40, 40, 40, 0.9)',
+    color: '#ffffff',
+    fontSize: '18px',
+    lineHeight: '1',
+    padding: '0',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => plusBtn.addEventListener(evt, (e) => e.stopPropagation()));
+
+  timeAdjust.appendChild(minusBtn);
+  timeAdjust.appendChild(timeDisplay);
+  timeAdjust.appendChild(plusBtn);
+  editView.appendChild(timeAdjust);
+  minusBtn.addEventListener('click', () => nudgeTime(-1));
+  plusBtn.addEventListener('click', () => nudgeTime(1));
 
   const statusEl = document.createElement('div');
   Object.assign(statusEl.style, { color: '#aaffaa', fontSize: '12px', marginBottom: '6px', textAlign: 'center', minHeight: '14px' });
@@ -255,12 +319,12 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   Object.assign(recalcBtn.style, {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
+    gap: '8px',
     justifyContent: 'center',
     width: '100%',
     marginBottom: '8px',
-    padding: '6px 8px',
-    fontSize: '13px',
+    padding: '10px 10px',
+    fontSize: '15px',
     border: '1px solid rgba(255, 255, 255, 0.15)',
     borderRadius: '4px',
     background: 'rgba(50, 50, 50, 0.9)',
@@ -269,9 +333,12 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     pointerEvents: 'auto',
   });
   const recalcMark = document.createElement('span');
-  recalcMark.textContent = '☐';
-  recalcMark.style.width = '14px';
+  // Pedido del usuario: el recálculo de las frases siguientes queda ACTIVO por defecto.
+  recalcMark.textContent = '☑';
+  recalcMark.style.width = '22px';
   recalcMark.style.textAlign = 'center';
+  recalcMark.style.fontSize = '22px';
+  recalcMark.style.color = '#69F0AE';
   const recalcText = document.createElement('span');
   recalcText.textContent = 'Recalculate following phrases';
   recalcBtn.appendChild(recalcMark);
@@ -310,6 +377,26 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   });
   ['pointerdown', 'mousedown'].forEach((evt) => doneBtn.addEventListener(evt, (e) => e.stopPropagation()));
   editView.appendChild(doneBtn);
+
+  // Botón "Cancel" — pedido del usuario: elimina los tiempos guardados en frontend (los cambios
+  // stageados en memoria) y restaura los valores originales, para volver a seleccionar sin salir
+  // del modo edición. No toca la BD (a diferencia de "Done"); solo revierte lo pendiente.
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  Object.assign(cancelBtn.style, {
+    marginTop: '8px',
+    marginLeft: '8px',
+    padding: '6px 12px',
+    fontSize: '13px',
+    border: 'none',
+    borderRadius: '4px',
+    background: '#b71c1c',
+    color: '#ffffff',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => cancelBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  editView.appendChild(cancelBtn);
 
   // Panel de edición: contenedor `position: fixed` propio (no hijo de `panel`) que sigue a
   // `#song-text-edit-anchor`. Mismos estilos base que el panel de letra, con ancho propio.
@@ -423,8 +510,11 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   let editMode = false;
   let menuOpen = false;
   let capturedTime = null; // segundos (tiempo pausado capturado) o null
-  let recalcEnabled = false; // check "recalcular frases siguientes"
+  let recalcEnabled = true; // check "recalcular frases siguientes" (ACTIVO por defecto)
   const stagedIds = new Set(); // ids de frases con cambios pendientes de guardar
+  // Tiempo original (en segundos) de cada frase stageada, capturado ANTES del primer cambio — se
+  // usa para que "Cancel" pueda restaurar los valores en memoria sin tocar la BD.
+  const stagedOriginals = new Map();
 
   function readState() {
     let raw = '';
@@ -501,26 +591,20 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     nextLine.textContent = next || '';
   }
 
-  // Índice de la frase "actual" para un tiempo dado: la de mayor `tiempo_frase` <= al tiempo de
-  // reproducción (asume `phrases` ordenado por tiempo, ver loadPhrases). Devuelve -1 si todavía no
-  // arrancó la primera frase.
-  function phraseIndexForTime(time) {
-    const phrases = phrasesCache.phrases;
+  // La sincronización de la letra (panel SONG TEXT) se hace SIEMPRE por tiempo de reproducción,
+  // independientemente del orden de visualización de la lista (que ahora es por id descendente).
+  function computeLines(time) {
+    const phrases = [...phrasesCache.phrases].sort((a, b) => (a.t - b.t) || (a.id - b.id));
+    if (!phrases.length) {
+      setLines('', '', '', '');
+      return;
+    }
+    // Frase actual = la de mayor `tiempo_frase` <= al tiempo de reproducción.
     let idx = -1;
     for (let i = 0; i < phrases.length; i++) {
       if (phrases[i].t <= time) idx = i;
       else break;
     }
-    return idx;
-  }
-
-  function computeLines(time) {
-    const phrases = phrasesCache.phrases;
-    if (!phrases.length) {
-      setLines('', '', '', '');
-      return;
-    }
-    const idx = phraseIndexForTime(time);
     if (idx === -1) {
       // Todavía no arrancó la primera frase: mostrar la primera como "futura".
       setLines('', '', '', phrases[0].en);
@@ -549,7 +633,8 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       const parsed = list
         .map((p) => ({ id: Number(p && p.id_frase) || 0, en: (p && p.ingles_frase) || '', es: (p && p.espanol_frase) || '', t: parseTime(p && p.tiempo_frase) }))
         .filter((p) => Number.isFinite(p.t));
-      parsed.sort((a, b) => a.t - b.t);
+      // Pedido del usuario: orden base de la lista por id ascendente.
+      parsed.sort((a, b) => a.id - b.id);
       phrasesCache = { fileName, phrases: parsed };
       loadingFileName = null;
       if (editMode) renderPhraseList();
@@ -562,11 +647,24 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   }
 
   function updateCaptureBar() {
+    updateTimeDisplay();
+  }
+
+  // Refleja el tiempo capturado en el widget "− time +" (o un placeholder si todavía no hay
+  // tiempo porque la canción no se pausó).
+  function updateTimeDisplay() {
+    timeDisplay.textContent = capturedTime === null ? '--:--' : formatClock(capturedTime);
+  }
+
+  // Ajusta el tiempo capturado en segundos enteros (delta = ±1) — pedido del usuario: los botones
+  // −/+ mueven el tiempo de a un segundo, que es más cómodo para corregir la sincronización.
+  function nudgeTime(delta) {
     if (capturedTime === null) {
-      captureBar.textContent = 'Play the song, pause, then click a phrase to set its time.';
-    } else {
-      captureBar.textContent = 'Captured time: ' + formatClock(capturedTime) + ' — click a phrase to assign it.';
+      statusEl.textContent = 'Pause the song first to capture a time.';
+      return;
     }
+    capturedTime = Math.max(0, Math.round(capturedTime + delta));
+    updateTimeDisplay();
   }
 
   function renderPhraseList() {
@@ -580,21 +678,37 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       phraseList.appendChild(empty);
       return;
     }
-    // Pedido del usuario: en la lista de edición no mostrar TODAS las frases, sino solo la
-    // anterior, la actual y la siguiente según el tiempo de reproducción (el capturado al pausar;
-    // si todavía no hay tiempo capturado se usa el tiempo efectivo actual).
+    // Pedido del usuario: la lista de edición va en orden ascendente, pero al INICIO se muestran
+    // las 3 frases de la ventana actual (anterior, actual y siguiente según el tiempo de
+    // reproducción) para poder editarlas rápido; el resto de frases van después en orden ascendente
+    // de id, sin duplicar las de la ventana. La ventana se calcula SOLO entre las frases con tiempo
+    // ya asignado (> 0): las frases en 00:00:00.0 nunca deben quedar al inicio de la lista.
     const refTime = capturedTime !== null ? capturedTime : effectiveTime();
-    const currentIdx = phraseIndexForTime(refTime);
-    const windowPhrases = [];
-    if (currentIdx === -1) {
-      // Todavía no arrancó la primera frase: mostrar solo la primera como "siguiente".
-      windowPhrases.push(phrases[0]);
-    } else {
-      for (let i = currentIdx - 1; i <= currentIdx + 1; i++) {
-        if (i >= 0 && i < phrases.length) windowPhrases.push(phrases[i]);
+    const timed = phrases.filter((p) => p.t > 0).sort((a, b) => (a.t - b.t) || (a.id - b.id));
+    const windowIds = new Set();
+    const head = [];
+    if (timed.length) {
+      let currentIdx = -1;
+      for (let i = 0; i < timed.length; i++) {
+        if (timed[i].t <= refTime) currentIdx = i;
+        else break;
+      }
+      if (currentIdx === -1) {
+        head.push(timed[0]);
+      } else {
+        for (let i = currentIdx - 1; i <= currentIdx + 1; i++) {
+          if (i >= 0 && i < timed.length) head.push(timed[i]);
+        }
       }
     }
-    windowPhrases.forEach((p) => {
+    head.forEach((p) => windowIds.add(p.id));
+
+    const ordered = [...phrases].sort((a, b) => a.id - b.id);
+    const display = [];
+    head.forEach((p) => display.push(p));
+    ordered.forEach((p) => { if (!windowIds.has(p.id)) display.push(p); });
+
+    display.forEach((p) => {
       const btn = document.createElement('button');
       btn.textContent = p.id + '. ' + p.en + '  [' + formatClock(p.t) + ']';
       Object.assign(btn.style, {
@@ -655,11 +769,12 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     }
 
     for (const t of targets) {
+      if (!stagedIds.has(t.phrase.id)) stagedOriginals.set(t.phrase.id, t.phrase.t);
       t.phrase.t = t.seconds;
       stagedIds.add(t.phrase.id);
     }
 
-    phrasesCache.phrases.sort((a, b) => a.t - b.t);
+    phrasesCache.phrases.sort((a, b) => a.id - b.id);
     renderPhraseList();
 
     if (recalcEnabled && targets.length > 1) {
@@ -703,9 +818,30 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     // solo corre en !editMode) pero sigue visible, para saber qué frase se está editando.
     capturedTime = state.playing ? null : state.time;
     stagedIds.clear();
+    stagedOriginals.clear();
     statusEl.textContent = '';
     updateCaptureBar();
     renderPhraseList();
+  }
+
+  // "Cancel": revierte en memoria todos los tiempos stageados (restaura los originales capturados
+  // en `stagedOriginals`) y limpia el set de pendientes, para que el usuario pueda volver a
+  // seleccionar. NO toca la BD y NO sale del modo edición.
+  function cancelEdit() {
+    if (!stagedIds.size) {
+      statusEl.textContent = 'Nothing to cancel.';
+      return;
+    }
+    const byId = new Map(phrasesCache.phrases.map((p) => [p.id, p]));
+    for (const [id, original] of stagedOriginals) {
+      const phrase = byId.get(id);
+      if (phrase) phrase.t = original;
+    }
+    stagedIds.clear();
+    stagedOriginals.clear();
+    phrasesCache.phrases.sort((a, b) => a.id - b.id);
+    renderPhraseList();
+    statusEl.textContent = 'Changes cancelled.';
   }
 
   function exitEditMode() {
@@ -723,6 +859,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     enterEditMode();
   });
   doneBtn.addEventListener('click', commitStagedChanges);
+  cancelBtn.addEventListener('click', cancelEdit);
 
   // Loop por frame: re-lee el estado (snapshot de localStorage) y actualiza (a) la posición del
   // panel siguiendo al ancla, y (b) los tres renglones según el tiempo efectivo (salvo en modo
