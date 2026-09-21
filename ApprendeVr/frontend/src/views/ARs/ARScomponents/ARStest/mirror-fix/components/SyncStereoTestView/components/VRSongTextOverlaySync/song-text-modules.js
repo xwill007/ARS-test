@@ -591,10 +591,13 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     nextLine.textContent = next || '';
   }
 
-  // La sincronización de la letra (panel SONG TEXT) se hace SIEMPRE por tiempo de reproducción,
-  // independientemente del orden de visualización de la lista (que ahora es por id descendente).
+  // La sincronización de la letra (panel SONG TEXT) se hace SIEMPRE por tiempo de reproducción, en
+  // orden ascendente de tiempo, usando SOLO las frases con tiempo ya asignado (> 0) — pedido del
+  // usuario: las frases en 00:00:00.0 (sin sincronizar) no deben aparecer en este panel.
   function computeLines(time) {
-    const phrases = [...phrasesCache.phrases].sort((a, b) => (a.t - b.t) || (a.id - b.id));
+    const phrases = phrasesCache.phrases
+      .filter((p) => p.t > 0)
+      .sort((a, b) => (a.t - b.t) || (a.id - b.id));
     if (!phrases.length) {
       setLines('', '', '', '');
       return;
@@ -678,35 +681,42 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       phraseList.appendChild(empty);
       return;
     }
-    // Pedido del usuario: la lista de edición va en orden ascendente, pero al INICIO se muestran
-    // las 3 frases de la ventana actual (anterior, actual y siguiente según el tiempo de
-    // reproducción) para poder editarlas rápido; el resto de frases van después en orden ascendente
-    // de id, sin duplicar las de la ventana. La ventana se calcula SOLO entre las frases con tiempo
-    // ya asignado (> 0): las frases en 00:00:00.0 nunca deben quedar al inicio de la lista.
+    // Pedido del usuario: la lista de edición muestra (1) al INICIO las 3 frases de la ventana
+    // actual —anterior, actual y siguiente en orden natural de la letra (por id), donde "actual" es
+    // la que está sonando— y (2) debajo, únicamente 3 frases con tiempo 00:00:00.0 (las de menor
+    // id). La ventana se arma sobre el orden por id para que siempre haya anterior/siguiente aunque
+    // sean frases que todavía no tienen tiempo asignado.
     const refTime = capturedTime !== null ? capturedTime : effectiveTime();
+    const ordered = [...phrases].sort((a, b) => a.id - b.id);
     const timed = phrases.filter((p) => p.t > 0).sort((a, b) => (a.t - b.t) || (a.id - b.id));
-    const windowIds = new Set();
-    const head = [];
+
+    let currentPhrase = null;
     if (timed.length) {
       let currentIdx = -1;
       for (let i = 0; i < timed.length; i++) {
         if (timed[i].t <= refTime) currentIdx = i;
         else break;
       }
-      if (currentIdx === -1) {
-        head.push(timed[0]);
-      } else {
-        for (let i = currentIdx - 1; i <= currentIdx + 1; i++) {
-          if (i >= 0 && i < timed.length) head.push(timed[i]);
-        }
+      currentPhrase = currentIdx === -1 ? timed[0] : timed[currentIdx];
+    }
+
+    const windowIds = new Set();
+    const head = [];
+    if (currentPhrase) {
+      const pos = ordered.findIndex((p) => p.id === currentPhrase.id);
+      for (let i = pos - 1; i <= pos + 1; i++) {
+        if (i >= 0 && i < ordered.length) head.push(ordered[i]);
       }
     }
     head.forEach((p) => windowIds.add(p.id));
 
-    const ordered = [...phrases].sort((a, b) => a.id - b.id);
-    const display = [];
-    head.forEach((p) => display.push(p));
-    ordered.forEach((p) => { if (!windowIds.has(p.id)) display.push(p); });
+    // Solo las 3 frases con tiempo cero de menor id (evita duplicados con la ventana por seguridad).
+    const zeroHead = phrases
+      .filter((p) => p.t === 0 && !windowIds.has(p.id))
+      .sort((a, b) => a.id - b.id)
+      .slice(0, 3);
+
+    const display = [...head, ...zeroHead];
 
     display.forEach((p) => {
       const btn = document.createElement('button');
