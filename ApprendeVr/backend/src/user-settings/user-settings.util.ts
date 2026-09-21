@@ -69,7 +69,8 @@ export function isValidLoginFormConfig(config: unknown): boolean {
 // (`#youtube-video-anchor`, ver vrPositionControl.js).
 // `songText` (Requerimiento 015): ancla del overlay "Song Text" de mirror-fix
 // (`#song-text-anchor`) — mismo criterio que `youtubeVideo`. `songTextEdit`: ancla del panel de
-// edición de tiempos del mismo overlay (`#song-text-edit-anchor`), posicionable por separado.
+// edición de tiempos del mismo overlay (`#song-text-edit-anchor`), posicionable por separado; el
+// panel "Add text song" comparte esta misma ancla/posición.
 const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong', 'youtubeVideo', 'songText', 'songTextEdit'] as const;
 
 export function isValidAframeViewConfig(config: unknown): boolean {

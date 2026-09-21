@@ -214,7 +214,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     pointerEvents: 'auto',
   });
   ['pointerdown', 'mousedown'].forEach((evt) => addTextSongBtn.addEventListener(evt, (e) => e.stopPropagation()));
-  addTextSongBtn.addEventListener('click', enterEditMode);
+  addTextSongBtn.addEventListener('click', enterAddMode);
   emptyState.appendChild(addTextSongBtn);
   normalView.appendChild(emptyState);
 
@@ -263,7 +263,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   panel.appendChild(menu);
 
   const editTimeBtn = document.createElement('button');
-  editTimeBtn.textContent = 'Edit time';
+  editTimeBtn.textContent = 'Edit text';
   Object.assign(editTimeBtn.style, {
     padding: '6px 10px',
     fontSize: '13px',
@@ -276,6 +276,23 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   });
   ['pointerdown', 'mousedown'].forEach((evt) => editTimeBtn.addEventListener(evt, (e) => e.stopPropagation()));
   menu.appendChild(editTimeBtn);
+
+  // Opción "Add text" del menú de configuración — pedido del usuario: abre el módulo nuevo de alta
+  // de frases (addMode), independiente del editor.
+  const addTextBtn = document.createElement('button');
+  addTextBtn.textContent = 'Add text';
+  Object.assign(addTextBtn.style, {
+    padding: '6px 10px',
+    fontSize: '13px',
+    border: 'none',
+    borderRadius: '4px',
+    background: '#454545',
+    color: '#ffffff',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => addTextBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  menu.appendChild(addTextBtn);
 
   // Vista de edición: barra de captura de tiempo + lista clickeable de frases + botón "Done".
   // Vive en un panel DOM SEPARADO del panel de letra (`editPanel`), que sigue a su propia ancla
@@ -407,62 +424,6 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     textAlign: 'left',
   });
   editView.appendChild(phraseList);
-
-  // Formulario "ADD PHRASE" — pedido del usuario ("ADD TEXT SONG" → agregar frases): dos campos de
-  // texto (inglés y español) y un botón para crear la frase vía `POST /api/frases`. El tiempo se
-  // toma del capturado actual si lo hay, si no la frase se crea en 00:00:00.0 para ajustarla luego.
-  const addForm = document.createElement('div');
-  Object.assign(addForm.style, {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-    marginTop: '8px',
-    paddingTop: '8px',
-    borderTop: '1px solid rgba(255, 255, 255, 0.15)',
-  });
-
-  function makeTextInput(placeholder) {
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.placeholder = placeholder;
-    Object.assign(input.style, {
-      width: '100%',
-      boxSizing: 'border-box',
-      padding: '6px 8px',
-      fontSize: '13px',
-      border: '1px solid #555',
-      borderRadius: '4px',
-      background: '#1a1a1a',
-      color: '#ffffff',
-      pointerEvents: 'auto',
-    });
-    // Evita que escribir acá dispare el raycast/gaze de la escena (mismo criterio que el input de
-    // youtube-video-modules.js).
-    ['pointerdown', 'mousedown', 'click'].forEach((evt) => input.addEventListener(evt, (e) => e.stopPropagation()));
-    return input;
-  }
-  const englishInput = makeTextInput('English phrase');
-  const spanishInput = makeTextInput('Frase en español');
-  addForm.appendChild(englishInput);
-  addForm.appendChild(spanishInput);
-
-  const addPhraseBtn = document.createElement('button');
-  addPhraseBtn.textContent = 'ADD PHRASE';
-  Object.assign(addPhraseBtn.style, {
-    padding: '6px 10px',
-    fontSize: '13px',
-    fontWeight: '600',
-    border: 'none',
-    borderRadius: '4px',
-    background: '#2e7d32',
-    color: '#ffffff',
-    cursor: 'pointer',
-    pointerEvents: 'auto',
-  });
-  ['pointerdown', 'mousedown'].forEach((evt) => addPhraseBtn.addEventListener(evt, (e) => e.stopPropagation()));
-  addPhraseBtn.addEventListener('click', () => createPhrase());
-  addForm.appendChild(addPhraseBtn);
-  editView.appendChild(addForm);
 
   const doneBtn = document.createElement('button');
   doneBtn.textContent = 'Done';
@@ -602,6 +563,124 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   });
   document.body.appendChild(editPositionMarker);
 
+  // ---- Panel "Add text song" (alta de frases, lógica INDEPENDIENTE del editor) ----------------
+  // Pedido del usuario: no reusar el editor y el alta en el mismo componente. Este panel tiene su
+  // propio estado (`addMode`) y su propia lógica (`enterAddMode`/`exitAddMode`/`createPhrase`),
+  // separados del flujo "Edit time". Se abre desde el botón "ADD TEXT SONG" del panel de letra.
+  const ADD_PANEL_WIDTH = 360;
+  const addView = document.createElement('div');
+  addView.style.pointerEvents = 'auto';
+
+  const addStatusEl = document.createElement('div');
+  Object.assign(addStatusEl.style, { color: '#aaffaa', fontSize: '12px', marginBottom: '8px', textAlign: 'center', minHeight: '14px' });
+  addView.appendChild(addStatusEl);
+
+  function makeAddTextInput(placeholder) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = placeholder;
+    Object.assign(input.style, {
+      width: '100%',
+      boxSizing: 'border-box',
+      padding: '6px 8px',
+      fontSize: '13px',
+      border: '1px solid #555',
+      borderRadius: '4px',
+      background: '#1a1a1a',
+      color: '#ffffff',
+      pointerEvents: 'auto',
+      marginBottom: '6px',
+    });
+    // Evita que escribir acá dispare el raycast/gaze de la escena (mismo criterio que el input de
+    // youtube-video-modules.js).
+    ['pointerdown', 'mousedown', 'click'].forEach((evt) => input.addEventListener(evt, (e) => e.stopPropagation()));
+    return input;
+  }
+  const addEnglishInput = makeAddTextInput('English phrase');
+  const addSpanishInput = makeAddTextInput('Frase en español');
+  addView.appendChild(addEnglishInput);
+  addView.appendChild(addSpanishInput);
+
+  const addPhraseBtn = document.createElement('button');
+  addPhraseBtn.textContent = 'ADD PHRASE';
+  Object.assign(addPhraseBtn.style, {
+    padding: '6px 10px',
+    fontSize: '13px',
+    fontWeight: '600',
+    border: 'none',
+    borderRadius: '4px',
+    background: '#2e7d32',
+    color: '#ffffff',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => addPhraseBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  addPhraseBtn.addEventListener('click', () => createPhrase());
+  addView.appendChild(addPhraseBtn);
+
+  const addPanel = document.createElement('div');
+  addPanel.style.position = 'fixed';
+  addPanel.style.transform = 'translate(-50%, -50%)';
+  addPanel.style.width = ADD_PANEL_WIDTH + 'px';
+  addPanel.style.maxWidth = '90vw';
+  addPanel.style.zIndex = '99997';
+  addPanel.style.background = 'rgba(0, 0, 0, 0.6)';
+  addPanel.style.border = '1px solid rgba(255, 255, 255, 0.18)';
+  addPanel.style.borderRadius = '8px';
+  addPanel.style.padding = '12px 16px';
+  addPanel.style.fontFamily = 'sans-serif';
+  addPanel.style.boxSizing = 'border-box';
+  addPanel.style.textAlign = 'center';
+  addPanel.style.display = 'none';
+  addPanel.appendChild(addView);
+
+  const addCloseBtn = document.createElement('button');
+  addCloseBtn.textContent = '✕';
+  Object.assign(addCloseBtn.style, {
+    position: 'absolute',
+    top: '6px',
+    right: '6px',
+    width: '26px',
+    height: '26px',
+    borderRadius: '50%',
+    border: '1px solid rgba(255, 255, 255, 0.4)',
+    background: 'rgba(40, 40, 40, 0.9)',
+    color: '#ffffff',
+    fontSize: '14px',
+    lineHeight: '1',
+    padding: '0',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+    zIndex: '1',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => addCloseBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  addCloseBtn.addEventListener('click', exitAddMode);
+  addPanel.appendChild(addCloseBtn);
+  document.body.appendChild(addPanel);
+
+  // Marcador de ubicación del panel "Add text song" (componente POSITION): mismo patrón que los
+  // demás, sigue a `#song-text-add-anchor`.
+  const addPositionMarker = document.createElement('button');
+  Object.assign(addPositionMarker.style, {
+    position: 'fixed',
+    width: '22px',
+    height: '22px',
+    borderRadius: '50%',
+    border: '2px solid #ffffff',
+    background: '#d21919',
+    padding: '0',
+    cursor: 'pointer',
+    zIndex: '100002',
+    display: 'none',
+    boxShadow: '0 0 4px rgba(0, 0, 0, 0.6)',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => addPositionMarker.addEventListener(evt, (e) => e.stopPropagation()));
+  addPositionMarker.addEventListener('click', () => {
+    const realMarker = document.querySelector('#song-text-edit-anchor > a-circle.clickable');
+    if (realMarker) realMarker.click();
+  });
+  document.body.appendChild(addPositionMarker);
+
   // Estado de reproducción publicado por el padre. Se guarda el snapshot + cuándo se recibió para
   // interpolar suavemente el tiempo entre escrituras (el padre publica ~4x/seg; la frase cambia
   // cada ~2-4s, así que interpolar alcanza para que el resaltado no salte).
@@ -613,6 +692,9 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   let menuOpen = false;
   let capturedTime = null; // segundos (tiempo pausado capturado) o null
   let recalcEnabled = true; // check "recalcular frases siguientes" (ACTIVO por defecto)
+  // Modo "Add text song" (alta de frases): estado independiente del editor. No usa `capturedTime`
+  // ni los stages del editor; solo muestra el formulario y crea la frase vía POST.
+  let addMode = false;
   const stagedIds = new Set(); // ids de frases con cambios pendientes de guardar
   // Tiempo original (en segundos) de cada frase stageada, capturado ANTES del primer cambio — se
   // usa para que "Cancel" pueda restaurar los valores en memoria sin tocar la BD.
@@ -887,22 +969,22 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   }
 
   // Crea una frase nueva vía `POST /api/frases` con el texto ingresado en el formulario "ADD
-  // PHRASE". Usa el tiempo capturado actual si lo hay; si no, la deja en 00:00:00.0 para ajustarla
-  // después. Al éxito, limpia los inputs y recarga las frases de la canción.
+  // PHRASE" (panel "Add text song", lógica independiente del editor). La frase se crea SIEMPRE en
+  // 00:00:00.0 (sin tiempo) para ajustarla después desde "Edit time". Al éxito, limpia los inputs
+  // y recarga las frases de la canción.
   async function createPhrase() {
-    const english = englishInput.value.trim();
-    const spanish = spanishInput.value.trim();
+    const english = addEnglishInput.value.trim();
+    const spanish = addSpanishInput.value.trim();
     if (!english || !spanish) {
-      statusEl.textContent = 'Fill both English and Spanish text.';
+      addStatusEl.textContent = 'Fill both English and Spanish text.';
       return;
     }
     if (!state.fileName) {
-      statusEl.textContent = 'No song selected.';
+      addStatusEl.textContent = 'No song selected.';
       return;
     }
     const body = { archivo: state.fileName, ingles_frase: english, espanol_frase: spanish };
-    if (capturedTime !== null) body.tiempo_frase = toHms(capturedTime);
-    statusEl.textContent = 'Adding phrase...';
+    addStatusEl.textContent = 'Adding phrase...';
     try {
       const res = await fetch('/api/frases', {
         method: 'POST',
@@ -910,20 +992,19 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        statusEl.textContent = 'Add failed (' + res.status + ').';
+        addStatusEl.textContent = 'Add failed (' + res.status + ').';
         return;
       }
-      englishInput.value = '';
-      spanishInput.value = '';
+      addEnglishInput.value = '';
+      addSpanishInput.value = '';
       // Invalidar el cache para que el próximo loadPhrases refetchee esta canción (ver el guard
       // `phrasesCache.fileName === fileName` en loadPhrases).
       phrasesCache = { fileName: null, phrases: [] };
       loadingFileName = null;
       await loadPhrases(state.fileName);
-      updateAddMode();
-      statusEl.textContent = 'Phrase added.';
+      addStatusEl.textContent = 'Phrase added.';
     } catch (e) {
-      statusEl.textContent = 'Add failed (network).';
+      addStatusEl.textContent = 'Add failed (network).';
     }
   }
 
@@ -993,6 +1074,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   }
 
   function enterEditMode() {
+    addMode = false; // cierra "Add text" si estaba abierto (mutuamente excluyentes)
     editMode = true;
     // Si ya está pausado al entrar, usar ese tiempo como punto de partida; si está reproduciendo,
     // se capturará al pausar (ver readState). La letra del panel principal se congela (computeLines
@@ -1003,13 +1085,20 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     statusEl.textContent = '';
     updateCaptureBar();
     renderPhraseList();
-    updateAddMode();
   }
 
-  // "Agregar frase" (sin frases todavía): oculta el check "Recalculate following phrases" (no hay
-  // frases siguientes que recalcular). Cuando ya hay frases, lo vuelve a mostrar.
-  function updateAddMode() {
-    recalcBtn.style.display = phrasesCache.phrases.length ? 'flex' : 'none';
+  // Modo "Add text song" (alta de frases, lógica independiente del editor): abre el panel con el
+  // formulario. No toca `editMode`/`capturedTime`/stages del editor.
+  function enterAddMode() {
+    editMode = false; // cierra "Edit text" si estaba abierto (mutuamente excluyentes)
+    addMode = true;
+    addStatusEl.textContent = '';
+    addEnglishInput.value = '';
+    addSpanishInput.value = '';
+  }
+
+  function exitAddMode() {
+    addMode = false;
   }
 
   // "Cancel": revierte en memoria todos los tiempos stageados (restaura los originales capturados
@@ -1045,6 +1134,11 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     menuOpen = false;
     menu.style.display = 'none';
     enterEditMode();
+  });
+  addTextBtn.addEventListener('click', () => {
+    menuOpen = false;
+    menu.style.display = 'none';
+    enterAddMode();
   });
   doneBtn.addEventListener('click', commitStagedChanges);
   cancelBtn.addEventListener('click', cancelEdit);
@@ -1138,6 +1232,39 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
         editPositionMarker.style.background = editRealMarker.getAttribute('color') || '#d21919';
       } else {
         editPositionMarker.style.display = 'none';
+      }
+
+      // Panel "Add text song" (alta de frases) siguiendo a la MISMA ancla `#song-text-edit-anchor`
+      // que el editor (pedido del usuario: edit y add comparten la posición guardada en BD). Solo se
+      // proyecta/muestra en modo agregar.
+      let addBehind = true;
+      if (addMode && camera && canvas && editAnchorEl && editAnchorEl.object3D) {
+        sceneEl.object3D.updateMatrixWorld(true);
+        editAnchorEl.object3D.getWorldPosition(worldPos);
+        const projected = worldPos.clone().project(camera);
+        const rect = canvas.getBoundingClientRect();
+        addBehind = projected.z > 1;
+        addPanel.style.display = addBehind ? 'none' : 'block';
+        if (!addBehind) {
+          addPanel.style.left = (rect.left + (projected.x * 0.5 + 0.5) * rect.width) + 'px';
+          addPanel.style.top = (rect.top + (-projected.y * 0.5 + 0.5) * rect.height) + 'px';
+          const scale = editAnchorEl.object3D.scale.x;
+          if (Number.isFinite(scale) && scale > 0) {
+            addPanel.style.width = (ADD_PANEL_WIDTH * scale) + 'px';
+          }
+        }
+      } else if (!addMode) {
+        addPanel.style.display = 'none';
+      }
+      const addMarkerShouldShow = addMode && !addBehind && editRealMarker && editRealMarker.getAttribute('visible') !== false;
+      if (addMarkerShouldShow) {
+        const addRect = addPanel.getBoundingClientRect();
+        addPositionMarker.style.display = 'block';
+        addPositionMarker.style.left = (addRect.left - 11) + 'px';
+        addPositionMarker.style.top = (addRect.top - 11) + 'px';
+        addPositionMarker.style.background = editRealMarker.getAttribute('color') || '#d21919';
+      } else {
+        addPositionMarker.style.display = 'none';
       }
 
       requestAnimationFrame(update);

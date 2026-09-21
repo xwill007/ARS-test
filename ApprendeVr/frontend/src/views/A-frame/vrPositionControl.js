@@ -54,7 +54,8 @@ const ELEMENTS = [
   { key: 'songText', selector: '#song-text-anchor', offset: [-0.35, 0.35, 0.05] },
   // Panel de edición de tiempos del overlay "Song Text" (la lista de frases del modo "Edit time"):
   // ancla separada de la del panel de letra, para que la lista de edición se pueda mover de forma
-  // independiente. Mismo criterio que `songText` (ancla vacía + panel DOM que la sigue).
+  // independiente. Mismo criterio que `songText` (ancla vacía + panel DOM que la sigue). El panel
+  // "Add text song" comparte esta misma ancla/posición (edit y add se muestran en el mismo lugar).
   { key: 'songTextEdit', selector: '#song-text-edit-anchor', offset: [-0.35, 0.35, 0.05] },
 ];
 
