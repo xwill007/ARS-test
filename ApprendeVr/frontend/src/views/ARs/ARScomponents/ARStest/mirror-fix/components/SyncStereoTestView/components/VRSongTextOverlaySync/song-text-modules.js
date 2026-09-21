@@ -408,6 +408,62 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   });
   editView.appendChild(phraseList);
 
+  // Formulario "ADD PHRASE" — pedido del usuario ("ADD TEXT SONG" → agregar frases): dos campos de
+  // texto (inglés y español) y un botón para crear la frase vía `POST /api/frases`. El tiempo se
+  // toma del capturado actual si lo hay, si no la frase se crea en 00:00:00.0 para ajustarla luego.
+  const addForm = document.createElement('div');
+  Object.assign(addForm.style, {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    marginTop: '8px',
+    paddingTop: '8px',
+    borderTop: '1px solid rgba(255, 255, 255, 0.15)',
+  });
+
+  function makeTextInput(placeholder) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = placeholder;
+    Object.assign(input.style, {
+      width: '100%',
+      boxSizing: 'border-box',
+      padding: '6px 8px',
+      fontSize: '13px',
+      border: '1px solid #555',
+      borderRadius: '4px',
+      background: '#1a1a1a',
+      color: '#ffffff',
+      pointerEvents: 'auto',
+    });
+    // Evita que escribir acá dispare el raycast/gaze de la escena (mismo criterio que el input de
+    // youtube-video-modules.js).
+    ['pointerdown', 'mousedown', 'click'].forEach((evt) => input.addEventListener(evt, (e) => e.stopPropagation()));
+    return input;
+  }
+  const englishInput = makeTextInput('English phrase');
+  const spanishInput = makeTextInput('Frase en español');
+  addForm.appendChild(englishInput);
+  addForm.appendChild(spanishInput);
+
+  const addPhraseBtn = document.createElement('button');
+  addPhraseBtn.textContent = 'ADD PHRASE';
+  Object.assign(addPhraseBtn.style, {
+    padding: '6px 10px',
+    fontSize: '13px',
+    fontWeight: '600',
+    border: 'none',
+    borderRadius: '4px',
+    background: '#2e7d32',
+    color: '#ffffff',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => addPhraseBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  addPhraseBtn.addEventListener('click', () => createPhrase());
+  addForm.appendChild(addPhraseBtn);
+  editView.appendChild(addForm);
+
   const doneBtn = document.createElement('button');
   doneBtn.textContent = 'Done';
   Object.assign(doneBtn.style, {
@@ -830,6 +886,47 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     }
   }
 
+  // Crea una frase nueva vía `POST /api/frases` con el texto ingresado en el formulario "ADD
+  // PHRASE". Usa el tiempo capturado actual si lo hay; si no, la deja en 00:00:00.0 para ajustarla
+  // después. Al éxito, limpia los inputs y recarga las frases de la canción.
+  async function createPhrase() {
+    const english = englishInput.value.trim();
+    const spanish = spanishInput.value.trim();
+    if (!english || !spanish) {
+      statusEl.textContent = 'Fill both English and Spanish text.';
+      return;
+    }
+    if (!state.fileName) {
+      statusEl.textContent = 'No song selected.';
+      return;
+    }
+    const body = { archivo: state.fileName, ingles_frase: english, espanol_frase: spanish };
+    if (capturedTime !== null) body.tiempo_frase = toHms(capturedTime);
+    statusEl.textContent = 'Adding phrase...';
+    try {
+      const res = await fetch('/api/frases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        statusEl.textContent = 'Add failed (' + res.status + ').';
+        return;
+      }
+      englishInput.value = '';
+      spanishInput.value = '';
+      // Invalidar el cache para que el próximo loadPhrases refetchee esta canción (ver el guard
+      // `phrasesCache.fileName === fileName` en loadPhrases).
+      phrasesCache = { fileName: null, phrases: [] };
+      loadingFileName = null;
+      await loadPhrases(state.fileName);
+      updateAddMode();
+      statusEl.textContent = 'Phrase added.';
+    } catch (e) {
+      statusEl.textContent = 'Add failed (network).';
+    }
+  }
+
   // Marca una frase (y, con recalc activo, las siguientes) con el tiempo capturado. Solo actualiza
   // el cache en memoria y el set `stagedIds`; el guardado real ocurre en `commitStagedChanges`
   // cuando el usuario presiona DONE. Así se evita persistir por error antes de terminar de editar.
@@ -906,6 +1003,13 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     statusEl.textContent = '';
     updateCaptureBar();
     renderPhraseList();
+    updateAddMode();
+  }
+
+  // "Agregar frase" (sin frases todavía): oculta el check "Recalculate following phrases" (no hay
+  // frases siguientes que recalcular). Cuando ya hay frases, lo vuelve a mostrar.
+  function updateAddMode() {
+    recalcBtn.style.display = phrasesCache.phrases.length ? 'flex' : 'none';
   }
 
   // "Cancel": revierte en memoria todos los tiempos stageados (restaura los originales capturados

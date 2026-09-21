@@ -5,6 +5,7 @@ describe('PhrasesController', () => {
   const phrasesService = {
     findBySongFile: jest.fn(),
     updateTime: jest.fn(),
+    create: jest.fn(),
   };
   let controller: PhrasesController;
 
@@ -79,6 +80,35 @@ describe('PhrasesController', () => {
       await expect(
         controller.updateTime('999', { time: '00:00:05' }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('createPhrase', () => {
+    it('delegates to the service and maps the created phrase', async () => {
+      phrasesService.create.mockResolvedValue({
+        id: 77,
+        spanish: 'Es mi vida',
+        english: "It's my life",
+        time: '00:00:00',
+      });
+
+      const dto = {
+        archivo: 'ItsMyLife_BonJovi.mp4',
+        ingles_frase: "It's my life",
+        espanol_frase: 'Es mi vida',
+      };
+      const result = await controller.createPhrase(dto as any);
+
+      expect(phrasesService.create).toHaveBeenCalledWith(dto);
+      expect(result).toEqual({
+        status: 'success',
+        phrase: {
+          id_frase: 77,
+          espanol_frase: 'Es mi vida',
+          ingles_frase: "It's my life",
+          tiempo_frase: '00:00:00',
+        },
+      });
     });
   });
 });

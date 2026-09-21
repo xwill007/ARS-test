@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SongsService } from '../songs/songs.service';
+import { CreatePhraseDto } from './dto/create-phrase.dto';
 import { Phrase } from './entities/phrase.entity';
 
 @Injectable()
@@ -35,5 +36,20 @@ export class PhrasesService {
     if (!phrase) return null;
     phrase.time = time;
     return this.phrasesRepository.save(phrase);
+  }
+
+  // Alta de frase (overlay "Song Text", "ADD TEXT SONG" — pedido del usuario): crea una frase para
+  // la canción cuyo archivo es `dto.archivo`. Falla con 404 si la canción no existe; el tiempo
+  // es opcional y por defecto queda en '00:00:00' (sin sincronizar, se ajusta luego en "Edit time").
+  async create(dto: CreatePhraseDto): Promise<Phrase> {
+    const song = await this.songsService.findByFileName(dto.archivo);
+    if (!song) throw new NotFoundException('SONG_NOT_FOUND');
+    const entity = this.phrasesRepository.create({
+      songId: song.id,
+      english: dto.ingles_frase,
+      spanish: dto.espanol_frase,
+      time: dto.tiempo_frase ?? '00:00:00',
+    });
+    return this.phrasesRepository.save(entity);
   }
 }

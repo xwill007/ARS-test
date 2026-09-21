@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { PhrasesService } from './phrases.service';
 
 describe('PhrasesService', () => {
@@ -5,6 +6,7 @@ describe('PhrasesService', () => {
     find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
+    create: jest.fn(),
   };
   const songsService = {
     findByFileName: jest.fn(),
@@ -62,6 +64,56 @@ describe('PhrasesService', () => {
 
       expect(await service.updateTime(999, '00:00:05')).toBeNull();
       expect(phrasesRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('create', () => {
+    const dto = {
+      archivo: 'ItsMyLife_BonJovi.mp4',
+      ingles_frase: "It's my life",
+      espanol_frase: 'Es mi vida',
+    };
+
+    it('creates a phrase for the resolved song with a default 00:00:00 time', async () => {
+      songsService.findByFileName.mockResolvedValue({ id: 2 });
+      const created = { songId: 2, english: "It's my life", spanish: 'Es mi vida', time: '00:00:00' };
+      phrasesRepository.create.mockReturnValue(created);
+      phrasesRepository.save.mockResolvedValue({ id: 77, ...created });
+
+      const result = await service.create(dto as any);
+
+      expect(songsService.findByFileName).toHaveBeenCalledWith('ItsMyLife_BonJovi.mp4');
+      expect(phrasesRepository.create).toHaveBeenCalledWith({
+        songId: 2,
+        english: "It's my life",
+        spanish: 'Es mi vida',
+        time: '00:00:00',
+      });
+      expect(phrasesRepository.save).toHaveBeenCalledWith(created);
+      expect(result).toEqual({ id: 77, ...created });
+    });
+
+    it('uses the provided tiempo_frase when present', async () => {
+      songsService.findByFileName.mockResolvedValue({ id: 2 });
+      const created = { songId: 2, english: "It's my life", spanish: 'Es mi vida', time: '00:00:16.5' };
+      phrasesRepository.create.mockReturnValue(created);
+      phrasesRepository.save.mockResolvedValue(created);
+
+      await service.create({ ...dto, tiempo_frase: '00:00:16.5' } as any);
+
+      expect(phrasesRepository.create).toHaveBeenCalledWith({
+        songId: 2,
+        english: "It's my life",
+        spanish: 'Es mi vida',
+        time: '00:00:16.5',
+      });
+    });
+
+    it('throws NotFoundException when the song file does not exist', async () => {
+      songsService.findByFileName.mockResolvedValue(null);
+
+      await expect(service.create(dto as any)).rejects.toBeInstanceOf(NotFoundException);
+      expect(phrasesRepository.create).not.toHaveBeenCalled();
     });
   });
 });
