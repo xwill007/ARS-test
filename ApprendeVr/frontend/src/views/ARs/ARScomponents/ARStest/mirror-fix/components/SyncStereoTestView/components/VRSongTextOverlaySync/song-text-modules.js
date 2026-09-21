@@ -157,6 +157,20 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   }
   const prevLine = makeLine();
   const currentLine = makeLine();
+  // Traducción (español) de la frase actual — pedido del usuario: se muestra SOLO debajo de la
+  // frase del centro (la que se está reproduciendo), en letra más chica y color azul. No se muestra
+  // en la anterior ni en la siguiente.
+  const currentTranslation = document.createElement('div');
+  Object.assign(currentTranslation.style, {
+    minHeight: '1.2em',
+    lineHeight: '1.3',
+    fontSize: '15px',
+    fontWeight: '400',
+    color: '#64b5f6',
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+  });
+  normalView.appendChild(currentTranslation);
   const nextLine = makeLine();
   // Estilos base: anterior/futura atenuadas y más chicas, la actual grande y blanca.
   Object.assign(prevLine.style, { color: '#9e9e9e', fontSize: '15px', fontWeight: '400' });
@@ -314,6 +328,34 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   editPanel.style.boxSizing = 'border-box';
   editPanel.style.textAlign = 'center';
   editPanel.appendChild(editView);
+
+  // Botón de cierre (X) en la esquina superior derecha del panel de edición — pedido del usuario:
+  // poder cerrar la lista de "Edit time" sin pasar por "Done". Cierra el modo edición descartando
+  // los cambios pendientes (la próxima vez que se entre a "Edit time" se arranca de cero, ver
+  // `enterEditMode`, que limpia `stagedIds`). Se usa `<button>` (no un div) para que el gaze/dwell
+  // lo active igual que el resto de los controles (ver findGazeButton).
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  Object.assign(closeBtn.style, {
+    position: 'absolute',
+    top: '6px',
+    right: '6px',
+    width: '26px',
+    height: '26px',
+    borderRadius: '50%',
+    border: '1px solid rgba(255, 255, 255, 0.4)',
+    background: 'rgba(40, 40, 40, 0.9)',
+    color: '#ffffff',
+    fontSize: '14px',
+    lineHeight: '1',
+    padding: '0',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+    zIndex: '1',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => closeBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  closeBtn.addEventListener('click', exitEditMode);
+  editPanel.appendChild(closeBtn);
   document.body.appendChild(editPanel);
 
   document.body.appendChild(panel);
@@ -452,34 +494,43 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   // es async y `phrasesCache.fileName` recién se actualiza cuando resuelve).
   let loadingFileName = null;
 
-  function setLines(prev, current, next) {
+  function setLines(prev, current, translation, next) {
     prevLine.textContent = prev || '';
     currentLine.textContent = current || '';
+    currentTranslation.textContent = translation || '';
     nextLine.textContent = next || '';
   }
 
-  function computeLines(time) {
+  // Índice de la frase "actual" para un tiempo dado: la de mayor `tiempo_frase` <= al tiempo de
+  // reproducción (asume `phrases` ordenado por tiempo, ver loadPhrases). Devuelve -1 si todavía no
+  // arrancó la primera frase.
+  function phraseIndexForTime(time) {
     const phrases = phrasesCache.phrases;
-    if (!phrases.length) {
-      setLines('', '', '');
-      return;
-    }
-    // Frase actual = la de mayor `tiempo_frase` <= al tiempo de reproducción (asume `phrases`
-    // ordenado por tiempo, ver loadPhrases).
     let idx = -1;
     for (let i = 0; i < phrases.length; i++) {
       if (phrases[i].t <= time) idx = i;
       else break;
     }
+    return idx;
+  }
+
+  function computeLines(time) {
+    const phrases = phrasesCache.phrases;
+    if (!phrases.length) {
+      setLines('', '', '', '');
+      return;
+    }
+    const idx = phraseIndexForTime(time);
     if (idx === -1) {
       // Todavía no arrancó la primera frase: mostrar la primera como "futura".
-      setLines('', '', phrases[0].en);
+      setLines('', '', '', phrases[0].en);
       return;
     }
     const prev = idx > 0 ? phrases[idx - 1].en : '';
     const current = phrases[idx].en;
+    const translation = phrases[idx].es || '';
     const next = idx + 1 < phrases.length ? phrases[idx + 1].en : '';
-    setLines(prev, current, next);
+    setLines(prev, current, translation, next);
   }
 
   async function loadPhrases(fileName) {
@@ -496,7 +547,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       const json = await res.json();
       const list = (json && json.phrases) || [];
       const parsed = list
-        .map((p) => ({ id: Number(p && p.id_frase) || 0, en: (p && p.ingles_frase) || '', t: parseTime(p && p.tiempo_frase) }))
+        .map((p) => ({ id: Number(p && p.id_frase) || 0, en: (p && p.ingles_frase) || '', es: (p && p.espanol_frase) || '', t: parseTime(p && p.tiempo_frase) }))
         .filter((p) => Number.isFinite(p.t));
       parsed.sort((a, b) => a.t - b.t);
       phrasesCache = { fileName, phrases: parsed };
@@ -520,8 +571,8 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
 
   function renderPhraseList() {
     phraseList.innerHTML = '';
-    const ordered = [...phrasesCache.phrases].sort((a, b) => a.id - b.id);
-    if (!ordered.length) {
+    const phrases = phrasesCache.phrases;
+    if (!phrases.length) {
       const empty = document.createElement('div');
       empty.textContent = 'No phrases loaded.';
       empty.style.color = '#999999';
@@ -529,7 +580,21 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       phraseList.appendChild(empty);
       return;
     }
-    ordered.forEach((p) => {
+    // Pedido del usuario: en la lista de edición no mostrar TODAS las frases, sino solo la
+    // anterior, la actual y la siguiente según el tiempo de reproducción (el capturado al pausar;
+    // si todavía no hay tiempo capturado se usa el tiempo efectivo actual).
+    const refTime = capturedTime !== null ? capturedTime : effectiveTime();
+    const currentIdx = phraseIndexForTime(refTime);
+    const windowPhrases = [];
+    if (currentIdx === -1) {
+      // Todavía no arrancó la primera frase: mostrar solo la primera como "siguiente".
+      windowPhrases.push(phrases[0]);
+    } else {
+      for (let i = currentIdx - 1; i <= currentIdx + 1; i++) {
+        if (i >= 0 && i < phrases.length) windowPhrases.push(phrases[i]);
+      }
+    }
+    windowPhrases.forEach((p) => {
       const btn = document.createElement('button');
       btn.textContent = p.id + '. ' + p.en + '  [' + formatClock(p.t) + ']';
       Object.assign(btn.style, {

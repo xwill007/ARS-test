@@ -225,6 +225,8 @@ import { initPositionControl } from '../../../../../../../../A-frame/vrPositionC
     // `loadVideo()` — ver el fix de `_buildSongListUI` en VRKaraokeAf.js): se chequea la canción
     // vigente por separado, comparando SIEMPRE contra la última reportada.
     const currentFileName = karaokeComp && karaokeComp._currentSong && karaokeComp._currentSong.fileName;
+    const current = karaokeComp && karaokeComp._htmlVideo;
+    const videoRecreated = !!(current && current !== video);
     if (currentFileName && currentFileName !== lastReportedFileName) {
       const isEcho = suppressNextSongReport;
       // Pedido del usuario: "quita el auto play de inicio al recargar la pagina" — la PRIMERA
@@ -241,9 +243,24 @@ import { initPositionControl } from '../../../../../../../../A-frame/vrPositionC
       if (!isEcho) {
         send({ action: 'karaoke-song-select', fileName: currentFileName, fromRight: isRightPanel, silent: isInitialAutoSelect });
       }
+    } else if (currentFileName && videoRecreated && lastReportedFileName !== null) {
+      // Pedido del usuario: "cuando este sonando una cancion y la vuelva a seleccionar en la lista
+      // de canciones tanto la cancion como el text song deben volver a iniciar desde el principio".
+      // Al re-seleccionar la MISMA canción, `loadVideo()` recrea el <video> desde 0 (restart) pero
+      // `fileName` no cambia, así que la rama de arriba no dispara. Sin este aviso, el padre sigue
+      // con el reloj/estado viejos (el `karaoke-ready` que manda `wireVideo` más abajo responde con
+      // un seek al tiempo ANTERIOR, deshaciendo el restart) y el panel hermano + SONG TEXT nunca se
+      // enteran. Se avisa igual que una selección normal pero con `restart: true` para que el
+      // hermano la re-aplique aunque ya tuviera ese mismo `fileName` (ver el handler de
+      // 'karaoke-song-select' más abajo), y con `silent: false` porque es una acción real del
+      // usuario (debe mostrar el countdown igual que cualquier selección de lista).
+      const isEcho = suppressNextSongReport;
+      suppressNextSongReport = false;
+      if (!isEcho) {
+        send({ action: 'karaoke-song-select', fileName: currentFileName, fromRight: isRightPanel, silent: false, restart: true });
+      }
     }
-    const current = karaokeComp && karaokeComp._htmlVideo;
-    if (current && current !== video) {
+    if (videoRecreated) {
       video = current;
       wireVideo(video);
     }
@@ -401,7 +418,10 @@ import { initPositionControl } from '../../../../../../../../A-frame/vrPositionC
       return;
     }
     if (msg.action === 'karaoke-song-select') {
-      if (msg.fileName === lastReportedFileName) return; // ya es esta canción, nada que hacer
+      // `restart: true` = el usuario re-seleccionó la MISMA canción que ya estaba sonando (ver
+      // `watchVideoElement` arriba): hay que re-aplicarla desde 0 aunque `fileName` no haya
+      // cambiado, porque el objetivo es reiniciar — no es el eco de una selección ya aplicada.
+      if (msg.fileName === lastReportedFileName && !msg.restart) return; // ya es esta canción, nada que hacer
       applySongSelect(msg.fileName, msg.silent);
       return;
     }
