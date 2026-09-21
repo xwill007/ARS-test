@@ -613,12 +613,25 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   function computeLines(time) {
     const all = phrasesCache.phrases;
     const hasZeroTime = all.some((p) => p.t === 0);
-    // Aviso "EDIT TEXT SONG TIME": visible solo si hay frases sin tiempo asignado.
-    editHint.style.display = hasZeroTime ? '' : 'none';
 
     const phrases = all
       .filter((p) => p.t > 0)
       .sort((a, b) => (a.t - b.t) || (a.id - b.id));
+
+    // Aviso "EDIT TEXT SONG TIME": aparece solo cuando ya no quedan frases con tiempo por mostrar —
+    // es decir, al inicio SOLO si no hay ninguna frase con tiempo, y al final cuando la reproducción
+    // ya superó la última frase sincronizada (nunca mientras todavía se están mostrando).
+    let showHint = false;
+    if (hasZeroTime) {
+      if (!phrases.length) {
+        showHint = true;
+      } else {
+        const lastTime = phrases[phrases.length - 1].t;
+        if (time > lastTime) showHint = true;
+      }
+    }
+    editHint.style.display = showHint ? '' : 'none';
+
     if (!phrases.length) {
       setLines('', '', '', '');
       return;
