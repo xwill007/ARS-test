@@ -376,11 +376,13 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   // cada ~2-4s, así que interpolar alcanza para que el resaltado no salte).
   let state = { fileName: '', time: 0, playing: false, receivedAt: 0 };
   // Modo "Edit time": mientras está activo, las frases no avanzan (freeze) y se captura el tiempo
-  // al pausar para asignárselo a la frase clickeada.
+  // al pausar para asignárselo a la frase clickeada. Los cambios NO se guardan en BD al clickear:
+  // se "stagean" en memoria (set de ids) y recién se persisten todos juntos al presionar DONE.
   let editMode = false;
   let menuOpen = false;
   let capturedTime = null; // segundos (tiempo pausado capturado) o null
   let recalcEnabled = false; // check "recalcular frases siguientes"
+  const stagedIds = new Set(); // ids de frases con cambios pendientes de guardar
 
   function readState() {
     let raw = '';
@@ -544,14 +546,13 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
         pointerEvents: 'auto',
       });
       ['pointerdown', 'mousedown'].forEach((evt) => btn.addEventListener(evt, (e) => e.stopPropagation()));
-      btn.addEventListener('click', () => assignTimeToPhrase(p));
+      btn.addEventListener('click', () => stageTimeToPhrase(p));
       phraseList.appendChild(btn);
     });
   }
 
-  // Actualiza el tiempo de una frase en la BD (PATCH /api/frases/:id/time). Devuelve `true` en
-  // éxito y, de paso, actualiza `phrase.t` en el cache con la décima redondeada (mismo criterio
-  // que `toHms`: la columna es TIME(1), una décima de segundo).
+  // Persiste en BD el tiempo actual de una frase (PATCH /api/frases/:id/time). Devuelve `true` en
+  // éxito. NO actualiza el cache: el cache ya tiene la décima redondeada con la que se stageó.
   async function patchPhraseTime(phrase, seconds) {
     const newTime = toHms(seconds);
     try {
@@ -560,17 +561,16 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ time: newTime }),
       });
-      if (res.ok) {
-        phrase.t = Math.max(0, Math.round(seconds * 10) / 10);
-        return true;
-      }
-      return false;
+      return res.ok;
     } catch (e) {
       return false;
     }
   }
 
-  async function assignTimeToPhrase(p) {
+  // Marca una frase (y, con recalc activo, las siguientes) con el tiempo capturado. Solo actualiza
+  // el cache en memoria y el set `stagedIds`; el guardado real ocurre en `commitStagedChanges`
+  // cuando el usuario presiona DONE. Así se evita persistir por error antes de terminar de editar.
+  function stageTimeToPhrase(p) {
     if (capturedTime === null) {
       statusEl.textContent = 'Pause the song first to capture a time.';
       return;
@@ -585,28 +585,50 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     if (recalcEnabled && delta !== 0) {
       const followers = phrasesCache.phrases
         .filter((f) => f.id !== p.id && f.t > oldTime)
-        .map((f) => ({ phrase: f, seconds: Math.max(0, f.t + delta) }));
+        .map((f) => ({ phrase: f, seconds: Math.max(0, Math.round((f.t + delta) * 10) / 10) }));
       followers.forEach((t) => targets.push(t));
     }
 
-    statusEl.textContent = 'Updating...';
-    let failed = 0;
     for (const t of targets) {
-      const ok = await patchPhraseTime(t.phrase, t.seconds);
-      if (!ok) failed++;
+      t.phrase.t = t.seconds;
+      stagedIds.add(t.phrase.id);
     }
 
     phrasesCache.phrases.sort((a, b) => a.t - b.t);
     renderPhraseList();
 
-    if (failed > 0) {
-      statusEl.textContent = 'Some updates failed (' + failed + ' of ' + targets.length + ').';
-    } else if (recalcEnabled && targets.length > 1) {
+    if (recalcEnabled && targets.length > 1) {
       const sign = delta >= 0 ? '+' : '';
-      statusEl.textContent = 'Phrase ' + p.id + ' → ' + formatClock(newTime) + ' (' + sign + delta + 's applied to ' + (targets.length - 1) + ' following).';
+      statusEl.textContent = 'Staged ' + targets.length + ' phrases (' + sign + delta.toFixed(1) + 's to following). Press DONE to save.';
     } else {
-      statusEl.textContent = 'Phrase ' + p.id + ' set to ' + formatClock(newTime) + '.';
+      statusEl.textContent = 'Phrase ' + p.id + ' → ' + formatClock(newTime) + ' (staged). Press DONE to save.';
     }
+  }
+
+  // Guarda en BD todos los cambios pendientes (stagedIds) y sale del modo edición. Si alguna
+  // frase falla, NO sale del modo edición ni descarta los cambios, para que se pueda reintentar.
+  async function commitStagedChanges() {
+    if (!stagedIds.size) {
+      exitEditMode();
+      return;
+    }
+    statusEl.textContent = 'Saving ' + stagedIds.size + ' phrase(s)...';
+    let failed = 0;
+    const ids = [...stagedIds];
+    const byId = new Map(phrasesCache.phrases.map((p) => [p.id, p]));
+    for (const id of ids) {
+      const phrase = byId.get(id);
+      if (!phrase) { failed++; continue; }
+      const ok = await patchPhraseTime(phrase, phrase.t);
+      if (!ok) failed++;
+    }
+    if (failed > 0) {
+      statusEl.textContent = 'Save failed for ' + failed + ' of ' + ids.length + ' phrase(s). Fix and press DONE to retry.';
+      return;
+    }
+    stagedIds.clear();
+    statusEl.textContent = 'Saved ' + ids.length + ' phrase(s).';
+    exitEditMode();
   }
 
   function enterEditMode() {
@@ -615,6 +637,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     // se capturará al pausar (ver readState). La letra del panel principal se congela (computeLines
     // solo corre en !editMode) pero sigue visible, para saber qué frase se está editando.
     capturedTime = state.playing ? null : state.time;
+    stagedIds.clear();
     statusEl.textContent = '';
     updateCaptureBar();
     renderPhraseList();
@@ -634,7 +657,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     menu.style.display = 'none';
     enterEditMode();
   });
-  doneBtn.addEventListener('click', exitEditMode);
+  doneBtn.addEventListener('click', commitStagedChanges);
 
   // Loop por frame: re-lee el estado (snapshot de localStorage) y actualiza (a) la posición del
   // panel siguiendo al ancla, y (b) los tres renglones según el tiempo efectivo (salvo en modo
