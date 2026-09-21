@@ -188,6 +188,36 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   });
   editHint.textContent = 'EDIT TEXT SONG TIME';
   normalView.appendChild(editHint);
+
+  // Estado "sin frases" — pedido del usuario: cuando la canción NO tiene frases asociadas, mostrar
+  // un texto aclaratorio y un botón "ADD TEXT SONG" para empezar a cargar la letra. El botón abre
+  // el modo edición (mismo flujo que ⚙️ → "Edit time"), que es donde se asignan los tiempos.
+  const emptyState = document.createElement('div');
+  emptyState.style.display = 'none';
+  emptyState.style.textAlign = 'center';
+  emptyState.style.padding = '8px 0';
+  const emptyText = document.createElement('div');
+  emptyText.textContent = 'No text song for this song';
+  Object.assign(emptyText.style, { color: '#ffcc66', fontSize: '15px', fontWeight: '600', marginBottom: '10px' });
+  emptyState.appendChild(emptyText);
+  const addTextSongBtn = document.createElement('button');
+  addTextSongBtn.textContent = 'ADD TEXT SONG';
+  Object.assign(addTextSongBtn.style, {
+    padding: '8px 14px',
+    fontSize: '14px',
+    fontWeight: '600',
+    border: 'none',
+    borderRadius: '4px',
+    background: '#2e7d32',
+    color: '#ffffff',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => addTextSongBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  addTextSongBtn.addEventListener('click', enterEditMode);
+  emptyState.appendChild(addTextSongBtn);
+  normalView.appendChild(emptyState);
+
   // Estilos base: anterior/futura atenuadas y más chicas, la actual grande y blanca.
   Object.assign(prevLine.style, { color: '#9e9e9e', fontSize: '15px', fontWeight: '400' });
   Object.assign(currentLine.style, { color: '#ffffff', fontSize: '24px', fontWeight: '700' });
@@ -613,6 +643,16 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   function computeLines(time) {
     const all = phrasesCache.phrases;
     const hasZeroTime = all.some((p) => p.t === 0);
+
+    // Sin frases asociadas a la canción: mostrar el estado vacío con su botón y ocultar todo lo
+    // demás (renglones de letra + avisos).
+    if (!all.length) {
+      setLines('', '', '', '');
+      editHint.style.display = 'none';
+      emptyState.style.display = '';
+      return;
+    }
+    emptyState.style.display = 'none';
 
     const phrases = all
       .filter((p) => p.t > 0)
