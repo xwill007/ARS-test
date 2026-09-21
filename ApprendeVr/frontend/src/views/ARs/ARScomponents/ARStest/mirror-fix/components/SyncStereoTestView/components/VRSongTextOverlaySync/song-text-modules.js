@@ -172,6 +172,22 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   });
   normalView.appendChild(currentTranslation);
   const nextLine = makeLine();
+  // Aviso "EDIT TEXT SONG TIME" — pedido del usuario: cuando la canción tiene frases sin tiempo
+  // (00:00:00.0), se muestra al final de la letra sincronizada (o al inicio si no hay ninguna con
+  // tiempo) para invitar a editarlas. Se resalta en amarillo, centrado, debajo de la siguiente.
+  const editHint = document.createElement('div');
+  Object.assign(editHint.style, {
+    minHeight: '1.2em',
+    lineHeight: '1.3',
+    fontSize: '15px',
+    fontWeight: '600',
+    color: '#ffcc66',
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    marginTop: '8px',
+  });
+  editHint.textContent = 'EDIT TEXT SONG TIME';
+  normalView.appendChild(editHint);
   // Estilos base: anterior/futura atenuadas y más chicas, la actual grande y blanca.
   Object.assign(prevLine.style, { color: '#9e9e9e', fontSize: '15px', fontWeight: '400' });
   Object.assign(currentLine.style, { color: '#ffffff', fontSize: '24px', fontWeight: '700' });
@@ -595,7 +611,12 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   // orden ascendente de tiempo, usando SOLO las frases con tiempo ya asignado (> 0) — pedido del
   // usuario: las frases en 00:00:00.0 (sin sincronizar) no deben aparecer en este panel.
   function computeLines(time) {
-    const phrases = phrasesCache.phrases
+    const all = phrasesCache.phrases;
+    const hasZeroTime = all.some((p) => p.t === 0);
+    // Aviso "EDIT TEXT SONG TIME": visible solo si hay frases sin tiempo asignado.
+    editHint.style.display = hasZeroTime ? '' : 'none';
+
+    const phrases = all
       .filter((p) => p.t > 0)
       .sort((a, b) => (a.t - b.t) || (a.id - b.id));
     if (!phrases.length) {
