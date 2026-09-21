@@ -107,6 +107,12 @@ describe('user-settings.util', () => {
       ).toBe(true);
     });
 
+    it('accepts a payload with only the songText element (saved from song-text.html)', () => {
+      expect(
+        isValidAframeViewConfig({ songText: { position: [0, 1.6, -3] } }),
+      ).toBe(true);
+    });
+
     it('rejects an element without a valid position', () => {
       expect(
         isValidAframeViewConfig({ ...valid, karaoke: { position: [0, 6] } }),
@@ -177,6 +183,12 @@ describe('user-settings.util', () => {
     it('accepts newSong as a known overlay key', () => {
       expect(
         isValidArsSyncOverlaysConfig({ selectedOverlays: ['karaoke', 'newSong'] }),
+      ).toBe(true);
+    });
+
+    it('accepts songText as a known overlay key', () => {
+      expect(
+        isValidArsSyncOverlaysConfig({ selectedOverlays: ['karaoke', 'songText'] }),
       ).toBe(true);
     });
 

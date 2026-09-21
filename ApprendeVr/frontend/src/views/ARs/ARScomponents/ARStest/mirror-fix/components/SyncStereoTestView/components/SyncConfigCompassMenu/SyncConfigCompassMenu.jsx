@@ -135,6 +135,8 @@ const OVERLAY_OPTIONS = [
   { key: 'cone', labelKey: 'syncConfig.overlay.coneShort' },
   { key: 'karaoke', labelKey: 'syncConfig.overlay.karaokeShort' },
   { key: 'youtubeVideo', labelKey: 'syncConfig.overlay.youtubeVideoShort' },
+  // Overlay "Song Text": letra de la canción seleccionada, sincronizada con la reproducción.
+  { key: 'songText', labelKey: 'syncConfig.overlay.songTextShort' },
   // Requerimiento 014 (ampliación): "New Song" separado de "karaoke" como overlay independiente
   // (antes solo se podía ocultar/mostrar junto con la lista de canciones) — pedido del usuario.
   { key: 'newSong', labelKey: 'syncConfig.overlay.newSongShort' },

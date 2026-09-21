@@ -46,6 +46,12 @@ const ELEMENTS = [
   // otros documentos `document.querySelector(selector)` da `null` y esta entrada se filtra sola
   // (mismo criterio que el resto de `ELEMENTS`, ver `initPositionControl`).
   { key: 'youtubeVideo', selector: '#youtube-video-anchor', offset: [-0.3, 0.3, 0.05] },
+  // Overlay "Song Text" (VRSongTextOverlaySync.jsx / song-text-modules.js): igual que
+  // `youtubeVideo`, el elemento que se mueve es un `<a-entity>` vacío (ancla, sin tamaño 3D
+  // propio) — el panel de letra real es un `<div>` de DOM que sigue a esa ancla en pantalla. Solo
+  // existe en song-text.html, así que en los demás documentos `document.querySelector(selector)`
+  // da `null` y esta entrada se filtra sola (mismo criterio que el resto de `ELEMENTS`).
+  { key: 'songText', selector: '#song-text-anchor', offset: [-0.35, 0.35, 0.05] },
 ];
 
 // offset del marcador de `karaoke` calculado del video real que monta vr-karaoke-af: esquina

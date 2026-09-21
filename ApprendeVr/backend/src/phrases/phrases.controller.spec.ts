@@ -17,6 +17,7 @@ describe('PhrasesController', () => {
         id: 1,
         spanish: 'Cuando la noche ha llegado',
         english: 'When the night has come',
+        time: '00:00:03',
         songId: 1,
       },
     ]);
@@ -32,6 +33,7 @@ describe('PhrasesController', () => {
         {
           espanol_frase: 'Cuando la noche ha llegado',
           ingles_frase: 'When the night has come',
+          tiempo_frase: '00:00:03',
         },
       ],
     });

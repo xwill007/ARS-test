@@ -67,16 +67,19 @@ export function isValidLoginFormConfig(config: unknown): boolean {
 // VRKaraokeAf.js) — karaoke, songList y newSong son posicionables por separado.
 // `youtubeVideo` (Requerimiento 015): ancla del overlay "Youtube Video" de mirror-fix
 // (`#youtube-video-anchor`, ver vrPositionControl.js).
+// `songText` (Requerimiento 015): ancla del overlay "Song Text" de mirror-fix
+// (`#song-text-anchor`) — mismo criterio que `youtubeVideo`.
 //
-// Ninguna de las cuatro es individualmente obligatoria en el payload: cada página que edita esta
+// Ninguna de las claves es individualmente obligatoria en el payload: cada página que edita esta
 // vista (`index.html`/`aframe-overlay-modules.html` para karaoke/songList/newSong,
-// `youtube-video.html` para youtubeVideo) solo conoce/manda los elementos que existen EN SU PROPIO
-// DOM (ver `persist()`/`ELEMENTS` en vrPositionControl.js) — exigir las cuatro juntas rompería el
-// guardado de cualquiera de esas páginas por separado. `UserSettingsService.saveConfig` hace un
-// merge superficial (no un reemplazo completo) para que un guardado parcial no borre lo que otra
-// página ya había guardado; acá solo queda validar que CADA clave presente tenga una forma válida,
-// y rechazar un payload sin NINGUNA clave conocida (objeto vacío/con basura).
-const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong', 'youtubeVideo'] as const;
+// `youtube-video.html` para youtubeVideo, `song-text.html` para songText) solo conoce/manda los
+// elementos que existen EN SU PROPIO DOM (ver `persist()`/`ELEMENTS` en vrPositionControl.js) —
+// exigir todas juntas rompería el guardado de cualquiera de esas páginas por separado.
+// `UserSettingsService.saveConfig` hace un merge superficial (no un reemplazo completo) para que
+// un guardado parcial no borre lo que otra página ya había guardado; acá solo queda validar que
+// CADA clave presente tenga una forma válida, y rechazar un payload sin NINGUNA clave conocida
+// (objeto vacío/con basura).
+const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong', 'youtubeVideo', 'songText'] as const;
 
 export function isValidAframeViewConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;
@@ -99,8 +102,9 @@ export function isValidEvaluationPanelConfig(config: unknown): boolean {
 // overlay nuevo "Youtube Video" — sin esta clave acá, marcarlo y pulsar "Guardar selección"
 // devolvería 400 (mismo tipo de bug ya documentado para `AFRAME_VIEW_ELEMENTS` de arriba).
 // `newSong` (Requerimiento 014, ampliación): overlay "New Song" separado de `karaoke` — mismo
-// motivo, mismo tipo de bug si se omite acá.
-const ARS_SYNC_OVERLAY_KEYS = ['camera', 'video', 'cone', 'karaoke', 'youtubeVideo', 'newSong'] as const;
+// motivo, mismo tipo de bug si se omite acá. `songText` (Requerimiento 015): overlay "Song Text"
+// (letra sincronizada) — igual criterio, sin esta clave "Guardar selección" devuelve 400.
+const ARS_SYNC_OVERLAY_KEYS = ['camera', 'video', 'cone', 'karaoke', 'youtubeVideo', 'newSong', 'songText'] as const;
 
 export function isValidArsSyncOverlaysConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;

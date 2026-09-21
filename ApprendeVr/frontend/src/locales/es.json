@@ -307,12 +307,14 @@
         "karaoke": "Karaoke (lista de canciones + reproductor, componente A-Frame real)",
         "youtubeVideo": "Video de YouTube (video embebido de la URL pegada en New Song)",
         "newSong": "New Song (agregar una canción al catálogo, componente A-Frame real)",
+        "songText": "Texto de la canción (letra sincronizada: frase anterior, actual y futura)",
         "cameraShort": "Cámara",
         "videoShort": "Video",
         "coneShort": "Cono",
         "karaokeShort": "Karaoke",
         "youtubeVideoShort": "YouTube Video",
-        "newSongShort": "New Song"
+        "newSongShort": "New Song",
+        "songTextShort": "Song Text"
       }
     },
     "voice": {

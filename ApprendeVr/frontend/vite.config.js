@@ -43,6 +43,10 @@ export default defineConfig({
         // vivían en la misma página/iframe) — página Vite real por el mismo motivo que
         // aframeOverlayModules/youtubeVideo (importa módulos reales del proyecto).
         newSong: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/components/SyncStereoTestView/components/VRNewSongOverlaySync/new-song.html'),
+        // Overlay "Song Text" de AR-SYNC (VRSongTextOverlaySync.jsx): página Vite real (no srcDoc)
+        // porque fetch-ea /api/frases contra el origen real de la app — sin esta entrada, `npm run
+        // build` nunca generaría song-text.html (mismo hallazgo ya documentado para los demás).
+        songText: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/components/SyncStereoTestView/components/VRSongTextOverlaySync/song-text.html'),
         // Requerimiento 013 (hallazgo): faltaba acá, así que `npm run build` nunca transformaba
         // artest-mirror.jsx/SyncStereoTestView.jsx ni nada que importaran (SyncConfigCompassMenu.jsx
         // incluido) — un error de sintaxis real en SyncConfigCompassMenu.jsx pasó un build entero

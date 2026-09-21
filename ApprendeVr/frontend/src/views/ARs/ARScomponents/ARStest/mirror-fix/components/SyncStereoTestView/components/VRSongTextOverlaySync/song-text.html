@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Song Text Overlay (AR-SYNC)</title>
+
+    <!--
+      Overlay "Song Text" de AR-SYNC (SyncStereoTestView.jsx): muestra la letra de la canción
+      seleccionada en la lista del overlay "karaoke", sincronizada con el video vía `tiempo_frase`
+      de `frases_vr` — tres renglones (frase anterior, actual y futura), uno debajo del otro.
+
+      Es una página Vite real (mismo patrón que youtube-video.html) porque necesita `fetch` contra
+      el origen real (`/api/frases`) — un srcDoc en blanco no resuelve rutas relativas de la app.
+      Carga la MISMA copia local de A-Frame que el resto (/libs/aframe.min.js), no una versión
+      distinta por CDN.
+    -->
+    <script src="/libs/aframe.min.js"></script>
+    <script type="module" src="./song-text-modules.js"></script>
+
+    <style>
+      html, body { margin: 0; height: 100%; width: 100%; background: transparent; }
+      .clickable { cursor: pointer; }
+    </style>
+  </head>
+  <body style="margin:0; background:transparent;">
+    <a-scene
+      embedded
+      vr-mode-ui="enabled: false"
+      stats="false"
+      style="width: 100vw; height: 100vh; background: transparent;">
+
+      <!-- Ancla del panel de letra (ver comentario en song-text-modules.js): entidad vacía, sin
+           geometría propia — el panel real es un <div> de DOM que sigue su posición proyectada a
+           pantalla (mismo truco "billboard" que el overlay "Youtube Video"). -->
+      <a-entity id="song-text-anchor" position="0 1.6 -3"></a-entity>
+
+      <!-- look-controls por defecto (giroscopio/acelerómetro en móvil, drag de mouse en
+           escritorio) — mismo patrón que el resto de los overlays de contenido de mirror-fix. -->
+      <a-camera position="0 1.8 0" rotation="0 0 0" wasd-controls="enabled: false"></a-camera>
+    </a-scene>
+  </body>
+</html>

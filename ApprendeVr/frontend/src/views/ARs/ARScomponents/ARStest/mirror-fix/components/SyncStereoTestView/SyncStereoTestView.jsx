@@ -4,6 +4,7 @@ import VRLocalVideoOverlaySync from './components/VRLocalVideoOverlaySync';
 import VRConeOverlaySync from './components/VRConeOverlaySync';
 import VRKaraokeOverlaySync from './components/VRKaraokeOverlaySync';
 import VRYoutubeVideoOverlaySync from './components/VRYoutubeVideoOverlaySync';
+import VRSongTextOverlaySync from './components/VRSongTextOverlaySync';
 import VRNewSongOverlaySync from './components/VRNewSongOverlaySync';
 import SyncConfigCompassMenu from './components/SyncConfigCompassMenu';
 import { getUserSetting, saveUserSetting, detectDeviceType } from '../../../../../../A-frame/vrUserSettingsApi.util.js';
@@ -41,6 +42,10 @@ const SYNCABLE_OVERLAYS = {
   cone: VRConeOverlaySync,
   karaoke: VRKaraokeOverlaySync,
   youtubeVideo: VRYoutubeVideoOverlaySync,
+  // Overlay "Song Text": letra de la canción seleccionada (frase anterior/actual/futura) — lee el
+  // estado de reproducción publicado por este mismo componente en localStorage (ver el efecto de
+  // broadcast más abajo), sin un puente de postMessage propio para el contenido.
+  songText: VRSongTextOverlaySync,
   // Requerimiento 014 (ampliación): panel "New Song" separado de "karaoke" en su propio overlay
   // independiente — antes era una entidad más dentro del MISMO iframe que "karaoke" (ver
   // aframe-overlay-modules.html), pedido del usuario para poder activarlo/desactivarlo aparte.
@@ -242,6 +247,30 @@ const SyncStereoTestView = ({ onClose }) => {
       try { localStorage.setItem('apprendevr_cursor_fuse_timeout', String(cursorConfig.fuseTimeout)); } catch (e) { /* ignore */ }
     }
   }, [cursorConfig]);
+
+  // Overlay "Song Text": publica en localStorage el estado de reproducción del karaoke (canción
+  // seleccionada + tiempo actual + play/pause) para que el overlay `songText` (un iframe del mismo
+  // origen) muestre la letra sincronizada sin un puente de postMessage propio — mismo mecanismo de
+  // origen compartido que ya usa la URL de YouTube (apprendevr_youtube_preview_url, Requerimiento
+  // 015). Se escribe a baja frecuencia (~4x/seg), suficiente para el resaltado de frases (cambian
+  // cada ~2-4s); el propio overlay interpola el tiempo entre escrituras (ver song-text-modules.js).
+  // Lee de los refs (`getKaraokeCurrentTime`/`karaokePlayingRef`/`karaokeSongRef`), así que siempre
+  // ve el valor vigente aunque este efecto esté registrado con deps `[]`.
+  useEffect(() => {
+    const publish = () => {
+      try {
+        localStorage.setItem('apprendevr_karaoke_state', JSON.stringify({
+          fileName: karaokeSongRef.current || '',
+          time: getKaraokeCurrentTime(),
+          playing: karaokePlayingRef.current,
+        }));
+      } catch (e) { /* ignore */ }
+    };
+    publish();
+    const id = setInterval(publish, 250);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Requerimiento 013 (panel 3D): mismo motivo que `compassPositionRef` — `handleMessage` (más
   // abajo) se registra una sola vez y necesita el valor más reciente de todo lo que el panel 3D
