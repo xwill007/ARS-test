@@ -107,3 +107,62 @@ desde el origen en cuestión.
 **Estado**: causa raíz confirmada en vivo (túnel reproduce, local no). Fix de código aplicado y con
 `npm run build` verde. Pendiente validar desktop por `localhost` y confirmar el comportamiento en
 móvil con túnel.
+
+## 4. Ingesta real (letra + descarga) — botones "GET TEXT FROM YOUTUBE" / "SAVE VIDEO YOUTUBE IN LOCAL"
+
+**Pedido del usuario**: continuar el requerimiento 015 probando con "Always" de Bon Jovi: agregar al
+panel "Add text" del overlay `songText` dos botones — obtener la letra desde YouTube y descargar el
+video a local.
+
+**Lo que se implementó** (variante acotada del diseño original, sin el overlay `youtube-karaoke` de
+streaming ni LibreTranslate todavía):
+- Backend, módulo nuevo `src/song-ingestion/`:
+  - `POST /api/song-ingestion/lyrics-from-youtube` `{ youtubeUrl, archivo }` (sin auth, igual que
+    `/frases`): baja los subtítulos automáticos en inglés con `yt-dlp --write-auto-sub`, parsea el
+    VTT y crea una frase por verso en `frases_vr` (con `tiempo_frase`) asociada a la canción cuyo
+    `fileName` es `archivo`.
+  - `POST /api/song-ingestion/download-video` `{ youtubeUrl, archivo?, title?, author? }` (con
+    `JwtAuthGuard`, igual que `POST /songs`): descarga el video con `yt-dlp` + `ffmpeg` a
+    `frontend/public/videos/karaoke/<slug>.mp4` y lo deja como `source: 'server'`. Si `archivo`
+    apunta a una canción existente (p. ej. la URL de una canción `source: 'youtube'`), se reutiliza
+    esa fila (deriva su título/autor para el nombre de archivo) en vez de duplicar — así conserva
+    las frases ya guardadas.
+- Frontend, overlay `songText` (`song-text-modules.js`, panel "Add text song"): input de URL
+  (pre-llenado con la URL de la canción seleccionada si es `source: 'youtube'`) + botones
+  "GET TEXT FROM YOUTUBE" y "SAVE VIDEO YOUTUBE IN LOCAL".
+
+**Verificado end-to-end con "Always"** (`9BMwcO6_hyA`): `lyrics-from-youtube` → 68 frases con tiempo
+(00:00:38.5 … 00:05:58.7); `download-video` → `Always-Bon-Jovi.mp4` (h264/aac, 87 MB) en
+`public/videos/karaoke/`, y la fila 259 pasó de `source: 'youtube'`/`fileName`=URL a
+`source: 'server'`/`fileName=Always-Bon-Jovi.mp4`. `GET /api/songs` ahora la incluye (pública) y
+`GET /api/frases?archivo=Always-Bon-Jovi.mp4` devuelve la letra.
+
+**Hallazgos técnicos importantes (para la implementación completa del requerimiento):**
+
+1. **Las URLs con parámetros de playlist cuelgan a `yt-dlp`.** La canción "Always" estaba guardada
+   con `fileName = https://www.youtube.com/watch?v=9BMwcO6_hyA&list=RD...&index=21`. Pasada tal cual
+   a `yt-dlp`, el proceso se colgaba (procesaba la playlist entera) y el endpoint daba 500 por el
+   timeout de 60s. **Solución**: `normalizeYoutubeUrl()` en el backend — extrae el video ID y arma
+   la URL canónica `https://www.youtube.com/watch?v=<id>` ANTES de invocar `yt-dlp` (tanto para
+   subtítulos como para descarga).
+
+2. **El "mejor mp4" de VEVO es vp9/opus, que Safari/iOS no reproducen.** Con `-f
+   bestvideo+bestaudio` se descargó un `.mp4` con streams `vp9`+`opus` (el contenedor mp4 no
+   garantiza h264). **Solución**: forzar h264/aac con
+   `bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]/best[vcodec^=avc1]/best`, que para "Always" eligió
+   `137` (h264 1080p) + `140` (m4a aac).
+
+3. **`yt-dlp` y `ffmpeg` son dependencias de sistema, no de npm** (ya previsto en el requerimiento,
+   sección 5). En este Mac se instalaron con `brew install yt-dlp ffmpeg`. Hay que documentarlo en
+   el README del backend para otros entornos.
+
+4. **Limpieza de subtítulos**: los auto-subtítulos de canciones traen sonidos entre paréntesis
+   (`(dog barking)`, `(rock ballad music)`) y notas musicales `♪`. El parser descarta los cues que
+   son solo sonidos (envueltos en `(...)`/`[...]`) y quita las `♪` — de los ~72 cues de "Always"
+   quedaron 68 versos reales.
+
+**Pendiente (siguiente paso del requerimiento)**: la traducción al español real (LibreTranslate) —
+por ahora `espanol_frase` repite el inglés para no dejar la columna NOT NULL vacía; la letra se
+muestra y se canta correctamente, pero sin traducción. Tampoco se agregaron las palabras
+(`palabras_vr`) ni la columna `youtube_video_url` (migración), que son parte del pipeline completo
+pero no de esta prueba.

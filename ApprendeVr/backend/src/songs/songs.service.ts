@@ -23,6 +23,18 @@ export class SongsService {
     return this.songsRepository.findOne({ where: { fileName } });
   }
 
+  // Marca una canción como descargada a local (Requerimiento 015, botón "SAVE VIDEO YOUTUBE IN
+  // LOCAL"): reemplaza su `fileName` (p. ej. la URL de YouTube) por el nombre del `.mp4` local
+  // recién descargado y su `source` por 'server', para que pase a reproducirse como textura 3D en
+  // el overlay karaoke. Devuelve `null` si no existe la canción indicada.
+  async markAsDownloaded(id: number, fileName: string): Promise<Song | null> {
+    const song = await this.songsRepository.findOne({ where: { id } });
+    if (!song) return null;
+    song.fileName = fileName;
+    song.source = 'server';
+    return this.songsRepository.save(song);
+  }
+
   // Catálogo público (Requerimiento 014, ampliación): solo `source: 'server'` — 'local'/'youtube'
   // son privadas de quien las creó (ver `findMine()`), mezclarlas acá las mostraría a cualquier
   // usuario aunque no pueda reproducirlas (el video de 'local' ni siquiera está en el servidor).

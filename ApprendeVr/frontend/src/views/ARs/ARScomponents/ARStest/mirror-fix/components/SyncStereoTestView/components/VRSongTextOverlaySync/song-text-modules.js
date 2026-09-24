@@ -618,6 +618,42 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   addPhraseBtn.addEventListener('click', () => createPhrase());
   addView.appendChild(addPhraseBtn);
 
+  // ---- Botones de ingesta desde YouTube (Requerimiento 015, pedido del usuario) -----------------
+  // Se agregan al panel "Add text song": un campo de URL (pre-llenado con la URL de la canción
+  // seleccionada si es de YouTube) y dos acciones — "GET TEXT FROM YOUTUBE" (obtiene la letra) y
+  // "SAVE VIDEO YOUTUBE IN LOCAL" (descarga el video a local). Mismo patrón de botones/estilos que
+  // "ADD PHRASE".
+  const addYoutubeInput = makeAddTextInput('YouTube URL (for GET TEXT / SAVE VIDEO)');
+  addView.appendChild(addYoutubeInput);
+
+  function makeYoutubeActionBtn(label, background) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    Object.assign(btn.style, {
+      width: '100%',
+      padding: '6px 10px',
+      fontSize: '13px',
+      fontWeight: '600',
+      border: 'none',
+      borderRadius: '4px',
+      background: background,
+      color: '#ffffff',
+      cursor: 'pointer',
+      pointerEvents: 'auto',
+      marginBottom: '6px',
+    });
+    ['pointerdown', 'mousedown'].forEach((evt) => btn.addEventListener(evt, (e) => e.stopPropagation()));
+    return btn;
+  }
+
+  const getTextFromYoutubeBtn = makeYoutubeActionBtn('GET TEXT FROM YOUTUBE', '#1565c0');
+  getTextFromYoutubeBtn.addEventListener('click', () => getTextFromYoutube());
+  addView.appendChild(getTextFromYoutubeBtn);
+
+  const saveVideoYoutubeBtn = makeYoutubeActionBtn('SAVE VIDEO YOUTUBE IN LOCAL', '#e65100');
+  saveVideoYoutubeBtn.addEventListener('click', () => saveVideoYoutubeInLocal());
+  addView.appendChild(saveVideoYoutubeBtn);
+
   const addPanel = document.createElement('div');
   addPanel.style.position = 'fixed';
   addPanel.style.transform = 'translate(-50%, -50%)';
@@ -1008,6 +1044,90 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     }
   }
 
+  // Detecta si un string es una URL de YouTube (para pre-llenar el campo de URL con la canción
+  // seleccionada cuando es `source: 'youtube'` y su `fileName` es la URL completa).
+  const YOUTUBE_URL_RE = /(?:youtube(?:-nocookie)?\.com\/(?:watch\?[^\s]*v=|embed\/|shorts\/)|youtu\.be\/)/;
+  function looksLikeYoutubeUrl(s) {
+    return typeof s === 'string' && YOUTUBE_URL_RE.test(s);
+  }
+
+  // Token JWT de la sesión ApprendeVr (localStorage['apprendevr_auth'], mismo origen que este
+  // iframe) — necesario para `POST /song-ingestion/download-video`, protegido con JwtAuthGuard.
+  function getAuthToken() {
+    try {
+      const raw = localStorage.getItem('apprendevr_auth');
+      const auth = raw ? JSON.parse(raw) : null;
+      return auth && auth.access_token ? auth.access_token : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Botón "GET TEXT FROM YOUTUBE" (Requerimiento 015): obtiene la letra de la URL y la guarda como
+  // frases de la canción seleccionada (asociadas por su `fileName`), con el tiempo de cada verso.
+  async function getTextFromYoutube() {
+    const url = addYoutubeInput.value.trim();
+    if (!url) {
+      addStatusEl.textContent = 'Paste a YouTube URL first.';
+      return;
+    }
+    if (!state.fileName) {
+      addStatusEl.textContent = 'No song selected.';
+      return;
+    }
+    addStatusEl.textContent = 'Fetching lyrics from YouTube...';
+    try {
+      const res = await fetch('/api/song-ingestion/lyrics-from-youtube', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ youtubeUrl: url, archivo: state.fileName }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        addStatusEl.textContent = 'Failed (' + res.status + ')' + (body && body.message ? ': ' + body.message : '');
+        return;
+      }
+      // Invalidar el cache para que el próximo loadPhrases refetchee esta canción.
+      phrasesCache = { fileName: null, phrases: [] };
+      loadingFileName = null;
+      await loadPhrases(state.fileName);
+      addStatusEl.textContent = 'Added ' + (body && body.count) + ' phrase(s).';
+    } catch (e) {
+      addStatusEl.textContent = 'Failed (network).';
+    }
+  }
+
+  // Botón "SAVE VIDEO YOUTUBE IN LOCAL" (Requerimiento 015): descarga el video de la URL a
+  // `public/videos/karaoke/` y lo deja como canción local (`source: 'server'`). Si la canción
+  // seleccionada ya existe (p. ej. una `source: 'youtube'` con `fileName` = URL), se reutiliza esa
+  // fila, así conserva la letra ya guardada.
+  async function saveVideoYoutubeInLocal() {
+    const url = addYoutubeInput.value.trim();
+    if (!url) {
+      addStatusEl.textContent = 'Paste a YouTube URL first.';
+      return;
+    }
+    addStatusEl.textContent = 'Downloading video...';
+    try {
+      const token = getAuthToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch('/api/song-ingestion/download-video', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ youtubeUrl: url, archivo: state.fileName || undefined }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        addStatusEl.textContent = 'Failed (' + res.status + ')' + (body && body.message ? ': ' + body.message : '');
+        return;
+      }
+      addStatusEl.textContent = 'Video saved as ' + (body && body.fileName) + '.';
+    } catch (e) {
+      addStatusEl.textContent = 'Failed (network).';
+    }
+  }
+
   // Marca una frase (y, con recalc activo, las siguientes) con el tiempo capturado. Solo actualiza
   // el cache en memoria y el set `stagedIds`; el guardado real ocurre en `commitStagedChanges`
   // cuando el usuario presiona DONE. Así se evita persistir por error antes de terminar de editar.
@@ -1095,6 +1215,9 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     addStatusEl.textContent = '';
     addEnglishInput.value = '';
     addSpanishInput.value = '';
+    // Pre-llena la URL de YouTube con la de la canción seleccionada si es una canción `source:
+    // 'youtube'` (su `fileName` es la URL completa), para no tener que pegarla a mano.
+    addYoutubeInput.value = looksLikeYoutubeUrl(state.fileName) ? state.fileName : '';
   }
 
   function exitAddMode() {

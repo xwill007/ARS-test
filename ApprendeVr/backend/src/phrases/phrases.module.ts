@@ -9,5 +9,6 @@ import { PhrasesService } from './phrases.service';
   imports: [TypeOrmModule.forFeature([Phrase]), SongsModule],
   controllers: [PhrasesController],
   providers: [PhrasesService],
+  exports: [PhrasesService],
 })
 export class PhrasesModule {}
