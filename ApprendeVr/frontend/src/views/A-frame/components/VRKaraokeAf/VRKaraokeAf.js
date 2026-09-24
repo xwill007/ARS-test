@@ -7,6 +7,7 @@ import { getSongs, getMySongs } from '../../vrSongsApi.util.js';
 import { extractYoutubeVideoId } from '../../vrYoutube.util.js';
 import { openYoutubePlayer, closeYoutubePlayer } from '../../vrYoutubePlayer.util.js';
 import { getLocalVideo } from '../../vrLocalVideoStore.util.js';
+import '../../vrYoutubeIcon.util.js';
 
 // Control de logs: usar Logs(true|false) para activar/desactivar
 let showLogs = true; // cambiar a false para silenciar logs por defecto
@@ -466,28 +467,16 @@ AFRAME.registerComponent('vr-karaoke-af', {
         ytButton._fileName = fileName;
         ytButton._source = songSource;
         ytButton._youtubeUrl = youtubeUrl;
-        ytButton.setAttribute('width', 0.6);
-        ytButton.setAttribute('height', 0.6);
-        ytButton.setAttribute('color', YOUTUBE_SONG_COLOR);
+        // Proporción ~16:11 (más ancho que alto), como el logo de YouTube.
+        ytButton.setAttribute('width', 0.7);
+        ytButton.setAttribute('height', 0.48);
+        // Icono de YouTube reutilizable (ver vrYoutubeIcon.util.js): rectángulo rojo con puntas
+        // redondeadas + triángulo de play blanco, en una sola textura. No lleva `color` propio:
+        // el componente `youtube-icon` pinta el fondo rojo y el triángulo.
+        ytButton.setAttribute('youtube-icon', '');
         ytButton.setAttribute('position', `1.45 ${-index * 0.8 - 0.5} 0.02`);
         ytButton.setAttribute('class', 'clickable');
         ytButton.setAttribute('tabindex', '0');
-
-        const ytLabel = document.createElement('a-text');
-        ytLabel.setAttribute('value', 'YT');
-        ytLabel.setAttribute('align', 'center');
-        ytLabel.setAttribute('color', '#ffffff');
-        ytLabel.setAttribute('width', 1);
-        ytLabel.setAttribute('position', '0 0 0.01');
-        // Mismo tamaño de fuente que los items de la lista, ampliado al doble (pedido del usuario:
-        // el "YT" seguía viéndose chico, aun usando `itemFontScale`) — se reutiliza `itemFontScale`
-        // y se multiplica por 2 para que el botón sea legible a la par del título/artista de la
-        // fila.
-        try {
-          const ytScale = (parseFloat(this.data.itemFontScale) || 1.0) * 3;
-          ytLabel.setAttribute('scale', `${ytScale} ${ytScale} ${ytScale}`);
-        } catch (e) { /* ignore */ }
-        ytButton.appendChild(ytLabel);
 
         const activateYoutube = (evt) => {
           if (evt && evt.defaultPrevented) return;
