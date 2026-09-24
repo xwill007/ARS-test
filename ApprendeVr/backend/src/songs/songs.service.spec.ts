@@ -47,6 +47,16 @@ describe('SongsService', () => {
       expect(result).toEqual(existing);
     });
 
+    it('preserves the origin url when provided', async () => {
+      const existing = { id: 259, fileName: 'https://www.youtube.com/watch?v=9BMwcO6_hyA', source: 'youtube', url: null };
+      songsRepository.findOne.mockResolvedValue(existing);
+      songsRepository.save.mockImplementation(async (s) => s);
+
+      await service.markAsDownloaded(259, 'Always-Bon-Jovi.mp4', 'https://www.youtube.com/watch?v=9BMwcO6_hyA');
+
+      expect(existing.url).toBe('https://www.youtube.com/watch?v=9BMwcO6_hyA');
+    });
+
     it('returns null when the song does not exist', async () => {
       songsRepository.findOne.mockResolvedValue(null);
 
@@ -68,6 +78,16 @@ describe('SongsService', () => {
       expect(existing.source).toBe('local');
       expect(songsRepository.save).toHaveBeenCalledWith(existing);
       expect(result).toEqual(existing);
+    });
+
+    it('preserves the origin url when provided', async () => {
+      const existing = { id: 259, fileName: 'https://www.youtube.com/watch?v=9BMwcO6_hyA', source: 'youtube', url: null };
+      songsRepository.findOne.mockResolvedValue(existing);
+      songsRepository.save.mockImplementation(async (s) => s);
+
+      await service.markAsLocal(259, 'Always-Bon-Jovi.mp4', 'https://www.youtube.com/watch?v=9BMwcO6_hyA');
+
+      expect(existing.url).toBe('https://www.youtube.com/watch?v=9BMwcO6_hyA');
     });
 
     it('returns null when the song does not exist', async () => {
@@ -169,6 +189,29 @@ describe('SongsService', () => {
         fileName: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
         userId: 1,
         source: 'youtube',
+      });
+    });
+
+    it('includes url in the entity only when the DTO provides it', async () => {
+      songsRepository.findOne.mockResolvedValue(null);
+      songsRepository.create.mockReturnValue({});
+      songsRepository.save.mockResolvedValue({});
+
+      await service.create({
+        title: 'Stand By Me',
+        author: 'Ben E King',
+        fileName: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
+        source: 'youtube',
+        url: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
+      } as any, 1);
+
+      expect(songsRepository.create).toHaveBeenCalledWith({
+        title: 'Stand By Me',
+        author: 'Ben E King',
+        fileName: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
+        userId: 1,
+        source: 'youtube',
+        url: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
       });
     });
 

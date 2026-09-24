@@ -232,30 +232,32 @@ por carácter, sin API key externa, mismo patrón de infraestructura que ya usa 
 (`docker-compose.yml` con servicios adicionales). Alternativa descartada: DeepL (ya no ofrece un
 tier gratuito permanente) y Google Translate API (cobra por carácter).
 
-**Columna nueva `youtube_video_url` en `canciones_vr` (decisión tomada con el usuario, reemplaza el
-diseño anterior de heurística por extensión).** Se agrega `youtube_video_url VARCHAR(255) NULL` vía una
-migración propia del backend (`db/009-songs-youtube-video-url.sql`), siguiendo el mismo patrón ya
-establecido para extender el esquema (`db/001` a `008`, montadas en `docker-compose.yml` junto al
-dump legado) — **no** es una excepción al criterio de "no tocar el esquema legado": ese criterio
-aplica a renombrar/quitar columnas existentes de `canciones_vr`, no a agregar una columna nueva y
-nullable, que es exactamente lo que ya hacen las migraciones 001-008 sobre otras tablas propias.
-Guarda la URL completa de YouTube y es el dato explícito y autoritativo de "esta canción vino de
-YouTube" — reemplaza la heurística descartada de adivinarlo por la extensión de `fileName`. Se
-completa en **ambos modos** (no solo `stream`): en modo `download` sirve como referencia de
-procedencia (para no volver a descargarla si el usuario repite la misma URL, y para mostrar un
-link al original si hace falta).
+**Columna nueva `url_cancion` en `canciones_vr` (decisión tomada con el usuario, reemplaza el
+diseño anterior de heurística por extensión y el nombre inicial `youtube_video_url`).** Se agrega
+`url_cancion VARCHAR(255) NULL` vía una migración propia del backend (`db/014-songs-url-cancion.sql`),
+siguiendo el mismo patrón ya establecido para extender el esquema (`db/001` a `013`, montadas en
+`docker-compose.yml` junto al dump legado) — **no** es una excepción al criterio de "no tocar el
+esquema legado": ese criterio aplica a renombrar/quitar columnas existentes de `canciones_vr`, no a
+agregar una columna nueva y nullable, que es exactamente lo que ya hacen las migraciones 001-013
+sobre otras tablas propias. Guarda la URL de origen del video de forma **agnóstica al proveedor**
+(YouTube hoy, Vimeo u otras plataformas a futuro — por eso `url_cancion` y no `youtube_url`) y es el
+dato explícito y autoritativo de "esta canción vino de una URL" — reemplaza la heurística descartada
+de adivinarlo por la extensión de `fileName`. Se completa siempre que la canción provenga de una URL
+(no solo modo `stream`): en modo `download`/`local` sirve como referencia de procedencia (para no
+volver a descargarla si el usuario repite la misma URL, y para mostrar un link al original si hace
+falta), y persiste aunque la descarga sobreescriba `archivo_cancion`.
 
 `Song.fileName` (columna `archivo_cancion`) sigue siendo **cómo se reproduce**, no de dónde vino:
 en modo `download` es el nombre del `.mp4` local (igual que hoy); en modo `stream`, como
 `archivo_cancion` es `NOT NULL` en el esquema legado y no hay archivo real que guardar ahí, se
 sigue completando con el video ID de YouTube (valor único y estable, sirve de todos modos como
 `fileName` "no vacío"), pero la decisión de qué overlay usar ya no depende de interpretar ese
-valor: `SongsService.findAll()`/el frontend filtran por `youtube_video_url IS NOT NULL AND archivo_cancion
-LIKE` (o más simple, `youtube_video_url` presente + `archivo_cancion` sin extensión de video conocida)
+valor: `SongsService.findAll()`/el frontend filtran por `url_cancion IS NOT NULL AND archivo_cancion
+LIKE` (o más simple, `url_cancion` presente + `archivo_cancion` sin extensión de video conocida)
 — en la práctica, alcanza con que el overlay `youtube-karaoke` pida las canciones con
-`youtube_video_url` no nulo, y `VRKaraokeAf` siga mostrando todas (las de modo `stream` no tendrán un
+`url_cancion` no nulo, y `VRKaraokeAf` siga mostrando todas (las de modo `stream` no tendrán un
 archivo real en `public/videos/karaoke/`, así que fallarían al reproducir ahí si se colaran —
-motivo de más para que el filtro por `youtube_video_url` sea explícito, no opcional).
+motivo de más para que el filtro por `url_cancion` sea explícito, no opcional).
 
 **Botón "Buscar en YouTube": pestaña nueva (`window.open`), no un navegador embebido (decisión
 tomada con el usuario a partir de la pregunta "¿es posible agregar un navegador web que abra
@@ -398,9 +400,9 @@ también).
 | `ApprendeVr/backend/src/song-ingestion/lrclib.util.ts` | Nuevo: cliente `GET https://lrclib.net/api/get`, parsea LRC. |
 | `ApprendeVr/backend/src/song-ingestion/translation.util.ts` | Nuevo: cliente HTTP a LibreTranslate. |
 | `ApprendeVr/backend/src/song-ingestion/dto/create-from-youtube.dto.ts` | Nuevo: `youtubeUrl`, `title`, `author`, `sourceMode: 'download'\|'stream'`, `artistNameForLyrics?`. |
-| `ApprendeVr/backend/db/009-songs-youtube-video-url.sql` | Nuevo: `ALTER TABLE canciones_vr ADD COLUMN youtube_video_url VARCHAR(255) NULL`, mismo patrón que `db/001` a `008`. |
-| `ApprendeVr/backend/src/songs/entities/song.entity.ts` | Agregar columna `youtubeVideoUrl` (`youtube_video_url`, nullable). |
-| `ApprendeVr/backend/src/songs/dto/create-song.dto.ts` | Agregar `youtubeVideoUrl?` opcional (el Requerimiento 014 ya lo creó; se amplía acá). |
+| `ApprendeVr/backend/db/014-songs-url-cancion.sql` | Nuevo: `ALTER TABLE canciones_vr ADD COLUMN url_cancion VARCHAR(255) NULL` + backfill de las filas `fuente_cancion='youtube'`, mismo patrón que `db/001` a `013`. |
+| `ApprendeVr/backend/src/songs/entities/song.entity.ts` | Agregar columna `url` (`url_cancion`, nullable). |
+| `ApprendeVr/backend/src/songs/dto/create-song.dto.ts` | Agregar `url?` opcional (el Requerimiento 014 ya lo creó; se amplía acá). |
 | `ApprendeVr/backend/src/phrases/entities/phrase.entity.ts` | Agregar columna `time` (`tiempo_frase`). |
 | `ApprendeVr/backend/src/phrases/phrases.service.ts` | Agregar `create()`. |
 | `ApprendeVr/backend/src/words/entities/word.entity.ts` | Agregar columna `phraseId` (`id_frase_palabra`). |
@@ -442,11 +444,11 @@ también).
 - [ ] `POST /song-ingestion/from-youtube` con `sourceMode: 'download'` descarga el video a
       `public/videos/karaoke/`, crea la canción con ese `fileName` local, y sus frases/palabras
       igual que en modo `stream`.
-- [ ] En ambos modos, la canción creada guarda la URL original en `youtube_video_url` (columna
-      nueva de la migración `009`), no solo en `archivo_cancion`/`fileName`.
-- [ ] El overlay `youtube-karaoke` filtra su lista de canciones por `youtubeVideoUrl` no nulo (no
-      por una heurística sobre `fileName`); las 3 canciones del dump y las cargadas a mano
-      (Requerimiento 014, sin `youtubeVideoUrl`) nunca aparecen ahí.
+- [ ] En ambos modos, la canción creada guarda la URL original en `url_cancion` (columna nueva de
+      la migración `014`), no solo en `archivo_cancion`/`fileName`.
+- [ ] El overlay `youtube-karaoke` filtra su lista de canciones por `url` no nulo (no por una
+      heurística sobre `fileName`); las 3 canciones del dump y las cargadas a mano (Requerimiento
+      014, sin `url`) nunca aparecen ahí.
 - [ ] En ambos modos, si no hay subtítulos en YouTube ni resultado en LRCLIB, devuelve un error
       explícito (no guarda una canción sin frases en silencio).
 - [ ] En modo `stream`, `yt-dlp` nunca descarga el archivo de video (verificar que no queda ningún
@@ -519,5 +521,5 @@ también).
   en modo `download`; LibreTranslate self-hosted vía Docker; el modo `stream` va en un overlay
   nuevo y separado (`youtube-karaoke`), no como rama dentro de `VRKaraokeAf`; aceptar la posible
   desincronización leve entre los dos paneles estéreo en modo `stream`; agregar la columna
-  `youtube_video_url` a `canciones_vr` (vía migración) para registrar la URL de origen de forma
-  explícita, en vez de inferirla por la forma de `fileName`.
+  `url_cancion` a `canciones_vr` (vía migración) para registrar la URL de origen de forma
+  explícita y agnóstica al proveedor, en vez de inferirla por la forma de `fileName`.

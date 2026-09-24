@@ -678,12 +678,16 @@ AFRAME.registerComponent('vr-new-song-af', {
     const isDeviceFile = archivo.startsWith(DEVICE_FILE_PREFIX);
     const source = isDeviceFile ? 'local' : (archivo ? 'server' : 'youtube');
     const fileName = isDeviceFile ? archivo.slice(DEVICE_FILE_PREFIX.length) : (archivo || youtubeUrl);
+    // Trazabilidad (Requerimiento 015): cuando la canción viene de una URL (YouTube hoy), además de
+    // `fileName` se guarda la URL de origen en `url` (columna `url_cancion` del backend) — así se
+    // conserva aunque después se descargue el video a local/servidor y `fileName` cambie.
+    const url = source === 'youtube' ? youtubeUrl : undefined;
     const song = { titulo, autor, archivo: fileName, source };
 
     this._statusText.setAttribute('color', '#aaffaa');
     this._statusText.setAttribute('value', 'Guardando...');
 
-    createSong({ title: titulo, author: autor, fileName, source }).then((result) => {
+    createSong({ title: titulo, author: autor, fileName, source, url }).then((result) => {
       if (result.ok) {
         this._statusText.setAttribute('color', '#aaffaa');
         this._statusText.setAttribute('value', source === 'local'

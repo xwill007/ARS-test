@@ -43,6 +43,13 @@ export class CreateSongDto {
   @IsString()
   language?: string;
 
+  // URL de ORIGEN del video (Requerimiento 015, trazabilidad) — opcional, solo para canciones que
+  // provienen de una URL (p. ej. `source: 'youtube'`). Independiente del proveedor: hoy YouTube,
+  // mañana Vimeo u otra plataforma sin cambiar la columna (`url_cancion`).
+  @IsOptional()
+  @IsString()
+  url?: string;
+
   @IsOptional()
   @IsIn(SONG_SOURCES)
   source?: SongSource;

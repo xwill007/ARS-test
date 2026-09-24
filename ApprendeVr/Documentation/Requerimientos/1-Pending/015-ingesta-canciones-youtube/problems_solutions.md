@@ -164,7 +164,7 @@ streaming ni LibreTranslate todavía):
 **Pendiente (siguiente paso del requerimiento)**: la traducción al español real (LibreTranslate) —
 por ahora `espanol_frase` repite el inglés para no dejar la columna NOT NULL vacía; la letra se
 muestra y se canta correctamente, pero sin traducción. Tampoco se agregaron las palabras
-(`palabras_vr`) ni la columna `youtube_video_url` (migración), que son parte del pipeline completo
+(`palabras_vr`) ni la columna `url_cancion` (migración), que son parte del pipeline completo
 pero no de esta prueba.
 
 ## 5. Traducción real (LibreTranslate) — frases y palabras
@@ -219,7 +219,7 @@ traducidas con su frase de origen. Backend 227 tests verdes, cobertura global 96
    ser ese nombre, no la URL. El frontend ya manda `state.fileName` (el valor actual), así que
    cubre ambos casos.
 
-**Pendiente (siguiente paso del requerimiento)**: la columna `youtube_video_url` (migración) para
+**Pendiente (siguiente paso del requerimiento)**: la columna `url_cancion` (migración) para
 conservar la URL de origen después de la descarga (hoy `markAsDownloaded` sobreescribe `fileName` y
 se pierde la URL); el overlay `youtube-karaoke` de streaming; y el fallback a LRCLIB cuando no hay
 subtítulos.
@@ -257,7 +257,37 @@ karaoke/`), no al equipo del usuario. Se separó en dos acciones:
 `X-File-Name: Test-Device-Always-Test.mp4` y un `.mp4` h264/aac (~85 MB) correcto. El flujo de
 limpieza borra el temporal y la fila de prueba tras la verificación. Backend 232 tests verdes.
 
-**Pendiente (siguiente paso del requerimiento)**: la columna `youtube_video_url` (migración) para
+**Pendiente (siguiente paso del requerimiento)**: la columna `url_cancion` (migración) para
 conservar la URL de origen después de la descarga (hoy `markAsDownloaded`/`markAsLocal`
 sobreescriben `fileName` y se pierde la URL); el overlay `youtube-karaoke` de streaming; y el
 fallback a LRCLIB cuando no hay subtítulos.
+
+## 7. Columna `url_cancion` (trazabilidad de la URL de origen, agnóstica al proveedor)
+
+**Pedido del usuario**: "estandarizar la columna `url_cancion`, donde se guarda sin importar el
+proveedor, ya que `youtube_url` es muy específico y en el futuro podemos obtener videos de otras
+plataformas como Vimeo". Se reemplaza el nombre planeado `youtube_video_url` por `url_cancion`.
+
+**Lo que se implementó:**
+- Migración `db/014-songs-url-cancion.sql`: `ALTER TABLE canciones_vr ADD COLUMN url_cancion
+  VARCHAR(255) NULL` + backfill de las filas `fuente_cancion='youtube'` (copia `archivo_cancion` →
+  `url_cancion`). Montada en `docker-compose.yml` (`15-songs-url-cancion.sql`).
+- `Song` entity: columna `url` (`url_cancion`, nullable).
+- `CreateSongDto`: campo opcional `url`.
+- `SongsService.create`: persiste `url` cuando viene (mismo patrón que `language`/`source`).
+- `SongsService.markAsDownloaded(id, fileName, url?)` / `markAsLocal(id, fileName, url?)`: aceptan
+  `url` y la conservan en `url_cancion` al sobreescribir `fileName` (que es justo el momento en que
+  se pierde la URL original: `fileName` pasa de URL a `.mp4`).
+- `SongIngestionService.downloadVideo`/`downloadVideoToDevice`: pasan `dto.youtubeUrl` como `url`
+  tanto al crear como al reutilizar la canción.
+- `VRNewSongAf._saveSong`: cuando `source === 'youtube'`, manda `url: youtubeUrl` a `createSong`
+  (además de `fileName` = URL). Para 'server'/'local' no aplica (no hay URL de origen).
+
+**Regla resultante**: `archivo_cancion` (entity `fileName`) = CÓMO se reproduce; `url_cancion`
+(entity `url`) = DE DÓNDE vino (URL original, agnóstica al proveedor). La URL se conserva aunque la
+descarga a local/servidor sobreescriba `archivo_cancion`.
+
+**Verificado**: migración aplicada a la BD real; `SHOW COLUMNS FROM canciones_vr` muestra
+`url_cancion`; el backfill dejó la fila 257 (`source: 'youtube'`) con su URL, y se backfileó a mano
+la fila 259 ("Always", ya convertida a `source: 'server'`) con su URL original. Backend 237 tests
+verdes, frontend build verde.

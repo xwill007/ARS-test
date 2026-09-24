@@ -23,8 +23,8 @@ Requerimiento 008 en `1-Pending`).
 | `phrases.service.spec.ts` | `create(songId, english, spanish, time)` | `save()` llamado con esos campos |
 | `words.service.spec.ts` | `create(songId, phraseId, english, spanish)` | `save()` llamado con esos campos, incluido `phraseId` |
 | `youtube-video.util.spec.ts` | Construcción del nombre de archivo/comando a partir de título+autor | nombre de archivo válido, sin caracteres problemáticos |
-| `song-ingestion.service.spec.ts` | Caso feliz `sourceMode: 'stream'`: captions con 2 frases, traducción ok | crea 1 canción (`fileName` = video ID, `youtubeVideoUrl` = la URL recibida) + 2 frases + N palabras, sin llamar a `youtube-video.util` |
-| `song-ingestion.service.spec.ts` | Caso feliz `sourceMode: 'download'` | llama primero a `youtube-video.util` (descarga), luego crea la canción con el `fileName` local devuelto y `youtubeVideoUrl` también seteado |
+| `song-ingestion.service.spec.ts` | Caso feliz `sourceMode: 'stream'`: captions con 2 frases, traducción ok | crea 1 canción (`fileName` = video ID, `url` = la URL recibida) + 2 frases + N palabras, sin llamar a `youtube-video.util` |
+| `song-ingestion.service.spec.ts` | Caso feliz `sourceMode: 'download'` | llama primero a `youtube-video.util` (descarga), luego crea la canción con el `fileName` local devuelto y `url` también seteado |
 | `song-ingestion.service.spec.ts` | Sin subtítulos de YouTube, LRCLIB también vacío (ambos modos) | lanza error explícito, no llama a `SongsService.create` |
 | `song-ingestion.service.spec.ts` | Traducción falla en una frase puntual | el error no deja canción a medio guardar (todo o nada) |
 | `create-from-youtube.dto.spec.ts` | Payload válido / sin `youtubeUrl` / sin `title` / `sourceMode` inválido | acepta / rechaza según corresponda |

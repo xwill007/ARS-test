@@ -74,6 +74,26 @@ describe('CreateSongDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
+  it('accepts the optional url field (origin URL, provider-agnostic)', async () => {
+    const dto = plainToInstance(CreateSongDto, {
+      title: 'Stand By Me',
+      fileName: 'StandByMe_BenEKing.mp4',
+      source: 'server',
+      url: 'https://vimeo.com/123456',
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('rejects a non-string url', async () => {
+    const dto = plainToInstance(CreateSongDto, {
+      title: 'Stand By Me',
+      fileName: 'StandByMe_BenEKing.mp4',
+      url: 123,
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'url')).toBe(true);
+  });
+
   it('rejects a source outside the known list', async () => {
     const dto = plainToInstance(CreateSongDto, {
       title: 'Stand By Me',

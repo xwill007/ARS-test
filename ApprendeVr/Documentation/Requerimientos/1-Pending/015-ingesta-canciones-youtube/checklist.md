@@ -11,13 +11,14 @@
 - [ ] 1.4 `Word`: agregar `@Column({ name: 'id_frase_palabra' }) phraseId: number;`.
 - [ ] 1.5 `WordsService.create(songId, phraseId, english, spanish)`: inserta una fila.
 - [ ] 1.6 `words.service.spec.ts`: test de `create()` con repo mockeado.
-- [ ] 1.7 `db/009-songs-youtube-video-url.sql`: `ALTER TABLE canciones_vr ADD COLUMN
-      youtube_video_url VARCHAR(255) NULL;` (mismo patrón/comentario que `db/001` a `008`).
-- [ ] 1.8 Montar `009-songs-youtube-video-url.sql` en `docker-compose.yml`
-      (`/docker-entrypoint-initdb.d/10-...sql`).
-- [ ] 1.9 `Song`: agregar `@Column({ name: 'youtube_video_url', nullable: true })
-      youtubeVideoUrl: string | null;`.
-- [ ] 1.10 `CreateSongDto` (Requerimiento 014): agregar `youtubeVideoUrl?` opcional
+- [ ] 1.7 `db/014-songs-url-cancion.sql`: `ALTER TABLE canciones_vr ADD COLUMN
+      url_cancion VARCHAR(255) NULL;` + backfill de las filas `fuente_cancion='youtube'` (mismo
+      patrón/comentario que `db/001` a `013`).
+- [ ] 1.8 Montar `014-songs-url-cancion.sql` en `docker-compose.yml`
+      (`/docker-entrypoint-initdb.d/15-...sql`).
+- [ ] 1.9 `Song`: agregar `@Column({ name: 'url_cancion', nullable: true })
+      url: string | null;`.
+- [ ] 1.10 `CreateSongDto` (Requerimiento 014): agregar `url?` opcional
       (`class-validator`), con su caso en `create-song.dto.spec.ts`.
 
 ### Fase 2 — Backend: fuente de letra (subtítulos de YouTube + fallback LRCLIB)
@@ -62,7 +63,7 @@
       antes de decidir el `fileName`; obtiene frases (2.3, fallback 2.5), si no hay ninguna lanza
       un error explícito; traduce cada frase (3.3) y cada palabra tokenizada de la frase; llama a
       `SongsService.create` (con el `fileName` que corresponda al modo y **siempre**
-      `youtubeVideoUrl: youtubeUrl`, en ambos modos), `PhrasesService.create` (uno por frase),
+      `url: youtubeUrl`, en ambos modos), `PhrasesService.create` (uno por frase),
       `WordsService.create` (uno por palabra).
 - [ ] 4.3 `song-ingestion.service.spec.ts`: caso feliz modo `stream` (frases + traducción → 1
       canción + N frases + M palabras, sin tocar el video), caso feliz modo `download` (además crea
@@ -78,7 +79,7 @@
 - [ ] 5.1 `VRYoutubeKaraokeAf.js` (nuevo componente A-Frame, `src/views/A-frame/components/
       VRYoutubeKaraokeAf/`): carga el script del YouTube IFrame Player API y arma `YT.Player`
       posicionado con CSS sobre el plano correspondiente (no `<a-video>`); lista de canciones
-      filtrada por `youtubeVideoUrl` no nulo (dato explícito de `GET /api/songs`, no una
+      filtrada por `url` no nulo (dato explícito de `GET /api/songs`, no una
       heurística sobre `fileName`).
 - [ ] 5.2 Reusar `VREvaluacionAf.js` para el botón "EVALUATE SONG" de este overlay, igual que hace
       `VRKaraokeAf.js` hoy (sin duplicar esa lógica).

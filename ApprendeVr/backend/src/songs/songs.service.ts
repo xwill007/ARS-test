@@ -24,26 +24,38 @@ export class SongsService {
   }
 
   // Marca una canción como descargada a local (Requerimiento 015, botón "SAVE VIDEO YOUTUBE IN
-  // LOCAL"): reemplaza su `fileName` (p. ej. la URL de YouTube) por el nombre del `.mp4` local
+  // SERVER"): reemplaza su `fileName` (p. ej. la URL de YouTube) por el nombre del `.mp4` local
   // recién descargado y su `source` por 'server', para que pase a reproducirse como textura 3D en
-  // el overlay karaoke. Devuelve `null` si no existe la canción indicada.
-  async markAsDownloaded(id: number, fileName: string): Promise<Song | null> {
+  // el overlay karaoke. Si se pasa `url`, se conserva en `url_cancion` la URL de origen (el
+  // `fileName` la pierde al convertirse en nombre de archivo). Devuelve `null` si no existe la
+  // canción indicada.
+  async markAsDownloaded(
+    id: number,
+    fileName: string,
+    url?: string,
+  ): Promise<Song | null> {
     const song = await this.songsRepository.findOne({ where: { id } });
     if (!song) return null;
     song.fileName = fileName;
     song.source = 'server';
+    if (url) song.url = url;
     return this.songsRepository.save(song);
   }
 
   // Marca una canción como guardada en el dispositivo del usuario (Requerimiento 015, botón "SAVE
   // VIDEO YOUTUBE IN LOCAL"): igual que `markAsDownloaded`, pero con `source: 'local'` — el video
   // vive en el IndexedDB del navegador de ese usuario, no en el servidor. Privada (solo la ve quien
-  // la creó, ver `findMine`).
-  async markAsLocal(id: number, fileName: string): Promise<Song | null> {
+  // la creó, ver `findMine`). Igual que arriba, conserva la `url` de origen si se pasa.
+  async markAsLocal(
+    id: number,
+    fileName: string,
+    url?: string,
+  ): Promise<Song | null> {
     const song = await this.songsRepository.findOne({ where: { id } });
     if (!song) return null;
     song.fileName = fileName;
     song.source = 'local';
+    if (url) song.url = url;
     return this.songsRepository.save(song);
   }
 
@@ -91,6 +103,7 @@ export class SongsService {
     const entity: Partial<Song> = { title, author, fileName: dto.fileName, userId };
     if (dto.language) entity.language = dto.language;
     if (dto.source) entity.source = dto.source;
+    if (dto.url) entity.url = dto.url;
 
     return this.songsRepository.save(this.songsRepository.create(entity));
   }

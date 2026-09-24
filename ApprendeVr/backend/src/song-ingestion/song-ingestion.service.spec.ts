@@ -156,7 +156,7 @@ describe('SongIngestionService', () => {
         dto.youtubeUrl,
         '/videos/Always-Bon-Jovi.mp4',
       );
-      expect(songsService.markAsDownloaded).toHaveBeenCalledWith(259, 'Always-Bon-Jovi.mp4');
+      expect(songsService.markAsDownloaded).toHaveBeenCalledWith(259, 'Always-Bon-Jovi.mp4', dto.youtubeUrl);
       expect(songsService.create).not.toHaveBeenCalled();
       expect(result).toEqual({ status: 'success', song: expect.any(Object), fileName: 'Always-Bon-Jovi.mp4', created: false });
     });
@@ -171,7 +171,7 @@ describe('SongIngestionService', () => {
       const result = await service.downloadVideo({ ...dto, archivo: undefined } as any, 31);
 
       expect(songsService.create).toHaveBeenCalledWith(
-        { title: 'Always', author: 'Bon Jovi', fileName: 'Always-Bon-Jovi.mp4', source: 'server' },
+        { title: 'Always', author: 'Bon Jovi', fileName: 'Always-Bon-Jovi.mp4', source: 'server', url: dto.youtubeUrl },
         31,
       );
       expect(result).toEqual({ status: 'success', song: expect.any(Object), fileName: 'Always-Bon-Jovi.mp4', created: true });
@@ -209,7 +209,7 @@ describe('SongIngestionService', () => {
         dto.youtubeUrl,
         expect.stringContaining('Always-Bon-Jovi.mp4'),
       );
-      expect(songsService.markAsLocal).toHaveBeenCalledWith(259, 'Always-Bon-Jovi.mp4');
+      expect(songsService.markAsLocal).toHaveBeenCalledWith(259, 'Always-Bon-Jovi.mp4', dto.youtubeUrl);
       expect(songsService.create).not.toHaveBeenCalled();
       expect(result).toEqual({
         fileName: 'Always-Bon-Jovi.mp4',
@@ -228,7 +228,7 @@ describe('SongIngestionService', () => {
       const result = await service.downloadVideoToDevice({ ...dto, archivo: undefined } as any, 31);
 
       expect(songsService.create).toHaveBeenCalledWith(
-        { title: 'Always', author: 'Bon Jovi', fileName: 'Always-Bon-Jovi.mp4', source: 'local' },
+        { title: 'Always', author: 'Bon Jovi', fileName: 'Always-Bon-Jovi.mp4', source: 'local', url: dto.youtubeUrl },
         31,
       );
       expect(result).toEqual({
@@ -237,6 +237,15 @@ describe('SongIngestionService', () => {
         song: expect.any(Object),
         created: true,
       });
+    });
+
+    it('throws BadRequestException when neither archivo matches nor title is provided', async () => {
+      songsService.findByFileName.mockResolvedValue(null);
+
+      await expect(
+        service.downloadVideoToDevice({ youtubeUrl: dto.youtubeUrl } as any, 31),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(downloadYoutubeVideo).not.toHaveBeenCalled();
     });
   });
 });

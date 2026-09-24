@@ -17,6 +17,14 @@ export class Song {
   @Column({ name: 'archivo_cancion', nullable: true })
   fileName: string | null;
 
+  // URL de ORIGEN del video (Requerimiento 015, trazabilidad): de dónde vino la canción
+  // (YouTube/Vimeo/etc.), independiente del proveedor. Se conserva aunque `archivo_cancion` cambie
+  // (p. ej. tras descargar un video de YouTube a local/servidor, `fileName` pasa a ser el `.mp4`
+  // pero `url` sigue guardando la URL original). Nullable: las canciones que no provienen de una
+  // URL no la tienen.
+  @Column({ name: 'url_cancion', type: 'varchar', length: 255, nullable: true })
+  url: string | null;
+
   // 'server' (archivo real en public/videos/karaoke/ del servidor, visible para cualquier
   // usuario) | 'local' (video que vive solo en el IndexedDB del dispositivo de `userId`, nunca en
   // el servidor) | 'youtube' | fuentes futuras. 'local' y 'youtube' son privadas: solo las ve el

@@ -114,12 +114,16 @@ export class SongIngestionService {
     );
 
     if (existing) {
-      const song = await this.songsService.markAsDownloaded(existing.id, fileName);
+      const song = await this.songsService.markAsDownloaded(
+        existing.id,
+        fileName,
+        dto.youtubeUrl,
+      );
       return { status: 'success', song, fileName, created: false };
     }
 
     const song = await this.songsService.create(
-      { title, author, fileName, source: 'server' },
+      { title, author, fileName, source: 'server', url: dto.youtubeUrl },
       userId,
     );
     return { status: 'success', song, fileName, created: true };
@@ -153,12 +157,16 @@ export class SongIngestionService {
     await downloadYoutubeVideo(dto.youtubeUrl, filePath);
 
     if (existing) {
-      const song = await this.songsService.markAsLocal(existing.id, fileName);
+      const song = await this.songsService.markAsLocal(
+        existing.id,
+        fileName,
+        dto.youtubeUrl,
+      );
       return { fileName, filePath, song, created: false };
     }
 
     const song = await this.songsService.create(
-      { title, author, fileName, source: 'local' },
+      { title, author, fileName, source: 'local', url: dto.youtubeUrl },
       userId,
     );
     return { fileName, filePath, song, created: true };
