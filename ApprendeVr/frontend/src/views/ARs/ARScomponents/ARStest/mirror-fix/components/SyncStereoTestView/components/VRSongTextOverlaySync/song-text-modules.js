@@ -4,6 +4,7 @@
 // phrases/entities/phrase.entity.ts + GET /api/frases). También permite editar el tiempo de cada
 // frase (icono ⚙️ → "Edit time") para corregir la desincronización de la letra.
 import { initPositionControl } from '../../../../../../../../A-frame/vrPositionControl.js';
+import { saveLocalVideo } from '../../../../../../../../A-frame/vrLocalVideoStore.util.js';
 
 // Clave de localStorage donde SyncStereoTestView.jsx publica el estado de reproducción del karaoke
 // (canción seleccionada, tiempo actual y si está reproduciendo). Como todos los iframes de
@@ -650,9 +651,13 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   getTextFromYoutubeBtn.addEventListener('click', () => getTextFromYoutube());
   addView.appendChild(getTextFromYoutubeBtn);
 
-  const saveVideoYoutubeBtn = makeYoutubeActionBtn('SAVE VIDEO YOUTUBE IN LOCAL', '#e65100');
-  saveVideoYoutubeBtn.addEventListener('click', () => saveVideoYoutubeInLocal());
-  addView.appendChild(saveVideoYoutubeBtn);
+  const saveVideoYoutubeServerBtn = makeYoutubeActionBtn('SAVE VIDEO YOUTUBE IN SERVER', '#e65100');
+  saveVideoYoutubeServerBtn.addEventListener('click', () => saveVideoYoutubeInServer());
+  addView.appendChild(saveVideoYoutubeServerBtn);
+
+  const saveVideoYoutubeLocalBtn = makeYoutubeActionBtn('SAVE VIDEO YOUTUBE IN LOCAL', '#2e7d32');
+  saveVideoYoutubeLocalBtn.addEventListener('click', () => saveVideoYoutubeInLocal());
+  addView.appendChild(saveVideoYoutubeLocalBtn);
 
   const addPanel = document.createElement('div');
   addPanel.style.position = 'fixed';
@@ -1097,17 +1102,17 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     }
   }
 
-  // Botón "SAVE VIDEO YOUTUBE IN LOCAL" (Requerimiento 015): descarga el video de la URL a
-  // `public/videos/karaoke/` y lo deja como canción local (`source: 'server'`). Si la canción
-  // seleccionada ya existe (p. ej. una `source: 'youtube'` con `fileName` = URL), se reutiliza esa
-  // fila, así conserva la letra ya guardada.
-  async function saveVideoYoutubeInLocal() {
+  // Botón "SAVE VIDEO YOUTUBE IN SERVER" (Requerimiento 015): descarga el video de la URL a
+  // `public/videos/karaoke/` del SERVIDOR y lo deja como canción pública (`source: 'server'`). Si la
+  // canción seleccionada ya existe (p. ej. una `source: 'youtube'` con `fileName` = URL), se
+  // reutiliza esa fila, así conserva la letra ya guardada.
+  async function saveVideoYoutubeInServer() {
     const url = addYoutubeInput.value.trim();
     if (!url) {
       addStatusEl.textContent = 'Paste a YouTube URL first.';
       return;
     }
-    addStatusEl.textContent = 'Downloading video...';
+    addStatusEl.textContent = 'Downloading video to server...';
     try {
       const token = getAuthToken();
       const headers = { 'Content-Type': 'application/json' };
@@ -1123,6 +1128,42 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
         return;
       }
       addStatusEl.textContent = 'Video saved as ' + (body && body.fileName) + '.';
+    } catch (e) {
+      addStatusEl.textContent = 'Failed (network).';
+    }
+  }
+
+  // Botón "SAVE VIDEO YOUTUBE IN LOCAL" (Requerimiento 015): descarga el video de la URL al EQUIPO
+  // DEL USUARIO. El backend lo descarga con yt-dlp y lo devuelve como binario; este iframe lo guarda
+  // en el IndexedDB de este dispositivo (vrLocalVideoStore.util.js) y lo registra como canción
+  // privada (`source: 'local'`) — el video NO queda en el servidor, solo vive en este navegador
+  // (mismo criterio que el flujo "Archivo local" del Requerimiento 014).
+  async function saveVideoYoutubeInLocal() {
+    const url = addYoutubeInput.value.trim();
+    if (!url) {
+      addStatusEl.textContent = 'Paste a YouTube URL first.';
+      return;
+    }
+    addStatusEl.textContent = 'Downloading video to this device...';
+    try {
+      const token = getAuthToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch('/api/song-ingestion/download-video-to-device', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ youtubeUrl: url, archivo: state.fileName || undefined }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        addStatusEl.textContent = 'Failed (' + res.status + ')' + (body && body.message ? ': ' + body.message : '');
+        return;
+      }
+      const fileName = decodeURIComponent(res.headers.get('X-File-Name') || '') || 'video.mp4';
+      const blob = await res.blob();
+      addStatusEl.textContent = 'Saving video locally (' + fileName + ')...';
+      await saveLocalVideo(fileName, blob);
+      addStatusEl.textContent = 'Video saved locally: ' + fileName + '.';
     } catch (e) {
       addStatusEl.textContent = 'Failed (network).';
     }

@@ -35,6 +35,18 @@ export class SongsService {
     return this.songsRepository.save(song);
   }
 
+  // Marca una canción como guardada en el dispositivo del usuario (Requerimiento 015, botón "SAVE
+  // VIDEO YOUTUBE IN LOCAL"): igual que `markAsDownloaded`, pero con `source: 'local'` — el video
+  // vive en el IndexedDB del navegador de ese usuario, no en el servidor. Privada (solo la ve quien
+  // la creó, ver `findMine`).
+  async markAsLocal(id: number, fileName: string): Promise<Song | null> {
+    const song = await this.songsRepository.findOne({ where: { id } });
+    if (!song) return null;
+    song.fileName = fileName;
+    song.source = 'local';
+    return this.songsRepository.save(song);
+  }
+
   // Catálogo público (Requerimiento 014, ampliación): solo `source: 'server'` — 'local'/'youtube'
   // son privadas de quien las creó (ver `findMine()`), mezclarlas acá las mostraría a cualquier
   // usuario aunque no pueda reproducirlas (el video de 'local' ni siquiera está en el servidor).

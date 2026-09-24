@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { tmpdir } from 'os';
 import { join } from 'path';
 import { PhrasesService } from '../phrases/phrases.service';
 import { SongsService } from '../songs/songs.service';
@@ -122,5 +123,44 @@ export class SongIngestionService {
       userId,
     );
     return { status: 'success', song, fileName, created: true };
+  }
+
+  // Botón "SAVE VIDEO YOUTUBE IN LOCAL": descarga el video de `dto.youtubeUrl` a un archivo
+  // TEMPORAL del servidor (para poder transferirlo al navegador) y lo registra como canción privada
+  // (`source: 'local'`, el video vive en el IndexedDB del dispositivo del usuario, no en el
+  // servidor). Devuelve `filePath` (que el controller streamea al navegador y luego borra) y
+  // `fileName` (la clave con la que el frontend lo guarda en IndexedDB y que viaja en la metadata).
+  async downloadVideoToDevice(dto: DownloadVideoDto, userId: number) {
+    let title = dto.title;
+    let author = dto.author;
+    let existing = null;
+
+    if (dto.archivo) {
+      existing = await this.songsService.findByFileName(dto.archivo);
+      if (existing) {
+        title = existing.title;
+        author = existing.author;
+      }
+    }
+
+    if (!title) throw new BadRequestException('TITLE_REQUIRED');
+
+    const fileName = slugifyFileName(title, author);
+    const filePath = join(
+      tmpdir(),
+      `apprendevr-device-${Date.now()}-${fileName}`,
+    );
+    await downloadYoutubeVideo(dto.youtubeUrl, filePath);
+
+    if (existing) {
+      const song = await this.songsService.markAsLocal(existing.id, fileName);
+      return { fileName, filePath, song, created: false };
+    }
+
+    const song = await this.songsService.create(
+      { title, author, fileName, source: 'local' },
+      userId,
+    );
+    return { fileName, filePath, song, created: true };
   }
 }

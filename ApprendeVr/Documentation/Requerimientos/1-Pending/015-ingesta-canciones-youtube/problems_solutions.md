@@ -223,3 +223,41 @@ traducidas con su frase de origen. Backend 227 tests verdes, cobertura global 96
 conservar la URL de origen después de la descarga (hoy `markAsDownloaded` sobreescribe `fileName` y
 se pierde la URL); el overlay `youtube-karaoke` de streaming; y el fallback a LRCLIB cuando no hay
 subtítulos.
+
+## 6. Descarga al servidor vs. al dispositivo (dos botones separados)
+
+**Pedido del usuario**: el botón anterior descargaba el video al **servidor** (`public/videos/
+karaoke/`), no al equipo del usuario. Se separó en dos acciones:
+- **"SAVE VIDEO YOUTUBE IN SERVER"** (antes "…IN LOCAL", renombrado): descarga a
+  `public/videos/karaoke/` y registra la canción como pública (`source: 'server'`).
+- **"SAVE VIDEO YOUTUBE IN LOCAL"** (nuevo): descarga al **equipo del usuario** — el video NO queda
+  en el servidor, se guarda en el `IndexedDB` del navegador (mismo patrón del Requerimiento 014,
+  "Archivo local desde el dispositivo") y la canción se registra como privada (`source: 'local'`).
+
+**Cómo funciona la descarga al dispositivo (el navegador no puede correr yt-dlp):**
+1. Frontend (`song-text-modules.js`) hace `POST /api/song-ingestion/download-video-to-device` con
+   `{ youtubeUrl, archivo }`.
+2. Backend descarga el video con yt-dlp a un archivo TEMPORAL (`os.tmpdir()`, no a karaoke),
+   registra la canción como `source: 'local'` y streamea el `.mp4` de vuelta con el header
+   `X-File-Name: <slug>` (vía `@Res()` + `res.sendFile`, y `unlink` del temporal al terminar).
+3. Frontend lee el `Blob` de la respuesta, toma el `fileName` del header `X-File-Name` y lo guarda
+   en IndexedDB con `saveLocalVideo(fileName, blob)` (`vrLocalVideoStore.util.js`). Después se
+   reproduce con `_playDeviceSong` de `VRKaraokeAf` igual que cualquier canción `source: 'local'`.
+
+**Detalles de implementación:**
+- `SongsService.markAsLocal(id, fileName)`: igual que `markAsDownloaded` pero deja `source: 'local'`
+  (en vez de `'server'`).
+- `SongIngestionService.downloadVideoToDevice(dto, userId)`: descarga a un archivo temporal y
+  devuelve `{ fileName, filePath, song, created }` (reutiliza la canción existente por `archivo`,
+  igual que `downloadVideo`, conservando la letra ya guardada).
+- `SongIngestionController.downloadVideoToDevice`: usa `@Res()` (Express) para `res.sendFile` con
+  `Content-Type: video/mp4` y header `X-File-Name`; borra el temporal en el callback.
+
+**Verificado end-to-end**: `POST /download-video-to-device` devuelve `201` con
+`X-File-Name: Test-Device-Always-Test.mp4` y un `.mp4` h264/aac (~85 MB) correcto. El flujo de
+limpieza borra el temporal y la fila de prueba tras la verificación. Backend 232 tests verdes.
+
+**Pendiente (siguiente paso del requerimiento)**: la columna `youtube_video_url` (migración) para
+conservar la URL de origen después de la descarga (hoy `markAsDownloaded`/`markAsLocal`
+sobreescriben `fileName` y se pierde la URL); el overlay `youtube-karaoke` de streaming; y el
+fallback a LRCLIB cuando no hay subtítulos.

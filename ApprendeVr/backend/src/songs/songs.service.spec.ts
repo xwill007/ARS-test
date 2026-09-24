@@ -55,6 +55,29 @@ describe('SongsService', () => {
     });
   });
 
+  describe('markAsLocal', () => {
+    it('sets fileName and source "local" on an existing song and saves it', async () => {
+      const existing = { id: 259, fileName: 'https://www.youtube.com/watch?v=9BMwcO6_hyA', source: 'youtube' };
+      songsRepository.findOne.mockResolvedValue(existing);
+      songsRepository.save.mockImplementation(async (s) => s);
+
+      const result = await service.markAsLocal(259, 'Always-Bon-Jovi.mp4');
+
+      expect(songsRepository.findOne).toHaveBeenCalledWith({ where: { id: 259 } });
+      expect(existing.fileName).toBe('Always-Bon-Jovi.mp4');
+      expect(existing.source).toBe('local');
+      expect(songsRepository.save).toHaveBeenCalledWith(existing);
+      expect(result).toEqual(existing);
+    });
+
+    it('returns null when the song does not exist', async () => {
+      songsRepository.findOne.mockResolvedValue(null);
+
+      expect(await service.markAsLocal(999, 'x.mp4')).toBeNull();
+      expect(songsRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findAll', () => {
     it('returns only source "server" songs, ordered by id ascending', async () => {
       const songs = [{ id: 1 }, { id: 2 }];
