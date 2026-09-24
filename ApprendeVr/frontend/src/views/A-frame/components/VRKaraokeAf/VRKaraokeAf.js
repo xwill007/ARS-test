@@ -251,6 +251,17 @@ AFRAME.registerComponent('vr-karaoke-af', {
     }
   },
 
+  // Fuente primaria de reproducción de una lista multi-source (Requerimiento 015): prioriza
+  // 'server' (archivo real en el servidor) > 'local' (IndexedDB del dispositivo) > 'youtube'
+  // (URL en el visor embebido). Es la que dispara el CLICK NORMAL de la fila; 'youtube' puede
+  // además reproducirse aparte con el botón "YouTube" cuando figure en la lista.
+  _primarySource: function (sources) {
+    if (sources.indexOf('server') !== -1) return 'server';
+    if (sources.indexOf('local') !== -1) return 'local';
+    if (sources.indexOf('youtube') !== -1) return 'youtube';
+    return 'server';
+  },
+
   // Construye el panel de la lista de canciones (fondo, título, botones) a partir de un array de
   // entradas "archivo|autor[|duracion]" y selecciona la primera por defecto. Se llama con el
   // catálogo del backend (`canciones_vr`). Ver `_initSongList`.
@@ -260,9 +271,13 @@ AFRAME.registerComponent('vr-karaoke-af', {
     if (this._videoListContainer) {
       try { if (this._videoListContainer.parentNode) this._videoListContainer.parentNode.removeChild(this._videoListContainer); } catch (e) {}
       const oldSongButtons = this._songButtons || [];
-      this._karaokeButtons = (this._karaokeButtons || []).filter((b) => oldSongButtons.indexOf(b) === -1);
+      const oldYoutubeButtons = this._youtubeButtons || [];
+      this._karaokeButtons = (this._karaokeButtons || []).filter(
+        (b) => oldSongButtons.indexOf(b) === -1 && oldYoutubeButtons.indexOf(b) === -1,
+      );
     }
     this._songButtons = [];
+    this._youtubeButtons = [];
 
     const videoListContainer = document.createElement('a-entity');
     videoListContainer.setAttribute('position', this.data.listPosition);
@@ -315,21 +330,25 @@ AFRAME.registerComponent('vr-karaoke-af', {
     videoListContainer.appendChild(background);
 
     videos.forEach((video, index) => {
-      // `fileName` sirve triple propósito según `songSource` (nombre de archivo en
-      // `public/videos/karaoke/` para 'server', clave en el `IndexedDB` de este dispositivo para
-      // 'local', o URL completa para 'youtube') y sigue siendo la clave interna de selección
-      // (`button._fileName`/`_currentSong.fileName`) — pero pedido del usuario: nunca se muestra en
-      // la UI (oculta la URL/ruta de archivo). El 3er campo pipe-delimited, sin usar hasta ahora
-      // (pensado para una duración que el backend nunca llegó a completar), pasa a llevar el
-      // TÍTULO real de la canción (`s.title`), que es lo que se muestra en su lugar.
-      const [fileName, artist, songTitle, source] = video.split('|');
-      const songSource = source || 'server';
+      // `fileName` sirve triple propósito según la fuente primaria de reproducción (nombre de
+      // archivo en `public/videos/karaoke/` para 'server', clave en el `IndexedDB` de este
+      // dispositivo para 'local', o URL completa para 'youtube') y sigue siendo la clave interna de
+      // selección (`button._fileName`/`_currentSong.fileName`) — pero pedido del usuario: nunca se
+      // muestra en la UI (oculta la URL/ruta de archivo). El 3er campo pipe-delimited lleva el
+      // TÍTULO real de la canción (`s.title`), que es lo que se muestra. El 4to campo es la lista
+      // de fuentes separada por comas (multi-source, Requerimiento 015) y el 5to la URL de ORIGEN
+      // (`url_cancion`), usada por el botón "YouTube" de la derecha.
+      const [fileName, artist, songTitle, source, url] = video.split('|');
+      const sources = (source || 'server').split(',').map((s) => s.trim()).filter(Boolean);
+      const songSource = this._primarySource(sources);
       const isYoutube = songSource === 'youtube';
       const isDevice = songSource === 'local';
+      const hasYoutube = sources.indexOf('youtube') !== -1;
+      const youtubeUrl = url || (hasYoutube ? fileName : '');
 
       const artistName = artist ? artist : 'Artista desconocido';
       const displayTitle = songTitle ? songTitle : fileName;
-      const sourceLabel = SOURCE_LABELS[songSource] || songSource;
+      const sourceLabel = sources.map((s) => SOURCE_LABELS[s] || s).join(', ');
 
       const button = document.createElement('a-plane');
       // Guardado para poder re-encontrar este botón por canción tras un rebuild de la lista (ver
@@ -339,10 +358,11 @@ AFRAME.registerComponent('vr-karaoke-af', {
       button._source = songSource;
       button.setAttribute('width', 3.5);
       button.setAttribute('height', 0.7);
-      // Las canciones de YouTube y las de dispositivo se identifican con un color distinto —
-      // pedido del usuario: poder distinguirlas de un vistazo en la lista, no solo al hacer click.
-      // Las de dispositivo solo funcionan en el navegador donde se agregaron (ver
-      // `_playDeviceSong`), así que vale la misma señal visual.
+      // Las canciones cuyo click normal reproduce YouTube o dispositivo se identifican con un
+      // color distinto — pedido del usuario: poder distinguirlas de un vistazo en la lista, no
+      // solo al hacer click. Las de dispositivo solo funcionan en el navegador donde se agregaron
+      // (ver `_playDeviceSong`), así que vale la misma señal visual. El color se decide por la
+      // FUENTE PRIMARIA (la que reproduce el click normal), no por si tiene origen YouTube.
       button.setAttribute('color', isYoutube ? YOUTUBE_SONG_COLOR : (isDevice ? DEVICE_SONG_COLOR : this._buttonColor));
       button.setAttribute('position', `0 ${-index * 0.8 - 0.5} 0`);
       button.setAttribute('class', 'clickable');
@@ -433,6 +453,62 @@ AFRAME.registerComponent('vr-karaoke-af', {
       this._karaokeButtons.push(button);
       if (!this._songButtons) this._songButtons = [];
       this._songButtons.push(button);
+
+      // Botón "YouTube" a la derecha de la fila (Requerimiento 015, multi-source): aparece solo si
+      // la canción registra 'youtube' entre sus fuentes, y reproduce la URL de ORIGEN en el visor
+      // de YouTube existente (`_playYoutubeSong`), independientemente de que el click normal
+      // reproduzca su versión server/local. Va un paso de profundidad por delante de la fila
+      // (z=0.02 vs z=0 del botón de fila) para que el raycaster lo alcance sin z-fighting (ver
+      // skill aframe-elementos-3d). Es hermano de la fila (no hijo), así su click no dispara el
+      // click normal de la canción.
+      if (hasYoutube && youtubeUrl) {
+        const ytButton = document.createElement('a-plane');
+        ytButton._fileName = fileName;
+        ytButton._source = songSource;
+        ytButton._youtubeUrl = youtubeUrl;
+        ytButton.setAttribute('width', 0.6);
+        ytButton.setAttribute('height', 0.6);
+        ytButton.setAttribute('color', YOUTUBE_SONG_COLOR);
+        ytButton.setAttribute('position', `1.45 ${-index * 0.8 - 0.5} 0.02`);
+        ytButton.setAttribute('class', 'clickable');
+        ytButton.setAttribute('tabindex', '0');
+
+        const ytLabel = document.createElement('a-text');
+        ytLabel.setAttribute('value', 'YT');
+        ytLabel.setAttribute('align', 'center');
+        ytLabel.setAttribute('color', '#ffffff');
+        ytLabel.setAttribute('width', 1);
+        ytLabel.setAttribute('position', '0 0 0.01');
+        // Mismo tamaño de fuente que los items de la lista, ampliado al doble (pedido del usuario:
+        // el "YT" seguía viéndose chico, aun usando `itemFontScale`) — se reutiliza `itemFontScale`
+        // y se multiplica por 2 para que el botón sea legible a la par del título/artista de la
+        // fila.
+        try {
+          const ytScale = (parseFloat(this.data.itemFontScale) || 1.0) * 3;
+          ytLabel.setAttribute('scale', `${ytScale} ${ytScale} ${ytScale}`);
+        } catch (e) { /* ignore */ }
+        ytButton.appendChild(ytLabel);
+
+        const activateYoutube = (evt) => {
+          if (evt && evt.defaultPrevented) return;
+          L(`YouTube solicitado: ${youtubeUrl}`, evt && evt.type);
+          try { this._selectSongButton(button); } catch (e) {}
+          this._playYoutubeSong(youtubeUrl, artistName);
+        };
+        inputEvents.forEach((ev) => ytButton.addEventListener(ev, activateYoutube));
+        ytButton.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            activateYoutube(e);
+          }
+        });
+        ytButton._activateSelection = activateYoutube;
+
+        videoListContainer.appendChild(ytButton);
+        this._karaokeButtons.push(ytButton);
+        if (!this._youtubeButtons) this._youtubeButtons = [];
+        this._youtubeButtons.push(ytButton);
+      }
     });
 
     this.el.appendChild(videoListContainer);
@@ -454,11 +530,13 @@ AFRAME.registerComponent('vr-karaoke-af', {
         // Primera vez que se construye la lista en esta instancia (no hay ninguna canción cargada
         // todavía): sí corresponde seleccionar y reproducir la primera por defecto.
         const [firstFileName, firstArtist, , firstSource] = videos[0].split('|');
+        const firstSources = (firstSource || 'server').split(',').map((s) => s.trim()).filter(Boolean);
+        const firstSongSource = this._primarySource(firstSources);
         const firstArtistName = firstArtist ? firstArtist : 'Artista desconocido';
         try { this._selectSongButton(this._songButtons[0]); } catch (e) {}
-        if (firstSource === 'youtube') {
+        if (firstSongSource === 'youtube') {
           this._playYoutubeSong(firstFileName, firstArtistName);
-        } else if (firstSource === 'local') {
+        } else if (firstSongSource === 'local') {
           this._playDeviceSong(firstFileName, firstFileName, firstArtistName);
         } else {
           this.loadVideo(`/videos/karaoke/${firstFileName}`, { fileName: firstFileName, artistName: firstArtistName });
@@ -491,7 +569,11 @@ AFRAME.registerComponent('vr-karaoke-af', {
       // lleva `s.title` — pedido del usuario: la lista debe mostrar el título real de la canción,
       // nunca `fileName` (que es una URL o una ruta/nombre de archivo interno).
       const allSongs = backendSongs.concat(mySongs);
-      const entries = allSongs.map((s) => `${s.fileName}|${s.author || 'Artista desconocido'}|${s.title || ''}|${s.source || 'server'}`);
+      // 5 campos pipe-delimited: `fileName|author|title|sources|url`. `sources` (multi-source,
+      // Requerimiento 015) es la lista separada por comas tal como viene del backend
+      // (`fuente_cancion`); `url` es la URL de ORIGEN (`url_cancion`), usada por el botón
+      // "YouTube" de cada fila.
+      const entries = allSongs.map((s) => `${s.fileName}|${s.author || 'Artista desconocido'}|${s.title || ''}|${s.source || 'server'}|${s.url || ''}`);
       this._buildSongListUI(entries);
     });
   },

@@ -171,7 +171,7 @@ describe('SongIngestionService', () => {
       const result = await service.downloadVideo({ ...dto, archivo: undefined } as any, 31);
 
       expect(songsService.create).toHaveBeenCalledWith(
-        { title: 'Always', author: 'Bon Jovi', fileName: 'Always-Bon-Jovi.mp4', source: 'server', url: dto.youtubeUrl },
+        { title: 'Always', author: 'Bon Jovi', fileName: 'Always-Bon-Jovi.mp4', source: ['youtube', 'server'], url: dto.youtubeUrl },
         31,
       );
       expect(result).toEqual({ status: 'success', song: expect.any(Object), fileName: 'Always-Bon-Jovi.mp4', created: true });
@@ -228,7 +228,7 @@ describe('SongIngestionService', () => {
       const result = await service.downloadVideoToDevice({ ...dto, archivo: undefined } as any, 31);
 
       expect(songsService.create).toHaveBeenCalledWith(
-        { title: 'Always', author: 'Bon Jovi', fileName: 'Always-Bon-Jovi.mp4', source: 'local', url: dto.youtubeUrl },
+        { title: 'Always', author: 'Bon Jovi', fileName: 'Always-Bon-Jovi.mp4', source: ['youtube', 'local'], url: dto.youtubeUrl },
         31,
       );
       expect(result).toEqual({

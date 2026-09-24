@@ -25,12 +25,15 @@ export class Song {
   @Column({ name: 'url_cancion', type: 'varchar', length: 255, nullable: true })
   url: string | null;
 
+  // Multi-source (Requerimiento 015, ampliación): lista separada por comas de fuentes, p. ej.
   // 'server' (archivo real en public/videos/karaoke/ del servidor, visible para cualquier
-  // usuario) | 'local' (video que vive solo en el IndexedDB del dispositivo de `userId`, nunca en
-  // el servidor) | 'youtube' | fuentes futuras. 'local' y 'youtube' son privadas: solo las ve el
-  // usuario que las creó (Requerimiento 014, ampliación — ver `userId`/`SongsService.findMine()`).
-  // Default 'server' en la BD (ver db/011-songs-id-usuario.sql, que renombró el default original
-  // 'local' de db/009-songs-fuente-cancion.sql a 'server' al introducir el nuevo significado).
+  // usuario), 'local' (video que vive solo en el IndexedDB del dispositivo de `userId`, nunca en
+  // el servidor), 'youtube' (URL de un video de YouTube, reproducible en el visor embebido) o
+  // combinaciones como 'youtube,server' (descargada de YouTube al servidor, conservando su origen).
+  // 'local' y 'youtube' son privadas: solo las ve el usuario que las creó (Requerimiento 014,
+  // ampliación — ver `userId`/`SongsService.findMine()`). Default 'server' en la BD (ver
+  // db/011-songs-id-usuario.sql, que renombró el default original 'local' de
+  // db/009-songs-fuente-cancion.sql a 'server' al introducir el nuevo significado).
   @Column({ name: 'fuente_cancion', type: 'varchar', length: 50, default: 'server' })
   source: string;
 

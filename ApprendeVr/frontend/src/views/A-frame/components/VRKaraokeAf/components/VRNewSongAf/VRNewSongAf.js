@@ -687,7 +687,7 @@ AFRAME.registerComponent('vr-new-song-af', {
     this._statusText.setAttribute('color', '#aaffaa');
     this._statusText.setAttribute('value', 'Guardando...');
 
-    createSong({ title: titulo, author: autor, fileName, source, url }).then((result) => {
+    createSong({ title: titulo, author: autor, fileName, source: [source], url }).then((result) => {
       if (result.ok) {
         this._statusText.setAttribute('color', '#aaffaa');
         this._statusText.setAttribute('value', source === 'local'

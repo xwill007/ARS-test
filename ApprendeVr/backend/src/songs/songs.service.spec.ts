@@ -1,5 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import { In } from 'typeorm';
+import { Like } from 'typeorm';
 import { SongsService } from './songs.service';
 
 describe('SongsService', () => {
@@ -8,6 +8,7 @@ describe('SongsService', () => {
     find: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
+    createQueryBuilder: jest.fn(),
   };
   let service: SongsService;
 
@@ -33,7 +34,7 @@ describe('SongsService', () => {
   });
 
   describe('markAsDownloaded', () => {
-    it('sets fileName and source "server" on an existing song and saves it', async () => {
+    it('sets fileName and adds "server" to source on an existing song and saves it', async () => {
       const existing = { id: 259, fileName: 'https://www.youtube.com/watch?v=9BMwcO6_hyA', source: 'youtube' };
       songsRepository.findOne.mockResolvedValue(existing);
       songsRepository.save.mockImplementation(async (s) => s);
@@ -42,7 +43,7 @@ describe('SongsService', () => {
 
       expect(songsRepository.findOne).toHaveBeenCalledWith({ where: { id: 259 } });
       expect(existing.fileName).toBe('Always-Bon-Jovi.mp4');
-      expect(existing.source).toBe('server');
+      expect(existing.source).toBe('youtube,server');
       expect(songsRepository.save).toHaveBeenCalledWith(existing);
       expect(result).toEqual(existing);
     });
@@ -66,7 +67,7 @@ describe('SongsService', () => {
   });
 
   describe('markAsLocal', () => {
-    it('sets fileName and source "local" on an existing song and saves it', async () => {
+    it('sets fileName and adds "local" to source on an existing song and saves it', async () => {
       const existing = { id: 259, fileName: 'https://www.youtube.com/watch?v=9BMwcO6_hyA', source: 'youtube' };
       songsRepository.findOne.mockResolvedValue(existing);
       songsRepository.save.mockImplementation(async (s) => s);
@@ -75,7 +76,7 @@ describe('SongsService', () => {
 
       expect(songsRepository.findOne).toHaveBeenCalledWith({ where: { id: 259 } });
       expect(existing.fileName).toBe('Always-Bon-Jovi.mp4');
-      expect(existing.source).toBe('local');
+      expect(existing.source).toBe('youtube,local');
       expect(songsRepository.save).toHaveBeenCalledWith(existing);
       expect(result).toEqual(existing);
     });
@@ -99,12 +100,12 @@ describe('SongsService', () => {
   });
 
   describe('findAll', () => {
-    it('returns only source "server" songs, ordered by id ascending', async () => {
+    it('returns songs whose source contains "server", ordered by id ascending', async () => {
       const songs = [{ id: 1 }, { id: 2 }];
       songsRepository.find.mockResolvedValue(songs);
       const result = await service.findAll();
       expect(songsRepository.find).toHaveBeenCalledWith({
-        where: { source: 'server' },
+        where: { source: Like('%server%') },
         order: { id: 'ASC' },
       });
       expect(result).toBe(songs);
@@ -112,14 +113,30 @@ describe('SongsService', () => {
   });
 
   describe('findMine', () => {
-    it('returns source "local"/"youtube" songs scoped to the given userId, ordered by id ascending', async () => {
+    it('returns private songs (local/youtube, not server) scoped to the userId, ordered by id ascending', async () => {
       const songs = [{ id: 3, userId: 7, source: 'local' }, { id: 4, userId: 7, source: 'youtube' }];
-      songsRepository.find.mockResolvedValue(songs);
+      const queryBuilder = {
+        where: jest.fn(),
+        andWhere: jest.fn(),
+        orderBy: jest.fn(),
+        getMany: jest.fn(),
+      };
+      songsRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      queryBuilder.where.mockReturnValue(queryBuilder);
+      queryBuilder.andWhere.mockReturnValue(queryBuilder);
+      queryBuilder.orderBy.mockReturnValue(queryBuilder);
+      queryBuilder.getMany.mockResolvedValue(songs);
+
       const result = await service.findMine(7);
-      expect(songsRepository.find).toHaveBeenCalledWith({
-        where: { userId: 7, source: In(['local', 'youtube']) },
-        order: { id: 'ASC' },
-      });
+
+      expect(songsRepository.createQueryBuilder).toHaveBeenCalledWith('song');
+      expect(queryBuilder.where).toHaveBeenCalledWith('song.userId = :userId', { userId: 7 });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        "(song.source LIKE '%local%' OR song.source LIKE '%youtube%')",
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith("song.source NOT LIKE '%server%'");
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('song.id', 'ASC');
+      expect(queryBuilder.getMany).toHaveBeenCalled();
       expect(result).toBe(songs);
     });
   });
@@ -212,6 +229,33 @@ describe('SongsService', () => {
         userId: 1,
         source: 'youtube',
         url: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
+      });
+    });
+
+    it('serializes a multi-source array into a comma-separated source and keeps it public when it contains "server"', async () => {
+      songsRepository.findOne.mockResolvedValue(null);
+      songsRepository.create.mockReturnValue({});
+      songsRepository.save.mockResolvedValue({});
+
+      await service.create({
+        title: 'Always',
+        author: 'Bon Jovi',
+        fileName: 'Always-Bon-Jovi.mp4',
+        source: ['youtube', 'server'],
+        url: 'https://www.youtube.com/watch?v=9BMwcO6_hyA',
+      } as any, 31);
+
+      // Contiene 'server' → criterio de duplicado GLOBAL (sin userId).
+      expect(songsRepository.findOne).toHaveBeenCalledWith({
+        where: { title: 'Always', author: 'Bon Jovi' },
+      });
+      expect(songsRepository.create).toHaveBeenCalledWith({
+        title: 'Always',
+        author: 'Bon Jovi',
+        fileName: 'Always-Bon-Jovi.mp4',
+        userId: 31,
+        source: 'youtube,server',
+        url: 'https://www.youtube.com/watch?v=9BMwcO6_hyA',
       });
     });
 

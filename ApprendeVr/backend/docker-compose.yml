@@ -34,6 +34,7 @@ services:
       - ./db/012-songs-drop-unique-song.sql:/docker-entrypoint-initdb.d/13-songs-drop-unique-song.sql:ro
       - ./db/013-phrases-tiempo-frase-decimas.sql:/docker-entrypoint-initdb.d/14-phrases-tiempo-frase-decimas.sql:ro
       - ./db/014-songs-url-cancion.sql:/docker-entrypoint-initdb.d/15-songs-url-cancion.sql:ro
+      - ./db/015-songs-fuente-multi.sql:/docker-entrypoint-initdb.d/16-songs-fuente-multi.sql:ro
       - db-data:/var/lib/mysql
     ports:
       - "${DB_PORT:-3306}:3306"

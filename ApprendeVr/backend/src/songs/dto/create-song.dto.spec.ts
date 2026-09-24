@@ -65,11 +65,20 @@ describe('CreateSongDto', () => {
     expect(errors.some((e) => e.property === 'language')).toBe(true);
   });
 
-  it('accepts a payload with source "youtube" and fileName as a URL', async () => {
+  it('accepts a payload with source ["youtube"] and fileName as a URL', async () => {
     const dto = plainToInstance(CreateSongDto, {
       title: 'Stand By Me',
       fileName: 'https://www.youtube.com/watch?v=hwZNL7QVJjE',
-      source: 'youtube',
+      source: ['youtube'],
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('accepts a multi-source payload (youtube + server)', async () => {
+    const dto = plainToInstance(CreateSongDto, {
+      title: 'Stand By Me',
+      fileName: 'StandByMe_BenEKing.mp4',
+      source: ['youtube', 'server'],
     });
     expect(await validate(dto)).toHaveLength(0);
   });
@@ -78,7 +87,7 @@ describe('CreateSongDto', () => {
     const dto = plainToInstance(CreateSongDto, {
       title: 'Stand By Me',
       fileName: 'StandByMe_BenEKing.mp4',
-      source: 'server',
+      source: ['server'],
       url: 'https://vimeo.com/123456',
     });
     expect(await validate(dto)).toHaveLength(0);
@@ -98,7 +107,27 @@ describe('CreateSongDto', () => {
     const dto = plainToInstance(CreateSongDto, {
       title: 'Stand By Me',
       fileName: 'StandByMe_BenEKing.mp4',
-      source: 'spotify',
+      source: ['spotify'],
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'source')).toBe(true);
+  });
+
+  it('rejects a source sent as a single string (must be an array)', async () => {
+    const dto = plainToInstance(CreateSongDto, {
+      title: 'Stand By Me',
+      fileName: 'StandByMe_BenEKing.mp4',
+      source: 'youtube',
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'source')).toBe(true);
+  });
+
+  it('rejects an empty source array', async () => {
+    const dto = plainToInstance(CreateSongDto, {
+      title: 'Stand By Me',
+      fileName: 'StandByMe_BenEKing.mp4',
+      source: [],
     });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'source')).toBe(true);

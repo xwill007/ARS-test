@@ -48,13 +48,15 @@ export async function getMySongs() {
   }
 }
 
-// song: { title, author, fileName, language, source }. `source` es 'server' (fileName es el
-// nombre del archivo en videos/karaoke/ del servidor), 'local' (fileName es la clave bajo la que
-// el video quedó guardado en el IndexedDB del dispositivo, ver vrLocalVideoStore.util.js) o
-// 'youtube' (fileName es la URL completa). Devuelve { ok: true, song } en éxito,
-// { ok: false, error } en falla — `error` es 'NO_SESSION' | 'SONG_ALREADY_EXISTS' | 'NETWORK_ERROR'
-// | el código que devuelva el backend, para que el llamador pueda mostrar un mensaje específico
-// (ver VRNewSongAf._saveSong).
+// song: { title, author, fileName, language, source, url }. `source` es un ARRAY de fuentes
+// (Requerimiento 015, multi-source), p. ej. ['server'], ['local'], ['youtube'] o
+// ['youtube','server'] — ver `fuente_cancion` en el backend. `fileName` es el nombre del archivo
+// en videos/karaoke/ del servidor para 'server', la clave bajo la que el video quedó guardado en
+// el IndexedDB del dispositivo para 'local' (ver vrLocalVideoStore.util.js), o la URL completa para
+// 'youtube'. `url` (opcional) es la URL de ORIGEN (trazabilidad, columna `url_cancion`). Devuelve
+// { ok: true, song } en éxito, { ok: false, error } en falla — `error` es 'NO_SESSION' |
+// 'SONG_ALREADY_EXISTS' | 'NETWORK_ERROR' | el código que devuelva el backend, para que el
+// llamador pueda mostrar un mensaje específico (ver VRNewSongAf._saveSong).
 export async function createSong(song) {
   const auth = getStoredAuth();
   if (!auth || !auth.access_token) {

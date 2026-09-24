@@ -123,7 +123,7 @@ export class SongIngestionService {
     }
 
     const song = await this.songsService.create(
-      { title, author, fileName, source: 'server', url: dto.youtubeUrl },
+      { title, author, fileName, source: ['youtube', 'server'], url: dto.youtubeUrl },
       userId,
     );
     return { status: 'success', song, fileName, created: true };
@@ -166,7 +166,7 @@ export class SongIngestionService {
     }
 
     const song = await this.songsService.create(
-      { title, author, fileName, source: 'local', url: dto.youtubeUrl },
+      { title, author, fileName, source: ['youtube', 'local'], url: dto.youtubeUrl },
       userId,
     );
     return { fileName, filePath, song, created: true };

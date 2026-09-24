@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 
 // Fuentes de reproducción soportadas hoy; se amplía esta lista cuando se agregue una fuente nueva
 // (no requiere otra migración de esquema, `fuente_cancion` es un varchar libre en la BD).
@@ -50,7 +50,13 @@ export class CreateSongDto {
   @IsString()
   url?: string;
 
+  // Multi-source (Requerimiento 015, ampliación): en vez de una única fuente, el alta acepta una
+  // LISTA de fuentes (p. ej. `['youtube', 'server']` al descargar un video de YouTube al servidor),
+  // persistida como string separado por comas en `fuente_cancion`. Cada elemento debe ser una
+  // fuente conocida (ver `SONG_SOURCES`). El orden no es significativo; `SongsService` normaliza.
   @IsOptional()
-  @IsIn(SONG_SOURCES)
-  source?: SongSource;
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsIn(SONG_SOURCES, { each: true })
+  source?: SongSource[];
 }
