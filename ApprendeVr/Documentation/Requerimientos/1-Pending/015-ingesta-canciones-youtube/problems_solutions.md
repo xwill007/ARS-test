@@ -166,3 +166,60 @@ por ahora `espanol_frase` repite el inglés para no dejar la columna NOT NULL va
 muestra y se canta correctamente, pero sin traducción. Tampoco se agregaron las palabras
 (`palabras_vr`) ni la columna `youtube_video_url` (migración), que son parte del pipeline completo
 pero no de esta prueba.
+
+## 5. Traducción real (LibreTranslate) — frases y palabras
+
+**Pedido del usuario**: "continúa con la traducción; no debería insertar el texto en inglés en
+`español_frase`". El `lyrics-from-youtube` de la fase 4 repetía el inglés en `espanol_frase` como
+placeholder — había que traducirlo de verdad.
+
+**Lo que se implementó:**
+
+1. **Servicio Docker `translate` (LibreTranslate)** en `docker-compose.yml`: imagen
+   `libretranslate/libretranslate`, con `LT_LOAD_ONLY=en,es` (solo inglés y español, arranque más
+   rápido). **Puerto 5001 del host → 5000 del contenedor**, no 5000: en macOS el 5000 lo usa AirPlay
+   Receiver (`Error response from daemon: ports are not available... 0.0.0.0:5000`).
+2. **Config**: `libreTranslateUrl` en `configuration.ts` (default `http://localhost:5001`) +
+   `LIBRETRANSLATE_URL` en `.env`/`.env.example`.
+3. **`translation.util.ts`**: `translateText(baseUrl, text, from, to)` — `POST /translate` a
+   LibreTranslate, devuelve `translatedText` o lanza si el servicio falla. Testeado mockeando
+   `global.fetch`.
+4. **`lyrics.util.ts`**: `tokenizeWords(text)` — tokeniza una frase en palabras únicas, minúsculas,
+   conservando el apóstrofo de contracciones (`i'll`, `can't`) y descartando signos/`♪`/tokens sin
+   letras. Mismo criterio que el dump legacy de `palabras_vr`.
+5. **`Word` entity**: agregada la columna `phraseId` (`id_frase_palabra`, NOT NULL en el dump — la
+   entidad no la mapeaba porque el flujo de lectura no la necesitaba, pero es obligatoria al crear).
+6. **`WordsService.create(songId, phraseId, english, spanish)`** + `WordsModule` ahora exporta el
+   service (lo consume `song-ingestion`).
+7. **`SongIngestionService.lyricsFromYoutube`**: traduce TODAS las frases y TODAS las palabras únicas
+   por adelantado (todo o nada: si una traducción falla, no se inserta nada), y recién después crea
+   las frases (con `espanol_frase` traducido) y una palabra por token (con `esp_palabra` traducido y
+   su `phraseId`). Las palabras repetidas entre frases se traducen una sola vez (cache global).
+
+**Verificado end-to-end con "Always"** (fila 259, `fileName=Always-Bon-Jovi.mp4` tras la descarga de
+la fase 4): `lyrics-from-youtube` → `{ count: 68, words: 371 }`. Ejemplos reales del resultado:
+- "This Romeo is bleeding" → "Este Romeo está sangrando"
+- "But you can't see his blood" → "Pero no puedes ver su sangre"
+- `this → esto`, `bleeding → sangrado`, `can't → no puede`, `blood → sangre`
+
+`GET /api/frases` devuelve `espanol_frase` traducido y `GET /api/palabras` devuelve las 371 palabras
+traducidas con su frase de origen. Backend 227 tests verdes, cobertura global 96.55%.
+
+**Hallazgos técnicos (traducción):**
+
+1. **macOS ya usa el puerto 5000 (AirPlay Receiver)** — LibreTranslate no puede bindear ahí. Usar
+   5001 (o cualquier puerto libre) como default del host.
+2. **Node ≥18 tiene `fetch` global** (acá corre Node v24.18.0) — no hizo falta agregar una lib HTTP
+   para llamar a LibreTranslate.
+3. **`español_frase` tiene la ñ** — al consultarla por `docker exec mysql` en la terminal, la ñ se
+   corrompe (error de sintaxis MySQL). Para verificar usar la API (`GET /api/frases`) o
+   `--default-character-set=utf8mb4`, no el `SELECT` directo en consola.
+4. **Orden de flujo en la UI**: si primero se descarga el video (SAVE VIDEO) y después se pide la
+   letra (GET TEXT), el `fileName` de la canción ya cambió a `<slug>.mp4`, así que `archivo` debe
+   ser ese nombre, no la URL. El frontend ya manda `state.fileName` (el valor actual), así que
+   cubre ambos casos.
+
+**Pendiente (siguiente paso del requerimiento)**: la columna `youtube_video_url` (migración) para
+conservar la URL de origen después de la descarga (hoy `markAsDownloaded` sobreescribe `fileName` y
+se pierde la URL); el overlay `youtube-karaoke` de streaming; y el fallback a LRCLIB cuando no hay
+subtítulos.

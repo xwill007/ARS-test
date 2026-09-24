@@ -1091,7 +1091,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       phrasesCache = { fileName: null, phrases: [] };
       loadingFileName = null;
       await loadPhrases(state.fileName);
-      addStatusEl.textContent = 'Added ' + (body && body.count) + ' phrase(s).';
+      addStatusEl.textContent = 'Added ' + (body && body.count) + ' phrases, ' + (body && body.words) + ' words.';
     } catch (e) {
       addStatusEl.textContent = 'Failed (network).';
     }

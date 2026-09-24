@@ -19,4 +19,22 @@ export class WordsService {
     if (!song) return [];
     return this.wordsRepository.find({ where: { songId: song.id } });
   }
+
+  // Alta de palabra (Requerimiento 015, pipeline de ingesta): inserta una fila en `palabras_vr`
+  // linkeada a su canción (`songId`) y a su frase (`phraseId`). Se usa solo internamente desde
+  // `song-ingestion`, no se expone como endpoint público.
+  async create(
+    songId: number,
+    phraseId: number,
+    english: string,
+    spanish: string,
+  ): Promise<Word> {
+    const entity = this.wordsRepository.create({
+      songId,
+      phraseId,
+      english,
+      spanish,
+    });
+    return this.wordsRepository.save(entity);
+  }
 }

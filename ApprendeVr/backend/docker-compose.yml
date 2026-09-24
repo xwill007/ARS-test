@@ -37,6 +37,19 @@ services:
     ports:
       - "${DB_PORT:-3306}:3306"
 
+  # Servicio de traducción self-hosted (Requerimiento 015): motor LibreTranslate sin costo por
+  # caracter y sin API key externa. Se usa para traducir la letra (frases y palabras) de las
+  # canciones ingeridas desde YouTube. `LT_LOAD_ONLY=en,es` carga solo los modelos de inglés y
+  # español, lo que reduce bastante el tiempo de arranque y la memoria frente al default (que
+  # carga todos los idiomas). Puerto 5001 (no 5000): macOS usa 5000 para AirPlay Receiver.
+  translate:
+    image: libretranslate/libretranslate
+    container_name: LibreTranslate-ApprendeVr
+    ports:
+      - "${LIBRETRANSLATE_PORT:-5001}:5000"
+    environment:
+      LT_LOAD_ONLY: en,es
+
 volumes:
   db-data:
     # Nombre fijo: conserva el volumen creado bajo el proyecto compose anterior ("backend") al

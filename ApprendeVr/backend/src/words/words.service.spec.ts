@@ -3,6 +3,8 @@ import { WordsService } from './words.service';
 describe('WordsService', () => {
   const wordsRepository = {
     find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
   };
   const songsService = {
     findByFileName: jest.fn(),
@@ -35,6 +37,25 @@ describe('WordsService', () => {
         where: { songId: 1 },
       });
       expect(result).toEqual(words);
+    });
+  });
+
+  describe('create', () => {
+    it('creates and saves a word linked to its song and phrase', async () => {
+      const created = { songId: 1, phraseId: 3, english: 'night', spanish: 'noche' };
+      wordsRepository.create.mockReturnValue(created);
+      wordsRepository.save.mockResolvedValue({ id: 99, ...created });
+
+      const result = await service.create(1, 3, 'night', 'noche');
+
+      expect(wordsRepository.create).toHaveBeenCalledWith({
+        songId: 1,
+        phraseId: 3,
+        english: 'night',
+        spanish: 'noche',
+      });
+      expect(wordsRepository.save).toHaveBeenCalledWith(created);
+      expect(result).toEqual({ id: 99, ...created });
     });
   });
 });

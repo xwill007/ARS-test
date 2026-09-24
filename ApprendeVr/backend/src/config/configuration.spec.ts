@@ -12,6 +12,7 @@ describe('configuration', () => {
     'JWT_SECRET',
     'JWT_EXPIRES_IN',
     'CORS_ORIGIN',
+    'LIBRETRANSLATE_URL',
   ];
 
   beforeEach(() => {
@@ -35,6 +36,7 @@ describe('configuration', () => {
       },
       jwt: { secret: 'change-me', expiresIn: '7d' },
       corsOrigin: true,
+      libreTranslateUrl: 'http://localhost:5001',
     });
   });
 
@@ -48,6 +50,7 @@ describe('configuration', () => {
     process.env.JWT_SECRET = 'super-secret';
     process.env.JWT_EXPIRES_IN = '1h';
     process.env.CORS_ORIGIN = 'https://example.com';
+    process.env.LIBRETRANSLATE_URL = 'http://translate.internal:5000';
 
     expect(configuration()).toEqual({
       port: 4000,
@@ -60,6 +63,7 @@ describe('configuration', () => {
       },
       jwt: { secret: 'super-secret', expiresIn: '1h' },
       corsOrigin: 'https://example.com',
+      libreTranslateUrl: 'http://translate.internal:5000',
     });
   });
 });

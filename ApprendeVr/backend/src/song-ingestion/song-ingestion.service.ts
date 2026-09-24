@@ -1,9 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { join } from 'path';
 import { PhrasesService } from '../phrases/phrases.service';
 import { SongsService } from '../songs/songs.service';
+import { WordsService } from '../words/words.service';
 import { DownloadVideoDto } from './dto/download-video.dto';
 import { LyricsFromYoutubeDto } from './dto/lyrics-from-youtube.dto';
+import { tokenizeWords } from './lyrics.util';
+import { translateText } from './translation.util';
 import { fetchYoutubePhrases, secondsToHms } from './youtube-captions.util';
 import {
   downloadYoutubeVideo,
@@ -12,38 +16,73 @@ import {
 } from './youtube-video.util';
 
 // Orquestador de la ingesta desde YouTube (Requerimiento 015). No duplica la lógica de
-// `songs`/`phrases`; solo combina: obtiene la letra (subtítulos vía yt-dlp) o descarga el video
-// (yt-dlp + ffmpeg) y delega la persistencia en `SongsService`/`PhrasesService`.
+// `songs`/`phrases`/`words`; solo combina: obtiene la letra (subtítulos vía yt-dlp), la traduce
+// (LibreTranslate) o descarga el video (yt-dlp + ffmpeg) y delega la persistencia en los services
+// de cada dominio.
 @Injectable()
 export class SongIngestionService {
   constructor(
     private readonly songsService: SongsService,
     private readonly phrasesService: PhrasesService,
+    private readonly wordsService: WordsService,
+    private readonly configService: ConfigService,
   ) {}
 
-  // Botón "GET TEXT FROM YOUTUBE": obtiene la letra de `dto.youtubeUrl` y crea una frase por verso
-  // (con su tiempo de inicio) asociada a la canción cuyo `fileName` es `dto.archivo`. Si no se
-  // obtuvo ninguna frase (sin subtítulos), devuelve un error explícito y no guarda nada.
+  // Botón "GET TEXT FROM YOUTUBE": obtiene la letra de `dto.youtubeUrl`, la traduce al español y
+  // crea una frase por verso (con su tiempo de inicio) + una palabra por token (traducida) asociada
+  // a la canción cuyo `fileName` es `dto.archivo`. Si no hay subtítulos, error explícito y no se
+  // guarda nada. Todo o nada: la traducción (frases y palabras) se resuelve ANTES de insertar,
+  // así una falla de traducción no deja frases a medio guardar.
   async lyricsFromYoutube(dto: LyricsFromYoutubeDto) {
     const captions = await fetchYoutubePhrases(dto.youtubeUrl);
     if (!captions.length) {
       throw new BadRequestException('NO_LYRICS_FOUND');
     }
 
-    const created = [];
+    const baseUrl = this.configService.get<string>('libreTranslateUrl');
+    if (!baseUrl) {
+      throw new BadRequestException('TRANSLATION_NOT_CONFIGURED');
+    }
+
+    // Traduce todas las frases por adelantado (todo o nada).
+    const translatedPhrases = await Promise.all(
+      captions.map((c) => translateText(baseUrl, c.text, 'en', 'es')),
+    );
+
+    // Traduce cada palabra única una sola vez (cache global), para no repetir la misma palabra en
+    // cada frase.
+    const uniqueWords = new Set<string>();
     for (const c of captions) {
+      for (const w of tokenizeWords(c.text)) uniqueWords.add(w);
+    }
+    const words = [...uniqueWords];
+    const translatedWords = await Promise.all(
+      words.map((w) => translateText(baseUrl, w, 'en', 'es')),
+    );
+    const wordCache = new Map<string, string>();
+    words.forEach((w, i) => wordCache.set(w, translatedWords[i]));
+
+    let totalWords = 0;
+    const created = [];
+    for (let i = 0; i < captions.length; i++) {
       const phrase = await this.phrasesService.create({
         archivo: dto.archivo,
-        ingles_frase: c.text,
-        // La traducción al español (LibreTranslate) es el siguiente paso del requerimiento 015;
-        // mientras tanto se repite el inglés para que la columna NOT NULL no quede vacía y la
-        // letra siga siendo cantable desde el overlay "Song Text".
-        espanol_frase: c.text,
-        tiempo_frase: secondsToHms(c.startTime),
+        ingles_frase: captions[i].text,
+        espanol_frase: translatedPhrases[i],
+        tiempo_frase: secondsToHms(captions[i].startTime),
       });
+      for (const w of tokenizeWords(captions[i].text)) {
+        await this.wordsService.create(
+          phrase.songId,
+          phrase.id,
+          w,
+          wordCache.get(w) as string,
+        );
+        totalWords++;
+      }
       created.push(phrase);
     }
-    return { status: 'success', count: created.length };
+    return { status: 'success', count: created.length, words: totalWords };
   }
 
   // Botón "SAVE VIDEO YOUTUBE IN LOCAL": descarga el video a `public/videos/karaoke/<slug>.mp4` y

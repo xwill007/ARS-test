@@ -13,6 +13,13 @@ export class Word {
   @Column({ name: 'ing_palabra', type: 'text' })
   english: string;
 
+  // Frase a la que pertenece esta palabra (Requerimiento 015, pipeline de ingesta): la columna
+  // `id_frase_palabra` ya existe en el dump legacy (NOT NULL), pero la entidad no la mapeaba
+  // porque el flujo de lectura (`GET /palabras`) no la necesitaba. Es imprescindible para crear
+  // palabras nuevas desde `song-ingestion` con su frase de origen.
+  @Column({ name: 'id_frase_palabra' })
+  phraseId: number;
+
   @Column({ name: 'id_cancion_palabra' })
   songId: number;
 }
