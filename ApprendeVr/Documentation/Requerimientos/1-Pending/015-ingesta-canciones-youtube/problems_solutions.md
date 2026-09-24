@@ -59,3 +59,51 @@ Verificado en vivo con `iframe.contentWindow.focus()` desde la página top-level
 intactos junto al `youtubeVideo` nuevo. Tests nuevos en `user-settings.util.spec.ts`
 (subconjuntos válidos/inválidos) y `user-settings.service.spec.ts` (merge en vez de reemplazo);
 `npx jest` completo del backend: 132/132 OK.
+
+## 3. "Este video no está disponible" en local — la causa real es el `origin`, NO el permiso de embed
+
+**Síntoma**: la mayoría de los videos de YouTube (incluido el guardado "Always" de Bon Jovi) daba
+"Este video no está disponible" en el overlay `youtubeVideo`, y además "se reproducen una vez y ya
+no se pueden volver a reproducir".
+
+**Hipótesis inicial (INCORRECTA, descartada en vivo)**: que era la restricción de embed de los
+sellos (VEVO/disqueras), que se sirve en `youtube.com` pero se niega en `<iframe>`. Esa era la
+explicación obvia, pero **resultó falsa**: al abrir la vista desde un túnel Cloudflare
+(`https://...trycloudflare.com/.../artest-mirror.html`), el mismo video "Always" **SÍ reprodujo**.
+Si el dueño tuviera el embed bloqueado, también fallaría por el túnel — no es un permiso del video,
+es el origen desde el que se embebe.
+
+**Causa real — chequeo de `origin`/`Referer` de YouTube**: en local se sirve con `host: '0.0.0.0'` y
+certificado autofirmado (`frontend/vite.config.js`, `server.host`/`server.https`). El navegador le
+manda a YouTube un `Origin`/`Referer` tipo `https://<ip-lan>:3000` (una IP, no un dominio
+reconocido, con TLS no confiable). YouTube **rechaza ese origen** y devuelve "Este video no está
+disponible" dentro del iframe. El túnel (`*.trycloudflare.com`) es un dominio público real con TLS
+válido → YouTube lo acepta → reproduce. Es el porqué de que `origin: window.location.origin` en los
+`playerVars` no arregle nada en local: el origen sigue siendo `https://<ip>:3000`, que es justo lo
+que YouTube no acepta.
+
+**Nota sobre el diagnóstico**: chequear `playabilityStatus` vía `POST youtubei/v1/player` (clave web
+genérica) devuelve `UNPLAYABLE / Video unavailable` ante cualquier request sin contexto de cliente
+web válido — **no sirve** para distinguir "bloqueado para embed" de "origen rechazado". La única
+prueba confiable es abrir el iframe real (`https://www.youtube.com/embed/<id>` o la vista completa)
+desde el origen en cuestión.
+
+**Acciones tomadas (parte "se reproduce una vez y no más", que SÍ era bug de código)**:
+- `onStateChange` nuevo en `youtube-video-modules.js` (mantiene el label PLAY/PAUSE sincronizado y
+  resetea con `seekTo(0)` + `playVideo()` al pasar por `ENDED`, en el botón propio y en el panel
+  hermano) — un `playVideo()` directo sobre un player en `ENDED` no arranca de forma fiable.
+- `onError` nuevo (mensaje claro: 101/150 = embed bloqueado por el dueño, 100 = eliminado/privado).
+- `origin: window.location.origin` y `playsinline: 1` en `playerVars`.
+
+**Pendiente / a tener en cuenta en desarrollo**:
+- **Desktop**: probar sirviendo por `https://localhost:3000` en vez de `0.0.0.0` (YouTube suele
+  tener `localhost` en whitelist). Si reproduce, confirma el diagnóstico y es el fix para desarrollo
+  local en desktop.
+- **Móvil**: la IP de LAN nunca va a pasar el chequeo de origen — ahí hace falta el túnel (o un
+  dominio real). No es un bug corregible en el frontend para el caso móvil.
+- No hay "dato que delate" a la app ni forma de evadir el chequeo de origen desde el cliente: es una
+  decisión del lado de YouTube, la variable es el `origin`/`Referer` con el que llega el iframe.
+
+**Estado**: causa raíz confirmada en vivo (túnel reproduce, local no). Fix de código aplicado y con
+`npm run build` verde. Pendiente validar desktop por `localhost` y confirmar el comportamiento en
+móvil con túnel.

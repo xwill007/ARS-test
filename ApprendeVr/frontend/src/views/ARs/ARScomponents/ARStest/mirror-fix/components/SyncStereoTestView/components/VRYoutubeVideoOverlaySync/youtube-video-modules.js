@@ -316,6 +316,39 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
     playPauseBtn.textContent = isPlaying ? 'PAUSE' : 'PLAY';
   }
 
+  // Mantiene el label del botón en sincronía con el estado REAL del player (sin esto, al terminar
+  // el video el botón seguía diciendo "PAUSE" aunque ya no sonaba) y reinicia la reproducción al
+  // terminar (el problema "se reproduce una vez y ya no se puede volver a reproducir": un
+  // `playVideo()` sobre un player en estado ENDED no arranca de forma fiable sin un `seekTo(0)`
+  // previo — acá se resetea y se sincroniza el panel hermano).
+  function handlePlayerStateChange(event) {
+    if (!event || typeof event.data !== 'number' || !window.YT || !window.YT.PlayerState) return;
+    const P = window.YT.PlayerState;
+    if (event.data === P.ENDED) {
+      updatePlayPauseLabel(false);
+      send({ action: 'youtube-video-pause' });
+    } else if (event.data === P.PLAYING) {
+      updatePlayPauseLabel(true);
+    } else if (event.data === P.PAUSED) {
+      updatePlayPauseLabel(false);
+    }
+  }
+
+  // Mensaje claro cuando YouTube rechaza el video: los códigos 101/150 son "el dueño deshabilitó la
+  // reproducción embebida" (el caso típico de los videos musicales VEVO/disqueras, que es justo el
+  // contenido de "ingesta de canciones") — es lo que muestra el iframe como "Este video no está
+  // disponible" a secas. 100 es video eliminado/privado.
+  function handlePlayerError(event) {
+    if (!event || typeof event.data !== 'number') return;
+    if (event.data === 101 || event.data === 150) {
+      status.textContent = 'Este video no permite reproducción embebida (bloqueado por su dueño).';
+    } else if (event.data === 100) {
+      status.textContent = 'Este video no esta disponible (eliminado o privado).';
+    } else {
+      status.textContent = 'No se pudo reproducir el video (error ' + event.data + ').';
+    }
+  }
+
   function showPlaceholder() {
     currentVideoId = null;
     controls.style.display = 'none';
@@ -354,20 +387,24 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
         width: '100%',
         height: '100%',
         videoId: currentVideoId,
-        playerVars: { autoplay: 0, controls: 0, rel: 0 },
-        events: { onReady: applyVolume },
+        playerVars: { autoplay: 0, controls: 0, rel: 0, origin: window.location.origin, playsinline: 1 },
+        events: { onReady: applyVolume, onStateChange: handlePlayerStateChange, onError: handlePlayerError },
       });
     });
   }
 
   playPauseBtn.addEventListener('click', () => {
     if (!player) return;
-    const isPlaying = player.getPlayerState() === window.YT.PlayerState.PLAYING;
+    const state = player.getPlayerState();
+    const isPlaying = state === window.YT.PlayerState.PLAYING;
     if (isPlaying) {
       player.pauseVideo();
       updatePlayPauseLabel(false);
       send({ action: 'youtube-video-pause' });
     } else {
+      if (state === window.YT.PlayerState.ENDED) {
+        player.seekTo(0, true);
+      }
       player.playVideo();
       updatePlayPauseLabel(true);
       send({ action: 'youtube-video-play' });
@@ -402,6 +439,9 @@ const YOUTUBE_URL_STORAGE_KEY = 'apprendevr_youtube_preview_url';
       // que esté muted — mismo workaround que el puente de video de aframe-overlay-modules.js.
       const wasMuted = player.isMuted();
       player.mute();
+      if (player.getPlayerState() === window.YT.PlayerState.ENDED) {
+        player.seekTo(0, true);
+      }
       player.playVideo();
       setTimeout(() => { if (!wasMuted) player.unMute(); }, 800);
       updatePlayPauseLabel(true);
