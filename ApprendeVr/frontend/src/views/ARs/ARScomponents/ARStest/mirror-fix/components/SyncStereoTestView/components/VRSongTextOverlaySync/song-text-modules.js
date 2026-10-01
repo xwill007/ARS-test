@@ -1266,11 +1266,11 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       if (isCurrent) currentRowEl = row;
     });
 
-    // Auto-scroll mientras reproduce: centra la frase actual en la lista para que el usuario
-    // "recorra" las frases a medida que suena la canción. Pausado: conserva la posición manual.
+    // Auto-scroll mientras reproduce: ubica la frase actual al INICIO de la vista (scrollTop =
+    // offsetTop de la fila), para que las frases siguientes queden visibles debajo. Pausado:
+    // conserva la posición manual del usuario.
     if (state.playing && currentRowEl) {
-      const target = currentRowEl.offsetTop - phraseList.clientHeight / 2 + currentRowEl.clientHeight / 2;
-      phraseList.scrollTop = Math.max(0, target);
+      phraseList.scrollTop = Math.max(0, currentRowEl.offsetTop);
     } else {
       phraseList.scrollTop = prevScroll;
     }
