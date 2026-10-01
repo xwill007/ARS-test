@@ -1258,7 +1258,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
         pointerEvents: 'auto',
       });
       ['pointerdown', 'mousedown'].forEach((evt) => checkBtn.addEventListener(evt, (e) => e.stopPropagation()));
-      checkBtn.addEventListener('click', () => toggleResetSelection(p.id, checkBtn));
+      checkBtn.addEventListener('click', () => toggleResetSelection(p.id));
 
       row.appendChild(btn);
       row.appendChild(checkBtn);
@@ -1276,20 +1276,24 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     }
   }
 
-  // Alterna la selección de una frase (checkbox de "RESET TIME") y actualiza SOLO ese botón en
-  // pantalla (sin re-renderizar la lista, para no perder la posición del scroll).
-  function toggleResetSelection(id, checkBtn) {
+  // Alterna la selección de una frase (checkbox de "RESET TIME"). Con el toggle "Recalculate
+  // following phrases" activo, la acción se replica a TODAS las frases siguientes (id mayor) para
+  // poder borrar de una el tiempo de toda la cola sin seleccionarlas una por una. Se re-renderiza
+  // la lista para reflejar los checks de las frases afectadas (el scroll se preserva).
+  function toggleResetSelection(id) {
+    const ordered = [...phrasesCache.phrases].sort((a, b) => a.id - b.id);
+    const idx = ordered.findIndex((p) => p.id === id);
+    if (idx === -1) return;
+
+    // Frases afectadas: solo la clickeada, o —con recalc activo— desde la clickeada en adelante.
+    const targets = recalcEnabled ? ordered.slice(idx) : [ordered[idx]];
+
     if (resetSelection.has(id)) {
-      resetSelection.delete(id);
-      checkBtn.textContent = '☐';
-      checkBtn.style.background = 'rgba(40, 40, 40, 0.9)';
-      checkBtn.style.color = '#ffffff';
+      targets.forEach((p) => resetSelection.delete(p.id));
     } else {
-      resetSelection.add(id);
-      checkBtn.textContent = '☑';
-      checkBtn.style.background = 'rgba(46, 125, 50, 0.9)';
-      checkBtn.style.color = '#69F0AE';
+      targets.forEach((p) => resetSelection.add(p.id));
     }
+    renderPhraseList();
   }
 
   // Botón "RESET TIME": vuelve a 00:00:00.0 (en BD) solo las frases seleccionadas, para que puedan
