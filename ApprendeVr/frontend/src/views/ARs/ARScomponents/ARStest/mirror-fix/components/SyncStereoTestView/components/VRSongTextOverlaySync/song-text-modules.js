@@ -415,8 +415,20 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   });
   editView.appendChild(recalcBtn);
 
+  const phraseListWrap = document.createElement('div');
+  Object.assign(phraseListWrap.style, {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '6px',
+    alignItems: 'stretch',
+    marginBottom: '8px',
+  });
+  editView.appendChild(phraseListWrap);
+
   const phraseList = document.createElement('div');
   Object.assign(phraseList.style, {
+    flex: '1',
+    minWidth: '0',
     maxHeight: '340px',
     overflowY: 'auto',
     display: 'flex',
@@ -424,7 +436,75 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     gap: '4px',
     textAlign: 'left',
   });
-  editView.appendChild(phraseList);
+  phraseListWrap.appendChild(phraseList);
+
+  // Barra de scroll manual del panel "Edit text" (mismo patrón que "Add text"): riel vertical +
+  // botones ▲/▼ en los extremos, activables con el puntero raycaster (gaze/dwell), porque el
+  // scrollbar nativo es invisible en macOS.
+  const editScrollBar = document.createElement('div');
+  Object.assign(editScrollBar.style, {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '30px',
+    flexShrink: '0',
+    background: 'rgba(255, 255, 255, 0.10)',
+    border: '1px solid rgba(255, 255, 255, 0.20)',
+    borderRadius: '6px',
+    overflow: 'hidden',
+  });
+  phraseListWrap.appendChild(editScrollBar);
+
+  function makeEditScrollBtn(label, isUp) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    Object.assign(b.style, {
+      width: '100%',
+      height: '26px',
+      border: 'none',
+      background: 'rgba(60, 60, 60, 0.95)',
+      color: '#ffffff',
+      fontSize: '16px',
+      lineHeight: '1',
+      cursor: 'pointer',
+      pointerEvents: 'auto',
+      flexShrink: '0',
+    });
+    ['pointerdown', 'mousedown'].forEach((evt) => b.addEventListener(evt, (e) => e.stopPropagation()));
+    b.addEventListener('click', () => {
+      phraseList.scrollBy({ top: isUp ? -80 : 80, behavior: 'auto' });
+    });
+    return b;
+  }
+  editScrollBar.appendChild(makeEditScrollBtn('▲', true));
+  const editScrollTrack = document.createElement('div');
+  Object.assign(editScrollTrack.style, {
+    flex: '1',
+    width: '100%',
+    minHeight: '20px',
+    background: 'rgba(255, 255, 255, 0.04)',
+  });
+  editScrollBar.appendChild(editScrollTrack);
+  editScrollBar.appendChild(makeEditScrollBtn('▼', false));
+
+  // Botón "RESET TIME" (pedido del usuario): vuelve a 00:00:00.0 SOLO las frases seleccionadas con
+  // el checkbox de la derecha, para poder volver a sincronizarlas desde "GET TEXT LYRICS".
+  const resetTimeBtn = document.createElement('button');
+  resetTimeBtn.textContent = 'RESET TIME';
+  Object.assign(resetTimeBtn.style, {
+    marginBottom: '8px',
+    padding: '6px 12px',
+    fontSize: '13px',
+    border: 'none',
+    borderRadius: '4px',
+    background: '#c62828',
+    color: '#ffffff',
+    cursor: 'pointer',
+    pointerEvents: 'auto',
+  });
+  ['pointerdown', 'mousedown'].forEach((evt) => resetTimeBtn.addEventListener(evt, (e) => e.stopPropagation()));
+  resetTimeBtn.addEventListener('click', () => resetSelectedTimes());
+  editView.appendChild(resetTimeBtn);
 
   const doneBtn = document.createElement('button');
   doneBtn.textContent = 'Done';
@@ -873,6 +953,9 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   // Tiempo original (en segundos) de cada frase stageada, capturado ANTES del primer cambio — se
   // usa para que "Cancel" pueda restaurar los valores en memoria sin tocar la BD.
   const stagedOriginals = new Map();
+  // Selección múltiple de frases (checkbox a la derecha de cada fila en "Edit text") para el botón
+  // "RESET TIME": solo las frases seleccionadas vuelven a 00:00:00.0.
+  const resetSelection = new Set();
 
   function readState() {
     let raw = '';
@@ -1077,6 +1160,9 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   }
 
   function renderPhraseList() {
+    // Preserva la posición de scroll entre re-renders (pedido del usuario: el scroll de la lista
+    // de edición debe poder recorrer TODAS las frases sin saltar al inicio en cada refresh).
+    const prevScroll = phraseList.scrollTop;
     phraseList.innerHTML = '';
     const phrases = phrasesCache.phrases;
     if (!phrases.length) {
@@ -1087,63 +1173,127 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       phraseList.appendChild(empty);
       return;
     }
-    // Pedido del usuario: la lista de edición muestra (1) al INICIO las 3 frases de la ventana
-    // actual —anterior, actual y siguiente en orden natural de la letra (por id), donde "actual" es
-    // la que está sonando— y (2) debajo, únicamente 3 frases con tiempo 00:00:00.0 (las de menor
-    // id). La ventana se arma sobre el orden por id para que siempre haya anterior/siguiente aunque
-    // sean frases que todavía no tienen tiempo asignado.
-    const refTime = capturedTime !== null ? capturedTime : effectiveTime();
+
+    // Muestra TODAS las frases ordenadas por id (no una ventana acotada por el tiempo de
+    // reproducción): el tiempo solo se usa para RESALTAR la frase actual, no para ocultar el resto,
+    // así el scroll recorre la lista completa.
     const ordered = [...phrases].sort((a, b) => a.id - b.id);
+    const refTime = capturedTime !== null ? capturedTime : effectiveTime();
     const timed = phrases.filter((p) => p.t > 0).sort((a, b) => (a.t - b.t) || (a.id - b.id));
 
-    let currentPhrase = null;
+    let currentId = null;
     if (timed.length) {
       let currentIdx = -1;
       for (let i = 0; i < timed.length; i++) {
         if (timed[i].t <= refTime) currentIdx = i;
         else break;
       }
-      currentPhrase = currentIdx === -1 ? timed[0] : timed[currentIdx];
+      currentId = currentIdx === -1 ? timed[0].id : timed[currentIdx].id;
     }
 
-    const windowIds = new Set();
-    const head = [];
-    if (currentPhrase) {
-      const pos = ordered.findIndex((p) => p.id === currentPhrase.id);
-      for (let i = pos - 1; i <= pos + 1; i++) {
-        if (i >= 0 && i < ordered.length) head.push(ordered[i]);
-      }
-    }
-    head.forEach((p) => windowIds.add(p.id));
+    ordered.forEach((p) => {
+      const isCurrent = p.id === currentId;
+      const row = document.createElement('div');
+      Object.assign(row.style, {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        width: '100%',
+      });
 
-    // Solo las 3 frases con tiempo cero de menor id (evita duplicados con la ventana por seguridad).
-    const zeroHead = phrases
-      .filter((p) => p.t === 0 && !windowIds.has(p.id))
-      .sort((a, b) => a.id - b.id)
-      .slice(0, 3);
-
-    const display = [...head, ...zeroHead];
-
-    display.forEach((p) => {
       const btn = document.createElement('button');
       btn.textContent = p.id + '. ' + p.en + '  [' + formatClock(p.t) + ']';
       Object.assign(btn.style, {
+        flex: '1',
+        minWidth: '0',
         display: 'block',
-        width: '100%',
         textAlign: 'left',
         padding: '6px 8px',
         fontSize: '13px',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
+        border: isCurrent ? '1px solid #69F0AE' : '1px solid rgba(255, 255, 255, 0.15)',
         borderRadius: '4px',
-        background: 'rgba(50, 50, 50, 0.9)',
+        background: isCurrent ? 'rgba(46, 125, 50, 0.35)' : 'rgba(50, 50, 50, 0.9)',
         color: '#ffffff',
         cursor: 'pointer',
         pointerEvents: 'auto',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
       });
       ['pointerdown', 'mousedown'].forEach((evt) => btn.addEventListener(evt, (e) => e.stopPropagation()));
       btn.addEventListener('click', () => stageTimeToPhrase(p));
-      phraseList.appendChild(btn);
+
+      // Checkbox de selección múltiple (a la derecha de cada frase): se usa un <button> (no un
+      // <input type=checkbox>) porque el gaze/dwell de mirror-fix solo activa <button>. Marca la
+      // frase para "RESET TIME" sin tocar su tiempo todavía.
+      const checkBtn = document.createElement('button');
+      checkBtn.textContent = resetSelection.has(p.id) ? '☑' : '☐';
+      Object.assign(checkBtn.style, {
+        width: '30px',
+        height: '30px',
+        flexShrink: '0',
+        fontSize: '18px',
+        lineHeight: '1',
+        border: '1px solid rgba(255, 255, 255, 0.4)',
+        borderRadius: '4px',
+        background: resetSelection.has(p.id) ? 'rgba(46, 125, 50, 0.9)' : 'rgba(40, 40, 40, 0.9)',
+        color: resetSelection.has(p.id) ? '#69F0AE' : '#ffffff',
+        cursor: 'pointer',
+        pointerEvents: 'auto',
+      });
+      ['pointerdown', 'mousedown'].forEach((evt) => checkBtn.addEventListener(evt, (e) => e.stopPropagation()));
+      checkBtn.addEventListener('click', () => toggleResetSelection(p.id, checkBtn));
+
+      row.appendChild(btn);
+      row.appendChild(checkBtn);
+      phraseList.appendChild(row);
     });
+
+    phraseList.scrollTop = prevScroll;
+  }
+
+  // Alterna la selección de una frase (checkbox de "RESET TIME") y actualiza SOLO ese botón en
+  // pantalla (sin re-renderizar la lista, para no perder la posición del scroll).
+  function toggleResetSelection(id, checkBtn) {
+    if (resetSelection.has(id)) {
+      resetSelection.delete(id);
+      checkBtn.textContent = '☐';
+      checkBtn.style.background = 'rgba(40, 40, 40, 0.9)';
+      checkBtn.style.color = '#ffffff';
+    } else {
+      resetSelection.add(id);
+      checkBtn.textContent = '☑';
+      checkBtn.style.background = 'rgba(46, 125, 50, 0.9)';
+      checkBtn.style.color = '#69F0AE';
+    }
+  }
+
+  // Botón "RESET TIME": vuelve a 00:00:00.0 (en BD) solo las frases seleccionadas, para que puedan
+  // sincronizarse de nuevo desde "GET TEXT LYRICS". Persiste directo vía PATCH (no usa el flujo
+  // stage/DONE, es una acción independiente y explícita).
+  async function resetSelectedTimes() {
+    const ids = [...resetSelection];
+    if (!ids.length) {
+      statusEl.textContent = 'Select phrases first.';
+      return;
+    }
+    statusEl.textContent = 'Resetting ' + ids.length + ' phrase(s) to 0...';
+    let failed = 0;
+    for (const id of ids) {
+      const ok = await patchPhraseTime({ id }, 0);
+      if (!ok) failed++;
+    }
+    if (failed > 0) {
+      statusEl.textContent = 'Reset failed for ' + failed + ' of ' + ids.length + ' phrase(s).';
+      return;
+    }
+    for (const id of ids) {
+      const p = phrasesCache.phrases.find((x) => x.id === id);
+      if (p) p.t = 0;
+    }
+    resetSelection.clear();
+    phrasesCache.phrases.sort((a, b) => a.id - b.id);
+    renderPhraseList();
+    statusEl.textContent = 'Reset ' + ids.length + ' phrase(s) to 0.';
   }
 
   // Persiste en BD el tiempo actual de una frase (PATCH /api/frases/:id/time). Devuelve `true` en
@@ -1592,6 +1742,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     capturedTime = state.playing ? null : state.time;
     stagedIds.clear();
     stagedOriginals.clear();
+    resetSelection.clear();
     statusEl.textContent = '';
     updateCaptureBar();
     renderPhraseList();
