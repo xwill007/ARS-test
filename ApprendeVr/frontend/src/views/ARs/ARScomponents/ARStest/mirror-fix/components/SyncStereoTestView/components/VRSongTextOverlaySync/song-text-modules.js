@@ -949,6 +949,24 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     nextLine.textContent = next || '';
   }
 
+  // Agrupa frases consecutivas con el MISMO tiempo de inicio en una sola "línea" (concatenando el
+  // texto con espacio). Necesario tras el sync por concatenación (Requerimiento 015): cuando dos
+  // frases partidas reciben el mismo tiempo (p. ej. "This ain't a song" + "For the brokenhearted."
+  // ambas en 08.4), en la vista se muestran como un único renglón en vez de superponerse.
+  function groupPhrasesByTime(phrases) {
+    const groups = [];
+    for (const p of phrases) {
+      const last = groups[groups.length - 1];
+      if (last && last.t === p.t) {
+        last.en = last.en + ' ' + p.en;
+        last.es = last.es + ' ' + p.es;
+      } else {
+        groups.push({ t: p.t, en: p.en, es: p.es });
+      }
+    }
+    return groups;
+  }
+
   // La sincronización de la letra (panel SONG TEXT) se hace SIEMPRE por tiempo de reproducción, en
   // orden ascendente de tiempo, usando SOLO las frases con tiempo ya asignado (> 0) — pedido del
   // usuario: las frases en 00:00:00.0 (sin sincronizar) no deben aparecer en este panel.
@@ -966,43 +984,45 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     }
     emptyState.style.display = 'none';
 
-    const phrases = all
-      .filter((p) => p.t > 0)
-      .sort((a, b) => (a.t - b.t) || (a.id - b.id));
+    const grouped = groupPhrasesByTime(
+      all
+        .filter((p) => p.t > 0)
+        .sort((a, b) => (a.t - b.t) || (a.id - b.id)),
+    );
 
     // Aviso "EDIT TEXT SONG TIME": aparece solo cuando ya no quedan frases con tiempo por mostrar —
     // es decir, al inicio SOLO si no hay ninguna frase con tiempo, y al final cuando la reproducción
     // ya superó la última frase sincronizada (nunca mientras todavía se están mostrando).
     let showHint = false;
     if (hasZeroTime) {
-      if (!phrases.length) {
+      if (!grouped.length) {
         showHint = true;
       } else {
-        const lastTime = phrases[phrases.length - 1].t;
+        const lastTime = grouped[grouped.length - 1].t;
         if (time > lastTime) showHint = true;
       }
     }
     editHint.style.display = showHint ? '' : 'none';
 
-    if (!phrases.length) {
+    if (!grouped.length) {
       setLines('', '', '', '');
       return;
     }
     // Frase actual = la de mayor `tiempo_frase` <= al tiempo de reproducción.
     let idx = -1;
-    for (let i = 0; i < phrases.length; i++) {
-      if (phrases[i].t <= time) idx = i;
+    for (let i = 0; i < grouped.length; i++) {
+      if (grouped[i].t <= time) idx = i;
       else break;
     }
     if (idx === -1) {
       // Todavía no arrancó la primera frase: mostrar la primera como "futura".
-      setLines('', '', '', phrases[0].en);
+      setLines('', '', '', grouped[0].en);
       return;
     }
-    const prev = idx > 0 ? phrases[idx - 1].en : '';
-    const current = phrases[idx].en;
-    const translation = phrases[idx].es || '';
-    const next = idx + 1 < phrases.length ? phrases[idx + 1].en : '';
+    const prev = idx > 0 ? grouped[idx - 1].en : '';
+    const current = grouped[idx].en;
+    const translation = grouped[idx].es || '';
+    const next = idx + 1 < grouped.length ? grouped[idx + 1].en : '';
     setLines(prev, current, translation, next);
   }
 
