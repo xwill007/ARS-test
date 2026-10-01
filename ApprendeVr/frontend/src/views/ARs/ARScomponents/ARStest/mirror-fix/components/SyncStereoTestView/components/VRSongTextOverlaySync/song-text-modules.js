@@ -1293,7 +1293,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     const header = document.createElement('div');
     Object.assign(header.style, {
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
+      gridTemplateColumns: '28px 1fr 1fr',
       gap: '6px',
       position: 'sticky',
       top: '0',
@@ -1305,12 +1305,16 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       borderBottom: '1px solid rgba(255, 255, 255, 0.25)',
       zIndex: '1',
     });
+    const idxTitle = document.createElement('div');
+    idxTitle.textContent = '#';
+    Object.assign(idxTitle.style, { color: '#bbbbbb', textAlign: 'center' });
     const newTitle = document.createElement('div');
     newTitle.textContent = 'NEW';
     Object.assign(newTitle.style, { color: '#69F0AE' });
     const currentTitle = document.createElement('div');
     currentTitle.textContent = 'CURRENT';
     Object.assign(currentTitle.style, { color: '#64b5f6' });
+    header.appendChild(idxTitle);
     header.appendChild(newTitle);
     header.appendChild(currentTitle);
     lyricsSyncList.appendChild(header);
@@ -1324,14 +1328,26 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       empty.style.padding = '6px';
       lyricsSyncList.appendChild(empty);
     } else {
-      rows.forEach((r) => {
+      rows.forEach((r, i) => {
         const row = document.createElement('div');
         Object.assign(row.style, {
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: '28px 1fr 1fr',
           gap: '6px',
           padding: '4px 6px',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        });
+
+        // Columna índice (1-based) al lado izquierdo.
+        const idxCell = document.createElement('div');
+        idxCell.textContent = String(i + 1);
+        Object.assign(idxCell.style, {
+          color: '#bbbbbb',
+          fontSize: '12px',
+          fontWeight: '600',
+          textAlign: 'center',
+          alignSelf: 'start',
+          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
         });
 
         // Columna NEW: tiempo nuevo + texto nuevo (verde el tiempo).
@@ -1369,6 +1385,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
           curCell.appendChild(dash);
         }
 
+        row.appendChild(idxCell);
         row.appendChild(newCell);
         row.appendChild(curCell);
         lyricsSyncList.appendChild(row);
