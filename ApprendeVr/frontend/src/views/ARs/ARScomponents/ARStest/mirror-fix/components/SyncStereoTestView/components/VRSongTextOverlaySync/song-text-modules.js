@@ -435,6 +435,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     flexDirection: 'column',
     gap: '4px',
     textAlign: 'left',
+    position: 'relative',
   });
   phraseListWrap.appendChild(phraseList);
 
@@ -956,6 +957,10 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   // Selección múltiple de frases (checkbox a la derecha de cada fila en "Edit text") para el botón
   // "RESET TIME": solo las frases seleccionadas vuelven a 00:00:00.0.
   const resetSelection = new Set();
+  // Id de la frase que está sonando actualmente (para el auto-scroll/highlight de "Edit text"). Se
+  // actualiza en el loop de render mientras la canción está reproduciendo, y se usa para saber
+  // cuándo re-renderizar la lista (solo al cambiar de frase, no en cada frame).
+  let lastRenderedCurrentId = null;
 
   function readState() {
     let raw = '';
@@ -1159,9 +1164,31 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     updateTimeDisplay();
   }
 
+  // Devuelve el id de la frase que está sonando en el tiempo actual (la de mayor tiempo <= refTime),
+  // o `null` si no hay frases con tiempo asignado. Se usa tanto para resaltar en la lista como para
+  // el auto-scroll mientras la canción se reproduce.
+  function computeCurrentPhraseId() {
+    const phrases = phrasesCache.phrases;
+    // Mientras reproduce, el tiempo de referencia es el tiempo REAL de reproducción (avanza). Al
+    // pausar, se usa `capturedTime` (el instante exacto de la pausa) si existe, para congelar el
+    // resaltado en la frase que el usuario quiere editar — pero NUNCA se usa capturedTime mientras
+    // está sonando (si no, el highlight quedaría clavado en la frase de la pausa anterior).
+    const refTime = state.playing
+      ? effectiveTime()
+      : (capturedTime !== null ? capturedTime : state.time);
+    const timed = phrases.filter((p) => p.t > 0).sort((a, b) => (a.t - b.t) || (a.id - b.id));
+    if (!timed.length) return null;
+    let currentIdx = -1;
+    for (let i = 0; i < timed.length; i++) {
+      if (timed[i].t <= refTime) currentIdx = i;
+      else break;
+    }
+    return currentIdx === -1 ? timed[0].id : timed[currentIdx].id;
+  }
+
   function renderPhraseList() {
-    // Preserva la posición de scroll entre re-renders (pedido del usuario: el scroll de la lista
-    // de edición debe poder recorrer TODAS las frases sin saltar al inicio en cada refresh).
+    // Preserva la posición de scroll entre re-renders manuales (cuando NO está reproduciendo);
+    // mientras reproduce, el auto-scroll sigue a la frase actual (ver abajo).
     const prevScroll = phraseList.scrollTop;
     phraseList.innerHTML = '';
     const phrases = phrasesCache.phrases;
@@ -1178,18 +1205,8 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     // reproducción): el tiempo solo se usa para RESALTAR la frase actual, no para ocultar el resto,
     // así el scroll recorre la lista completa.
     const ordered = [...phrases].sort((a, b) => a.id - b.id);
-    const refTime = capturedTime !== null ? capturedTime : effectiveTime();
-    const timed = phrases.filter((p) => p.t > 0).sort((a, b) => (a.t - b.t) || (a.id - b.id));
-
-    let currentId = null;
-    if (timed.length) {
-      let currentIdx = -1;
-      for (let i = 0; i < timed.length; i++) {
-        if (timed[i].t <= refTime) currentIdx = i;
-        else break;
-      }
-      currentId = currentIdx === -1 ? timed[0].id : timed[currentIdx].id;
-    }
+    const currentId = computeCurrentPhraseId();
+    let currentRowEl = null;
 
     ordered.forEach((p) => {
       const isCurrent = p.id === currentId;
@@ -1246,9 +1263,17 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       row.appendChild(btn);
       row.appendChild(checkBtn);
       phraseList.appendChild(row);
+      if (isCurrent) currentRowEl = row;
     });
 
-    phraseList.scrollTop = prevScroll;
+    // Auto-scroll mientras reproduce: centra la frase actual en la lista para que el usuario
+    // "recorra" las frases a medida que suena la canción. Pausado: conserva la posición manual.
+    if (state.playing && currentRowEl) {
+      const target = currentRowEl.offsetTop - phraseList.clientHeight / 2 + currentRowEl.clientHeight / 2;
+      phraseList.scrollTop = Math.max(0, target);
+    } else {
+      phraseList.scrollTop = prevScroll;
+    }
   }
 
   // Alterna la selección de una frase (checkbox de "RESET TIME") y actualiza SOLO ese botón en
@@ -1743,6 +1768,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     stagedIds.clear();
     stagedOriginals.clear();
     resetSelection.clear();
+    lastRenderedCurrentId = null;
     statusEl.textContent = '';
     updateCaptureBar();
     renderPhraseList();
@@ -1826,6 +1852,15 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       }
       if (!editMode) {
         computeLines(effectiveTime());
+      } else if (state.playing) {
+        // En modo edición, mientras reproduce: re-renderiza la lista SOLO cuando la frase actual
+        // cambia (para que el highlight avance y el auto-scroll siga a la frase que suena), sin
+        // reconstruir el DOM en cada frame.
+        const currentId = computeCurrentPhraseId();
+        if (currentId !== lastRenderedCurrentId) {
+          lastRenderedCurrentId = currentId;
+          renderPhraseList();
+        }
       }
 
       const camera = sceneEl && sceneEl.camera;
