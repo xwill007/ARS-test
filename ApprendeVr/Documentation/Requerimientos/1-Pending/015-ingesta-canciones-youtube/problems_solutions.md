@@ -161,11 +161,10 @@ streaming ni LibreTranslate todavía):
    son solo sonidos (envueltos en `(...)`/`[...]`) y quita las `♪` — de los ~72 cues de "Always"
    quedaron 68 versos reales.
 
-**Pendiente (siguiente paso del requerimiento)**: la traducción al español real (LibreTranslate) —
-por ahora `espanol_frase` repite el inglés para no dejar la columna NOT NULL vacía; la letra se
-muestra y se canta correctamente, pero sin traducción. Tampoco se agregaron las palabras
-(`palabras_vr`) ni la columna `url_cancion` (migración), que son parte del pipeline completo
-pero no de esta prueba.
+**Pendiente (resuelto después)**: la traducción al español real (LibreTranslate) y las palabras
+(`palabras_vr`) se implementaron en la sección 5; la columna `url_cancion` (migración) en la
+sección 7. Lo único que queda pendiente del requerimiento completo es el fallback a LRCLIB y el
+overlay de streaming `youtube-karaoke`.
 
 ## 5. Traducción real (LibreTranslate) — frases y palabras
 
@@ -220,9 +219,8 @@ traducidas con su frase de origen. Backend 227 tests verdes, cobertura global 96
    cubre ambos casos.
 
 **Pendiente (siguiente paso del requerimiento)**: la columna `url_cancion` (migración) para
-conservar la URL de origen después de la descarga (hoy `markAsDownloaded` sobreescribe `fileName` y
-se pierde la URL); el overlay `youtube-karaoke` de streaming; y el fallback a LRCLIB cuando no hay
-subtítulos.
+conservar la URL de origen después de la descarga se implementó en la sección 7. Quedan pendientes:
+el fallback a LRCLIB cuando no hay subtítulos, y el overlay de streaming `youtube-karaoke`.
 
 ## 6. Descarga al servidor vs. al dispositivo (dos botones separados)
 
@@ -258,9 +256,9 @@ karaoke/`), no al equipo del usuario. Se separó en dos acciones:
 limpieza borra el temporal y la fila de prueba tras la verificación. Backend 232 tests verdes.
 
 **Pendiente (siguiente paso del requerimiento)**: la columna `url_cancion` (migración) para
-conservar la URL de origen después de la descarga (hoy `markAsDownloaded`/`markAsLocal`
-sobreescriben `fileName` y se pierde la URL); el overlay `youtube-karaoke` de streaming; y el
-fallback a LRCLIB cuando no hay subtítulos.
+conservar la URL de origen después de la descarga se implementó en la sección 7 (con
+`markAsDownloaded`/`markAsLocal` conservando `url` y `source` multi-source). Quedan pendientes: el
+fallback a LRCLIB cuando no hay subtítulos, y el overlay de streaming `youtube-karaoke`.
 
 ## 7. Columna `url_cancion` (trazabilidad de la URL de origen, agnóstica al proveedor)
 
