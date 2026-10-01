@@ -97,12 +97,18 @@
 
 ### Pendiente (diseñado pero NO implementado)
 
-- [ ] P1. Fallback a **LRCLIB** (`lrclib.util.ts`: `GET https://lrclib.net/api/get` por
-      `artist_name`/`track_name` + parser LRC) cuando `fetchYoutubePhrases` devuelve `[]`.
-- [ ] P2. Overlay de **streaming `youtube-karaoke`**: `VRYoutubeKaraokeAf.js` (YouTube IFrame
+- [x] P1. **LRCLIB** (botón "GET TEXT LYRICS", flujo separado de STAGING + aprobación):
+      `lrclib.util.ts` (cliente `GET https://lrclib.net/api/get` + `parseLrcToLines`),
+      `lyrics-comparison.util.ts` (`compareLyrics`), tabla `frases_vr_staging`
+      (`db/016`, entidad `StagedPhrase`), endpoints `POST /song-ingestion/lyrics-from-lrclib` y
+      `POST /song-ingestion/apply-lyrics-sync`, y botón + panel de confirmación en `song-text-
+      modules.js`.
+- [ ] P2. Fallback **automático** a LRCLIB dentro de `lyrics-from-youtube` cuando
+      `fetchYoutubePhrases` devuelve `[]` (hoy LRCLIB es un botón separado, no un fallback).
+- [ ] P3. Overlay de **streaming `youtube-karaoke`**: `VRYoutubeKaraokeAf.js` (YouTube IFrame
       Player), `youtube-karaoke.html`/`-modules.js`, `VRYoutubeKaraokeOverlaySync.jsx`, registro en
       `SYNCABLE_OVERLAYS`/`OVERLAY_OPTIONS`/locales + `vite.config.js`, y puente de
       `playVideo()`/`pauseVideo()`/`seekTo()` entre dos instancias `YT.Player`.
-- [ ] P3. Endpoint único **`POST /song-ingestion/from-youtube`** con `sourceMode:
+- [ ] P4. Endpoint único **`POST /song-ingestion/from-youtube`** con `sourceMode:
       'download'|'stream'` (`create-from-youtube.dto.ts`) + `createSongFromYoutube()` en
       `vrSongsApi.util.js`.

@@ -5,6 +5,8 @@ describe('SongIngestionController', () => {
     lyricsFromYoutube: jest.fn(),
     downloadVideo: jest.fn(),
     downloadVideoToDevice: jest.fn(),
+    fetchLyricsFromLrclib: jest.fn(),
+    applyLyricsSync: jest.fn(),
   };
   let controller: SongIngestionController;
 
@@ -60,5 +62,39 @@ describe('SongIngestionController', () => {
     expect(res.setHeader).toHaveBeenCalledWith('X-File-Name', encodeURIComponent('Always-Bon-Jovi.mp4'));
     expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'video/mp4');
     expect(res.sendFile).toHaveBeenCalledWith('/tmp/always.mp4', expect.any(Function));
+  });
+
+  it('delegates lyricsFromLrclib to the service with the DTO', async () => {
+    songIngestionService.fetchLyricsFromLrclib.mockResolvedValue({
+      status: 'success',
+      stagedCount: 2,
+      comparison: { assignments: [], mismatches: [] },
+    });
+
+    const dto = { archivo: 'Its-My-Life-Bon-Jovi.mp4' };
+    const result = await controller.lyricsFromLrclib(dto as any);
+
+    expect(songIngestionService.fetchLyricsFromLrclib).toHaveBeenCalledWith(dto);
+    expect(result).toEqual({ status: 'success', stagedCount: 2, comparison: { assignments: [], mismatches: [] } });
+  });
+
+  it('delegates applyLyricsSync to the service with the DTO', async () => {
+    songIngestionService.applyLyricsSync.mockResolvedValue({
+      status: 'success',
+      appliedTimes: 3,
+      insertedPhrases: 1,
+      skippedMismatches: 0,
+    });
+
+    const dto = { archivo: 'Its-My-Life-Bon-Jovi.mp4', acceptMismatches: true };
+    const result = await controller.applyLyricsSync(dto as any);
+
+    expect(songIngestionService.applyLyricsSync).toHaveBeenCalledWith(dto);
+    expect(result).toEqual({
+      status: 'success',
+      appliedTimes: 3,
+      insertedPhrases: 1,
+      skippedMismatches: 0,
+    });
   });
 });

@@ -32,7 +32,15 @@ manualmente, igual que el resto de las vistas A-Frame de este proyecto.
 | `song-ingestion.service.spec.ts` | `downloadVideoToDevice` (existente / nueva) | `markAsLocal` / crea `source: ['youtube','local']`, archivo temporal |
 | `lyrics-from-youtube.dto.spec.ts` | Payload válido / sin `youtubeUrl` / sin `archivo` | acepta / rechaza |
 | `download-video.dto.spec.ts` | Payload válido / mínimo | acepta / rechaza |
+| `lrclib.util.spec.ts` | `parseLrcToLines` (LRC típico, metadatos, varios timestamps, orden, vacío) | `[{ text, startTime }]` correcto |
+| `lyrics-comparison.util.spec.ts` | `compareLyrics` (asignación a 00:00:00.0, frase ya sincronizada, mismatch, vacío) | `assignments`/`mismatches` correctos |
+| `lyrics-comparison.util.spec.ts` | `normalizeLyricText` / `isZeroTime` / `timeStringToSeconds` | normalización y parseo correctos |
+| `lyrics-from-lrclib.dto.spec.ts` | Payload válido / sin `archivo` | acepta / rechaza |
+| `apply-lyrics-sync.dto.spec.ts` | `acceptMismatches` booleano | acepta / rechaza |
+| `song-ingestion.service.spec.ts` | `fetchLyricsFromLrclib` (feliz / canción inexistente / sin letra) | stajea y devuelve comparación / 404 / 400 |
+| `song-ingestion.service.spec.ts` | `applyLyricsSync` (sin aceptar / aceptando / sin staging) | aplica tiempos, inserta nuevas, borra staging |
 | `song-ingestion.controller.spec.ts` | `POST /song-ingestion/lyrics-from-youtube` / `download-video` / `download-video-to-device` | delega al service con el DTO validado |
+| `song-ingestion.controller.spec.ts` | `POST /song-ingestion/lyrics-from-lrclib` / `apply-lyrics-sync` | delega al service con el DTO validado |
 | `user-settings.util.spec.ts` | `isValidAframeViewConfig` con subconjunto (solo `youtubeVideo`) | válido (antes fallaba exigiendo las claves completas) |
 | `user-settings.service.spec.ts` | `saveConfig` con guardado parcial | merge superficial, no reemplazo (conserva claves previas) |
 
@@ -53,6 +61,9 @@ manualmente, igual que el resto de las vistas A-Frame de este proyecto.
 | Botón "GET TEXT FROM YOUTUBE" con URL válida | Crea las frases/palabras y las muestra en la lista |
 | Botón "SAVE VIDEO YOUTUBE IN SERVER" | Descarga al servidor, la canción queda pública y reproducible en el overlay `karaoke` |
 | Botón "SAVE VIDEO YOUTUBE IN LOCAL" | Descarga al dispositivo (IndexedDB), canción privada |
+| Botón "GET TEXT LYRICS" con canción que tiene frases sin tiempo | Descarga la letra sincronizada de LRCLIB a STAGING y muestra la comparación (asignaciones + líneas no concordantes) |
+| Confirmar "REPLACE TIMES" (sin aceptar nuevas) | Asigna tiempos a las frases `00:00:00.0` matcheadas, no inserta líneas nuevas |
+| Toggle "Accept N new lines" + "REPLACE TIMES" | Inserta las líneas no concordantes como frases nuevas (traducidas con LibreTranslate) |
 | Overlay `youtubeVideo` activado | Muestra el video embebido en ambos paneles; con URL vacía muestra input + placeholder |
 | Marcador 📍/d-pad del overlay `youtubeVideo` | Guarda posición con 200 (no 400); recargar reaplica la posición |
 | Botón "BUSCAR EN YOUTUBE" | Abre pestaña nueva con la sesión real del usuario |
@@ -65,5 +76,5 @@ manualmente, igual que el resto de las vistas A-Frame de este proyecto.
 
 | Caso | Resultado esperado |
 |---|---|
-| URL de YouTube sin subtítulos, pero encontrada en LRCLIB por artista+título | (Pendiente) crear canción usando la letra de LRCLIB |
+| Fallback automático a LRCLIB dentro de `lyrics-from-youtube` cuando no hay subtítulos | (Pendiente) usar LRCLIB sin pasar por el botón "GET TEXT LYRICS" |
 | Cantar una canción en modo streaming con el overlay `youtube-karaoke` | (Pendiente) dos iframes `YT.Player` sincronizados play/pause/seek |

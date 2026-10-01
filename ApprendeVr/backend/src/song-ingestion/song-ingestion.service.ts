@@ -1,12 +1,19 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { Repository } from 'typeorm';
 import { PhrasesService } from '../phrases/phrases.service';
 import { SongsService } from '../songs/songs.service';
 import { WordsService } from '../words/words.service';
+import { ApplyLyricsSyncDto } from './dto/apply-lyrics-sync.dto';
 import { DownloadVideoDto } from './dto/download-video.dto';
+import { LyricsFromLrclibDto } from './dto/lyrics-from-lrclib.dto';
 import { LyricsFromYoutubeDto } from './dto/lyrics-from-youtube.dto';
+import { StagedPhrase } from './entities/lyrics-staging.entity';
+import { compareLyrics, buildComparisonRows, timeStringToSeconds } from './lyrics-comparison.util';
+import { fetchLrclibLyrics } from './lrclib.util';
 import { tokenizeWords } from './lyrics.util';
 import { translateText } from './translation.util';
 import { fetchYoutubePhrases, secondsToHms } from './youtube-captions.util';
@@ -27,6 +34,8 @@ export class SongIngestionService {
     private readonly phrasesService: PhrasesService,
     private readonly wordsService: WordsService,
     private readonly configService: ConfigService,
+    @InjectRepository(StagedPhrase)
+    private readonly stagedPhrasesRepository: Repository<StagedPhrase>,
   ) {}
 
   // Botón "GET TEXT FROM YOUTUBE": obtiene la letra de `dto.youtubeUrl`, la traduce al español y
@@ -170,5 +179,107 @@ export class SongIngestionService {
       userId,
     );
     return { fileName, filePath, song, created: true };
+  }
+
+  // Botón "GET TEXT LYRICS" (Requerimiento 015, fallback LRCLIB): obtiene la letra sincronizada de
+  // LRCLIB (por artista + título) para la canción identificada por `dto.archivo`, la guarda en la
+  // tabla de STAGING (`frases_vr_staging`) y devuelve la comparación contra las frases existentes:
+  // qué frases con tiempo 00:00:00.0 recibirían tiempo, y qué líneas no concuerdan (para que el
+  // usuario apruebe o rechace). NO toca `frases_vr` todavía — el alta real ocurre en
+  // `applyLyricsSync`.
+  async fetchLyricsFromLrclib(dto: LyricsFromLrclibDto) {
+    const song = await this.songsService.findByFileName(dto.archivo);
+    if (!song) throw new NotFoundException('SONG_NOT_FOUND');
+
+    const artistName = (dto.artistName || song.author || '').trim();
+    const trackName = (dto.trackName || song.title || '').trim();
+    if (!artistName || !trackName) {
+      throw new BadRequestException('ARTIST_TRACK_REQUIRED');
+    }
+
+    const lyrics = await fetchLrclibLyrics(artistName, trackName);
+    if (!lyrics.length) throw new BadRequestException('NO_LYRICS_FOUND');
+
+    // Reemplaza el staging previo de esta canción (idempotente: cada "GET TEXT LYRICS" arranca de
+    // cero, sin acumular líneas de consultas anteriores).
+    await this.stagedPhrasesRepository.delete({ songId: song.id });
+    const staged = await this.stagedPhrasesRepository.save(
+      lyrics.map((l) =>
+        this.stagedPhrasesRepository.create({
+          songId: song.id,
+          english: l.text,
+          time: secondsToHms(l.startTime),
+        }),
+      ),
+    );
+
+    const existing = await this.phrasesService.findBySongFile(dto.archivo);
+    const comparison = compareLyrics(lyrics, existing);
+    const rows = buildComparisonRows(lyrics, existing);
+
+    return { status: 'success', stagedCount: staged.length, comparison, rows };
+  }
+
+  // Aprobación del botón "GET TEXT LYRICS" (Requerimiento 015): aplica el staging de LRCLIB a
+  // `frases_vr`. Las frases con tiempo 00:00:00.0 matcheadas reciben su tiempo (se actualizan
+  // siempre); si `acceptMismatches` es true, las líneas que no concuerdan se insertan como frases
+  // nuevas (traducidas al español con LibreTranslate). Al final borra el staging.
+  async applyLyricsSync(dto: ApplyLyricsSyncDto) {
+    const song = await this.songsService.findByFileName(dto.archivo);
+    if (!song) throw new NotFoundException('SONG_NOT_FOUND');
+
+    const stagedRows = await this.stagedPhrasesRepository.find({
+      where: { songId: song.id },
+      order: { id: 'ASC' },
+    });
+    if (!stagedRows.length) throw new BadRequestException('NO_STAGED_LYRICS');
+
+    const stagedLyrics = stagedRows.map((r) => ({
+      text: r.english,
+      startTime: timeStringToSeconds(r.time),
+    }));
+    const existing = await this.phrasesService.findBySongFile(dto.archivo);
+    const { assignments, mismatches } = compareLyrics(stagedLyrics, existing);
+
+    // Traducción de las líneas nuevas ANTES de insertar (todo o nada para los mismatches): si una
+    // falla, no se inserta ninguna y no se borra el staging (se puede reintentar).
+    let translatedMismatches: { text: string; spanish: string; startTime: number }[] = [];
+    if (dto.acceptMismatches && mismatches.length) {
+      const baseUrl = this.configService.get<string>('libreTranslateUrl');
+      if (!baseUrl) throw new BadRequestException('TRANSLATION_NOT_CONFIGURED');
+      translatedMismatches = await Promise.all(
+        mismatches.map(async (m) => ({
+          text: m.text,
+          spanish: await translateText(baseUrl, m.text, 'en', 'es'),
+          startTime: m.startTime,
+        })),
+      );
+    }
+
+    let appliedTimes = 0;
+    for (const a of assignments) {
+      const updated = await this.phrasesService.updateTime(a.phraseId, a.newTime);
+      if (updated) appliedTimes++;
+    }
+
+    let insertedPhrases = 0;
+    for (const m of translatedMismatches) {
+      await this.phrasesService.create({
+        archivo: dto.archivo,
+        ingles_frase: m.text,
+        espanol_frase: m.spanish,
+        tiempo_frase: secondsToHms(m.startTime),
+      });
+      insertedPhrases++;
+    }
+
+    await this.stagedPhrasesRepository.delete({ songId: song.id });
+
+    return {
+      status: 'success',
+      appliedTimes,
+      insertedPhrases,
+      skippedMismatches: dto.acceptMismatches ? 0 : mismatches.length,
+    };
   }
 }

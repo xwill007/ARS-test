@@ -103,10 +103,22 @@ IndexedDB, canción privada). Complementa al Requerimiento 014 (alta manual vía
   `karaokeVideosDir`), `lyrics.util.ts` (`tokenizeWords`).
 - **Backend — migraciones**: `db/014-songs-url-cancion.sql` (columna `url_cancion` + backfill) y
   `db/015-songs-fuente-multi.sql` (backfill `,youtube` en filas con `url_cancion`).
+- **Backend — fallback LRCLIB (botón "GET TEXT LYRICS")**: `lrclib.util.ts` (cliente `GET
+  https://lrclib.net/api/get` + parser LRC `parseLrcToLines`), `lyrics-comparison.util.ts`
+  (`compareLyrics`/`normalizeLyricText`/`isZeroTime`), tabla de STAGING `frases_vr_staging`
+  (`db/016-frases-vr-staging.sql`, entidad `StagedPhrase`) y dos endpoints:
+  - `POST /song-ingestion/lyrics-from-lrclib` `{ archivo, artistName?, trackName? }`: descarga la
+    letra sincronizada de LRCLIB (artista/título derivados de `canciones_vr` si no vienen), la
+    guarda en STAGING y devuelve la comparación contra las frases existentes (asignaciones de tiempo
+    + líneas que no concuerdan). No toca `frases_vr`.
+  - `POST /song-ingestion/apply-lyrics-sync` `{ archivo, acceptMismatches? }`: aplica los tiempos a
+    las frases con `00:00:00.0` matcheadas por texto y, si `acceptMismatches`, inserta como frases
+    nuevas las líneas no concordantes (traducidas con LibreTranslate); borra el STAGING al final.
 - **Frontend — overlay `songText`** ("Song Text"): panel de letra sincronizada (frase anterior /
-  actual / futura) con la sección "Add text song" que expone el input de URL de YouTube y los tres
-  botones de ingesta: "GET TEXT FROM YOUTUBE", "SAVE VIDEO YOUTUBE IN SERVER" y "SAVE VIDEO YOUTUBE
-  IN LOCAL". Es la UI de ingesta real de este requerimiento (no `VRNewSongAf`).
+  actual / futura) con la sección "Add text song" que expone el input de URL de YouTube y los cuatro
+  botones de ingesta: "GET TEXT FROM YOUTUBE", "GET TEXT LYRICS" (LRCLIB, con panel de confirmación),
+  "SAVE VIDEO YOUTUBE IN SERVER" y "SAVE VIDEO YOUTUBE IN LOCAL". Es la UI de ingesta real de este
+  requerimiento (no `VRNewSongAf`).
 - **Frontend — overlay `youtubeVideo`** ("Youtube Video"): previsualización embebida del video de la
   URL pegada en New Song. Panel siempre visible (input de URL + botón "PEGAR URL" + recuadro 16:9),
   sincronizado vía `localStorage['apprendevr_youtube_preview_url']`, con su propio marcador 📍/
@@ -132,16 +144,18 @@ IndexedDB, canción privada). Complementa al Requerimiento 014 (alta manual vía
 
 ### Pendiente (diseñado pero NO implementado todavía)
 
-- **Fallback a LRCLIB** (`https://lrclib.net/api/get`, sin API key) cuando el video no tiene
-  subtítulos en inglés: hoy `lyrics-from-youtube` devuelve `NO_LYRICS_FOUND` y no intenta LRCLIB por
-  `artist_name`/`track_name`. Falta `lrclib.util.ts` (cliente + parser LRC) y su uso en el servicio.
 - **Overlay de streaming `youtube-karaoke`**: reproducir canciones cuyo `fileName` es un video ID de
   YouTube sin descargar el archivo, vía YouTube IFrame Player. Falta `VRYoutubeKaraokeAf.js`,
   `youtube-karaoke.html`/`-modules.js`, `VRYoutubeKaraokeOverlaySync.jsx` y su registro en los 3
   lugares obligatorios + `vite.config.js`.
 - **Endpoint único `POST /song-ingestion/from-youtube`** con `sourceMode: 'download'|'stream'`
   (y `create-from-youtube.dto.ts` + `createSongFromYoutube()` en `vrSongsApi.util.js`): el diseño
-  original de un pipeline de un solo paso; hoy se resuelve con las tres acciones separadas de arriba.
+  original de un pipeline de un solo paso; hoy se resuelve con las acciones separadas de arriba.
+
+> Nota: el fallback LRCLIB ya está implementado (ver "Incluido"), pero como un flujo **separado**
+> (botón "GET TEXT LYRICS" + tabla de STAGING + aprobación), no como fallback automático dentro de
+> `lyrics-from-youtube`. El fallback automático (si no hay subtítulos, probar LRCLIB) sigue sin
+> implementarse.
 
 ## 5. Diseño técnico
 
@@ -199,6 +213,12 @@ externa), así que se llama `window.focus()` justo antes, y se agrega `clipboard
 | `backend/src/song-ingestion/lyrics.util.ts` | Nuevo: `tokenizeWords`. |
 | `backend/src/song-ingestion/dto/lyrics-from-youtube.dto.ts` | Nuevo: `{ youtubeUrl, archivo }`. |
 | `backend/src/song-ingestion/dto/download-video.dto.ts` | Nuevo: `{ youtubeUrl, title?, author?, archivo? }`. |
+| `backend/src/song-ingestion/dto/lyrics-from-lrclib.dto.ts` | Nuevo: `{ archivo, artistName?, trackName? }`. |
+| `backend/src/song-ingestion/dto/apply-lyrics-sync.dto.ts` | Nuevo: `{ archivo, acceptMismatches? }`. |
+| `backend/src/song-ingestion/lrclib.util.ts` | Nuevo: `fetchLrclibLyrics` (cliente LRCLIB) + `parseLrcToLines` (parser LRC). |
+| `backend/src/song-ingestion/lyrics-comparison.util.ts` | Nuevo: `compareLyrics`, `normalizeLyricText`, `isZeroTime`, `timeStringToSeconds`. |
+| `backend/src/song-ingestion/entities/lyrics-staging.entity.ts` | Nuevo: entidad `StagedPhrase` (`frases_vr_staging`). |
+| `backend/db/016-frases-vr-staging.sql` | Nuevo: tabla `frases_vr_staging`. |
 | `backend/db/014-songs-url-cancion.sql` | Nuevo: `url_cancion VARCHAR(255) NULL` + backfill. |
 | `backend/db/015-songs-fuente-multi.sql` | Nuevo: backfill `fuente_cancion` multi-source. |
 | `backend/src/songs/entities/song.entity.ts` | Agregar columna `url` (`url_cancion`, nullable). |
@@ -209,9 +229,9 @@ externa), así que se llama `window.focus()` justo antes, y se agrega `clipboard
 | `backend/src/words/entities/word.entity.ts` | Agregar columna `phraseId` (`id_frase_palabra`). |
 | `backend/src/words/words.service.ts` | Agregar `create()`. |
 | `backend/src/config/configuration.ts` | Agregar `libreTranslateUrl`. |
-| `backend/docker-compose.yml` | Agregar servicio `translate` (LibreTranslate) + montar migraciones 014/015. |
+| `backend/docker-compose.yml` | Agregar servicio `translate` (LibreTranslate) + montar migraciones 014/015/016. |
 | `backend/.env.example` / `.env` | Agregar `LIBRETRANSLATE_URL`. |
-| `frontend/.../VRSongTextOverlaySync/` (`.jsx`, `song-text.html`, `song-text-modules.js`) | Overlay `songText` + panel "Add text song" con los 3 botones de ingesta. |
+| `frontend/.../VRSongTextOverlaySync/` (`.jsx`, `song-text.html`, `song-text-modules.js`) | Overlay `songText` + panel "Add text song" con los 4 botones de ingesta (incluye "GET TEXT LYRICS" + panel de confirmación). |
 | `frontend/.../VRYoutubeVideoOverlaySync/` (`.jsx`, `youtube-video.html`, `youtube-video-modules.js`) | Overlay `youtubeVideo` (previsualización + edición de ubicación). |
 | `frontend/src/views/A-frame/components/VRKaraokeAf/components/VRNewSongAf/VRNewSongAf.js` | Campo `youtubeUrl` + botones BUSCAR / PEGAR / PREVIEW. |
 | `frontend/src/views/A-frame/vrSongsApi.util.js` | `createSong` multi-source (envía `url` y `source` array). |
@@ -253,7 +273,13 @@ externa), así que se llama `window.focus()` justo antes, y se agrega `clipboard
       newSong (merge, no reemplazo).
 - [x] `npm run build` (frontend) genera `youtube-video.html` y `song-text.html`.
 - [x] `npm run build` y `npm test` (backend) pasan sin levantar MySQL ni LibreTranslate.
-- [ ] **PENDIENTE**: fallback a LRCLIB cuando no hay subtítulos en YouTube.
+- [x] Botón "GET TEXT LYRICS" descarga la letra sincronizada de LRCLIB a la tabla de STAGING
+      (`frases_vr_staging`), no toca `frases_vr`, y muestra la comparación (frases que recibirán
+      tiempo + líneas que no concuerdan) para que el usuario apruebe antes de aplicar.
+- [x] Aplicar la sincronización asigna tiempos a las frases con `00:00:00.0` matcheadas por texto, y
+      solo inserta las líneas no concordantes si el usuario las aceptó (toggle "Accept N new lines").
+- [ ] **PENDIENTE**: fallback automático a LRCLIB dentro de `lyrics-from-youtube` cuando no hay
+      subtítulos (el flujo LRCLIB existe, pero como botón separado "GET TEXT LYRICS").
 - [ ] **PENDIENTE**: overlay de streaming `youtube-karaoke` (reproducir sin descargar, dos iframes
       2D sincronizados).
 - [ ] **PENDIENTE**: endpoint único `POST /song-ingestion/from-youtube` con `sourceMode`
@@ -267,7 +293,7 @@ externa), así que se llama `window.focus()` justo antes, y se agrega `clipboard
   descarga de video.
 - [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate): traducción self-hosted.
 - [LRCLIB](https://www.lrclib.net/) (`https://lrclib.net/api/get`): letra sincronizada gratuita
-  (fallback pendiente).
+  (botón "GET TEXT LYRICS").
 - `A-frame/Proyecto/BaseDatos/english_vr.sql`: esquema real de `frases_vr`/`palabras_vr`.
 - Skill `overlay-ar-sync-aframe`: patrón de registro de un overlay nuevo en AR-SYNC.
 - Decisiones tomadas en la conversación de origen: traducir con LibreTranslate self-hosted vía

@@ -4,7 +4,9 @@ import { unlink } from 'fs/promises';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
+import { ApplyLyricsSyncDto } from './dto/apply-lyrics-sync.dto';
 import { DownloadVideoDto } from './dto/download-video.dto';
+import { LyricsFromLrclibDto } from './dto/lyrics-from-lrclib.dto';
 import { LyricsFromYoutubeDto } from './dto/lyrics-from-youtube.dto';
 import { SongIngestionService } from './song-ingestion.service';
 
@@ -18,6 +20,23 @@ export class SongIngestionController {
   @Post('lyrics-from-youtube')
   lyricsFromYoutube(@Body() dto: LyricsFromYoutubeDto) {
     return this.songIngestionService.lyricsFromYoutube(dto);
+  }
+
+  // Obtener letra sincronizada desde LRCLIB (botón "GET TEXT LYRICS"): sin `JwtAuthGuard`, igual
+  // que `lyrics-from-youtube`/`POST /frases` — es parte del flujo de mirror-fix, no un alta de
+  // contenido restringida. Descarga a la tabla de STAGING y devuelve la comparación para que el
+  // usuario apruebe antes de aplicar.
+  @Post('lyrics-from-lrclib')
+  lyricsFromLrclib(@Body() dto: LyricsFromLrclibDto) {
+    return this.songIngestionService.fetchLyricsFromLrclib(dto);
+  }
+
+  // Aprobación del staging de LRCLIB (botón "GET TEXT LYRICS" → confirmar): aplica los tiempos a
+  // las frases 00:00:00.0 y, opcionalmente, inserta las líneas nuevas aceptadas. Sin `JwtAuthGuard`,
+  // mismo criterio que `lyrics-from-lrclib`.
+  @Post('apply-lyrics-sync')
+  applyLyricsSync(@Body() dto: ApplyLyricsSyncDto) {
+    return this.songIngestionService.applyLyricsSync(dto);
   }
 
   // Descargar video: protegido (escribe canciones, mismo criterio que `POST /songs`).

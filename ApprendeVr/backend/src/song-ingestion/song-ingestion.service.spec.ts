@@ -1,6 +1,8 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SongIngestionService } from './song-ingestion.service';
+import { compareLyrics, buildComparisonRows, timeStringToSeconds } from './lyrics-comparison.util';
+import { fetchLrclibLyrics } from './lrclib.util';
 import { tokenizeWords } from './lyrics.util';
 import { translateText } from './translation.util';
 import { fetchYoutubePhrases, secondsToHms } from './youtube-captions.util';
@@ -25,6 +27,14 @@ jest.mock('./youtube-video.util', () => ({
   karaokeVideosDir: jest.fn(),
   slugifyFileName: jest.fn(),
 }));
+jest.mock('./lrclib.util', () => ({
+  fetchLrclibLyrics: jest.fn(),
+}));
+jest.mock('./lyrics-comparison.util', () => ({
+  compareLyrics: jest.fn(),
+  buildComparisonRows: jest.fn(),
+  timeStringToSeconds: jest.fn(),
+}));
 
 describe('SongIngestionService', () => {
   const songsService = {
@@ -35,12 +45,20 @@ describe('SongIngestionService', () => {
   };
   const phrasesService = {
     create: jest.fn(),
+    updateTime: jest.fn(),
+    findBySongFile: jest.fn(),
   };
   const wordsService = {
     create: jest.fn(),
   };
   const configService = {
     get: jest.fn(),
+  };
+  const stagedPhrasesRepository = {
+    delete: jest.fn(),
+    save: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
   };
   let service: SongIngestionService;
 
@@ -51,6 +69,7 @@ describe('SongIngestionService', () => {
       phrasesService as any,
       wordsService as any,
       configService as any,
+      stagedPhrasesRepository as any,
     );
   });
 
@@ -246,6 +265,147 @@ describe('SongIngestionService', () => {
         service.downloadVideoToDevice({ youtubeUrl: dto.youtubeUrl } as any, 31),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(downloadYoutubeVideo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('fetchLyricsFromLrclib', () => {
+    const dto = { archivo: 'Its-My-Life-Bon-Jovi.mp4' };
+    const song = { id: 259, title: "It's My Life", author: 'Bon Jovi' };
+
+    beforeEach(() => {
+      songsService.findByFileName.mockResolvedValue(song);
+      stagedPhrasesRepository.delete.mockResolvedValue(undefined);
+      stagedPhrasesRepository.create.mockImplementation((x: any) => x);
+      stagedPhrasesRepository.save.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+      (secondsToHms as jest.Mock).mockImplementation((s: number) => {
+        const whole = Math.floor(s);
+        const tenth = Math.round((s - whole) * 10);
+        return '00:00:' + String(whole).padStart(2, '0') + '.' + tenth;
+      });
+      (compareLyrics as jest.Mock).mockReturnValue({
+        assignments: [{ phraseId: 1, english: 'A', newTime: '00:00:38.5' }],
+        mismatches: [{ text: 'B', startTime: 43.1 }],
+      });
+      (buildComparisonRows as jest.Mock).mockReturnValue([
+        { newText: 'A', newTime: '00:00:38.5', matched: true, currentText: 'A', currentTime: '00:00:00.0' },
+        { newText: 'B', newTime: '00:00:43.1', matched: false, currentText: '', currentTime: null },
+      ]);
+    });
+
+    it('fetches from LRCLIB, stages, and returns the comparison', async () => {
+      (fetchLrclibLyrics as jest.Mock).mockResolvedValue([
+        { text: 'A', startTime: 38.5 },
+        { text: 'B', startTime: 43.1 },
+      ]);
+
+      const result = await service.fetchLyricsFromLrclib(dto as any);
+
+      expect(fetchLrclibLyrics).toHaveBeenCalledWith('Bon Jovi', "It's My Life");
+      expect(stagedPhrasesRepository.delete).toHaveBeenCalledWith({ songId: 259 });
+      expect(stagedPhrasesRepository.save).toHaveBeenCalledWith([
+        { songId: 259, english: 'A', time: '00:00:38.5' },
+        { songId: 259, english: 'B', time: '00:00:43.1' },
+      ]);
+      expect(result).toEqual({
+        status: 'success',
+        stagedCount: 2,
+        comparison: {
+          assignments: [{ phraseId: 1, english: 'A', newTime: '00:00:38.5' }],
+          mismatches: [{ text: 'B', startTime: 43.1 }],
+        },
+        rows: [
+          { newText: 'A', newTime: '00:00:38.5', matched: true, currentText: 'A', currentTime: '00:00:00.0' },
+          { newText: 'B', newTime: '00:00:43.1', matched: false, currentText: '', currentTime: null },
+        ],
+      });
+    });
+
+    it('throws NotFoundException when the song does not exist', async () => {
+      songsService.findByFileName.mockResolvedValue(null);
+
+      await expect(service.fetchLyricsFromLrclib(dto as any)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(fetchLrclibLyrics).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when LRCLIB has no lyrics', async () => {
+      (fetchLrclibLyrics as jest.Mock).mockResolvedValue([]);
+
+      await expect(service.fetchLyricsFromLrclib(dto as any)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(stagedPhrasesRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('applyLyricsSync', () => {
+    const dto = { archivo: 'Its-My-Life-Bon-Jovi.mp4' };
+    const song = { id: 259 };
+
+    beforeEach(() => {
+      songsService.findByFileName.mockResolvedValue(song);
+      stagedPhrasesRepository.find.mockResolvedValue([
+        { id: 1, english: 'A', time: '00:00:38.5' },
+      ]);
+      (timeStringToSeconds as jest.Mock).mockImplementation((t: string) => 38.5);
+      stagedPhrasesRepository.delete.mockResolvedValue(undefined);
+    });
+
+    it('applies zero-time assignments and skips mismatches when not accepted', async () => {
+      (compareLyrics as jest.Mock).mockReturnValue({
+        assignments: [{ phraseId: 1, english: 'A', newTime: '00:00:38.5' }],
+        mismatches: [{ text: 'B', startTime: 43.1 }],
+      });
+      phrasesService.updateTime.mockResolvedValue({ id: 1 });
+
+      const result = await service.applyLyricsSync({ ...dto, acceptMismatches: false } as any);
+
+      expect(phrasesService.updateTime).toHaveBeenCalledWith(1, '00:00:38.5');
+      expect(phrasesService.create).not.toHaveBeenCalled();
+      expect(stagedPhrasesRepository.delete).toHaveBeenCalledWith({ songId: 259 });
+      expect(result).toEqual({
+        status: 'success',
+        appliedTimes: 1,
+        insertedPhrases: 0,
+        skippedMismatches: 1,
+      });
+    });
+
+    it('translates and inserts mismatches when accepted', async () => {
+      (compareLyrics as jest.Mock).mockReturnValue({
+        assignments: [],
+        mismatches: [{ text: 'B', startTime: 43.1 }],
+      });
+      (configService.get as jest.Mock).mockImplementation((key: string) =>
+        key === 'libreTranslateUrl' ? 'http://localhost:5001' : undefined,
+      );
+      (translateText as jest.Mock).mockResolvedValue('Traducida');
+      (secondsToHms as jest.Mock).mockImplementation((s: number) => '00:00:43.1');
+      phrasesService.create.mockResolvedValue({ id: 10 });
+
+      const result = await service.applyLyricsSync({ ...dto, acceptMismatches: true } as any);
+
+      expect(phrasesService.create).toHaveBeenCalledWith({
+        archivo: dto.archivo,
+        ingles_frase: 'B',
+        espanol_frase: 'Traducida',
+        tiempo_frase: '00:00:43.1',
+      });
+      expect(result).toEqual({
+        status: 'success',
+        appliedTimes: 0,
+        insertedPhrases: 1,
+        skippedMismatches: 0,
+      });
+    });
+
+    it('throws BadRequestException when there is no staging', async () => {
+      stagedPhrasesRepository.find.mockResolvedValue([]);
+
+      await expect(service.applyLyricsSync(dto as any)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 });

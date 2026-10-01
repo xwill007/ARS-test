@@ -568,7 +568,7 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   // Pedido del usuario: no reusar el editor y el alta en el mismo componente. Este panel tiene su
   // propio estado (`addMode`) y su propia lógica (`enterAddMode`/`exitAddMode`/`createPhrase`),
   // separados del flujo "Edit time". Se abre desde el botón "ADD TEXT SONG" del panel de letra.
-  const ADD_PANEL_WIDTH = 360;
+  const ADD_PANEL_WIDTH = 520;
   const addView = document.createElement('div');
   addView.style.pointerEvents = 'auto';
 
@@ -651,6 +651,13 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   getTextFromYoutubeBtn.addEventListener('click', () => getTextFromYoutube());
   addView.appendChild(getTextFromYoutubeBtn);
 
+  // Botón "GET TEXT LYRICS" (Requerimiento 015, fallback LRCLIB): obtiene la letra sincronizada de
+  // LRCLIB (por artista + título derivados del backend) y muestra la comparación para aprobar antes
+  // de aplicar los tiempos. Se coloca justo debajo de "GET TEXT FROM YOUTUBE", pedido del usuario.
+  const getTextLyricsBtn = makeYoutubeActionBtn('GET TEXT LYRICS', '#6a1b9a');
+  getTextLyricsBtn.addEventListener('click', () => getTextFromLrclib());
+  addView.appendChild(getTextLyricsBtn);
+
   const saveVideoYoutubeServerBtn = makeYoutubeActionBtn('SAVE VIDEO YOUTUBE IN SERVER', '#e65100');
   saveVideoYoutubeServerBtn.addEventListener('click', () => saveVideoYoutubeInServer());
   addView.appendChild(saveVideoYoutubeServerBtn);
@@ -658,6 +665,83 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   const saveVideoYoutubeLocalBtn = makeYoutubeActionBtn('SAVE VIDEO YOUTUBE IN LOCAL', '#2e7d32');
   saveVideoYoutubeLocalBtn.addEventListener('click', () => saveVideoYoutubeInLocal());
   addView.appendChild(saveVideoYoutubeLocalBtn);
+
+  // ---- Panel de confirmación de sincronización LRCLIB ("GET TEXT LYRICS") ----------------------
+  // Pedido del usuario: al dar click en "GET TEXT LYRICS", la letra con tiempos se descarga a una
+  // tabla de STAGING (no toca frases_vr). Si la canción ya tiene texto, se muestra qué frases
+  // recibirán tiempo y qué líneas no concuerdan, para aceptar o rechazar antes de reemplazar.
+  let lyricsSyncComparison = null;
+  let acceptMismatches = false;
+
+  const lyricsSyncPanel = document.createElement('div');
+  Object.assign(lyricsSyncPanel.style, {
+    display: 'none',
+    marginTop: '8px',
+    padding: '8px',
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    borderRadius: '6px',
+    pointerEvents: 'auto',
+  });
+
+  const lyricsSyncSummary = document.createElement('div');
+  Object.assign(lyricsSyncSummary.style, {
+    color: '#ffcc66',
+    fontSize: '12px',
+    marginBottom: '6px',
+    minHeight: '14px',
+  });
+  lyricsSyncPanel.appendChild(lyricsSyncSummary);
+
+  const lyricsSyncList = document.createElement('div');
+  lyricsSyncList.className = 'lyrics-sync-scroll';
+  Object.assign(lyricsSyncList.style, {
+    maxHeight: '220px',
+    overflowY: 'scroll',
+    overflowX: 'hidden',
+    textAlign: 'left',
+    fontSize: '12px',
+    color: '#e0e0e0',
+    marginBottom: '6px',
+    borderTop: '1px solid rgba(255, 255, 255, 0.15)',
+    // Firefox: scrollbar delgada y visible siempre.
+    scrollbarWidth: 'thin',
+    scrollbarColor: '#8ab4f8 rgba(255, 255, 255, 0.12)',
+  });
+  lyricsSyncPanel.appendChild(lyricsSyncList);
+
+  // Scrollbar visible de forma permanente en WebKit/Blink (macOS por defecto la oculta con overlay):
+  // se inyecta una sola vez un <style> para que la lista de comparación muestre siempre el riel y el
+  // pulgar, independiente del gesto de scroll. Sin esto, en macOS el overflow queda invisible hasta
+  // que el usuario arrastra, y parece que "no hay scroll".
+  if (!document.getElementById('lyrics-sync-scroll-style')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'lyrics-sync-scroll-style';
+    styleEl.textContent = [
+      '.lyrics-sync-scroll::-webkit-scrollbar { width: 10px; }',
+      '.lyrics-sync-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.12); border-radius: 5px; }',
+      '.lyrics-sync-scroll::-webkit-scrollbar-thumb { background: #8ab4f8; border-radius: 5px; }',
+      '.lyrics-sync-scroll::-webkit-scrollbar-thumb:hover { background: #a6c7ff; }',
+    ].join('\n');
+    document.head.appendChild(styleEl);
+  }
+
+  const lyricsSyncToggle = makeYoutubeActionBtn('Accept 0 new lines', '#37474f');
+  lyricsSyncToggle.addEventListener('click', () => {
+    acceptMismatches = !acceptMismatches;
+    renderLyricsSyncPanel();
+  });
+  lyricsSyncPanel.appendChild(lyricsSyncToggle);
+
+  const lyricsSyncConfirm = makeYoutubeActionBtn('REPLACE TIMES', '#1565c0');
+  lyricsSyncConfirm.addEventListener('click', () => applyLyricsSync());
+  lyricsSyncPanel.appendChild(lyricsSyncConfirm);
+
+  const lyricsSyncCancel = makeYoutubeActionBtn('CANCEL', '#b71c1c');
+  lyricsSyncCancel.addEventListener('click', () => closeLyricsSyncPanel());
+  lyricsSyncPanel.appendChild(lyricsSyncCancel);
+
+  addView.appendChild(lyricsSyncPanel);
 
   const addPanel = document.createElement('div');
   addPanel.style.position = 'fixed';
@@ -1097,6 +1181,185 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       loadingFileName = null;
       await loadPhrases(state.fileName);
       addStatusEl.textContent = 'Added ' + (body && body.count) + ' phrases, ' + (body && body.words) + ' words.';
+    } catch (e) {
+      addStatusEl.textContent = 'Failed (network).';
+    }
+  }
+
+  // Botón "GET TEXT LYRICS" (Requerimiento 015, fallback LRCLIB): obtiene la letra sincronizada de
+  // LRCLIB para la canción seleccionada (el backend deriva artista/título de la fila de
+  // canciones_vr), la guarda en la tabla de STAGING y muestra la comparación. NO toca `frases_vr`
+  // todavía — el alta real ocurre en `applyLyricsSync` cuando el usuario confirma.
+  async function getTextFromLrclib() {
+    if (!state.fileName) {
+      addStatusEl.textContent = 'No song selected.';
+      return;
+    }
+    addStatusEl.textContent = 'Fetching lyrics from LRCLIB...';
+    try {
+      const res = await fetch('/api/song-ingestion/lyrics-from-lrclib', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archivo: state.fileName }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        addStatusEl.textContent = 'Failed (' + res.status + ')' + (body && body.message ? ': ' + body.message : '');
+        closeLyricsSyncPanel();
+        return;
+      }
+      const comparison =
+        body && body.comparison ? body.comparison : { assignments: [], mismatches: [] };
+      lyricsSyncComparison = {
+        assignments: comparison.assignments || [],
+        mismatches: comparison.mismatches || [],
+        rows: (body && body.rows) || [],
+      };
+      acceptMismatches = false;
+      if (!lyricsSyncComparison.assignments.length && !lyricsSyncComparison.mismatches.length) {
+        addStatusEl.textContent = 'Lyrics already match — nothing to sync.';
+        closeLyricsSyncPanel();
+        return;
+      }
+      renderLyricsSyncPanel();
+      addStatusEl.textContent = 'Review and confirm to apply times.';
+    } catch (e) {
+      addStatusEl.textContent = 'Failed (network).';
+    }
+  }
+
+  // Rellena el panel de confirmación: dos columnas ("NEW" | "CURRENT") para comparar lado a lado,
+  // con su propio scroll para poder ver todas las líneas detectadas. La columna NEW muestra la
+  // letra sincronizada de LRCLIB (texto + tiempo); la columna CURRENT muestra la frase existente
+  // matcheada (texto + tiempo actual, o "—" si no hay frase equivalente). Debajo, el toggle
+  // "Accept N new lines" y los botones para aplicar o cancelar.
+  function renderLyricsSyncPanel() {
+    const c = lyricsSyncComparison || { assignments: [], mismatches: [], rows: [] };
+    lyricsSyncSummary.textContent =
+      c.assignments.length + " phrase(s) will get a time · " + c.mismatches.length + " line(s) don't match";
+
+    lyricsSyncList.innerHTML = '';
+
+    // Encabezado de columnas (sticky para que no se pierda al hacer scroll).
+    const header = document.createElement('div');
+    Object.assign(header.style, {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '6px',
+      position: 'sticky',
+      top: '0',
+      background: 'rgba(20, 20, 20, 0.98)',
+      padding: '4px 6px',
+      fontWeight: '700',
+      fontSize: '12px',
+      letterSpacing: '0.5px',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.25)',
+      zIndex: '1',
+    });
+    const newTitle = document.createElement('div');
+    newTitle.textContent = 'NEW';
+    Object.assign(newTitle.style, { color: '#69F0AE' });
+    const currentTitle = document.createElement('div');
+    currentTitle.textContent = 'CURRENT';
+    Object.assign(currentTitle.style, { color: '#64b5f6' });
+    header.appendChild(newTitle);
+    header.appendChild(currentTitle);
+    lyricsSyncList.appendChild(header);
+
+    const rows = c.rows || [];
+    if (!rows.length) {
+      // Fallback: si no vino `rows` (respuesta vieja), armar filas mínimas desde assignments/mismatches.
+      const empty = document.createElement('div');
+      empty.textContent = 'No comparison rows.';
+      empty.style.color = '#999999';
+      empty.style.padding = '6px';
+      lyricsSyncList.appendChild(empty);
+    } else {
+      rows.forEach((r) => {
+        const row = document.createElement('div');
+        Object.assign(row.style, {
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '6px',
+          padding: '4px 6px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        });
+
+        // Columna NEW: tiempo nuevo + texto nuevo (verde el tiempo).
+        const newCell = document.createElement('div');
+        Object.assign(newCell.style, {
+          wordBreak: 'break-word',
+          paddingRight: '4px',
+          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+        });
+        const newTime = document.createElement('div');
+        newTime.textContent = formatClock(parseTime(r.newTime));
+        Object.assign(newTime.style, { color: '#69F0AE', fontWeight: '600', fontSize: '11px' });
+        const newText = document.createElement('div');
+        newText.textContent = r.newText;
+        Object.assign(newText.style, { color: '#e0e0e0', marginTop: '1px' });
+        newCell.appendChild(newTime);
+        newCell.appendChild(newText);
+
+        // Columna CURRENT: tiempo actual + texto actual, o "—" si no matchea.
+        const curCell = document.createElement('div');
+        Object.assign(curCell.style, { wordBreak: 'break-word', paddingLeft: '4px' });
+        if (r.matched) {
+          const curTime = document.createElement('div');
+          curTime.textContent = formatClock(parseTime(r.currentTime));
+          Object.assign(curTime.style, { color: '#64b5f6', fontWeight: '600', fontSize: '11px' });
+          const curText = document.createElement('div');
+          curText.textContent = r.currentText;
+          Object.assign(curText.style, { color: '#e0e0e0', marginTop: '1px' });
+          curCell.appendChild(curTime);
+          curCell.appendChild(curText);
+        } else {
+          const dash = document.createElement('div');
+          dash.textContent = '—';
+          Object.assign(dash.style, { color: '#666666', fontSize: '14px', lineHeight: '1.6' });
+          curCell.appendChild(dash);
+        }
+
+        row.appendChild(newCell);
+        row.appendChild(curCell);
+        lyricsSyncList.appendChild(row);
+      });
+    }
+
+    lyricsSyncToggle.textContent =
+      (acceptMismatches ? '✓ ' : '') + 'Accept ' + c.mismatches.length + ' new line(s)';
+    lyricsSyncToggle.style.background = acceptMismatches ? '#2e7d32' : '#37474f';
+    lyricsSyncPanel.style.display = '';
+  }
+
+  function closeLyricsSyncPanel() {
+    lyricsSyncPanel.style.display = 'none';
+    lyricsSyncComparison = null;
+    acceptMismatches = false;
+  }
+
+  // Confirmación del panel "GET TEXT LYRICS": aplica los tiempos a las frases 00:00:00.0 y, si el
+  // toggle está activo, inserta las líneas nuevas aceptadas. Al éxito recarga las frases.
+  async function applyLyricsSync() {
+    if (!state.fileName || !lyricsSyncComparison) return;
+    addStatusEl.textContent = 'Applying lyrics sync...';
+    try {
+      const res = await fetch('/api/song-ingestion/apply-lyrics-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archivo: state.fileName, acceptMismatches: acceptMismatches }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        addStatusEl.textContent = 'Failed (' + res.status + ')' + (body && body.message ? ': ' + body.message : '');
+        return;
+      }
+      closeLyricsSyncPanel();
+      phrasesCache = { fileName: null, phrases: [] };
+      loadingFileName = null;
+      await loadPhrases(state.fileName);
+      addStatusEl.textContent =
+        'Synced: ' + (body && body.appliedTimes) + ' time(s), ' + (body && body.insertedPhrases) + ' new line(s).';
     } catch (e) {
       addStatusEl.textContent = 'Failed (network).';
     }
