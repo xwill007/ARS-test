@@ -693,38 +693,87 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
   });
   lyricsSyncPanel.appendChild(lyricsSyncSummary);
 
+  // Contenedor fila: la lista de comparación (izquierda) + barra de scroll vertical con dos botones
+  // (derecha). La barra no depende del scrollbar nativo del navegador (invisible en macOS/overlay):
+  // son dos <button> que el gaze/dwell del raycaster puede activar para recorrer la lista.
+  const lyricsSyncListWrap = document.createElement('div');
+  Object.assign(lyricsSyncListWrap.style, {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '6px',
+    alignItems: 'stretch',
+    marginBottom: '6px',
+  });
+  lyricsSyncPanel.appendChild(lyricsSyncListWrap);
+
   const lyricsSyncList = document.createElement('div');
   lyricsSyncList.className = 'lyrics-sync-scroll';
   Object.assign(lyricsSyncList.style, {
+    flex: '1',
+    minWidth: '0',
     maxHeight: '220px',
-    overflowY: 'scroll',
+    overflowY: 'auto',
     overflowX: 'hidden',
     textAlign: 'left',
     fontSize: '12px',
     color: '#e0e0e0',
-    marginBottom: '6px',
     borderTop: '1px solid rgba(255, 255, 255, 0.15)',
-    // Firefox: scrollbar delgada y visible siempre.
-    scrollbarWidth: 'thin',
-    scrollbarColor: '#8ab4f8 rgba(255, 255, 255, 0.12)',
   });
-  lyricsSyncPanel.appendChild(lyricsSyncList);
+  lyricsSyncListWrap.appendChild(lyricsSyncList);
 
-  // Scrollbar visible de forma permanente en WebKit/Blink (macOS por defecto la oculta con overlay):
-  // se inyecta una sola vez un <style> para que la lista de comparación muestre siempre el riel y el
-  // pulgar, independiente del gesto de scroll. Sin esto, en macOS el overflow queda invisible hasta
-  // que el usuario arrastra, y parece que "no hay scroll".
-  if (!document.getElementById('lyrics-sync-scroll-style')) {
-    const styleEl = document.createElement('style');
-    styleEl.id = 'lyrics-sync-scroll-style';
-    styleEl.textContent = [
-      '.lyrics-sync-scroll::-webkit-scrollbar { width: 10px; }',
-      '.lyrics-sync-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.12); border-radius: 5px; }',
-      '.lyrics-sync-scroll::-webkit-scrollbar-thumb { background: #8ab4f8; border-radius: 5px; }',
-      '.lyrics-sync-scroll::-webkit-scrollbar-thumb:hover { background: #a6c7ff; }',
-    ].join('\n');
-    document.head.appendChild(styleEl);
+  // Barra de scroll manual: riel vertical + botones ▲/▼ en los extremos. Los botones son <button>
+  // reales (no divs) para que `findGazeButton` los active con el puntero raycaster (gaze/dwell).
+  const lyricsSyncScrollBar = document.createElement('div');
+  Object.assign(lyricsSyncScrollBar.style, {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '30px',
+    flexShrink: '0',
+    background: 'rgba(255, 255, 255, 0.10)',
+    border: '1px solid rgba(255, 255, 255, 0.20)',
+    borderRadius: '6px',
+    overflow: 'hidden',
+  });
+  lyricsSyncListWrap.appendChild(lyricsSyncScrollBar);
+
+  function makeScrollBtn(label, isUp) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    Object.assign(btn.style, {
+      width: '100%',
+      height: '26px',
+      border: 'none',
+      background: 'rgba(60, 60, 60, 0.95)',
+      color: '#ffffff',
+      fontSize: '16px',
+      lineHeight: '1',
+      cursor: 'pointer',
+      pointerEvents: 'auto',
+      flexShrink: '0',
+    });
+    ['pointerdown', 'mousedown'].forEach((evt) => btn.addEventListener(evt, (e) => e.stopPropagation()));
+    btn.addEventListener('click', () => {
+      const step = 80;
+      lyricsSyncList.scrollBy({ top: isUp ? -step : step, behavior: 'auto' });
+    });
+    return btn;
   }
+  const scrollUpBtn = makeScrollBtn('▲', true);
+  const scrollDownBtn = makeScrollBtn('▼', false);
+
+  // Riel intermedio (visual) que ocupa el espacio entre los dos botones.
+  const scrollTrack = document.createElement('div');
+  Object.assign(scrollTrack.style, {
+    flex: '1',
+    width: '100%',
+    minHeight: '20px',
+    background: 'rgba(255, 255, 255, 0.04)',
+  });
+
+  lyricsSyncScrollBar.appendChild(scrollUpBtn);
+  lyricsSyncScrollBar.appendChild(scrollTrack);
+  lyricsSyncScrollBar.appendChild(scrollDownBtn);
 
   const lyricsSyncToggle = makeYoutubeActionBtn('Accept 0 new lines', '#37474f');
   lyricsSyncToggle.addEventListener('click', () => {
