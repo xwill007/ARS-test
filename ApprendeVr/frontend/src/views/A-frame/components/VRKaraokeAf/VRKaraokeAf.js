@@ -482,7 +482,10 @@ AFRAME.registerComponent('vr-karaoke-af', {
           if (evt && evt.defaultPrevented) return;
           L(`YouTube solicitado: ${youtubeUrl}`, evt && evt.type);
           try { this._selectSongButton(button); } catch (e) {}
-          this._playYoutubeSong(youtubeUrl, artistName);
+          // `fileName` (el identificador canónico de la fila: `.mp4` para descargadas, la URL para
+          // streaming) se pasa aparte para que el overlay "Song Text" busque las frases con el
+          // identificador correcto, no con la URL de reproducción (ver `_playYoutubeSong`).
+          this._playYoutubeSong(youtubeUrl, artistName, fileName);
         };
         inputEvents.forEach((ev) => ytButton.addEventListener(ev, activateYoutube));
         ytButton.addEventListener('keydown', (e) => {
@@ -640,11 +643,17 @@ AFRAME.registerComponent('vr-karaoke-af', {
   //   active si todavía no lo está (nunca lo desactiva, mismo criterio que `activateOverlay`).
   // - Fuera de mirror-fix (vista de producción, sin ese overlay): usa el panel 2D flotante
   //   compartido `vrYoutubePlayer.util.js` — el mismo que usa "PREVIEW ON YOUTUBE" ahí.
-  _playYoutubeSong: function (url, artistName) {
+  _playYoutubeSong: function (url, artistName, canonicalFileName) {
     L(`Cargando YouTube: ${url}`);
     this._stopLocalPlayback();
 
-    this._currentSong = { path: null, fileName: url, artist: artistName, source: 'youtube' };
+    // `fileName` es el identificador canónico de la canción (el `fileName` real de la fila de
+    // `canciones_vr`), con el que se guardan y buscan las frases en `GET /api/frases?archivo=...`.
+    // NO es la URL: para canciones descargadas (`source: ['youtube','server']`) `fileName` es el
+    // `.mp4` del servidor y `url` es la URL de YouTube. Si acá se usara la URL como `fileName`, el
+    // overlay "Song Text" buscaría las frases con `archivo=<URL>` y no las encontraría (están bajo
+    // el `.mp4`). La URL viaja aparte al overlay `youtubeVideo` (localStorage) para reproducir.
+    this._currentSong = { path: null, fileName: canonicalFileName || url, artist: artistName, source: 'youtube' };
 
     const videoId = extractYoutubeVideoId(url);
     if (!videoId) {

@@ -2,9 +2,9 @@
 
 > Depende del Requerimiento 014 (`POST /songs`, `SongsService.create`, `JwtAuthGuard`).
 >
-> Estado real: las fases 1–6 están **completas** (marcadas `[x]`). Quedan pendientes el fallback a
-> LRCLIB, el overlay de streaming `youtube-karaoke` y el endpoint único `from-youtube` con
-> `sourceMode` (ver sección "Pendiente" al final).
+> Estado real: las fases 1–7 y los pendientes P1–P4 están **completos** (marcados `[x]`). El
+> fallback a LRCLIB, el streaming `youtube-karaoke` (resuelto reutilizando `youtubeVideo`+`songText`)
+> y el endpoint único `from-youtube` con `sourceMode` ya están implementados.
 
 ### Fase 1 — Backend: completar entidades `Phrase`/`Word`/`Song` para poder crear filas
 
@@ -95,7 +95,7 @@
 - [x] 7.6 Marcar los criterios de aceptación de `requerimiento.md` como cumplidos (los pendientes
       quedan abiertos — ver abajo).
 
-### Pendiente (diseñado pero NO implementado)
+### Pendiente (originalmente diseñado — ahora implementado)
 
 - [x] P1. **LRCLIB** (botón "GET TEXT LYRICS", flujo separado de STAGING + aprobación):
       `lrclib.util.ts` (cliente `GET https://lrclib.net/api/get` + `parseLrcToLines`),
@@ -105,10 +105,13 @@
       modules.js`.
 - [x] P2. Fallback **automático** a LRCLIB dentro de `lyrics-from-youtube` cuando
       `fetchYoutubePhrases` devuelve `[]` (hoy LRCLIB es un botón separado, no un fallback).
-- [ ] P3. Overlay de **streaming `youtube-karaoke`**: `VRYoutubeKaraokeAf.js` (YouTube IFrame
-      Player), `youtube-karaoke.html`/`-modules.js`, `VRYoutubeKaraokeOverlaySync.jsx`, registro en
-      `SYNCABLE_OVERLAYS`/`OVERLAY_OPTIONS`/locales + `vite.config.js`, y puente de
-      `playVideo()`/`pauseVideo()`/`seekTo()` entre dos instancias `YT.Player`.
-- [ ] P4. Endpoint único **`POST /song-ingestion/from-youtube`** con `sourceMode:
+- [x] P3. Overlay de **streaming `youtube-karaoke`**: resuelto reutilizando los overlays existentes
+      `youtubeVideo` (YT.Player) + `songText` (letra) en vez de crear uno nuevo. Cambios:
+      `SyncStereoTestView.jsx` actualiza el reloj del karaoke con los mensajes
+      `youtube-video-play`/`pause`/`seek` para que `songText` muestre la letra sincronizada; y
+      `VRKaraokeAf.js` `_playYoutubeSong` reporta el `fileName` canónico de la canción (`.mp4` para
+      descargadas, URL para streaming) en vez de la URL de reproducción, para que `songText` busque
+      las frases con `archivo=<fileName>` y las encuentre.
+- [x] P4. Endpoint único **`POST /song-ingestion/from-youtube`** con `sourceMode:
       'download'|'stream'` (`create-from-youtube.dto.ts`) + `createSongFromYoutube()` en
       `vrSongsApi.util.js`.

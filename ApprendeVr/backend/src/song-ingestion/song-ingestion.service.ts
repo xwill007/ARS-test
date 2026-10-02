@@ -8,6 +8,7 @@ import { PhrasesService } from '../phrases/phrases.service';
 import { SongsService } from '../songs/songs.service';
 import { WordsService } from '../words/words.service';
 import { ApplyLyricsSyncDto } from './dto/apply-lyrics-sync.dto';
+import { CreateFromYoutubeDto } from './dto/create-from-youtube.dto';
 import { DownloadVideoDto } from './dto/download-video.dto';
 import { LyricsFromLrclibDto } from './dto/lyrics-from-lrclib.dto';
 import { LyricsFromYoutubeDto } from './dto/lyrics-from-youtube.dto';
@@ -48,22 +49,107 @@ export class SongIngestionService {
   // guarda nada. Todo o nada: la traducción (frases y palabras) se resuelve ANTES de insertar,
   // así una falla de traducción no deja frases a medio guardar.
   async lyricsFromYoutube(dto: LyricsFromYoutubeDto) {
-    let captions = await fetchYoutubePhrases(dto.youtubeUrl);
+    const { captions, source } = await this.resolveCaptions(
+      dto.youtubeUrl,
+      dto.archivo,
+    );
+    const { count, words } = await this.ingestCaptions(captions, dto.archivo);
+    return { status: 'success', count, words, source };
+  }
+
+  // Endpoint único `POST /song-ingestion/from-youtube` (Requerimiento 015, pendiente P4): pipeline de
+  // un solo paso que crea la canción Y le carga la letra. `sourceMode` decide el destino del video:
+  //   - 'download': descarga a `public/videos/karaoke/<slug>.mp4` y deja `source:
+  //     ['youtube','server']` (pública).
+  //   - 'stream':   sin descarga; deja `source: ['youtube']` (privada) con `fileName` = URL completa
+  //     de YouTube — IGUAL que las canciones YouTube creadas por el flujo manual (`POST /songs` con
+  //     `source: ['youtube']`), para que la reproducción (`_playYoutubeSong`) y la letra
+  //     (`GET /api/frases?archivo=<fileName>`) matcheen con el MISMO identificador. La URL se
+  //     conserva también en `url` (trazabilidad).
+  // La letra (subtítulos con fallback a LRCLIB) se traduce e inserta contra el `fileName` final de
+  // la canción. Si la letra falla (p. ej. `NO_LYRICS_FOUND`), la canción queda creada sin frases —
+  // mismo criterio que las acciones separadas (descargar y traer letra son pasos independientes).
+  async createSongFromYoutube(dto: CreateFromYoutubeDto, userId: number) {
+    let song;
+
+    if (dto.sourceMode === 'download') {
+      const fileName = slugifyFileName(dto.title, dto.author);
+      await downloadYoutubeVideo(
+        dto.youtubeUrl,
+        join(karaokeVideosDir(), fileName),
+      );
+      song = await this.songsService.create(
+        {
+          title: dto.title,
+          author: dto.author,
+          fileName,
+          source: ['youtube', 'server'],
+          url: dto.youtubeUrl,
+        },
+        userId,
+      );
+    } else {
+      // stream: sin descarga. `fileName` es la URL completa (no un video ID): así la canción se
+      // reproduce con `_playYoutubeSong(fileName)` (que extrae el video ID internamente) y las
+      // frases, guardadas con `archivo = fileName`, matchean en `GET /api/frases`. Mismo criterio
+      // que las canciones YouTube del flujo manual.
+      song = await this.songsService.create(
+        {
+          title: dto.title,
+          author: dto.author,
+          fileName: dto.youtubeUrl,
+          source: ['youtube'],
+          url: dto.youtubeUrl,
+        },
+        userId,
+      );
+    }
+
+    const { captions, source } = await this.resolveCaptions(
+      dto.youtubeUrl,
+      song.fileName,
+    );
+    const { count, words } = await this.ingestCaptions(
+      captions,
+      song.fileName,
+    );
+
+    return {
+      status: 'success',
+      song,
+      created: true,
+      lyrics: { count, words, source },
+    };
+  }
+
+  // Resuelve la letra para `youtubeUrl`: subtítulos de YouTube, con fallback automático a LRCLIB
+  // (derivando artista/título de la canción `archivo`) cuando el video no tiene subtítulos en
+  // inglés. Lanza `NO_LYRICS_FOUND` si ninguna fuente devuelve letra.
+  private async resolveCaptions(
+    youtubeUrl: string,
+    archivo: string,
+  ): Promise<{ captions: CaptionLine[]; source: 'youtube' | 'lrclib' }> {
+    let captions = await fetchYoutubePhrases(youtubeUrl);
     let source: 'youtube' | 'lrclib' = 'youtube';
 
-    // Fallback automático a LRCLIB (Requerimiento 015, pendiente P2): si el video no tiene
-    // subtítulos en inglés, se intenta la letra sincronizada de LRCLIB usando artista/título de la
-    // canción identificada por `dto.archivo`. El formato de LRCLIB es compatible con el de los
-    // subtítulos (`{ text, startTime }`), así que el resto del flujo es idéntico.
     if (!captions.length) {
-      captions = await this.fetchLrclibFallback(dto.archivo);
+      captions = await this.fetchLrclibFallback(archivo);
       source = 'lrclib';
     }
 
     if (!captions.length) {
       throw new BadRequestException('NO_LYRICS_FOUND');
     }
+    return { captions, source };
+  }
 
+  // Traduce todas las frases y palabras únicas de `captions` (todo o nada) e inserta una frase por
+  // verso + una palabra por token asociadas a la canción `archivo`. Devuelve cuántas frases y
+  // palabras se crearon.
+  private async ingestCaptions(
+    captions: CaptionLine[],
+    archivo: string,
+  ): Promise<{ count: number; words: number }> {
     const baseUrl = this.configService.get<string>('libreTranslateUrl');
     if (!baseUrl) {
       throw new BadRequestException('TRANSLATION_NOT_CONFIGURED');
@@ -91,7 +177,7 @@ export class SongIngestionService {
     const created = [];
     for (let i = 0; i < captions.length; i++) {
       const phrase = await this.phrasesService.create({
-        archivo: dto.archivo,
+        archivo,
         ingles_frase: captions[i].text,
         espanol_frase: translatedPhrases[i],
         tiempo_frase: secondsToHms(captions[i].startTime),
@@ -107,7 +193,7 @@ export class SongIngestionService {
       }
       created.push(phrase);
     }
-    return { status: 'success', count: created.length, words: totalWords, source };
+    return { count: created.length, words: totalWords };
   }
 
   // Fallback automático a LRCLIB (Requerimiento 015, pendiente P2): deriva artista/título de la

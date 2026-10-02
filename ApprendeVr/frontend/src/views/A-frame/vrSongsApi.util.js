@@ -85,3 +85,41 @@ export async function createSong(song) {
     return { ok: false, error: 'NETWORK_ERROR' };
   }
 }
+
+// Pipeline único `POST /song-ingestion/from-youtube` (Requerimiento 015, pendiente P4): crea la
+// canción Y le carga la letra en un solo paso. `sourceMode` decide el destino del video:
+//   - 'download': descarga al servidor (`source: ['youtube','server']`, pública).
+//   - 'stream':   sin descarga (`source: ['youtube']`, privada), reproducible vía el overlay
+//                 `youtubeVideo` (YouTube IFrame Player) con la letra en `songText`.
+// `song`: { youtubeUrl, sourceMode, title, author? }. Devuelve `{ ok: true, data }` en éxito (con
+// la canción creada y el resumen de letra `lyrics`), o `{ ok: false, error }` en falla — `error`
+// sigue el mismo patrón que `createSong` (`NO_SESSION` | 'SONG_ALREADY_EXISTS' | 'NETWORK_ERROR' |
+// el código del backend, p. ej. 'NO_LYRICS_FOUND').
+export async function createSongFromYoutube(song) {
+  const auth = getStoredAuth();
+  if (!auth || !auth.access_token) {
+    console.warn('vrSongsApi: sin sesión (apprendevr_auth) — no se crea la canción.');
+    return { ok: false, error: 'NO_SESSION' };
+  }
+
+  try {
+    const res = await fetch('/api/song-ingestion/from-youtube', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${auth.access_token}`,
+      },
+      body: JSON.stringify(song),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      const error = (body && body.message) || `HTTP_${res.status}`;
+      console.warn(`vrSongsApi: POST /api/song-ingestion/from-youtube devolvió ${res.status} (${error}).`);
+      return { ok: false, error };
+    }
+    return { ok: true, data: body };
+  } catch (e) {
+    console.warn('vrSongsApi: POST /api/song-ingestion/from-youtube falló de red.', e);
+    return { ok: false, error: 'NETWORK_ERROR' };
+  }
+}

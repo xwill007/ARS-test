@@ -801,6 +801,25 @@ const SyncStereoTestView = ({ onClose }) => {
         karaokeTimeSetAtRef.current = Date.now();
       }
 
+      // Requerimiento 015 (P3, simplificado): cuando la canción activa es de YouTube, la reproduce
+      // el overlay `youtubeVideo` (YT.Player), no el <video> del karaoke — así que el reloj de acá
+      // no recibe los eventos 'karaoke-play'/'karaoke-pause' (no hay <video> wireado). Para que
+      // `songText` (que lee `apprendevr_karaoke_state`, publicado más abajo por el padre con este
+      // MISMO reloj) muestre la letra sincronizada de la canción de YouTube sin un overlay nuevo,
+      // se actualiza el reloj con los mensajes de play/pause/seek que el overlay `youtubeVideo` ya
+      // releva a través del padre (ver youtube-video-modules.js). Sin `return`: estos mensajes
+      // siguen cayendo al relevo genérico de más abajo para llegar al panel hermano, exactamente
+      // como hoy.
+      if (msg.action === 'youtube-video-seek') {
+        karaokeTimeAtRef.current = msg.time;
+        karaokeTimeSetAtRef.current = Date.now();
+      }
+      if (msg.action === 'youtube-video-play' || msg.action === 'youtube-video-pause') {
+        karaokeTimeAtRef.current = getKaraokeCurrentTime();
+        karaokeTimeSetAtRef.current = Date.now();
+        karaokePlayingRef.current = msg.action === 'youtube-video-play';
+      }
+
       // Un panel de karaoke recién (re)montado (montaje inicial o cambio de canción, ver
       // wireVideo() en aframe-overlay-modules.js) pregunta UNA sola vez al montar en vez de
       // arrancar siempre en pausa y desde 0:00 — se le contesta solo a ÉL (`ev.source`, no

@@ -201,6 +201,96 @@ describe('SongIngestionService', () => {
     });
   });
 
+  describe('createSongFromYoutube', () => {
+    const dto = {
+      youtubeUrl: 'https://www.youtube.com/watch?v=9BMwcO6_hyA',
+      sourceMode: 'download',
+      title: 'Always',
+      author: 'Bon Jovi',
+    };
+
+    beforeEach(() => {
+      (configService.get as jest.Mock).mockImplementation((key: string) =>
+        key === 'libreTranslateUrl' ? 'http://localhost:5000' : undefined,
+      );
+      (fetchYoutubePhrases as jest.Mock).mockResolvedValue([
+        { text: 'This Romeo is bleeding', startTime: 38.537 },
+      ]);
+      (translateText as jest.Mock).mockImplementation(async (_u, t) => {
+        if (t === 'This Romeo is bleeding') return 'Este Romeo está sangrando';
+        return 'TR_' + t;
+      });
+      (tokenizeWords as jest.Mock).mockImplementation(() => ['this', 'romeo']);
+      (secondsToHms as jest.Mock).mockImplementation((s: number) => '00:00:38.5');
+      phrasesService.create.mockResolvedValue({ id: 1, songId: 1 });
+      wordsService.create.mockResolvedValue({});
+    });
+
+    it('downloads the video, creates a public song, and ingests the lyrics', async () => {
+      (slugifyFileName as jest.Mock).mockReturnValue('Always-Bon-Jovi.mp4');
+      (downloadYoutubeVideo as jest.Mock).mockResolvedValue(undefined);
+      (karaokeVideosDir as jest.Mock).mockReturnValue('/videos');
+      songsService.create.mockResolvedValue({ id: 1, fileName: 'Always-Bon-Jovi.mp4', source: 'youtube,server' });
+
+      const result = await service.createSongFromYoutube(dto as any, 31);
+
+      expect(downloadYoutubeVideo).toHaveBeenCalledWith(
+        dto.youtubeUrl,
+        '/videos/Always-Bon-Jovi.mp4',
+      );
+      expect(songsService.create).toHaveBeenCalledWith(
+        { title: 'Always', author: 'Bon Jovi', fileName: 'Always-Bon-Jovi.mp4', source: ['youtube', 'server'], url: dto.youtubeUrl },
+        31,
+      );
+      expect(phrasesService.create).toHaveBeenCalledWith({
+        archivo: 'Always-Bon-Jovi.mp4',
+        ingles_frase: 'This Romeo is bleeding',
+        espanol_frase: 'Este Romeo está sangrando',
+        tiempo_frase: '00:00:38.5',
+      });
+      expect(result).toEqual({
+        status: 'success',
+        song: expect.any(Object),
+        created: true,
+        lyrics: { count: 1, words: 2, source: 'youtube' },
+      });
+    });
+
+    it('creates a private streaming song (fileName = full URL) without downloading', async () => {
+      songsService.create.mockResolvedValue({ id: 1, fileName: dto.youtubeUrl, source: 'youtube' });
+
+      const result = await service.createSongFromYoutube(
+        { ...dto, sourceMode: 'stream' } as any,
+        31,
+      );
+
+      expect(downloadYoutubeVideo).not.toHaveBeenCalled();
+      expect(songsService.create).toHaveBeenCalledWith(
+        { title: 'Always', author: 'Bon Jovi', fileName: dto.youtubeUrl, source: ['youtube'], url: dto.youtubeUrl },
+        31,
+      );
+      expect(phrasesService.create).toHaveBeenCalledWith({
+        archivo: dto.youtubeUrl,
+        ingles_frase: 'This Romeo is bleeding',
+        espanol_frase: 'Este Romeo está sangrando',
+        tiempo_frase: '00:00:38.5',
+      });
+      expect(result.lyrics).toEqual({ count: 1, words: 2, source: 'youtube' });
+    });
+
+    it('leaves the song created (without lyrics) when lyrics cannot be resolved', async () => {
+      songsService.create.mockResolvedValue({ id: 1, fileName: dto.youtubeUrl, source: 'youtube' });
+      (fetchYoutubePhrases as jest.Mock).mockResolvedValue([]);
+      songsService.findByFileName.mockResolvedValue({ id: 1, title: 'Always', author: 'Bon Jovi' });
+      (fetchLrclibLyrics as jest.Mock).mockResolvedValue([]);
+
+      await expect(
+        service.createSongFromYoutube({ ...dto, sourceMode: 'stream' } as any, 31),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(phrasesService.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('downloadVideo', () => {
     const dto = {
       youtubeUrl: 'https://www.youtube.com/watch?v=9BMwcO6_hyA',

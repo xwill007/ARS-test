@@ -15,8 +15,11 @@ IndexedDB, canción privada). Complementa al Requerimiento 014 (alta manual vía
 > overlay de streaming (`youtube-karaoke`). Al implementarlo se reorientó hacia **tres acciones
 > separadas y explícitas** (obtener letra / descargar al servidor / descargar al dispositivo)
 > expuestas como botones del overlay `songText`, más un overlay de previsualización (`youtubeVideo`).
-> **Quedan sin implementar**: el overlay de streaming `youtube-karaoke` y el endpoint único
-> orquestador con `sourceMode`. Ver sección 4 (Pendiente).
+> El endpoint único `from-youtube` (pipeline de un solo paso) se implementó después como alternativa
+> a esas acciones. Para el **streaming** se decidió NO crear un overlay nuevo: se reutilizan los
+> overlays existentes `youtubeVideo` (reproduce el `YT.Player`) y `songText` (muestra la letra), y
+> el padre (`SyncStereoTestView.jsx`) sincroniza el reloj de reproducción para que la letra avance.
+> Ver sección 4.
 
 ## 2. Antecedentes y estado actual
 
@@ -119,6 +122,17 @@ IndexedDB, canción privada). Complementa al Requerimiento 014 (alta manual vía
   sincronizada de LRCLIB con artista/título de la canción identificada por `archivo`
   (`fetchLrclibFallback`) antes de fallar con `NO_LYRICS_FOUND`. El `source` del resultado indica
   `'youtube'` o `'lrclib'`.
+- **Backend — endpoint único `POST /song-ingestion/from-youtube`** (pipeline de un solo paso):
+  `create-from-youtube.dto.ts` (`{ youtubeUrl, sourceMode: 'download'|'stream', title, author? }`).
+  `SongIngestionService.createSongFromYoutube` crea la canción Y le carga la letra (subtítulos con
+  fallback LRCLIB) traducida, en un solo paso:
+  - `sourceMode: 'download'`: descarga el video a `public/videos/karaoke/<slug>.mp4` y deja
+    `source: ['youtube','server']` (pública).
+  - `sourceMode: 'stream'`: sin descarga; deja `source: ['youtube']` (privada) con `fileName` = la
+    URL completa de YouTube (igual que el flujo manual), para que la letra matchee en
+    `GET /api/frases`; se reproduce vía el overlay `youtubeVideo` con la letra en `songText`.
+  La letra se traduce e inserta contra el `fileName` final de la canción; si la letra falla (p. ej.
+  `NO_LYRICS_FOUND`), la canción queda creada sin frases (mismo criterio que las acciones separadas).
 - **Frontend — overlay `songText`** ("Song Text"): panel de letra sincronizada (frase anterior /
   actual / futura) con la sección "Add text song" que expone el input de URL de YouTube y los cuatro
   botones de ingesta: "GET TEXT FROM YOUTUBE", "GET TEXT LYRICS" (LRCLIB, con panel de confirmación),
@@ -147,15 +161,16 @@ IndexedDB, canción privada). Complementa al Requerimiento 014 (alta manual vía
 - Manejo de cuota/rate-limit de LibreTranslate o de YouTube ante volumen alto (uso esporádico).
 - Exponer `PhrasesService.create`/`WordsService.create` como endpoints públicos independientes.
 
-### Pendiente (diseñado pero NO implementado todavía)
+### Streaming de canciones de YouTube (implementado sin overlay nuevo)
 
-- **Overlay de streaming `youtube-karaoke`**: reproducir canciones cuyo `fileName` es un video ID de
-  YouTube sin descargar el archivo, vía YouTube IFrame Player. Falta `VRYoutubeKaraokeAf.js`,
-  `youtube-karaoke.html`/`-modules.js`, `VRYoutubeKaraokeOverlaySync.jsx` y su registro en los 3
-  lugares obligatorios + `vite.config.js`.
-- **Endpoint único `POST /song-ingestion/from-youtube`** con `sourceMode: 'download'|'stream'`
-  (y `create-from-youtube.dto.ts` + `createSongFromYoutube()` en `vrSongsApi.util.js`): el diseño
-  original de un pipeline de un solo paso; hoy se resuelve con las acciones separadas de arriba.
+- **Streaming reutilizando overlays existentes**: al reproducir una canción de YouTube, el video lo
+  muestra el overlay `youtubeVideo` (YT.Player, ya con play/pause/seek sincronizados entre paneles) y
+  la letra la muestra el overlay `songText` (ya lee `GET /api/frases` por `fileName`). El único hueco
+  que había era el reloj: `songText` lee `apprendevr_karaoke_state`, que el padre calculaba solo con
+  el `<video>` del karaoke real (no con el `YT.Player`). Se resolvió en `SyncStereoTestView.jsx`
+  actualizando ese MISMO reloj con los mensajes `youtube-video-play`/`youtube-video-pause`/
+  `youtube-video-seek` que el overlay `youtubeVideo` ya releva a través del padre (sin `return`, para
+  que sigan llegando al panel hermano por el relevo genérico). No se creó ningún overlay nuevo.
 
 > Nota: el fallback LRCLIB está implementado de dos formas. Como **flujo separado** (botón
 > "GET TEXT LYRICS" + tabla de STAGING + aprobación) y como **fallback automático** dentro de
@@ -210,8 +225,9 @@ externa), así que se llama `window.focus()` justo antes, y se agrega `clipboard
 | Archivo | Cambio |
 |---|---|
 | `backend/src/song-ingestion/song-ingestion.module.ts` | Nuevo: registra controller/service + `SongsModule`/`PhrasesModule`/`WordsModule`. |
-| `backend/src/song-ingestion/song-ingestion.controller.ts` | Nuevo: `POST lyrics-from-youtube` (sin auth), `POST download-video` y `POST download-video-to-device` (ambos con `JwtAuthGuard`). |
-| `backend/src/song-ingestion/song-ingestion.service.ts` | Nuevo: `lyricsFromYoutube`, `downloadVideo`, `downloadVideoToDevice`. |
+| `backend/src/song-ingestion/song-ingestion.controller.ts` | Nuevo: `POST lyrics-from-youtube` (sin auth), `POST download-video` y `POST download-video-to-device` (ambos con `JwtAuthGuard`), `POST from-youtube` (con `JwtAuthGuard`). |
+| `backend/src/song-ingestion/song-ingestion.service.ts` | Nuevo: `lyricsFromYoutube`, `downloadVideo`, `downloadVideoToDevice`, `createSongFromYoutube` (+ helpers `resolveCaptions`/`ingestCaptions`/`fetchLrclibFallback`). |
+| `backend/src/song-ingestion/dto/create-from-youtube.dto.ts` | Nuevo: `{ youtubeUrl, sourceMode: 'download'|'stream', title, author? }`. |
 | `backend/src/song-ingestion/youtube-captions.util.ts` | Nuevo: `fetchYoutubePhrases`, `parseVttToPhrases`, `extractYoutubeVideoId`, `normalizeYoutubeUrl`, `secondsToHms`. |
 | `backend/src/song-ingestion/youtube-video.util.ts` | Nuevo: `downloadYoutubeVideo`, `slugifyFileName`, `karaokeVideosDir`. |
 | `backend/src/song-ingestion/translation.util.ts` | Nuevo: `translateText` (LibreTranslate). |
@@ -239,7 +255,7 @@ externa), así que se llama `window.focus()` justo antes, y se agrega `clipboard
 | `frontend/.../VRSongTextOverlaySync/` (`.jsx`, `song-text.html`, `song-text-modules.js`) | Overlay `songText` + panel "Add text song" con los 4 botones de ingesta (incluye "GET TEXT LYRICS" + panel de confirmación). |
 | `frontend/.../VRYoutubeVideoOverlaySync/` (`.jsx`, `youtube-video.html`, `youtube-video-modules.js`) | Overlay `youtubeVideo` (previsualización + edición de ubicación). |
 | `frontend/src/views/A-frame/components/VRKaraokeAf/components/VRNewSongAf/VRNewSongAf.js` | Campo `youtubeUrl` + botones BUSCAR / PEGAR / PREVIEW. |
-| `frontend/src/views/A-frame/vrSongsApi.util.js` | `createSong` multi-source (envía `url` y `source` array). |
+| `frontend/src/views/A-frame/vrSongsApi.util.js` | `createSong` multi-source (envía `url` y `source` array) + `createSongFromYoutube` (pipeline único `POST /song-ingestion/from-youtube`). |
 | `frontend/src/views/A-frame/vrPositionControl.js` | Clave `youtubeVideo` en `ELEMENTS`. |
 | `frontend/.../SyncStereoTestView.jsx` | `SYNCABLE_OVERLAYS` + `activateOverlay`. |
 | `frontend/.../SyncConfigCompassMenu.jsx` | `OVERLAY_OPTIONS` (lista real) + layout dinámico. |
@@ -285,9 +301,10 @@ externa), así que se llama `window.focus()` justo antes, y se agrega `clipboard
       solo inserta las líneas no concordantes si el usuario las aceptó (toggle "Accept N new lines").
 - [x] **PENDIENTE**: fallback automático a LRCLIB dentro de `lyrics-from-youtube` cuando no hay
       subtítulos (el flujo LRCLIB existe también como botón separado "GET TEXT LYRICS").
-- [ ] **PENDIENTE**: overlay de streaming `youtube-karaoke` (reproducir sin descargar, dos iframes
-      2D sincronizados).
-- [ ] **PENDIENTE**: endpoint único `POST /song-ingestion/from-youtube` con `sourceMode`
+- [x] **PENDIENTE**: overlay de streaming `youtube-karaoke` — resuelto reutilizando `youtubeVideo` +
+      `songText` (sin overlay nuevo): el padre sincroniza el reloj de reproducción del `YT.Player`
+      para que la letra avance.
+- [x] **PENDIENTE**: endpoint único `POST /song-ingestion/from-youtube` con `sourceMode`
       (`download`/`stream`) + `createSongFromYoutube()` en el frontend.
 
 ## 8. Referencias

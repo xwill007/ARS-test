@@ -7,6 +7,7 @@ describe('SongIngestionController', () => {
     downloadVideoToDevice: jest.fn(),
     fetchLyricsFromLrclib: jest.fn(),
     applyLyricsSync: jest.fn(),
+    createSongFromYoutube: jest.fn(),
   };
   let controller: SongIngestionController;
 
@@ -26,6 +27,32 @@ describe('SongIngestionController', () => {
 
     expect(songIngestionService.lyricsFromYoutube).toHaveBeenCalledWith(dto);
     expect(result).toEqual({ status: 'success', count: 2 });
+  });
+
+  it('delegates createSongFromYoutube to the service with the DTO and the authenticated user id', async () => {
+    songIngestionService.createSongFromYoutube.mockResolvedValue({
+      status: 'success',
+      song: { id: 1 },
+      created: true,
+      lyrics: { count: 2, words: 9, source: 'youtube' },
+    });
+
+    const dto = {
+      youtubeUrl: 'https://www.youtube.com/watch?v=9BMwcO6_hyA',
+      sourceMode: 'download',
+      title: 'Always',
+      author: 'Bon Jovi',
+    };
+    const user = { id: 31 } as any;
+    const result = await controller.fromYoutube(dto as any, user);
+
+    expect(songIngestionService.createSongFromYoutube).toHaveBeenCalledWith(dto, 31);
+    expect(result).toEqual({
+      status: 'success',
+      song: { id: 1 },
+      created: true,
+      lyrics: { count: 2, words: 9, source: 'youtube' },
+    });
   });
 
   it('delegates downloadVideo to the service with the DTO and the authenticated user id', async () => {

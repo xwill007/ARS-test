@@ -5,6 +5,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
 import { ApplyLyricsSyncDto } from './dto/apply-lyrics-sync.dto';
+import { CreateFromYoutubeDto } from './dto/create-from-youtube.dto';
 import { DownloadVideoDto } from './dto/download-video.dto';
 import { LyricsFromLrclibDto } from './dto/lyrics-from-lrclib.dto';
 import { LyricsFromYoutubeDto } from './dto/lyrics-from-youtube.dto';
@@ -37,6 +38,14 @@ export class SongIngestionController {
   @Post('apply-lyrics-sync')
   applyLyricsSync(@Body() dto: ApplyLyricsSyncDto) {
     return this.songIngestionService.applyLyricsSync(dto);
+  }
+
+  // Pipeline único (Requerimiento 015, pendiente P4): crea la canción Y le carga la letra en un
+  // solo paso. Protegido (escribe canciones, mismo criterio que `POST /songs`/`download-video`).
+  @UseGuards(JwtAuthGuard)
+  @Post('from-youtube')
+  fromYoutube(@Body() dto: CreateFromYoutubeDto, @CurrentUser() user: User) {
+    return this.songIngestionService.createSongFromYoutube(dto, user.id);
   }
 
   // Descargar video: protegido (escribe canciones, mismo criterio que `POST /songs`).
