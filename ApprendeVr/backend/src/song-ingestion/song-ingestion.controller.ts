@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { unlink } from 'fs/promises';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -21,6 +21,13 @@ export class SongIngestionController {
   @Post('lyrics-from-youtube')
   lyricsFromYoutube(@Body() dto: LyricsFromYoutubeDto) {
     return this.songIngestionService.lyricsFromYoutube(dto);
+  }
+
+  // Metadata de una URL de YouTube (título/autor) para autocompletar el panel "New Song" al pegar
+  // una URL (Requerimiento 015). Sin `JwtAuthGuard`: solo lectura, no escribe canciones.
+  @Get('youtube-metadata')
+  youtubeMetadata(@Query('youtubeUrl') youtubeUrl: string) {
+    return this.songIngestionService.getYoutubeMetadata(youtubeUrl);
   }
 
   // Obtener letra sincronizada desde LRCLIB (botón "GET TEXT LYRICS"): sin `JwtAuthGuard`, igual

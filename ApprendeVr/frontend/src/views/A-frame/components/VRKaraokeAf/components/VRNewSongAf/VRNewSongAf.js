@@ -74,6 +74,41 @@ AFRAME.registerComponent('vr-new-song-af', {
     bg.setAttribute('material', 'shader: flat; side: double;');
     el.appendChild(bg);
 
+    // Botón "−" para colapsar/ocultar el formulario (pedido del usuario): queda en la esquina
+    // superior derecha del panel. Al colapsar, se ocultan TODOS los hijos del panel salvo este
+    // botón (que cambia a "+" para volver a expandir). Se registra en `_clickableEls` para que el
+    // raycast manual lo active igual que el resto de controles.
+    const minimizeBtn = document.createElement('a-plane');
+    minimizeBtn.setAttribute('width', 0.22);
+    minimizeBtn.setAttribute('height', 0.22);
+    minimizeBtn.setAttribute('color', '#0008ff');
+    minimizeBtn.setAttribute('class', 'clickable');
+    minimizeBtn.setAttribute('position', `${planeW / 2 - 0.25} ${planeH / 2 - 0.25} 0.02`);
+    const minimizeTxt = document.createElement('a-text');
+    minimizeTxt.setAttribute('value', '-');
+    minimizeTxt.setAttribute('align', 'center');
+    minimizeTxt.setAttribute('color', '#ffffff');
+    minimizeTxt.setAttribute('width', 1.0);
+    minimizeTxt.setAttribute('scale', '4.0 4.0 1');
+    minimizeTxt.setAttribute('position', '0 0 0.01');
+    minimizeBtn.appendChild(minimizeTxt);
+    this._minimizeBtn = minimizeBtn;
+    this._minimizeTxt = minimizeTxt;
+    this._collapsed = false;
+    const toggleCollapse = () => {
+      this._collapsed = !this._collapsed;
+      // Oculta/muestra todos los hijos del panel salvo el propio botón de minimizar.
+      Array.from(el.children || []).forEach((child) => {
+        if (child === minimizeBtn) return;
+        try { child.setAttribute('visible', this._collapsed ? 'false' : 'true'); } catch (e) { /* ignore */ }
+      });
+      try { minimizeTxt.setAttribute('value', this._collapsed ? '+' : '-'); } catch (e) { /* ignore */ }
+    };
+    const onMinimizeClick = () => toggleCollapse();
+    minimizeBtn.addEventListener('click', onMinimizeClick);
+    this._clickableEls.push({ el: minimizeBtn, onClick: onMinimizeClick });
+    el.appendChild(minimizeBtn);
+
     let y = planeH / 2 - 0.22;
 
     const title = document.createElement('a-text');
@@ -114,6 +149,39 @@ AFRAME.registerComponent('vr-new-song-af', {
     const inputCenterX = -(pasteIconW + pasteIconGap) / 2;
     const pasteIconX = fieldRowW / 2 - pasteIconW / 2;
 
+    // Autocompleta título/autor desde la metadata de una URL de YouTube (Requerimiento 015): llama
+    // a `GET /api/song-ingestion/youtube-metadata` (el backend usa `yt-dlp --dump-json`) y, si la
+    // respuesta trae datos, completa SOLO los campos que todavía están vacíos (nunca pisa lo que el
+    // usuario ya escribió). Si falla (sin backend, URL no reconocida, video sin metadata), no rompe
+    // nada — se queda con lo que ya haya en el formulario.
+    const autofillFromYoutubeUrl = (url) => {
+      const videoId = extractYoutubeVideoId(url);
+      if (!videoId) return;
+      fetch('/api/song-ingestion/youtube-metadata?youtubeUrl=' + encodeURIComponent(url))
+        .then((res) => (res.ok ? res.json() : null))
+        .then((meta) => {
+          if (!meta || typeof meta !== 'object') return;
+          const title = (meta.title || '').trim();
+          const author = (meta.author || '').trim();
+          let filled = false;
+          if (title && !(this._values.titulo || '').trim()) {
+            this._values.titulo = title;
+            this._refreshFieldText('titulo');
+            filled = true;
+          }
+          if (author && !(this._values.autor || '').trim()) {
+            this._values.autor = author;
+            this._refreshFieldText('autor');
+            filled = true;
+          }
+          if (filled) {
+            this._statusText.setAttribute('color', '#aaffaa');
+            this._statusText.setAttribute('value', 'Titulo y autor completados desde la URL.');
+          }
+        })
+        .catch(() => { /* autocompletado opcional */ });
+    };
+
     const pasteIntoField = (fieldName) => {
       if (!navigator.clipboard || !navigator.clipboard.readText) {
         this._statusText.setAttribute('color', '#ff8888');
@@ -133,6 +201,8 @@ AFRAME.registerComponent('vr-new-song-af', {
         this._setActiveField(fieldName);
         this._statusText.setAttribute('color', '#aaffaa');
         this._statusText.setAttribute('value', 'Valor pegado desde el portapapeles.');
+        // Si lo que se pegó es una URL de YouTube, autocompleta título/autor (pedido del usuario).
+        if (fieldName === 'youtubeUrl') autofillFromYoutubeUrl(clip);
       }).catch((err) => {
         this._statusText.setAttribute('color', '#ff8888');
         const detail = (err && err.name === 'NotAllowedError')

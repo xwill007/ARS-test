@@ -17,6 +17,7 @@ import { compareLyrics, buildComparisonRows, timeStringToSeconds } from './lyric
 import { fetchLrclibLyrics } from './lrclib.util';
 import { tokenizeWords } from './lyrics.util';
 import { translateText } from './translation.util';
+import { fetchYoutubeMetadata } from './youtube-metadata.util';
 import {
   CaptionLine,
   fetchYoutubePhrases,
@@ -194,6 +195,14 @@ export class SongIngestionService {
       created.push(phrase);
     }
     return { count: created.length, words: totalWords };
+  }
+
+  // Autocompletar título/autor de una URL de YouTube (Requerimiento 015, botón "pegar URL" del
+  // panel "New Song"): obtiene la metadata con `yt-dlp --dump-json` y la devuelve. Sin
+  // `JwtAuthGuard` (solo lectura, no escribe canciones) y devuelve `null` si no se reconoce la URL
+  // o `yt-dlp` falla — el frontend degrada a "sin autocompletar" sin romper nada.
+  async getYoutubeMetadata(youtubeUrl: string) {
+    return fetchYoutubeMetadata(youtubeUrl);
   }
 
   // Fallback automático a LRCLIB (Requerimiento 015, pendiente P2): deriva artista/título de la
