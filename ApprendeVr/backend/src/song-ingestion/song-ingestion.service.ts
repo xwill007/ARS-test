@@ -16,7 +16,11 @@ import { compareLyrics, buildComparisonRows, timeStringToSeconds } from './lyric
 import { fetchLrclibLyrics } from './lrclib.util';
 import { tokenizeWords } from './lyrics.util';
 import { translateText } from './translation.util';
-import { fetchYoutubePhrases, secondsToHms } from './youtube-captions.util';
+import {
+  CaptionLine,
+  fetchYoutubePhrases,
+  secondsToHms,
+} from './youtube-captions.util';
 import {
   downloadYoutubeVideo,
   karaokeVideosDir,
@@ -44,7 +48,18 @@ export class SongIngestionService {
   // guarda nada. Todo o nada: la traducción (frases y palabras) se resuelve ANTES de insertar,
   // así una falla de traducción no deja frases a medio guardar.
   async lyricsFromYoutube(dto: LyricsFromYoutubeDto) {
-    const captions = await fetchYoutubePhrases(dto.youtubeUrl);
+    let captions = await fetchYoutubePhrases(dto.youtubeUrl);
+    let source: 'youtube' | 'lrclib' = 'youtube';
+
+    // Fallback automático a LRCLIB (Requerimiento 015, pendiente P2): si el video no tiene
+    // subtítulos en inglés, se intenta la letra sincronizada de LRCLIB usando artista/título de la
+    // canción identificada por `dto.archivo`. El formato de LRCLIB es compatible con el de los
+    // subtítulos (`{ text, startTime }`), así que el resto del flujo es idéntico.
+    if (!captions.length) {
+      captions = await this.fetchLrclibFallback(dto.archivo);
+      source = 'lrclib';
+    }
+
     if (!captions.length) {
       throw new BadRequestException('NO_LYRICS_FOUND');
     }
@@ -92,7 +107,20 @@ export class SongIngestionService {
       }
       created.push(phrase);
     }
-    return { status: 'success', count: created.length, words: totalWords };
+    return { status: 'success', count: created.length, words: totalWords, source };
+  }
+
+  // Fallback automático a LRCLIB (Requerimiento 015, pendiente P2): deriva artista/título de la
+  // canción identificada por `archivo` (igual que `fetchLyricsFromLrclib`) e intenta la letra
+  // sincronizada de LRCLIB. Devuelve `[]` si no hay canción, faltan artista/título o LRCLIB no
+  // tiene letra (con lo que `lyricsFromYoutube` termina lanzando `NO_LYRICS_FOUND`).
+  private async fetchLrclibFallback(archivo: string): Promise<CaptionLine[]> {
+    const song = await this.songsService.findByFileName(archivo);
+    if (!song) return [];
+    const artistName = (song.author || '').trim();
+    const trackName = (song.title || '').trim();
+    if (!artistName || !trackName) return [];
+    return fetchLrclibLyrics(artistName, trackName);
   }
 
   // Botón "SAVE VIDEO YOUTUBE IN LOCAL": descarga el video a `public/videos/karaoke/<slug>.mp4` y

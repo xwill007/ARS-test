@@ -117,11 +117,59 @@ describe('SongIngestionService', () => {
       // 4 + 5 palabras creadas
       expect(wordsService.create).toHaveBeenCalledTimes(9);
       expect(wordsService.create).toHaveBeenCalledWith(259, 1, 'this', 'TR_this');
-      expect(result).toEqual({ status: 'success', count: 2, words: 9 });
+      expect(result).toEqual({ status: 'success', count: 2, words: 9, source: 'youtube' });
+    });
+
+    it('falls back to LRCLIB when YouTube has no captions', async () => {
+      (fetchYoutubePhrases as jest.Mock).mockResolvedValue([]);
+      songsService.findByFileName.mockResolvedValue({
+        id: 259,
+        title: 'Always',
+        author: 'Bon Jovi',
+      });
+      (fetchLrclibLyrics as jest.Mock).mockResolvedValue([
+        { text: 'This Romeo is bleeding', startTime: 38.537 },
+      ]);
+      (translateText as jest.Mock).mockImplementation(async (_u, t) => {
+        if (t === 'This Romeo is bleeding') return 'Este Romeo está sangrando';
+        return 'TR_' + t;
+      });
+      (tokenizeWords as jest.Mock).mockImplementation(() => ['this', 'romeo']);
+      (secondsToHms as jest.Mock).mockImplementation((s: number) => '00:00:38.5');
+      phrasesService.create.mockResolvedValue({ id: 1, songId: 259 });
+      wordsService.create.mockResolvedValue({});
+
+      const result = await service.lyricsFromYoutube(dto as any);
+
+      expect(fetchLrclibLyrics).toHaveBeenCalledWith('Bon Jovi', 'Always');
+      expect(phrasesService.create).toHaveBeenCalledWith({
+        archivo: dto.archivo,
+        ingles_frase: 'This Romeo is bleeding',
+        espanol_frase: 'Este Romeo está sangrando',
+        tiempo_frase: '00:00:38.5',
+      });
+      expect(result).toEqual({ status: 'success', count: 1, words: 2, source: 'lrclib' });
     });
 
     it('throws BadRequestException when no captions were found', async () => {
       (fetchYoutubePhrases as jest.Mock).mockResolvedValue([]);
+      songsService.findByFileName.mockResolvedValue(null);
+
+      await expect(service.lyricsFromYoutube(dto as any)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(fetchLrclibLyrics).not.toHaveBeenCalled();
+      expect(phrasesService.create).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when captions are empty and LRCLIB has no lyrics', async () => {
+      (fetchYoutubePhrases as jest.Mock).mockResolvedValue([]);
+      songsService.findByFileName.mockResolvedValue({
+        id: 259,
+        title: 'Always',
+        author: 'Bon Jovi',
+      });
+      (fetchLrclibLyrics as jest.Mock).mockResolvedValue([]);
 
       await expect(service.lyricsFromYoutube(dto as any)).rejects.toBeInstanceOf(
         BadRequestException,

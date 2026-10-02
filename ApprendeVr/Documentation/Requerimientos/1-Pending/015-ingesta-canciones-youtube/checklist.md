@@ -92,7 +92,7 @@
       371 palabras traducidas), `download-video` (`.mp4` h264/aac en servidor),
       `download-video-to-device` (blob + IndexedDB).
 - [x] 7.5 Confirmar que las 3 canciones locales del dump siguen andando en el overlay `karaoke`.
-- [ ] 7.6 Marcar los criterios de aceptación de `requerimiento.md` como cumplidos (los pendientes
+- [x] 7.6 Marcar los criterios de aceptación de `requerimiento.md` como cumplidos (los pendientes
       quedan abiertos — ver abajo).
 
 ### Pendiente (diseñado pero NO implementado)
@@ -103,7 +103,7 @@
       (`db/016`, entidad `StagedPhrase`), endpoints `POST /song-ingestion/lyrics-from-lrclib` y
       `POST /song-ingestion/apply-lyrics-sync`, y botón + panel de confirmación en `song-text-
       modules.js`.
-- [ ] P2. Fallback **automático** a LRCLIB dentro de `lyrics-from-youtube` cuando
+- [x] P2. Fallback **automático** a LRCLIB dentro de `lyrics-from-youtube` cuando
       `fetchYoutubePhrases` devuelve `[]` (hoy LRCLIB es un botón separado, no un fallback).
 - [ ] P3. Overlay de **streaming `youtube-karaoke`**: `VRYoutubeKaraokeAf.js` (YouTube IFrame
       Player), `youtube-karaoke.html`/`-modules.js`, `VRYoutubeKaraokeOverlaySync.jsx`, registro en

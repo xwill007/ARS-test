@@ -15,8 +15,8 @@ IndexedDB, canción privada). Complementa al Requerimiento 014 (alta manual vía
 > overlay de streaming (`youtube-karaoke`). Al implementarlo se reorientó hacia **tres acciones
 > separadas y explícitas** (obtener letra / descargar al servidor / descargar al dispositivo)
 > expuestas como botones del overlay `songText`, más un overlay de previsualización (`youtubeVideo`).
-> **Quedan sin implementar**: el fallback a LRCLIB, el overlay de streaming `youtube-karaoke` y el
-> endpoint único orquestador con `sourceMode`. Ver sección 4 (Pendiente).
+> **Quedan sin implementar**: el overlay de streaming `youtube-karaoke` y el endpoint único
+> orquestador con `sourceMode`. Ver sección 4 (Pendiente).
 
 ## 2. Antecedentes y estado actual
 
@@ -114,6 +114,11 @@ IndexedDB, canción privada). Complementa al Requerimiento 014 (alta manual vía
   - `POST /song-ingestion/apply-lyrics-sync` `{ archivo, acceptMismatches? }`: aplica los tiempos a
     las frases con `00:00:00.0` matcheadas por texto y, si `acceptMismatches`, inserta como frases
     nuevas las líneas no concordantes (traducidas con LibreTranslate); borra el STAGING al final.
+- **Backend — fallback automático a LRCLIB en `lyrics-from-youtube`**: si `fetchYoutubePhrases`
+  devuelve `[]` (el video no tiene subtítulos en inglés), `lyricsFromYoutube` intenta la letra
+  sincronizada de LRCLIB con artista/título de la canción identificada por `archivo`
+  (`fetchLrclibFallback`) antes de fallar con `NO_LYRICS_FOUND`. El `source` del resultado indica
+  `'youtube'` o `'lrclib'`.
 - **Frontend — overlay `songText`** ("Song Text"): panel de letra sincronizada (frase anterior /
   actual / futura) con la sección "Add text song" que expone el input de URL de YouTube y los cuatro
   botones de ingesta: "GET TEXT FROM YOUTUBE", "GET TEXT LYRICS" (LRCLIB, con panel de confirmación),
@@ -152,10 +157,10 @@ IndexedDB, canción privada). Complementa al Requerimiento 014 (alta manual vía
   (y `create-from-youtube.dto.ts` + `createSongFromYoutube()` en `vrSongsApi.util.js`): el diseño
   original de un pipeline de un solo paso; hoy se resuelve con las acciones separadas de arriba.
 
-> Nota: el fallback LRCLIB ya está implementado (ver "Incluido"), pero como un flujo **separado**
-> (botón "GET TEXT LYRICS" + tabla de STAGING + aprobación), no como fallback automático dentro de
-> `lyrics-from-youtube`. El fallback automático (si no hay subtítulos, probar LRCLIB) sigue sin
-> implementarse.
+> Nota: el fallback LRCLIB está implementado de dos formas. Como **flujo separado** (botón
+> "GET TEXT LYRICS" + tabla de STAGING + aprobación) y como **fallback automático** dentro de
+> `lyrics-from-youtube`: si no hay subtítulos, `lyricsFromYoutube` prueba LRCLIB con artista/título
+> derivados de `canciones_vr` antes de fallar con `NO_LYRICS_FOUND`.
 
 ## 5. Diseño técnico
 
@@ -278,8 +283,8 @@ externa), así que se llama `window.focus()` justo antes, y se agrega `clipboard
       tiempo + líneas que no concuerdan) para que el usuario apruebe antes de aplicar.
 - [x] Aplicar la sincronización asigna tiempos a las frases con `00:00:00.0` matcheadas por texto, y
       solo inserta las líneas no concordantes si el usuario las aceptó (toggle "Accept N new lines").
-- [ ] **PENDIENTE**: fallback automático a LRCLIB dentro de `lyrics-from-youtube` cuando no hay
-      subtítulos (el flujo LRCLIB existe, pero como botón separado "GET TEXT LYRICS").
+- [x] **PENDIENTE**: fallback automático a LRCLIB dentro de `lyrics-from-youtube` cuando no hay
+      subtítulos (el flujo LRCLIB existe también como botón separado "GET TEXT LYRICS").
 - [ ] **PENDIENTE**: overlay de streaming `youtube-karaoke` (reproducir sin descargar, dos iframes
       2D sincronizados).
 - [ ] **PENDIENTE**: endpoint único `POST /song-ingestion/from-youtube` con `sourceMode`
