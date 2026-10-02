@@ -39,8 +39,14 @@ manualmente, igual que el resto de las vistas A-Frame de este proyecto.
 | `apply-lyrics-sync.dto.spec.ts` | `acceptMismatches` booleano | acepta / rechaza |
 | `song-ingestion.service.spec.ts` | `fetchLyricsFromLrclib` (feliz / canción inexistente / sin letra) | stajea y devuelve comparación / 404 / 400 |
 | `song-ingestion.service.spec.ts` | `applyLyricsSync` (sin aceptar / aceptando / sin staging) | aplica tiempos, inserta nuevas, borra staging |
+| `song-ingestion.service.spec.ts` | `lyricsFromYoutube` fallback a LRCLIB (sin captions) | usa `fetchLrclibLyrics` con artista/título de la canción, crea frases, `source: 'lrclib'` |
+| `song-ingestion.service.spec.ts` | `createSongFromYoutube` `download` | descarga + crea `source: ['youtube','server']` + ingesta de letra |
+| `song-ingestion.service.spec.ts` | `createSongFromYoutube` `stream` (sin descarga, `fileName` = URL) | crea `source: ['youtube']` + frases contra la URL |
+| `song-ingestion.service.spec.ts` | `createSongFromYoutube` sin letra resoluble | canción creada sin frases, lanza `BadRequestException` |
+| `create-from-youtube.dto.spec.ts` | Payload válido / `sourceMode` inválido / sin `youtubeUrl` / sin `title` | acepta / rechaza |
 | `song-ingestion.controller.spec.ts` | `POST /song-ingestion/lyrics-from-youtube` / `download-video` / `download-video-to-device` | delega al service con el DTO validado |
 | `song-ingestion.controller.spec.ts` | `POST /song-ingestion/lyrics-from-lrclib` / `apply-lyrics-sync` | delega al service con el DTO validado |
+| `song-ingestion.controller.spec.ts` | `POST /song-ingestion/from-youtube` | delega al service con el DTO + `userId` |
 | `user-settings.util.spec.ts` | `isValidAframeViewConfig` con subconjunto (solo `youtubeVideo`) | válido (antes fallaba exigiendo las claves completas) |
 | `user-settings.service.spec.ts` | `saveConfig` con guardado parcial | merge superficial, no reemplazo (conserva claves previas) |
 
@@ -72,9 +78,10 @@ manualmente, igual que el resto de las vistas A-Frame de este proyecto.
 | Doble panel: escribir/pegar en `VRNewSongAf` | Se replica al panel opuesto (~300ms) |
 | Las 3 canciones locales del dump | Siguen usando `<a-video>`/textura 3D en el overlay `karaoke`, sin regresión |
 
-## Casos — Pendientes (no implementados)
+## Casos — Resueltos en esta iteración (P2, P3, P4)
 
 | Caso | Resultado esperado |
 |---|---|
-| Fallback automático a LRCLIB dentro de `lyrics-from-youtube` cuando no hay subtítulos | (Pendiente) usar LRCLIB sin pasar por el botón "GET TEXT LYRICS" |
-| Cantar una canción en modo streaming con el overlay `youtube-karaoke` | (Pendiente) dos iframes `YT.Player` sincronizados play/pause/seek |
+| Fallback automático a LRCLIB dentro de `lyrics-from-youtube` cuando no hay subtítulos | (P2, implementado) usa `fetchLrclibFallback` (artista/título de `canciones_vr`) y devuelve `source: 'lrclib'` |
+| Cantar una canción en modo streaming | (P3, resuelto sin overlay nuevo) reutiliza `youtubeVideo` (YT.Player) + `songText` (letra); el padre `SyncStereoTestView.jsx` actualiza el reloj del karaoke con `youtube-video-play`/`pause`/`seek` para que la letra avance |
+| Endpoint único `POST /song-ingestion/from-youtube` | (P4, implementado) crea la canción y carga la letra en un paso; `stream` usa `fileName` = URL completa para que la letra matchee |

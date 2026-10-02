@@ -1207,6 +1207,10 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     const ordered = [...phrases].sort((a, b) => a.id - b.id);
     const currentId = computeCurrentPhraseId();
     let currentRowEl = null;
+    // Fila de la frase INMEDIATAMENTE anterior a la actual (se usa para el auto-scroll: pedido del
+    // usuario, la frase actual debe quedar en SEGUNDO lugar, con la anterior visible arriba).
+    let prevRowEl = null;
+    let lastRowEl = null;
 
     ordered.forEach((p) => {
       const isCurrent = p.id === currentId;
@@ -1263,14 +1267,20 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       row.appendChild(btn);
       row.appendChild(checkBtn);
       phraseList.appendChild(row);
-      if (isCurrent) currentRowEl = row;
+      if (isCurrent) {
+        currentRowEl = row;
+        // `lastRowEl` todavía apunta a la fila creada en la iteración anterior (la frase anterior
+        // por id), porque esta fila recién se asigna a `lastRowEl` al final de esta iteración.
+        prevRowEl = lastRowEl;
+      }
+      lastRowEl = row;
     });
 
-    // Auto-scroll mientras reproduce: ubica la frase actual al INICIO de la vista (scrollTop =
-    // offsetTop de la fila), para que las frases siguientes queden visibles debajo. Pausado:
-    // conserva la posición manual del usuario.
+    // Auto-scroll mientras reproduce: ubica la frase ACTUAL en SEGUNDO lugar, dejando la frase
+    // ANTERIOR visible arriba (pedido del usuario — antes la actual quedaba al inicio). Si la actual
+    // es la primera (no hay anterior), queda arriba. Pausado: conserva la posición manual.
     if (state.playing && currentRowEl) {
-      phraseList.scrollTop = Math.max(0, currentRowEl.offsetTop);
+      phraseList.scrollTop = prevRowEl ? Math.max(0, prevRowEl.offsetTop) : 0;
     } else {
       phraseList.scrollTop = prevScroll;
     }
@@ -1766,8 +1776,8 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
     addMode = false; // cierra "Add text" si estaba abierto (mutuamente excluyentes)
     editMode = true;
     // Si ya está pausado al entrar, usar ese tiempo como punto de partida; si está reproduciendo,
-    // se capturará al pausar (ver readState). La letra del panel principal se congela (computeLines
-    // solo corre en !editMode) pero sigue visible, para saber qué frase se está editando.
+    // se capturará al pausar (ver readState). La letra del panel principal sigue avanzando mientras
+    // reproduce (igual que la lista de frases, ver `track`), y se congela al pausar.
     capturedTime = state.playing ? null : state.time;
     stagedIds.clear();
     stagedOriginals.clear();
@@ -1854,9 +1864,14 @@ const KARAOKE_STATE_KEY = 'apprendevr_karaoke_state';
       if (phrasesCache.fileName !== state.fileName && loadingFileName !== state.fileName) {
         loadPhrases(state.fileName);
       }
-      if (!editMode) {
+      // La letra del panel principal (prevLine/currentLine/traducción/nextLine) avanza SIEMPRE
+      // mientras reproduce, también en modo edición (pedido del usuario: en "Edit text" la letra
+      // quedaba congelada aunque la lista de frases sí avanzaba). En pausa se congela (no hay
+      // avance de tiempo), igual que en modo normal.
+      if (!editMode || state.playing) {
         computeLines(effectiveTime());
-      } else if (state.playing) {
+      }
+      if (editMode && state.playing) {
         // En modo edición, mientras reproduce: re-renderiza la lista SOLO cuando la frase actual
         // cambia (para que el highlight avance y el auto-scroll siga a la frase que suena), sin
         // reconstruir el DOM en cada frame.
