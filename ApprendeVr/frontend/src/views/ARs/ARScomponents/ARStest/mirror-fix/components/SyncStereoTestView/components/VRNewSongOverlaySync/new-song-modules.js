@@ -142,6 +142,48 @@ import { initPositionControl } from '../../../../../../../../A-frame/vrPositionC
   });
 })();
 
+// Puente de selección desde el overlay "Explore Youtube AR" (Requerimiento 017): cuando el usuario
+// elige un resultado, SyncStereoTestView.jsx reenvía `explore-youtube-fill` acá para rellenar los
+// campos del formulario. Regla de relleno: `youtubeUrl` SIEMPRE (es la fuente elegida), y
+// `titulo`/`autor` SOLO si están vacíos (nunca pisa lo que el usuario ya escribió — mismo criterio
+// que el autocompletado por URL de VRNewSongAf.js). A diferencia de `new-song-field-update` (sync
+// ciega de valores entre paneles), acá hace falta conocer el valor actual para aplicar esa regla,
+// por eso es un mensaje propio en vez de reusar aquel.
+(function () {
+  window.addEventListener('message', function (ev) {
+    const msg = ev.data;
+    if (!msg || msg.source !== 'ars-sync-test' || msg.action !== 'explore-youtube-fill') return;
+
+    const entity = document.querySelector('#new-song-component');
+    const comp = entity && entity.components && entity.components['vr-new-song-af'];
+    if (!comp || !comp._values) return;
+
+    const url = (msg.url || '').trim();
+    const title = (msg.title || '').trim();
+    const artist = (msg.artist || '').trim();
+
+    if (url) {
+      comp._values.youtubeUrl = url;
+      try { comp._refreshFieldText('youtubeUrl'); } catch (e) { /* ignore */ }
+    }
+    if (title && !(comp._values.titulo || '').trim()) {
+      comp._values.titulo = title;
+      try { comp._refreshFieldText('titulo'); } catch (e) { /* ignore */ }
+    }
+    if (artist && !(comp._values.autor || '').trim()) {
+      comp._values.autor = artist;
+      try { comp._refreshFieldText('autor'); } catch (e) { /* ignore */ }
+    }
+
+    if (comp._statusText) {
+      try {
+        comp._statusText.setAttribute('color', '#aaffaa');
+        comp._statusText.setAttribute('value', 'Video de YouTube seleccionado: campos completados.');
+      } catch (e) { /* ignore */ }
+    }
+  });
+})();
+
 // Puente de "canción agregada" — a diferencia de cuando "New Song" vivía dentro del mismo iframe
 // que "karaoke" (ahí alcanzaba con relayar al panel opuesto, porque el propio panel ya tenía la
 // lista en el mismo documento), ahora son overlays/iframes DISTINTOS incluso dentro del MISMO

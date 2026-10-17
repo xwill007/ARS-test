@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Explore Youtube AR Overlay (AR-SYNC)</title>
+
+    <!--
+      Overlay "Explore Youtube AR" de AR-SYNC (SyncStereoTestView.jsx), Requerimiento 017. Igual
+      que el overlay "Youtube Video" (VRYoutubeVideoOverlaySync.jsx), es una página Vite real (no
+      srcDoc) porque necesita `import`s reales de src/views/A-frame (vrPositionControl.js, para el
+      marcador de ubicación + persistencia) que un srcDoc en blanco no puede resolver. Carga la
+      MISMA copia local de A-Frame que el resto (/libs/aframe.min.js), no una versión por CDN.
+    -->
+    <script src="/libs/aframe.min.js"></script>
+    <script type="module" src="./explore-youtube-modules.js"></script>
+
+    <style>
+      html, body { margin: 0; height: 100%; width: 100%; background: transparent; }
+      .clickable { cursor: pointer; }
+    </style>
+  </head>
+  <body style="margin:0; background:transparent;">
+    <a-scene
+      embedded
+      vr-mode-ui="enabled: false"
+      stats="false"
+      style="width: 100vw; height: 100vh; background: transparent;">
+
+      <!-- Ancla del panel de búsqueda: entidad vacía, sin geometría propia — el panel real es un
+           <div> de DOM que sigue su posición proyectada a pantalla (mismo patrón que el overlay
+           "Youtube Video"). Movible con el widget de posición (vrPositionControl.js, clave
+           "exploreYoutube"). -->
+      <a-entity id="explore-youtube-anchor" position="0 1.8 -2.5"></a-entity>
+
+      <!-- look-controls por defecto (giroscopio/acelerómetro en móvil, drag de mouse en
+           escritorio) — mismo patrón que el resto de los overlays de contenido de mirror-fix. -->
+      <a-camera position="0 1.8 0" rotation="0 0 0" wasd-controls="enabled: false"></a-camera>
+    </a-scene>
+  </body>
+</html>

@@ -306,6 +306,7 @@
         "cone": "Words cone",
         "karaoke": "Karaoke (song list + player, real A-Frame component)",
         "youtubeVideo": "YouTube video (embedded video from the URL pasted in New Song)",
+        "exploreYoutube": "Explore YouTube (search a video and fill URL/title/artist in New Song)",
         "newSong": "New Song (add a song to the catalog, real A-Frame component)",
         "songText": "Song text (synchronized lyrics: previous, current and next line)",
         "cameraShort": "Camera",
@@ -313,6 +314,7 @@
         "coneShort": "Cone",
         "karaokeShort": "Karaoke",
         "youtubeVideoShort": "YouTube Video",
+        "exploreYoutubeShort": "Explore YouTube",
         "newSongShort": "New Song",
         "songTextShort": "Song Text"
       }

@@ -17,4 +17,10 @@ export default () => ({
   // Docker por defecto expone el puerto 5001 del host (ver docker-compose.yml, servicio
   // `translate`; macOS usa el 5000 para AirPlay, por eso se evitó).
   libreTranslateUrl: process.env.LIBRETRANSLATE_URL ?? 'http://localhost:5001',
+  // API key de la YouTube Data API v3 (Requerimiento 017, overlay "Explore Youtube AR"). Sin key,
+  // `GET /api/youtube-search` devuelve un error controlado 503. Se obtiene en Google Cloud Console
+  // habilitando "YouTube Data API v3".
+  youtube: {
+    apiKey: process.env.YOUTUBE_API_KEY ?? '',
+  },
 });

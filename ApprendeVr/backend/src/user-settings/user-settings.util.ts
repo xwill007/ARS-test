@@ -67,11 +67,13 @@ export function isValidLoginFormConfig(config: unknown): boolean {
 // VRKaraokeAf.js) — karaoke, songList y newSong son posicionables por separado.
 // `youtubeVideo` (Requerimiento 015): ancla del overlay "Youtube Video" de mirror-fix
 // (`#youtube-video-anchor`, ver vrPositionControl.js).
+// `exploreYoutube` (Requerimiento 017): ancla del overlay "Explore Youtube AR" de mirror-fix
+// (`#explore-youtube-anchor`) — mismo criterio que `youtubeVideo`.
 // `songText` (Requerimiento 015): ancla del overlay "Song Text" de mirror-fix
 // (`#song-text-anchor`) — mismo criterio que `youtubeVideo`. `songTextEdit`: ancla del panel de
 // edición de tiempos del mismo overlay (`#song-text-edit-anchor`), posicionable por separado; el
 // panel "Add text song" comparte esta misma ancla/posición.
-const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong', 'youtubeVideo', 'songText', 'songTextEdit'] as const;
+const AFRAME_VIEW_ELEMENTS = ['karaoke', 'songList', 'newSong', 'youtubeVideo', 'exploreYoutube', 'songText', 'songTextEdit'] as const;
 
 export function isValidAframeViewConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;
@@ -96,7 +98,9 @@ export function isValidEvaluationPanelConfig(config: unknown): boolean {
 // `newSong` (Requerimiento 014, ampliación): overlay "New Song" separado de `karaoke` — mismo
 // motivo, mismo tipo de bug si se omite acá. `songText` (Requerimiento 015): overlay "Song Text"
 // (letra sincronizada) — igual criterio, sin esta clave "Guardar selección" devuelve 400.
-const ARS_SYNC_OVERLAY_KEYS = ['camera', 'video', 'cone', 'karaoke', 'youtubeVideo', 'newSong', 'songText'] as const;
+// `exploreYoutube` (Requerimiento 017): overlay "Explore Youtube AR" (búsqueda de YouTube) — igual
+// criterio que las claves anteriores, sin ella "Guardar selección" devolvería 400.
+const ARS_SYNC_OVERLAY_KEYS = ['camera', 'video', 'cone', 'karaoke', 'youtubeVideo', 'newSong', 'songText', 'exploreYoutube'] as const;
 
 export function isValidArsSyncOverlaysConfig(config: unknown): boolean {
   if (!config || typeof config !== 'object') return false;

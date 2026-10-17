@@ -363,6 +363,24 @@ AFRAME.registerComponent('vr-new-song-af', {
       const titulo = (this._values.titulo || '').trim();
       const autor = (this._values.autor || '').trim();
       const query = [titulo, autor].filter(Boolean).join(' ').trim();
+
+      // Requerimiento 017: dentro de AR-SYNC (mirror-fix), "BUSCAR EN YOUTUBE" ya no abre una
+      // pestaña externa — activa el overlay "Explore Youtube AR" y le pasa la consulta
+      // (artista + canción) por localStorage (mismo puente de origen que
+      // apprendevr_youtube_preview_url). En la vista de producción (index.html, sin AR-SYNC)
+      // conserva el window.open como fallback, porque ahí no existe ese overlay.
+      if (window.parent && window.parent !== window) {
+        try {
+          localStorage.setItem('apprendevr_youtube_search_query', query);
+        } catch (e) { /* ignore */ }
+        try {
+          window.parent.postMessage({ source: 'ars-sync-test', action: 'activate-overlay', key: 'exploreYoutube' }, '*');
+        } catch (e) { /* ignore */ }
+        this._statusText.setAttribute('color', '#aaffaa');
+        this._statusText.setAttribute('value', 'Buscando en el overlay "Explore Youtube AR".');
+        return;
+      }
+
       const url = query
         ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query)
         : 'https://www.youtube.com';

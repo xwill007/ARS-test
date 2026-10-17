@@ -112,6 +112,13 @@ ApprendeVr/backend/
       videos.module.ts
       videos.controller.ts  # GET /videos/:fileName  (streaming Range)
       videos.service.ts
+    youtube-search/
+      youtube-search.module.ts
+      youtube-search.controller.ts  # GET /youtube-search?q=  (búsqueda YouTube, Requerimiento 017)
+      youtube-search.service.ts     # cliente YouTube Data API v3 (YOUTUBE_API_KEY)
+      youtube-search.util.ts        # normaliza la respuesta a [{videoId,title,thumbnailUrl,channelTitle}]
+      youtube-search.util.spec.ts
+      youtube-search.service.spec.ts
   migrations/
     1700000000000-rename-schema-to-english.ts
   test/

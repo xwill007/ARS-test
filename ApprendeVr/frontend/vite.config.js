@@ -39,6 +39,9 @@ export default defineConfig({
         // nunca transformaría youtube-video-modules.js ni generaría youtube-video.html (mismo
         // hallazgo ya documentado arriba para artestMirror).
         youtubeVideo: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/components/SyncStereoTestView/components/VRYoutubeVideoOverlaySync/youtube-video.html'),
+        // Requerimiento 017: overlay "Explore Youtube AR" (búsqueda de YouTube) — página Vite real
+        // por el mismo motivo que youtubeVideo (importa vrPositionControl.js y vrYoutubeSearchApi.util.js).
+        exploreYoutube: path.resolve(__dirname, 'src/views/ARs/ARScomponents/ARStest/mirror-fix/components/SyncStereoTestView/components/VRYoutubeExploreOverlaySync/explore-youtube.html'),
         // Requerimiento 014 (ampliación): overlay "New Song" separado del overlay "karaoke" (antes
         // vivían en la misma página/iframe) — página Vite real por el mismo motivo que
         // aframeOverlayModules/youtubeVideo (importa módulos reales del proyecto).

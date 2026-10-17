@@ -13,6 +13,7 @@ describe('configuration', () => {
     'JWT_EXPIRES_IN',
     'CORS_ORIGIN',
     'LIBRETRANSLATE_URL',
+    'YOUTUBE_API_KEY',
   ];
 
   beforeEach(() => {
@@ -37,6 +38,7 @@ describe('configuration', () => {
       jwt: { secret: 'change-me', expiresIn: '7d' },
       corsOrigin: true,
       libreTranslateUrl: 'http://localhost:5001',
+      youtube: { apiKey: '' },
     });
   });
 
@@ -51,6 +53,7 @@ describe('configuration', () => {
     process.env.JWT_EXPIRES_IN = '1h';
     process.env.CORS_ORIGIN = 'https://example.com';
     process.env.LIBRETRANSLATE_URL = 'http://translate.internal:5000';
+    process.env.YOUTUBE_API_KEY = 'yt-test-key';
 
     expect(configuration()).toEqual({
       port: 4000,
@@ -64,6 +67,7 @@ describe('configuration', () => {
       jwt: { secret: 'super-secret', expiresIn: '1h' },
       corsOrigin: 'https://example.com',
       libreTranslateUrl: 'http://translate.internal:5000',
+      youtube: { apiKey: 'yt-test-key' },
     });
   });
 });

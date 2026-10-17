@@ -10,6 +10,7 @@ import { SongIngestionModule } from './song-ingestion/song-ingestion.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
 import { UsersModule } from './users/users.module';
 import { WordsModule } from './words/words.module';
+import { YoutubeSearchModule } from './youtube-search/youtube-search.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { WordsModule } from './words/words.module';
     WordsModule,
     PhrasesModule,
     SongIngestionModule,
+    YoutubeSearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

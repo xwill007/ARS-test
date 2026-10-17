@@ -4,6 +4,7 @@ import VRLocalVideoOverlaySync from './components/VRLocalVideoOverlaySync';
 import VRConeOverlaySync from './components/VRConeOverlaySync';
 import VRKaraokeOverlaySync from './components/VRKaraokeOverlaySync';
 import VRYoutubeVideoOverlaySync from './components/VRYoutubeVideoOverlaySync';
+import VRYoutubeExploreOverlaySync from './components/VRYoutubeExploreOverlaySync';
 import VRSongTextOverlaySync from './components/VRSongTextOverlaySync';
 import VRNewSongOverlaySync from './components/VRNewSongOverlaySync';
 import SyncConfigCompassMenu from './components/SyncConfigCompassMenu';
@@ -42,6 +43,10 @@ const SYNCABLE_OVERLAYS = {
   cone: VRConeOverlaySync,
   karaoke: VRKaraokeOverlaySync,
   youtubeVideo: VRYoutubeVideoOverlaySync,
+  // Requerimiento 017: overlay "Explore Youtube AR" — búsqueda de YouTube dentro de la vista AR,
+  // activado desde el botón "BUSCAR EN YOUTUBE" del panel "New Song" (ver VRNewSongAf.js). Al
+  // seleccionar un resultado, reproduce el video y rellena URL/título/autor del panel "New Song".
+  exploreYoutube: VRYoutubeExploreOverlaySync,
   // Overlay "Song Text": letra de la canción seleccionada (frase anterior/actual/futura) — lee el
   // estado de reproducción publicado por este mismo componente en localStorage (ver el efecto de
   // broadcast más abajo), sin un puente de postMessage propio para el contenido.
@@ -985,6 +990,19 @@ const SyncStereoTestView = ({ onClose }) => {
           ? rightCompassRef.current?.contentWindow
           : null;
         targetCompassWindow?.postMessage(msg, '*');
+        return;
+      }
+
+      // Requerimiento 017: el overlay "Explore Youtube AR" seleccionó un resultado — rellena los
+      // campos del panel "New Song" (URL/título/autor). Fan-out a AMBOS overlays `newSong`
+      // (izquierdo y derecho), mismo criterio que 'cancion-agregada' de abajo: "New Song" es un
+      // iframe DISTINTO del de "Explore", así que el propio panel también necesita enterarse (no
+      // alcanza con el relevo genérico "mismo overlay, panel opuesto").
+      if (msg.action === 'explore-youtube-select') {
+        const fillMsg = { source: 'ars-sync-test', action: 'explore-youtube-fill', url: msg.url, title: msg.title, artist: msg.artist };
+        [leftRefs, rightRefs].forEach((refs) => {
+          refs.current.newSong?.current?.contentWindow?.postMessage(fillMsg, '*');
+        });
         return;
       }
 
